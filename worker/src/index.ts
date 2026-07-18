@@ -35,13 +35,16 @@ import { crisisHeuristic, guardReply } from "./lib/safety";
 import { CAPS, validateCoachRequest } from "./lib/validate";
 import {
   BLOCKED_REPLY,
+  BUSY_REPLY,
   CRISIS_REPLY,
   FALLBACK_REPLY,
   LIMIT_REPLY,
+  UNAVAILABLE_REPLY,
   cleanApiKey,
   coach,
   moderate,
 } from "./lib/anthropic";
+import { classifyModelError } from "./lib/model-error";
 import widgetSource from "./widget/coach-widget.js.txt";
 
 export interface Env {
@@ -51,6 +54,37 @@ export interface Env {
   WORKER_VERSION: string;
   COACH_MODEL: string;
   MODERATION_MODEL: string;
+}
+
+/* Map a model failure to the learner-facing reply + a loud log line.
+ * Billing and auth failures mean the coach is DOWN until the founder
+ * acts — the log line is the alarm bell (visible in wrangler tail and
+ * Cloudflare observability). */
+function modelFailure(where: string, err: unknown) {
+  const kind = classifyModelError(err);
+  const detail = err as { status?: number; message?: string };
+  if (kind === "billing") {
+    console.error(
+      `[coach] SERVICE DOWN - ANTHROPIC CREDITS EXHAUSTED (${where}): top up at console.anthropic.com`,
+      detail.status ?? "",
+      detail.message ?? "",
+    );
+    return { reply: UNAVAILABLE_REPLY, kind: "unavailable" };
+  }
+  if (kind === "auth") {
+    console.error(
+      `[coach] SERVICE DOWN - API KEY REJECTED (${where}): check/rotate ANTHROPIC_API_KEY`,
+      detail.status ?? "",
+      detail.message ?? "",
+    );
+    return { reply: UNAVAILABLE_REPLY, kind: "unavailable" };
+  }
+  if (kind === "busy") {
+    console.error(`[coach] upstream busy (${where}):`, detail.status ?? "", detail.message ?? "");
+    return { reply: BUSY_REPLY, kind: "busy" };
+  }
+  console.error(`[coach] ${where} failed:`, detail.status ?? "", detail.message ?? String(err));
+  return { reply: FALLBACK_REPLY, kind: "fallback" };
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -202,14 +236,7 @@ app.post("/api/coach", async (c) => {
       return done("blocked", { reply: BLOCKED_REPLY, kind: "blocked" });
     }
   } catch (err) {
-    const detail = err as { status?: number; error?: unknown; message?: string };
-    console.error(
-      "[coach] moderation failed:",
-      detail.status ?? "?",
-      detail.message ?? String(err),
-      JSON.stringify(detail.error ?? null),
-    );
-    return done("moderation_error", { reply: FALLBACK_REPLY, kind: "fallback" });
+    return done("moderation_error", modelFailure("moderation", err));
   }
 
   /* -- 5. Coach reply + output gate ---------------------------------- */
@@ -231,8 +258,7 @@ app.post("/api/coach", async (c) => {
       remaining_day: rate.remainingDay,
     });
   } catch (err) {
-    console.error("[coach] coach call failed:", err);
-    return done("coach_error", { reply: FALLBACK_REPLY, kind: "fallback" });
+    return done("coach_error", modelFailure("coach", err));
   }
 });
 

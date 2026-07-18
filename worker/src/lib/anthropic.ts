@@ -150,3 +150,12 @@ export const FALLBACK_REPLY =
 export const LIMIT_REPLY =
   "You've used all your coach messages for today — nicely worked. " +
   "They'll top back up tomorrow. Your tutor can help with anything that can't wait.";
+
+export const UNAVAILABLE_REPLY =
+  "Fledge is currently unavailable — sorry about that! The team has been notified and I'll be back soon. " +
+  "All your modules still work as normal, and your tutor can help with anything urgent. " +
+  "If you need someone to talk to: Childline — 0800 1111 (under 19), Samaritans — 116 123, any time.";
+
+export const BUSY_REPLY =
+  "I'm answering a lot of questions right now — give it a minute and ask me again. " +
+  "Your modules all work as normal in the meantime.";

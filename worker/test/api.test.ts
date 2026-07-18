@@ -15,9 +15,11 @@ vi.mock("../src/lib/anthropic", async (importOriginal) => {
 import app, { type Env } from "../src/index";
 import {
   BLOCKED_REPLY,
+  BUSY_REPLY,
   CRISIS_REPLY,
   FALLBACK_REPLY,
   LIMIT_REPLY,
+  UNAVAILABLE_REPLY,
   coach,
   moderate,
 } from "../src/lib/anthropic";
@@ -207,6 +209,45 @@ describe("pipeline ordering and outcomes", () => {
     const body = await res.json();
     expect(body.kind).toBe("fallback");
     expect(body.reply).toBe(FALLBACK_REPLY);
+  });
+
+  it("exhausted Anthropic credits serve the 'currently unavailable' reply", async () => {
+    coachMock.mockRejectedValue({
+      status: 400,
+      message:
+        '400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}',
+    });
+    const res = await app.request(coachPost(goodBody()), undefined, makeEnv());
+    const body = await res.json();
+    expect(body.kind).toBe("unavailable");
+    expect(body.reply).toBe(UNAVAILABLE_REPLY);
+    expect(body.reply).toContain("currently unavailable");
+  });
+
+  it("exhausted credits during moderation also serve 'currently unavailable'", async () => {
+    moderateMock.mockRejectedValue({
+      status: 400,
+      message: "Your credit balance is too low to access the Anthropic API.",
+    });
+    const res = await app.request(coachPost(goodBody()), undefined, makeEnv());
+    const body = await res.json();
+    expect(body.kind).toBe("unavailable");
+    expect(body.reply).toBe(UNAVAILABLE_REPLY);
+    expect(coachMock).not.toHaveBeenCalled();
+  });
+
+  it("a rejected API key serves 'currently unavailable'", async () => {
+    moderateMock.mockRejectedValue({ status: 401, message: "authentication_error" });
+    const res = await app.request(coachPost(goodBody()), undefined, makeEnv());
+    expect((await res.json()).kind).toBe("unavailable");
+  });
+
+  it("an overloaded upstream serves the 'busy' reply", async () => {
+    coachMock.mockRejectedValue({ status: 529, message: "overloaded_error" });
+    const res = await app.request(coachPost(goodBody()), undefined, makeEnv());
+    const body = await res.json();
+    expect(body.kind).toBe("busy");
+    expect(body.reply).toBe(BUSY_REPLY);
   });
 
   it("rate limit fires before any model call", async () => {
