@@ -7,9 +7,8 @@
   head-slot code inside the course player, body-slot code runs
   everywhere including the player).
 
-  BEFORE PASTING: replace YOUR-WORKER-URL below with the real
-  worker URL printed by `wrangler deploy`, e.g.
-  https://fledglings-coach.YOUR-SUBDOMAIN.workers.dev
+  The worker URL below is the live deployment — paste this file's
+  contents as-is.
 
   {{USER.NAME}} is a LearnWorlds Liquid variable — it is replaced
   with the logged-in learner's name at render time and used only
@@ -18,8 +17,8 @@
   ============================================================ -->
 <script>
   window.FLEDGLINGS_COACH = {
-    endpoint: "https://YOUR-WORKER-URL",
+    endpoint: "https://fledglings-coach.fledglings.workers.dev",
     learnerName: "{{USER.NAME}}"
   };
 </script>
-<script src="https://YOUR-WORKER-URL/widget.js" defer></script>
+<script src="https://fledglings-coach.fledglings.workers.dev/widget.js" defer></script>

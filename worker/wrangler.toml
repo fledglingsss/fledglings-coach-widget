@@ -28,7 +28,7 @@ MODERATION_MODEL = "claude-haiku-4-5"
 # printed by the CLI into this block.
 [[kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "REPLACE_WITH_KV_ID_FROM_WRANGLER"
+id = "cbaee95911f54d1b8dd70acfe1d83b8b"
 
 # Inline-text loader — prompts and the widget source ship as
 # version-controlled text files imported at build time.
