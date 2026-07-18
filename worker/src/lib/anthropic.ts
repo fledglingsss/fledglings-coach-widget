@@ -22,6 +22,17 @@ import type { ChatTurn } from "./validate";
 
 export type ModerationVerdict = "ALLOW" | "BLOCK" | "CRISIS";
 
+/* The proven Fledglings cleanKey() rail: tolerate a secret that was
+ * pasted with quotes, whitespace, CR/LF, or surrounding text (the June
+ * 2026 incident was a whole curl command pasted as the secret). An
+ * sk-ant-… token found anywhere in the value wins; otherwise the value
+ * is stripped of anything a header cannot carry. */
+export function cleanApiKey(raw: string): string {
+  const match = raw.match(/sk-ant-[A-Za-z0-9_-]{10,}/);
+  if (match) return match[0];
+  return raw.replace(/[^\x21-\x7E]/g, "");
+}
+
 const COACH_MAX_TOKENS = 400;
 const MODERATION_MAX_TOKENS = 5;
 const COACH_TIMEOUT_MS = 30_000;
@@ -43,7 +54,7 @@ export async function moderate(
   message: string,
 ): Promise<ModerationVerdict> {
   const client = new Anthropic({
-    apiKey,
+    apiKey: cleanApiKey(apiKey),
     timeout: MODERATION_TIMEOUT_MS,
     maxRetries: MAX_RETRIES,
   });
@@ -82,7 +93,7 @@ export async function coach(
   context: { learnerName: string; page: string },
 ): Promise<string> {
   const client = new Anthropic({
-    apiKey,
+    apiKey: cleanApiKey(apiKey),
     timeout: COACH_TIMEOUT_MS,
     maxRetries: MAX_RETRIES,
   });

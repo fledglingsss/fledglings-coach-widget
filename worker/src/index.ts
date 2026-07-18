@@ -38,6 +38,7 @@ import {
   CRISIS_REPLY,
   FALLBACK_REPLY,
   LIMIT_REPLY,
+  cleanApiKey,
   coach,
   moderate,
 } from "./lib/anthropic";
@@ -91,6 +92,11 @@ app.get("/health", (c) => {
     version: c.env.WORKER_VERSION || "dev",
     coach_disabled: (c.env.COACH_DISABLED || "false").toLowerCase() === "true",
     api_key_configured: Boolean(c.env.ANTHROPIC_API_KEY),
+    /* True only when the stored secret actually contains an sk-ant-…
+     * token — catches empty/whitespace/mangled pastes loudly. */
+    api_key_looks_valid: cleanApiKey(c.env.ANTHROPIC_API_KEY || "").startsWith(
+      "sk-ant-",
+    ),
   });
 });
 
@@ -178,7 +184,13 @@ app.post("/api/coach", async (c) => {
       return done("blocked", { reply: BLOCKED_REPLY, kind: "blocked" });
     }
   } catch (err) {
-    console.error("[coach] moderation failed:", err);
+    const detail = err as { status?: number; error?: unknown; message?: string };
+    console.error(
+      "[coach] moderation failed:",
+      detail.status ?? "?",
+      detail.message ?? String(err),
+      JSON.stringify(detail.error ?? null),
+    );
     return done("moderation_error", { reply: FALLBACK_REPLY, kind: "fallback" });
   }
 
