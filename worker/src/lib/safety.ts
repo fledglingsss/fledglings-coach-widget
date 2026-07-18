@@ -52,6 +52,20 @@ const CRISIS_PATTERNS: RegExp[] = [
   /\bthreaten(?:ed|ing)? (?:to (?:kill|hurt)|me|us)\b/i,
   /\bno reason to (?:live|carry on|go on)\b/i,
   /\bunsafe at home\b/i,
+  /\bnot be(?:ing)? here any ?more\b/i,
+  /\bbetter off without me\b/i,
+  /\bnobody would (?:care|notice|miss)\b/i,
+  /\bno ?one would (?:care|notice|miss)\b/i,
+  /\bwhat'?s the point of anything\b/i,
+  /\bstarv(?:e|ing) myself\b/i,
+  /\bmak(?:e|ing) myself (?:sick|throw up|vomit)\b/i,
+  /\bbully(?:ing|ied)? me\b/i,
+  /\bbeing bullied\b/i,
+  /\bwant to (?:hurt|kill) (?:him|her|them|someone)\b/i,
+  /\brun(?:ning)? away from home\b/i,
+  /\bdon'?t feel safe\b/i,
+  /\bsend(?:ing)? (?:him|her|them|someone)? ?nudes\b/i,
+  /\bpressur(?:ed|ing) me (?:into|to)\b/i,
 ];
 
 /** True when the message plainly indicates possible risk of harm. */

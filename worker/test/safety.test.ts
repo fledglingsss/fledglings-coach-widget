@@ -52,6 +52,18 @@ describe("crisisHeuristic", () => {
       "I think I'm being groomed by someone online",
       "I feel unsafe at home",
       "there's no reason to carry on",
+      "I've been thinking about not being here anymore",
+      "everyone would be better off without me",
+      "nobody would notice if I was gone",
+      "I've been starving myself all week",
+      "I keep making myself sick after meals",
+      "people at work keep bullying me",
+      "I'm being bullied in the group chat",
+      "sometimes I want to hurt him for what he did",
+      "I'm thinking of running away from home",
+      "I don't feel safe walking home from my placement",
+      "he keeps asking me to send nudes",
+      "my manager keeps pressuring me into staying late alone with him",
     ];
     for (const message of crisis) {
       expect(crisisHeuristic(message), message).toBe(true);
@@ -67,6 +79,12 @@ describe("crisisHeuristic", () => {
       "how do I complain about my apprenticeship wage?",
       "my landlord is putting the rent up, what are my rights?",
       "this budgeting module is killing me lol",
+      "what's the point of a budget?",
+      "how do I notice a scam before it's too late?",
+      "the module on bullying at work was really useful",
+      "I'd kill for that apprenticeship placement",
+      "my phone is sick, the new update is great",
+      "how do I run my own side business from home?",
     ];
     for (const message of safe) {
       expect(crisisHeuristic(message), message).toBe(false);

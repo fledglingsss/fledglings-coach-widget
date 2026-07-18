@@ -8,7 +8,8 @@
     "deploy": "npm run verify && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify": "npm run typecheck && vitest run"
+    "verify": "npm run typecheck && vitest run",
+    "redteam": "node scripts/redteam.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.62.0",
