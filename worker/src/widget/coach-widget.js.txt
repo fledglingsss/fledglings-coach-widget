@@ -106,10 +106,11 @@
     "#fl-coach-close:focus-visible{outline:2px solid var(--fl-mango);}" +
 
     /* messages */
-    "#fl-coach-msgs{flex:1;overflow-y:auto;padding:16px 14px;background:var(--fl-off);display:flex;" +
-      "flex-direction:column;gap:10px;}" +
-    ".fl-msg{max-width:85%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;" +
+    "#fl-coach-msgs{flex:1;overflow-y:auto;padding:18px 16px;background:var(--fl-off);display:flex;" +
+      "flex-direction:column;gap:14px;}" +
+    ".fl-msg{max-width:88%;padding:14px 18px;border-radius:18px;font-size:14.5px;line-height:1.65;" +
       "word-wrap:break-word;animation:flRise .18s ease;}" +
+    ".fl-msg br{content:'';display:block;margin-top:7px;}" +
     "@keyframes flRise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}" +
     ".fl-msg strong{font-weight:600;}" +
     ".fl-msg-user{align-self:flex-end;background:var(--fl-navy);color:#fff;border-bottom-right-radius:5px;}" +
