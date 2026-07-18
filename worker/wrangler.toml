@@ -1,0 +1,41 @@
+# Fledglings school-wide AI coach — Cloudflare Worker.
+# Serves the floating chat widget (GET /widget.js) and the coach API
+# (POST /api/coach) for the LearnWorlds school at fledglings.co.
+
+name = "fledglings-coach"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Kill switch — set to "true" to make the coach return its authored
+# fallback for every request (widget stays up, model calls stop).
+COACH_DISABLED = "false"
+
+# Bumped on every meaningful change so behaviour can be traced back
+# to the deploying version.
+WORKER_VERSION = "0.1.0"
+
+# Cost levers — same convention as the fledglings-feedback worker.
+# Coach replies use Sonnet (the proven tier for the SCORM coach);
+# the moderation pre-pass uses Haiku. Override either without a
+# redeploy via `wrangler secret put`.
+COACH_MODEL = "claude-sonnet-4-6"
+MODERATION_MODEL = "claude-haiku-4-5"
+
+# KV — rate-limit counters (per-learner daily + per-session).
+# After `wrangler kv namespace create RATE_LIMITS`, paste the id
+# printed by the CLI into this block.
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "REPLACE_WITH_KV_ID_FROM_WRANGLER"
+
+# Inline-text loader — prompts and the widget source ship as
+# version-controlled text files imported at build time.
+[[rules]]
+type = "Text"
+globs = ["**/*.txt"]
+fallthrough = true
+
+[observability]
+enabled = true

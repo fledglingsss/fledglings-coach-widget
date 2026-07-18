@@ -1,0 +1,25 @@
+<!-- ============================================================
+  Fledglings coach — LearnWorlds paste-in snippet.
+
+  WHERE: LearnWorlds admin → Site Builder → Settings (gear) →
+  Custom Code → "Before the closing of the BODY tag" (the GLOBAL
+  body-end slot — NOT the head slot: LearnWorlds does not inject
+  head-slot code inside the course player, body-slot code runs
+  everywhere including the player).
+
+  BEFORE PASTING: replace YOUR-WORKER-URL below with the real
+  worker URL printed by `wrangler deploy`, e.g.
+  https://fledglings-coach.YOUR-SUBDOMAIN.workers.dev
+
+  {{USER.NAME}} is a LearnWorlds Liquid variable — it is replaced
+  with the logged-in learner's name at render time and used only
+  to greet the learner. The widget sends no other personal data
+  and stores the conversation only in the learner's own browser.
+  ============================================================ -->
+<script>
+  window.FLEDGLINGS_COACH = {
+    endpoint: "https://YOUR-WORKER-URL",
+    learnerName: "{{USER.NAME}}"
+  };
+</script>
+<script src="https://YOUR-WORKER-URL/widget.js" defer></script>

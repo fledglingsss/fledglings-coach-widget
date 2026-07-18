@@ -1,0 +1,262 @@
+/* Fledglings coach widget — floating chat for the LearnWorlds school.
+ * Self-contained: injects its own styles, loads the Outfit font, keeps
+ * conversation history in sessionStorage only. Served by the
+ * fledglings-coach worker at GET /widget.js.
+ *
+ * Page config (set before this script loads):
+ *   window.FLEDGLINGS_COACH = {
+ *     endpoint: "https://…workers.dev",   // required, no trailing slash
+ *     learnerName: "{{USER.NAME}}",        // optional Liquid variable
+ *   };
+ */
+(function () {
+  "use strict";
+
+  var cfg = window.FLEDGLINGS_COACH || {};
+  var ENDPOINT = (cfg.endpoint || "").replace(/\/+$/, "");
+  if (!ENDPOINT) return;
+
+  /* One widget per page, ever. */
+  if (document.getElementById("fl-coach-root")) return;
+
+  var STORAGE_HISTORY = "fl_coach_history_v1";
+  var STORAGE_LEARNER = "fl_coach_learner_v1";
+  var STORAGE_SESSION = "fl_coach_session_v1";
+  var MAX_TURNS_SENT = 12;
+  var MAX_INPUT_CHARS = 1000;
+
+  /* ---- identity (rate limiting only — no personal data) ---- */
+  function randomId() {
+    try {
+      var a = new Uint8Array(16);
+      crypto.getRandomValues(a);
+      return Array.prototype.map
+        .call(a, function (b) { return ("0" + b.toString(16)).slice(-2); })
+        .join("");
+    } catch (e) {
+      return "f" + String(Math.random()).slice(2) + String(new Date().getTime());
+    }
+  }
+  function stored(store, key) {
+    try {
+      var v = store.getItem(key);
+      if (!v) { v = randomId(); store.setItem(key, v); }
+      return v;
+    } catch (e) { return randomId(); }
+  }
+  var learnerId = stored(window.localStorage, STORAGE_LEARNER);
+  var sessionId = stored(window.sessionStorage, STORAGE_SESSION);
+
+  var learnerName = typeof cfg.learnerName === "string" ? cfg.learnerName.trim() : "";
+  /* An unreplaced Liquid tag means we're outside LearnWorlds — drop it. */
+  if (learnerName.indexOf("{{") !== -1) learnerName = "";
+  var firstName = learnerName.split(" ")[0] || "";
+
+  /* ---- history (browser only) ---- */
+  function loadHistory() {
+    try {
+      var raw = window.sessionStorage.getItem(STORAGE_HISTORY);
+      var h = raw ? JSON.parse(raw) : [];
+      return Array.isArray(h) ? h : [];
+    } catch (e) { return []; }
+  }
+  function saveHistory(h) {
+    try { window.sessionStorage.setItem(STORAGE_HISTORY, JSON.stringify(h.slice(-30))); } catch (e) {}
+  }
+  var history = loadHistory();
+
+  /* ---- styles ---- */
+  var css = "" +
+    "#fl-coach-root{--fl-navy:#05253C;--fl-orange:#D9452B;--fl-mango:#ED9249;--fl-blue:#13507F;--fl-off:#ECE7E6;" +
+      "font-family:'Outfit',Arial,Helvetica,sans-serif;position:fixed;right:20px;bottom:20px;z-index:2147483000;}" +
+    "#fl-coach-root *{box-sizing:border-box;margin:0;padding:0;}" +
+    "#fl-coach-btn{width:56px;height:56px;border-radius:50%;border:none;background:var(--fl-orange);color:#fff;" +
+      "cursor:pointer;box-shadow:0 4px 14px rgba(5,37,60,.35);display:flex;align-items:center;justify-content:center;" +
+      "font-size:26px;line-height:1;transition:transform .15s ease;}" +
+    "#fl-coach-btn:hover{transform:scale(1.06);}" +
+    "#fl-coach-btn:focus-visible{outline:3px solid var(--fl-navy);outline-offset:2px;}" +
+    "#fl-coach-panel{position:fixed;right:16px;bottom:88px;width:min(370px,calc(100vw - 32px));" +
+      "height:min(540px,calc(100vh - 120px));background:#fff;border-radius:16px;overflow:hidden;display:none;" +
+      "flex-direction:column;box-shadow:0 12px 40px rgba(5,37,60,.4);}" +
+    "#fl-coach-panel.fl-open{display:flex;}" +
+    "#fl-coach-head{background:var(--fl-navy);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;}" +
+    "#fl-coach-head .fl-dot{width:10px;height:10px;border-radius:50%;background:var(--fl-mango);flex:none;}" +
+    "#fl-coach-head h2{font-size:16px;font-weight:600;flex:1;}" +
+    "#fl-coach-close{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:44px;height:44px;" +
+      "margin:-10px -10px -10px 0;border-radius:8px;}" +
+    "#fl-coach-close:focus-visible{outline:2px solid var(--fl-mango);}" +
+    "#fl-coach-msgs{flex:1;overflow-y:auto;padding:14px;background:var(--fl-off);display:flex;flex-direction:column;gap:10px;}" +
+    ".fl-msg{max-width:86%;padding:10px 13px;border-radius:12px;font-size:14.5px;line-height:1.45;white-space:pre-wrap;" +
+      "word-wrap:break-word;}" +
+    ".fl-msg-user{align-self:flex-end;background:var(--fl-navy);color:#fff;border-bottom-right-radius:4px;}" +
+    ".fl-msg-coach{align-self:flex-start;background:#fff;color:var(--fl-navy);border-bottom-left-radius:4px;" +
+      "box-shadow:0 1px 3px rgba(5,37,60,.12);}" +
+    ".fl-msg-crisis{border-left:4px solid var(--fl-orange);}" +
+    ".fl-typing{align-self:flex-start;color:var(--fl-blue);font-size:13px;padding:2px 6px;}" +
+    "#fl-coach-form{display:flex;gap:8px;padding:12px;background:#fff;border-top:1px solid var(--fl-off);}" +
+    "#fl-coach-input{flex:1;border:2px solid var(--fl-off);border-radius:10px;padding:10px 12px;font-size:14.5px;" +
+      "font-family:inherit;color:var(--fl-navy);min-height:44px;resize:none;}" +
+    "#fl-coach-input:focus{outline:none;border-color:var(--fl-blue);}" +
+    "#fl-coach-send{background:var(--fl-orange);border:none;color:#fff;border-radius:10px;min-width:44px;min-height:44px;" +
+      "font-size:18px;cursor:pointer;}" +
+    "#fl-coach-send:disabled{opacity:.5;cursor:default;}" +
+    "#fl-coach-send:focus-visible{outline:3px solid var(--fl-navy);outline-offset:2px;}" +
+    "#fl-coach-foot{padding:4px 14px 6px;background:#fff;font-size:12px;color:var(--fl-blue);text-align:center;}" +
+    "#fl-coach-foot button{background:none;border:none;font:inherit;color:var(--fl-orange);font-weight:600;" +
+      "text-decoration:underline;cursor:pointer;padding:10px 6px;min-height:40px;}" +
+    "#fl-coach-foot button:focus-visible{outline:2px solid var(--fl-navy);border-radius:6px;}" +
+    "@media (prefers-reduced-motion:reduce){#fl-coach-btn{transition:none;}#fl-coach-btn:hover{transform:none;}}";
+
+  /* ---- font ---- */
+  if (!document.querySelector("link[href*='family=Outfit']")) {
+    var font = document.createElement("link");
+    font.rel = "stylesheet";
+    font.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&display=swap";
+    document.head.appendChild(font);
+  }
+  var style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  /* ---- DOM ---- */
+  var root = document.createElement("div");
+  root.id = "fl-coach-root";
+  root.innerHTML =
+    '<div id="fl-coach-panel" role="dialog" aria-modal="false" aria-label="Fledge, your Fledglings coach">' +
+      '<div id="fl-coach-head"><span class="fl-dot" aria-hidden="true"></span>' +
+        "<h2>Fledge &mdash; your coach</h2>" +
+        '<button id="fl-coach-close" type="button" aria-label="Close coach chat">&times;</button></div>' +
+      '<div id="fl-coach-msgs" aria-live="polite"></div>' +
+      '<form id="fl-coach-form">' +
+        '<textarea id="fl-coach-input" rows="1" maxlength="' + MAX_INPUT_CHARS + '" ' +
+          'placeholder="Ask about money, work, confidence, staying safe…" aria-label="Message Fledge"></textarea>' +
+        '<button id="fl-coach-send" type="submit" aria-label="Send message">&#10148;</button></form>' +
+      '<div id="fl-coach-foot">Need a real person? <button type="button" id="fl-coach-help">Talk to someone</button></div>' +
+    "</div>" +
+    '<button id="fl-coach-btn" type="button" aria-label="Open Fledge, your Fledglings coach" aria-expanded="false">' +
+      "&#128172;</button>";
+  document.body.appendChild(root);
+
+  var btn = document.getElementById("fl-coach-btn");
+  var panel = document.getElementById("fl-coach-panel");
+  var msgs = document.getElementById("fl-coach-msgs");
+  var form = document.getElementById("fl-coach-form");
+  var input = document.getElementById("fl-coach-input");
+  var send = document.getElementById("fl-coach-send");
+
+  var SUPPORT_TEXT =
+    "If you need someone to talk to right now: your tutor, or a trusted adult, is a great first step. " +
+    "Childline — 0800 1111 (under 19). Samaritans — 116 123, free, any time. " +
+    "Shout — text 85258. In immediate danger, call 999.";
+
+  function addMsg(role, text, crisis) {
+    var div = document.createElement("div");
+    div.className = "fl-msg " + (role === "user" ? "fl-msg-user" : "fl-msg-coach") + (crisis ? " fl-msg-crisis" : "");
+    div.textContent = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function renderHistory() {
+    msgs.innerHTML = "";
+    if (history.length === 0) {
+      addMsg("coach", (firstName ? "Hi " + firstName + "! " : "Hi! ") +
+        "I'm Fledge, your Fledglings coach. Ask me anything about the modules — money, work, confidence, or staying safe online.");
+    } else {
+      for (var i = 0; i < history.length; i++) addMsg(history[i].role === "user" ? "user" : "coach", history[i].content);
+    }
+  }
+
+  document.getElementById("fl-coach-help").addEventListener("click", function () {
+    addMsg("coach", SUPPORT_TEXT, true);
+  });
+
+  var open = false;
+  function setOpen(next) {
+    open = next;
+    panel.className = open ? "fl-open" : "";
+    btn.setAttribute("aria-expanded", String(open));
+    if (open) { renderHistory(); input.focus(); }
+    else { btn.focus(); }
+  }
+  btn.addEventListener("click", function () { setOpen(!open); });
+  document.getElementById("fl-coach-close").addEventListener("click", function () { setOpen(false); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && open) setOpen(false);
+  });
+
+  var busy = false;
+  function setBusy(next) {
+    busy = next;
+    send.disabled = next;
+    var t = document.getElementById("fl-coach-typing");
+    if (next && !t) {
+      t = document.createElement("div");
+      t.id = "fl-coach-typing";
+      t.className = "fl-typing";
+      t.textContent = "Fledge is thinking…";
+      msgs.appendChild(t);
+      msgs.scrollTop = msgs.scrollHeight;
+    } else if (!next && t) {
+      t.parentNode.removeChild(t);
+    }
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (busy) return;
+    var text = input.value.trim().slice(0, MAX_INPUT_CHARS);
+    if (!text) return;
+    input.value = "";
+    addMsg("user", text);
+    history.push({ role: "user", content: text });
+    saveHistory(history);
+    setBusy(true);
+
+    fetch(ENDPOINT + "/api/coach", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        learner_id: learnerId,
+        session_id: sessionId,
+        learner_name: firstName,
+        page: (document.title || "").slice(0, 160),
+        messages: history.slice(-MAX_TURNS_SENT),
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setBusy(false);
+        var reply = data && typeof data.reply === "string" && data.reply
+          ? data.reply
+          : "Sorry — something went wrong. Try again in a minute.";
+        addMsg("coach", reply, data && data.kind === "crisis");
+        history.push({ role: "assistant", content: reply });
+        saveHistory(history);
+      })
+      .catch(function () {
+        setBusy(false);
+        addMsg("coach", "I can't reach the coach right now — give it another go in a minute. " + SUPPORT_TEXT, true);
+      });
+  });
+
+  /* Enter sends; Shift+Enter for a new line. */
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (typeof form.requestSubmit === "function") form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
+  });
+
+  /* Liveness probe — if the worker is unreachable or killed, remove the
+   * button entirely rather than showing a broken chat. */
+  fetch(ENDPOINT + "/health")
+    .then(function (r) { return r.json(); })
+    .then(function (h) {
+      if (!h || h.ok !== true) root.parentNode.removeChild(root);
+    })
+    .catch(function () {
+      if (root.parentNode) root.parentNode.removeChild(root);
+    });
+})();

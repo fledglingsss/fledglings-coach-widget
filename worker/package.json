@@ -1,0 +1,23 @@
+{
+  "name": "fledglings-coach-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fledglings school-wide AI coach — Cloudflare Worker backend + widget host",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "npm run verify && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "npm run typecheck && vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.62.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260714.1",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

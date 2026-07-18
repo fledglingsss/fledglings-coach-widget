@@ -1,0 +1,25 @@
+/* Origin allowlist — same pattern as the fledglings-feedback worker.
+ * Accept requests only from the Fledglings school (fledglings.co and
+ * the legacy fledglings-school.co.uk), LearnWorlds-hosted surfaces,
+ * and localhost for development. */
+
+const ALLOWED_HOSTS = [
+  /^(.*\.)?fledglings\.co$/,
+  /^(.*\.)?fledglings-school\.co\.uk$/,
+  /^(.*\.)?learnworlds\.com$/,
+  /^(.*\.)?mycourse\.app$/,
+  /^localhost(:\d+)?$/,
+  /^127\.0\.0\.1(:\d+)?$/,
+];
+
+/** Returns true if the Origin (or Referer) header value is allowed. */
+export function isOriginAllowed(origin: string): boolean {
+  if (!origin) return false;
+  let host: string;
+  try {
+    host = new URL(origin).host.toLowerCase();
+  } catch {
+    return false;
+  }
+  return ALLOWED_HOSTS.some((re) => re.test(host));
+}
