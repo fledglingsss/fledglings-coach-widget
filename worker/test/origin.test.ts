@@ -14,6 +14,11 @@ describe("isOriginAllowed", () => {
     expect(isOriginAllowed("https://lwfiles.mycourse.app")).toBe(true);
   });
 
+  it("allows the worker's own preview page", () => {
+    expect(isOriginAllowed("https://fledglings-coach.fledglings.workers.dev")).toBe(true);
+    expect(isOriginAllowed("https://evil.fledglings.workers.dev")).toBe(false);
+  });
+
   it("allows localhost for development", () => {
     expect(isOriginAllowed("http://localhost:8799")).toBe(true);
     expect(isOriginAllowed("http://127.0.0.1:3000")).toBe(true);

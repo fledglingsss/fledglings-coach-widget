@@ -15,8 +15,6 @@
   var cfg = window.FLEDGLINGS_COACH || {};
   var ENDPOINT = (cfg.endpoint || "").replace(/\/+$/, "");
   if (!ENDPOINT) return;
-
-  /* One widget per page, ever. */
   if (document.getElementById("fl-coach-root")) return;
 
   var STORAGE_HISTORY = "fl_coach_history_v1";
@@ -48,7 +46,6 @@
   var sessionId = stored(window.sessionStorage, STORAGE_SESSION);
 
   var learnerName = typeof cfg.learnerName === "string" ? cfg.learnerName.trim() : "";
-  /* An unreplaced Liquid tag means we're outside LearnWorlds — drop it. */
   if (learnerName.indexOf("{{") !== -1) learnerName = "";
   var firstName = learnerName.split(" ")[0] || "";
 
@@ -65,76 +62,141 @@
   }
   var history = loadHistory();
 
-  /* ---- styles ---- */
+  /* ---- brand styles ---- */
   var css = "" +
     "#fl-coach-root{--fl-navy:#05253C;--fl-orange:#D9452B;--fl-mango:#ED9249;--fl-blue:#13507F;--fl-off:#ECE7E6;" +
-      "font-family:'Outfit',Arial,Helvetica,sans-serif;position:fixed;right:20px;bottom:20px;z-index:2147483000;}" +
-    "#fl-coach-root *{box-sizing:border-box;margin:0;padding:0;}" +
-    "#fl-coach-btn{width:56px;height:56px;border-radius:50%;border:none;background:var(--fl-orange);color:#fff;" +
-      "cursor:pointer;box-shadow:0 4px 14px rgba(5,37,60,.35);display:flex;align-items:center;justify-content:center;" +
-      "font-size:26px;line-height:1;transition:transform .15s ease;}" +
-    "#fl-coach-btn:hover{transform:scale(1.06);}" +
-    "#fl-coach-btn:focus-visible{outline:3px solid var(--fl-navy);outline-offset:2px;}" +
-    "#fl-coach-panel{position:fixed;right:16px;bottom:88px;width:min(370px,calc(100vw - 32px));" +
-      "height:min(540px,calc(100vh - 120px));background:#fff;border-radius:16px;overflow:hidden;display:none;" +
-      "flex-direction:column;box-shadow:0 12px 40px rgba(5,37,60,.4);}" +
-    "#fl-coach-panel.fl-open{display:flex;}" +
-    "#fl-coach-head{background:var(--fl-navy);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;}" +
-    "#fl-coach-head .fl-dot{width:10px;height:10px;border-radius:50%;background:var(--fl-mango);flex:none;}" +
-    "#fl-coach-head h2{font-size:16px;font-weight:600;flex:1;}" +
-    "#fl-coach-close{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:44px;height:44px;" +
-      "margin:-10px -10px -10px 0;border-radius:8px;}" +
-    "#fl-coach-close:focus-visible{outline:2px solid var(--fl-mango);}" +
-    "#fl-coach-msgs{flex:1;overflow-y:auto;padding:14px;background:var(--fl-off);display:flex;flex-direction:column;gap:10px;}" +
-    ".fl-msg{max-width:86%;padding:10px 13px;border-radius:12px;font-size:14.5px;line-height:1.45;white-space:pre-wrap;" +
-      "word-wrap:break-word;}" +
-    ".fl-msg-user{align-self:flex-end;background:var(--fl-navy);color:#fff;border-bottom-right-radius:4px;}" +
-    ".fl-msg-coach{align-self:flex-start;background:#fff;color:var(--fl-navy);border-bottom-left-radius:4px;" +
-      "box-shadow:0 1px 3px rgba(5,37,60,.12);}" +
-    ".fl-msg-crisis{border-left:4px solid var(--fl-orange);}" +
-    ".fl-typing{align-self:flex-start;color:var(--fl-blue);font-size:13px;padding:2px 6px;}" +
-    "#fl-coach-form{display:flex;gap:8px;padding:12px;background:#fff;border-top:1px solid var(--fl-off);}" +
-    "#fl-coach-input{flex:1;border:2px solid var(--fl-off);border-radius:10px;padding:10px 12px;font-size:14.5px;" +
-      "font-family:inherit;color:var(--fl-navy);min-height:44px;resize:none;}" +
-    "#fl-coach-input:focus{outline:none;border-color:var(--fl-blue);}" +
-    "#fl-coach-send{background:var(--fl-orange);border:none;color:#fff;border-radius:10px;min-width:44px;min-height:44px;" +
-      "font-size:18px;cursor:pointer;}" +
-    "#fl-coach-send:disabled{opacity:.5;cursor:default;}" +
-    "#fl-coach-send:focus-visible{outline:3px solid var(--fl-navy);outline-offset:2px;}" +
-    "#fl-coach-foot{padding:4px 14px 6px;background:#fff;font-size:12px;color:var(--fl-blue);text-align:center;}" +
-    "#fl-coach-foot button{background:none;border:none;font:inherit;color:var(--fl-orange);font-weight:600;" +
-      "text-decoration:underline;cursor:pointer;padding:10px 6px;min-height:40px;}" +
-    "#fl-coach-foot button:focus-visible{outline:2px solid var(--fl-navy);border-radius:6px;}" +
-    "@media (prefers-reduced-motion:reduce){#fl-coach-btn{transition:none;}#fl-coach-btn:hover{transform:none;}}";
+      "position:fixed;right:20px;bottom:20px;z-index:2147483000;}" +
+    "#fl-coach-root,#fl-coach-root *{box-sizing:border-box;margin:0;padding:0;" +
+      "font-family:'Outfit',Arial,Helvetica,sans-serif!important;}" +
 
-  /* ---- font ---- */
+    /* launcher button */
+    "#fl-coach-btn{width:62px;height:62px;border-radius:50%;border:none;cursor:pointer;position:relative;" +
+      "background:linear-gradient(135deg,var(--fl-orange) 0%,var(--fl-mango) 120%);color:#fff;" +
+      "box-shadow:0 6px 20px rgba(5,37,60,.35);display:flex;align-items:center;justify-content:center;" +
+      "transition:transform .18s ease,box-shadow .18s ease;}" +
+    "#fl-coach-btn:hover{transform:translateY(-3px) scale(1.05);box-shadow:0 10px 26px rgba(5,37,60,.45);}" +
+    "#fl-coach-btn:focus-visible{outline:3px solid var(--fl-navy);outline-offset:3px;}" +
+    "#fl-coach-btn svg{width:30px;height:30px;}" +
+    "#fl-coach-btn .fl-badge{position:absolute;top:-2px;right:-2px;width:16px;height:16px;border-radius:50%;" +
+      "background:var(--fl-navy);border:2.5px solid #fff;}" +
+
+    /* panel */
+    "#fl-coach-panel{position:fixed;right:16px;bottom:94px;width:min(390px,calc(100vw - 32px));" +
+      "height:min(580px,calc(100vh - 130px));background:#fff;border-radius:20px;overflow:hidden;display:none;" +
+      "flex-direction:column;box-shadow:0 18px 50px rgba(5,37,60,.45);" +
+      "transform-origin:bottom right;}" +
+    "#fl-coach-panel.fl-open{display:flex;animation:flPop .22s ease;}" +
+    "@keyframes flPop{from{opacity:0;transform:scale(.92) translateY(10px);}to{opacity:1;transform:none;}}" +
+
+    /* header */
+    "#fl-coach-head{background:linear-gradient(120deg,var(--fl-navy) 0%,var(--fl-blue) 100%);color:#fff;" +
+      "padding:16px 18px;display:flex;align-items:center;gap:12px;flex:none;}" +
+    "#fl-coach-avatar{width:42px;height:42px;border-radius:50%;flex:none;display:flex;align-items:center;" +
+      "justify-content:center;background:linear-gradient(135deg,var(--fl-orange),var(--fl-mango));}" +
+    "#fl-coach-avatar svg{width:22px;height:22px;}" +
+    "#fl-coach-title{flex:1;min-width:0;}" +
+    "#fl-coach-title h2{font-size:17px;font-weight:600;line-height:1.2;letter-spacing:.2px;}" +
+    "#fl-coach-title p{font-size:12.5px;color:#CFE0EE;font-weight:500;display:flex;align-items:center;gap:6px;}" +
+    "#fl-coach-title .fl-dot{width:8px;height:8px;border-radius:50%;background:#7BE0A2;flex:none;" +
+      "animation:flPulse 2s infinite;}" +
+    "@keyframes flPulse{0%,100%{opacity:1;}50%{opacity:.45;}}" +
+    "#fl-coach-close{background:rgba(255,255,255,.12);border:none;color:#fff;font-size:20px;cursor:pointer;" +
+      "width:36px;height:36px;border-radius:10px;flex:none;line-height:1;transition:background .15s ease;}" +
+    "#fl-coach-close:hover{background:rgba(255,255,255,.25);}" +
+    "#fl-coach-close:focus-visible{outline:2px solid var(--fl-mango);}" +
+
+    /* messages */
+    "#fl-coach-msgs{flex:1;overflow-y:auto;padding:16px 14px;background:var(--fl-off);display:flex;" +
+      "flex-direction:column;gap:10px;}" +
+    ".fl-msg{max-width:85%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;" +
+      "word-wrap:break-word;animation:flRise .18s ease;}" +
+    "@keyframes flRise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}" +
+    ".fl-msg strong{font-weight:600;}" +
+    ".fl-msg-user{align-self:flex-end;background:var(--fl-navy);color:#fff;border-bottom-right-radius:5px;}" +
+    ".fl-msg-coach{align-self:flex-start;background:#fff;color:var(--fl-navy);border-bottom-left-radius:5px;" +
+      "box-shadow:0 1px 4px rgba(5,37,60,.10);}" +
+    ".fl-msg-crisis{border-left:4px solid var(--fl-orange);background:#FFF6F0;}" +
+
+    /* typing indicator */
+    ".fl-typing{align-self:flex-start;background:#fff;border-radius:16px;border-bottom-left-radius:5px;" +
+      "padding:13px 16px;box-shadow:0 1px 4px rgba(5,37,60,.10);display:flex;gap:5px;align-items:center;}" +
+    ".fl-typing span{width:7px;height:7px;border-radius:50%;background:var(--fl-mango);display:inline-block;" +
+      "animation:flBounce 1.2s infinite;}" +
+    ".fl-typing span:nth-child(2){animation-delay:.15s;}" +
+    ".fl-typing span:nth-child(3){animation-delay:.3s;}" +
+    "@keyframes flBounce{0%,60%,100%{transform:none;opacity:.5;}30%{transform:translateY(-5px);opacity:1;}}" +
+
+    /* quick-start chips */
+    "#fl-coach-chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px 2px 6px;}" +
+    ".fl-chip{border:1.5px solid var(--fl-mango);background:#fff;color:var(--fl-navy);border-radius:999px;" +
+      "padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s ease;min-height:38px;}" +
+    ".fl-chip:hover{background:var(--fl-mango);color:#fff;transform:translateY(-1px);}" +
+    ".fl-chip:focus-visible{outline:2px solid var(--fl-navy);outline-offset:2px;}" +
+
+    /* input row */
+    "#fl-coach-form{display:flex;gap:8px;padding:12px;background:#fff;border-top:1px solid var(--fl-off);flex:none;}" +
+    "#fl-coach-input{flex:1;border:2px solid var(--fl-off);border-radius:14px;padding:11px 14px;font-size:14.5px;" +
+      "color:var(--fl-navy);min-height:46px;max-height:110px;resize:none;transition:border-color .15s ease;}" +
+    "#fl-coach-input::placeholder{color:#8A9BA8;}" +
+    "#fl-coach-input:focus{outline:none;border-color:var(--fl-blue);}" +
+    "#fl-coach-send{background:var(--fl-orange);border:none;color:#fff;border-radius:14px;min-width:46px;" +
+      "min-height:46px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;" +
+      "transition:background .15s ease,transform .15s ease;}" +
+    "#fl-coach-send svg{width:20px;height:20px;}" +
+    "#fl-coach-send:hover{background:#c23a22;transform:scale(1.05);}" +
+    "#fl-coach-send:disabled{opacity:.45;cursor:default;transform:none;}" +
+    "#fl-coach-send:focus-visible{outline:3px solid var(--fl-navy);outline-offset:2px;}" +
+
+    /* footer */
+    "#fl-coach-foot{padding:2px 14px 8px;background:#fff;font-size:12px;color:var(--fl-blue);text-align:center;flex:none;}" +
+    "#fl-coach-foot button{background:none;border:none;color:var(--fl-orange);font-weight:600;font-size:12px;" +
+      "text-decoration:underline;cursor:pointer;padding:8px 6px;min-height:36px;}" +
+    "#fl-coach-foot button:focus-visible{outline:2px solid var(--fl-navy);border-radius:6px;}" +
+
+    "@media (prefers-reduced-motion:reduce){#fl-coach-root *{animation:none!important;transition:none!important;}}";
+
+  /* ---- Outfit font ---- */
   if (!document.querySelector("link[href*='family=Outfit']")) {
+    var pre1 = document.createElement("link");
+    pre1.rel = "preconnect"; pre1.href = "https://fonts.googleapis.com";
+    document.head.appendChild(pre1);
     var font = document.createElement("link");
     font.rel = "stylesheet";
-    font.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&display=swap";
+    font.href = "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap";
     document.head.appendChild(font);
   }
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);
 
+  /* ---- SVG icons (feather = the Fledglings motif) ---- */
+  var FEATHER =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>' +
+    '<line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>';
+  var SEND =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
+
   /* ---- DOM ---- */
   var root = document.createElement("div");
   root.id = "fl-coach-root";
   root.innerHTML =
     '<div id="fl-coach-panel" role="dialog" aria-modal="false" aria-label="Fledge, your Fledglings coach">' +
-      '<div id="fl-coach-head"><span class="fl-dot" aria-hidden="true"></span>' +
-        "<h2>Fledge &mdash; your coach</h2>" +
+      '<div id="fl-coach-head">' +
+        '<div id="fl-coach-avatar">' + FEATHER + "</div>" +
+        '<div id="fl-coach-title"><h2>Fledge</h2>' +
+          '<p><span class="fl-dot" aria-hidden="true"></span>Your Fledglings coach</p></div>' +
         '<button id="fl-coach-close" type="button" aria-label="Close coach chat">&times;</button></div>' +
       '<div id="fl-coach-msgs" aria-live="polite"></div>' +
       '<form id="fl-coach-form">' +
         '<textarea id="fl-coach-input" rows="1" maxlength="' + MAX_INPUT_CHARS + '" ' +
-          'placeholder="Ask about money, work, confidence, staying safe…" aria-label="Message Fledge"></textarea>' +
-        '<button id="fl-coach-send" type="submit" aria-label="Send message">&#10148;</button></form>' +
+          'placeholder="Ask me anything…" aria-label="Message Fledge"></textarea>' +
+        '<button id="fl-coach-send" type="submit" aria-label="Send message">' + SEND + "</button></form>" +
       '<div id="fl-coach-foot">Need a real person? <button type="button" id="fl-coach-help">Talk to someone</button></div>' +
     "</div>" +
     '<button id="fl-coach-btn" type="button" aria-label="Open Fledge, your Fledglings coach" aria-expanded="false">' +
-      "&#128172;</button>";
+      FEATHER + '<span class="fl-badge" aria-hidden="true"></span></button>';
   document.body.appendChild(root);
 
   var btn = document.getElementById("fl-coach-btn");
@@ -145,25 +207,113 @@
   var send = document.getElementById("fl-coach-send");
 
   var SUPPORT_TEXT =
-    "If you need someone to talk to right now: your tutor, or a trusted adult, is a great first step. " +
-    "Childline — 0800 1111 (under 19). Samaritans — 116 123, free, any time. " +
-    "Shout — text 85258. In immediate danger, call 999.";
+    "If you need someone to talk to right now: your tutor, or a trusted adult, is a great first step.\n" +
+    "**Childline** — 0800 1111 (under 19)\n**Samaritans** — 116 123, free, any time\n" +
+    "**Shout** — text 85258\nIn immediate danger, call **999**.";
+
+  var QUICK_STARTS = [
+    { label: "Spot a scam 🕵️", q: "How do I spot a scam?" },
+    { label: "My payslip 💷", q: "Can you explain what's on my payslip?" },
+    { label: "Interview nerves 🎤", q: "How do I handle interview nerves?" },
+    { label: "Budgeting 📊", q: "How do I start budgeting my money?" },
+  ];
+
+  /* Safe mini-formatter: escapes everything via DOM text nodes, then
+   * supports **bold** and line breaks only. No HTML injection path. */
+  function renderInto(el, text) {
+    var lines = String(text).split("\n");
+    for (var i = 0; i < lines.length; i++) {
+      if (i > 0) el.appendChild(document.createElement("br"));
+      var parts = lines[i].split(/\*\*(.+?)\*\*/g);
+      for (var p = 0; p < parts.length; p++) {
+        if (!parts[p]) continue;
+        if (p % 2 === 1) {
+          var strong = document.createElement("strong");
+          strong.textContent = parts[p];
+          el.appendChild(strong);
+        } else {
+          el.appendChild(document.createTextNode(parts[p]));
+        }
+      }
+    }
+  }
 
   function addMsg(role, text, crisis) {
     var div = document.createElement("div");
     div.className = "fl-msg " + (role === "user" ? "fl-msg-user" : "fl-msg-coach") + (crisis ? " fl-msg-crisis" : "");
-    div.textContent = text;
+    renderInto(div, text);
     msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function sendText(text) {
+    if (busy) return;
+    text = String(text).replace(/\s+$/, "").slice(0, MAX_INPUT_CHARS);
+    if (!text) return;
+    var chips = document.getElementById("fl-coach-chips");
+    if (chips) chips.parentNode.removeChild(chips);
+    addMsg("user", text);
+    history.push({ role: "user", content: text });
+    saveHistory(history);
+    setBusy(true);
+
+    fetch(ENDPOINT + "/api/coach", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        learner_id: learnerId,
+        session_id: sessionId,
+        learner_name: firstName,
+        page: (document.title || "").slice(0, 160),
+        messages: history.slice(-MAX_TURNS_SENT),
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setBusy(false);
+        var reply = data && typeof data.reply === "string" && data.reply
+          ? data.reply
+          : "Sorry — something went wrong. Try again in a minute.";
+        addMsg("coach", reply, data && data.kind === "crisis");
+        history.push({ role: "assistant", content: reply });
+        saveHistory(history);
+      })
+      .catch(function () {
+        setBusy(false);
+        addMsg("coach", "I can't reach the coach right now — give it another go in a minute.\n" + SUPPORT_TEXT, true);
+      });
+  }
+
+  function renderChips() {
+    if (document.getElementById("fl-coach-chips")) return;
+    var wrap = document.createElement("div");
+    wrap.id = "fl-coach-chips";
+    for (var i = 0; i < QUICK_STARTS.length; i++) {
+      (function (item) {
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "fl-chip";
+        chip.textContent = item.label;
+        chip.addEventListener("click", function () { sendText(item.q); });
+        wrap.appendChild(chip);
+      })(QUICK_STARTS[i]);
+    }
+    msgs.appendChild(wrap);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
   function renderHistory() {
     msgs.innerHTML = "";
     if (history.length === 0) {
-      addMsg("coach", (firstName ? "Hi " + firstName + "! " : "Hi! ") +
-        "I'm Fledge, your Fledglings coach. Ask me anything about the modules — money, work, confidence, or staying safe online.");
+      addMsg("coach",
+        (firstName ? "Hi " + firstName + "! " : "Hi! ") +
+        "I'm **Fledge**, your Fledglings coach. Money, work, confidence, staying safe online — ask me anything, or pick a quick start:");
+      renderChips();
     } else {
-      for (var i = 0; i < history.length; i++) addMsg(history[i].role === "user" ? "user" : "coach", history[i].content);
+      for (var i = 0; i < history.length; i++) {
+        addMsg(history[i].role === "user" ? "user" : "coach", history[i].content);
+      }
     }
   }
 
@@ -194,7 +344,8 @@
       t = document.createElement("div");
       t.id = "fl-coach-typing";
       t.className = "fl-typing";
-      t.textContent = "Fledge is thinking…";
+      t.setAttribute("aria-label", "Fledge is typing");
+      t.innerHTML = "<span></span><span></span><span></span>";
       msgs.appendChild(t);
       msgs.scrollTop = msgs.scrollHeight;
     } else if (!next && t) {
@@ -204,43 +355,12 @@
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    if (busy) return;
-    var text = input.value.trim().slice(0, MAX_INPUT_CHARS);
+    var text = input.value.trim();
     if (!text) return;
     input.value = "";
-    addMsg("user", text);
-    history.push({ role: "user", content: text });
-    saveHistory(history);
-    setBusy(true);
-
-    fetch(ENDPOINT + "/api/coach", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        learner_id: learnerId,
-        session_id: sessionId,
-        learner_name: firstName,
-        page: (document.title || "").slice(0, 160),
-        messages: history.slice(-MAX_TURNS_SENT),
-      }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        setBusy(false);
-        var reply = data && typeof data.reply === "string" && data.reply
-          ? data.reply
-          : "Sorry — something went wrong. Try again in a minute.";
-        addMsg("coach", reply, data && data.kind === "crisis");
-        history.push({ role: "assistant", content: reply });
-        saveHistory(history);
-      })
-      .catch(function () {
-        setBusy(false);
-        addMsg("coach", "I can't reach the coach right now — give it another go in a minute. " + SUPPORT_TEXT, true);
-      });
+    sendText(text);
   });
 
-  /* Enter sends; Shift+Enter for a new line. */
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();

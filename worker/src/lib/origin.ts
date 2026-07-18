@@ -8,6 +8,8 @@ const ALLOWED_HOSTS = [
   /^(.*\.)?fledglings-school\.co\.uk$/,
   /^(.*\.)?learnworlds\.com$/,
   /^(.*\.)?mycourse\.app$/,
+  /* The worker's own /preview QA page. */
+  /^fledglings-coach\.fledglings\.workers\.dev$/,
   /^localhost(:\d+)?$/,
   /^127\.0\.0\.1(:\d+)?$/,
 ];

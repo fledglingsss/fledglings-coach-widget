@@ -100,6 +100,24 @@ app.get("/health", (c) => {
   });
 });
 
+/* Internal QA page — a stand-in Fledglings page hosting the live
+ * widget, so design and behaviour can be checked without touching
+ * LearnWorlds. Same rate limits and safeguarding as production. */
+app.get("/preview", (c) =>
+  c.html(
+    "<!doctype html><html><head><meta charset='utf-8'>" +
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+      "<meta name='robots' content='noindex'><title>Fledge widget preview</title>" +
+      "<style>body{font-family:Arial,sans-serif;background:#ECE7E6;margin:0;padding:48px;}" +
+      "h1{color:#05253C;}p{color:#13507F;max-width:32em;}</style></head>" +
+      "<body><h1>Fledglings page stand-in</h1>" +
+      "<p>Internal QA page. The Fledge button should appear bottom-right, " +
+      "fully live against the production coach.</p>" +
+      "<script>window.FLEDGLINGS_COACH={endpoint:location.origin,learnerName:'Preview Tester'};</script>" +
+      "<script src='/widget.js' defer></script></body></html>",
+  ),
+);
+
 app.get("/widget.js", (c) =>
   c.body(widgetSource, 200, {
     "Content-Type": "application/javascript; charset=utf-8",
