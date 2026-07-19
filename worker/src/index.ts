@@ -46,11 +46,26 @@ import {
   getUserByEmail,
   getUserCourses,
   listCourses,
+  countUsersByTag,
+  getEnrolments,
+  getUserProgress,
   listUsersPage,
   lwConfigured,
   type LwUser,
   type LwUserCourse,
 } from "./lib/learnworlds";
+import {
+  advanceStreak,
+  cohortTag,
+  computeSkillsPassport,
+  isModuleTitle,
+  rankOf,
+  upsertLeaderboard,
+  type CourseRecord,
+  type Leaderboard,
+  type StreakState,
+} from "./lib/skills-passport";
+import { renderSkillsPassport } from "./pages-skills";
 import {
   REVIEW_CAPS,
   reviewSystemPrompt,
@@ -220,6 +235,167 @@ app.get("/lw-check", async (c) => {
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     });
+  }
+});
+
+/* ==================================================================
+ * Skills Passport — the gamified learner dashboard (embedded in the
+ * logged-in LearnWorlds platform via {{USER.EMAIL}}).
+ * ================================================================== */
+
+const SP_CACHE_TTL = 600; // 10 min per learner
+const SP_MAX_PROGRESS_CALLS = 36;
+
+function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
+  const now = new Date();
+  const courses: CourseRecord[] = [
+    { courseId: "a", title: "Money Confidence & Everyday Decisions", label: "Financial Literacy", status: "completed", progressRate: 100, scoreRate: 91, timeSeconds: 5400 },
+    { courseId: "b", title: "Budgeting That Actually Works", label: "Financial Literacy", status: "completed", progressRate: 100, scoreRate: 84, timeSeconds: 6100 },
+    { courseId: "c", title: "Pay, Payslips, and Planning for Tax & NI", label: "Financial Literacy", status: "in_progress", progressRate: 55, scoreRate: 78, timeSeconds: 2400 },
+    { courseId: "d", title: "Introduction to Employability Skills", label: "Employability Skills", status: "completed", progressRate: 100, scoreRate: 88, timeSeconds: 4800 },
+    { courseId: "e", title: "Communication That Builds Trust", label: "Employability Skills", status: "completed", progressRate: 100, scoreRate: 90, timeSeconds: 5200 },
+    { courseId: "f", title: "Interviews, CVs & Early-Career Mindset", label: "Employability Skills", status: "in_progress", progressRate: 40, scoreRate: null, timeSeconds: 1800 },
+    { courseId: "g", title: "What is Online Safety?", label: "Staying Safe Online", status: "completed", progressRate: 100, scoreRate: 86, timeSeconds: 3900 },
+    { courseId: "h", title: "Online Scams, Fraud & Money Safety", label: "Staying Safe Online", status: "in_progress", progressRate: 70, scoreRate: 82, timeSeconds: 2600 },
+    { courseId: "i", title: "Confidence & Resilience Introduction", label: "Confidence & Resilience", status: "completed", progressRate: 100, scoreRate: 80, timeSeconds: 3600 },
+    { courseId: "j", title: "Preparing for an Interview", label: "Deep Dive Mini Series", status: "completed", progressRate: 100, scoreRate: 89, timeSeconds: 1900 },
+  ];
+  return computeSkillsPassport({
+    firstName: "Maya",
+    fullName: "Maya Thompson",
+    cohort: "Cohort 24B",
+    courses,
+    streak: { cur: 12, best: 18, last: now.toISOString().slice(0, 10) },
+    rank: 4,
+    cohortSize: 120,
+    now,
+  });
+}
+
+app.get("/skills-passport", async (c) => {
+  if (c.req.query("demo")) {
+    return c.html(
+      renderSkillsPassport(demoSkillsModel(), { demo: true, shareEmail: null }),
+      200,
+      FRAME_HEADERS,
+    );
+  }
+  const email = (c.req.query("email") || "").trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email) || !lwConfigured(c.env)) {
+    return c.html(
+      renderSkillsPassport(demoSkillsModel(), { demo: true, shareEmail: null }),
+      200,
+      FRAME_HEADERS,
+    );
+  }
+
+  const emailHash = await hashLearnerId(email);
+  const today = new Date().toISOString().slice(0, 10);
+
+  /* Streak first — a visit counts even when the page itself is cached. */
+  const streakKey = `sp:streak:${emailHash}`;
+  const prevStreak = JSON.parse(
+    (await c.env.RATE_LIMITS.get(streakKey)) || "null",
+  ) as StreakState | null;
+  const streak = advanceStreak(prevStreak, today);
+  const streakChanged = !prevStreak || prevStreak.last !== streak.last;
+  if (streakChanged) {
+    await c.env.RATE_LIMITS.put(streakKey, JSON.stringify(streak));
+  }
+
+  const cacheKey = `sp:html:${emailHash}`;
+  if (!streakChanged) {
+    const cached = await c.env.RATE_LIMITS.get(cacheKey);
+    if (cached) return c.html(cached, 200, FRAME_HEADERS);
+  }
+
+  try {
+    const user = await getUserByEmail(c.env, email);
+    if (!user) {
+      return c.html(
+        renderSkillsPassport(demoSkillsModel(), { demo: true, shareEmail: null }),
+        200,
+        FRAME_HEADERS,
+      );
+    }
+
+    const enrolments = (await getEnrolments(c.env, user.id)).filter((e) =>
+      isModuleTitle(e.title),
+    );
+    const courses: CourseRecord[] = [];
+    for (const e of enrolments.slice(0, SP_MAX_PROGRESS_CALLS)) {
+      try {
+        const p = await getUserProgress(c.env, user.id, e.courseId);
+        courses.push({ courseId: e.courseId, title: e.title, label: e.label, ...p });
+      } catch {
+        courses.push({
+          courseId: e.courseId,
+          title: e.title,
+          label: e.label,
+          status: "not_started",
+          progressRate: 0,
+          scoreRate: null,
+          timeSeconds: 0,
+        });
+      }
+    }
+
+    /* Cohort leaderboard: upsert this learner, read rank + size. */
+    const tag = cohortTag(user.tags);
+    let rank: number | null = null;
+    let cohortSize: number | null = null;
+    if (tag) {
+      const tagSlug = tag.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const lbKey = `sp:lb:${tagSlug}`;
+      const board = JSON.parse(
+        (await c.env.RATE_LIMITS.get(lbKey)) || "null",
+      ) as Leaderboard | null;
+      const completed = courses.filter((x) => x.status === "completed").length;
+      const avg =
+        courses.length > 0
+          ? Math.round(courses.reduce((s, x) => s + x.progressRate, 0) / courses.length)
+          : 0;
+      const firstName =
+        (user.first_name || user.username || "Learner").trim().split(/\s+/)[0] || "Learner";
+      const next = upsertLeaderboard(
+        board,
+        { h: emailHash.slice(0, 12), n: firstName, completed, score: avg },
+        new Date().toISOString(),
+      );
+      await c.env.RATE_LIMITS.put(lbKey, JSON.stringify(next));
+      rank = rankOf(next, emailHash.slice(0, 12));
+      cohortSize = (await countUsersByTag(c.env, tag)) ?? next.entries.length;
+      if (cohortSize < next.entries.length) cohortSize = next.entries.length;
+    }
+
+    const fullName =
+      [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
+      user.username ||
+      "Fledglings Learner";
+    const model = computeSkillsPassport({
+      firstName: fullName.split(/\s+/)[0] || "Learner",
+      fullName,
+      cohort: tag,
+      courses,
+      streak,
+      rank,
+      cohortSize,
+      now: new Date(),
+    });
+
+    const html = renderSkillsPassport(model, { demo: false, shareEmail: email });
+    await c.env.RATE_LIMITS.put(cacheKey, html, { expirationTtl: SP_CACHE_TTL });
+    console.log(
+      `[coach] kind=skills-passport modules=${model.stats.modulesTotal} done=${model.stats.modulesDone} rank=${rank ?? "-"}`,
+    );
+    return c.html(html, 200, FRAME_HEADERS);
+  } catch (err) {
+    console.error("[coach] skills-passport error:", String(err));
+    return c.html(
+      renderSkillsPassport(demoSkillsModel(), { demo: true, shareEmail: null }),
+      200,
+      FRAME_HEADERS,
+    );
   }
 });
 

@@ -175,8 +175,10 @@ export interface LwUser {
   id: string;
   email?: string;
   first_name?: string;
+  last_name?: string;
   username?: string;
   created?: number;
+  tags?: string[];
 }
 
 /** Find a LearnWorlds user by email. Returns the user id, or null. */
@@ -252,6 +254,110 @@ export async function getUserCourses(
     page += 1;
   }
   return out;
+}
+
+export interface LwEnrolment {
+  courseId: string;
+  title: string;
+  label: string;
+}
+
+/** A user's enrolments (course id, title, curriculum label). The
+ * enrolment payload carries NO progress — that lives on the per-course
+ * progress endpoint below (verified against production 2026-07-19). */
+export async function getEnrolments(
+  env: LwEnv,
+  userId: string,
+): Promise<LwEnrolment[]> {
+  const out: LwEnrolment[] = [];
+  let page = 1;
+  for (;;) {
+    const res = await lwRequest(
+      env,
+      "GET",
+      `/users/${encodeURIComponent(userId)}/courses?page=${page}&items_per_page=50`,
+    );
+    if (!res.ok) throw new Error(`LearnWorlds enrolments failed: HTTP ${res.status}`);
+    const payload = (await res.json()) as {
+      data?: Array<{ course?: { id?: string; title?: string; label?: string } }>;
+      meta?: { totalPages?: number; total_pages?: number };
+    };
+    const items = payload.data ?? [];
+    for (const raw of items) {
+      const course = raw.course ?? {};
+      if (!course.id || !course.title) continue;
+      out.push({
+        courseId: course.id,
+        title: course.title.trim(),
+        label: (course.label ?? "").trim(),
+      });
+    }
+    const totalPages = payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1;
+    if (page >= totalPages || items.length === 0) break;
+    page += 1;
+  }
+  return out;
+}
+
+export interface LwProgress {
+  status: "not_started" | "in_progress" | "completed";
+  progressRate: number;
+  scoreRate: number | null;
+  timeSeconds: number;
+}
+
+/** Per-course progress: {status, progress_rate, average_score_rate,
+ * time_on_course, total_units, completed_units, …}. */
+export async function getUserProgress(
+  env: LwEnv,
+  userId: string,
+  courseId: string,
+): Promise<LwProgress> {
+  const res = await lwRequest(
+    env,
+    "GET",
+    `/users/${encodeURIComponent(userId)}/courses/${encodeURIComponent(courseId)}/progress`,
+  );
+  if (!res.ok) throw new Error(`LearnWorlds progress failed: HTTP ${res.status}`);
+  const p = (await res.json()) as {
+    status?: string;
+    progress_rate?: number;
+    average_score_rate?: number;
+    time_on_course?: number;
+  };
+  const status =
+    p.status === "completed"
+      ? "completed"
+      : p.status === "not_started"
+        ? "not_started"
+        : "in_progress";
+  const progressRate =
+    typeof p.progress_rate === "number"
+      ? Math.max(0, Math.min(100, p.progress_rate))
+      : 0;
+  return {
+    status: status === "in_progress" && progressRate >= 100 ? "completed" : status,
+    progressRate,
+    scoreRate:
+      typeof p.average_score_rate === "number" && p.average_score_rate > 0
+        ? Math.max(0, Math.min(100, p.average_score_rate))
+        : null,
+    timeSeconds: typeof p.time_on_course === "number" ? Math.max(0, p.time_on_course) : 0,
+  };
+}
+
+/** Number of school users carrying a tag (for cohort size). */
+export async function countUsersByTag(env: LwEnv, tag: string): Promise<number | null> {
+  const res = await lwRequest(
+    env,
+    "GET",
+    `/users?tags=${encodeURIComponent(tag)}&items_per_page=1`,
+  );
+  if (!res.ok) return null;
+  const payload = (await res.json()) as {
+    meta?: { totalItems?: number; total_items?: number };
+  };
+  return payload.meta?.totalItems ?? payload.meta?.total_items ?? null;
 }
 
 export interface LwUserListPage {

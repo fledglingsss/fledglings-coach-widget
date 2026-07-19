@@ -404,34 +404,11 @@
   function requestPassport() {
     removeChipRows();
     addMsg("user", "My passport 📜");
-    setBusy(true);
-    fetch(ENDPOINT + "/api/passport", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ learner_id: learnerId, session_id: sessionId, email: learnerEmail }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        setBusy(false);
-        if (data && data.ok && data.url) {
-          addLinkMsg(
-            "Here you go — **" + data.completed + "** completed, **" + data.in_progress +
-              "** in progress. Your printable passport:",
-            "Open my Readiness Passport",
-            ENDPOINT + data.url,
-          );
-        } else if (data && data.reason === "account_not_found") {
-          addMsg("coach", "I couldn't match your account just now — ask your tutor to check your email on the platform.");
-        } else if (data && data.reason === "daily_cap") {
-          addMsg("coach", "You've made a few passports today already — use the latest one, or ask again tomorrow.");
-        } else {
-          addMsg("coach", "I couldn't build your passport just now — try again in a minute.");
-        }
-      })
-      .catch(function () {
-        setBusy(false);
-        addMsg("coach", "I couldn't reach the passport service — try again in a minute.");
-      });
+    addLinkMsg(
+      "Your **Skills Passport** — score, streak, badges and your place in your cohort, all live:",
+      "Open my Skills Passport",
+      ENDPOINT + "/skills-passport?email=" + encodeURIComponent(learnerEmail),
+    );
   }
 
   /* Wizard flow: three chip questions, then the pathway API. The
