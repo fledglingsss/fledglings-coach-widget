@@ -41,6 +41,7 @@ export interface RiskAssessment {
   reasons: string[];
   nudge: string;
   cohort: string | null;
+  tags: string[];
   enrichment?: RiskEnrichment;
 }
 
@@ -165,6 +166,7 @@ export function assessLearner(
     reasons,
     nudge: buildNudge(input.name, tier, sinceLogin, enrichment),
     cohort: input.tags[0] ?? null,
+    tags: input.tags,
     ...(enrichment ? { enrichment } : {}),
   };
 }

@@ -86,10 +86,9 @@ import {
 import {
   renderPassportExpired,
   renderPassportPage,
-  renderPortalDashboard,
-  renderPortalLogin,
   renderToolsPage,
 } from "./pages";
+import { renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { aggregate, csvExport, EXCLUDED_TITLES, narrativeSystemPrompt } from "./lib/portal";
 import {
   appendHistory,
@@ -863,21 +862,31 @@ const PORTAL_SAMPLE_SIZE = 30;
 const PORTAL_CACHE_TTL = 6 * 3600;
 const PORTAL_COOKIE = "fl_portal";
 
-async function portalCodeLabel(c: { env: Env }, code: string): Promise<string | null> {
+/* A portal code grants either the whole school or ONE cohort tag —
+ * tag scoping is enforced server-side on every data/CSV response, so a
+ * scoped code can never see another provider's learners. */
+interface PortalAccess {
+  label: string;
+  tag: string | null;
+}
+
+async function portalCodeMeta(c: { env: Env }, code: string): Promise<PortalAccess | null> {
   if (!/^[A-Za-z0-9-]{8,40}$/.test(code)) return null;
   const raw = await c.env.RATE_LIMITS.get(`portal:code:${code}`);
   if (!raw) return null;
   try {
-    return (JSON.parse(raw) as { label?: string }).label ?? "Provider";
+    const parsed = JSON.parse(raw) as { label?: string; tag?: string };
+    return { label: parsed.label ?? "Provider", tag: parsed.tag?.trim() || null };
   } catch {
-    return "Provider";
+    /* Legacy plain-string codes: the value IS the label. */
+    return { label: raw.trim() || "Provider", tag: null };
   }
 }
 
 async function portalSession(c: {
   env: Env;
   req: { header: (n: string) => string | undefined };
-}): Promise<string | null> {
+}): Promise<PortalAccess | null> {
   const cookies = c.req.header("Cookie") || "";
   const match = cookies.match(new RegExp(`${PORTAL_COOKIE}=([^;]+)`));
   if (!match) return null;
@@ -889,19 +898,29 @@ async function portalSession(c: {
     sig,
   );
   if (!okSig) return null;
-  return portalCodeLabel(c, code);
+  return portalCodeMeta(c, code);
+}
+
+function inScope(tags: string[] | undefined, tag: string | null): boolean {
+  return tag === null || (tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase());
 }
 
 function isLearner(u: LwUser): boolean {
   return Boolean(u.email) && !u.is_admin && !u.is_instructor && !u.is_suspended;
 }
 
-async function portalSample(env: Env): Promise<{
+async function portalSample(
+  env: Env,
+  tag: string | null = null,
+): Promise<{
   totalUsers: number | null;
   sample: Array<{ user: LwUser; courses: LwUserCourse[] }>;
 }> {
   const page = await listUsersPage(env, 1);
-  const learners = page.users.filter(isLearner).slice(0, PORTAL_SAMPLE_SIZE);
+  const learners = page.users
+    .filter(isLearner)
+    .filter((u) => inScope(u.tags ?? [], tag))
+    .slice(0, PORTAL_SAMPLE_SIZE);
   const sample: Array<{ user: LwUser; courses: LwUserCourse[] }> = [];
   for (const user of learners) {
     try {
@@ -915,7 +934,7 @@ async function portalSample(env: Env): Promise<{
 
 /* ---------------- early-warning engine (#6) ---------------- */
 
-const RISK_CACHE_KEY = "portal:risk:v1";
+const RISK_CACHE_KEY = "portal:risk:v2";
 const RISK_HISTORY_KEY = "portal:risk:history:v1";
 const RISK_CACHE_TTL = 6 * 3600;
 const RISK_ENRICH_TOP = 10;
@@ -1014,9 +1033,9 @@ async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport
 }
 
 app.get("/portal", async (c) => {
-  const label = await portalSession(c);
-  if (!label) return c.html(renderPortalLogin());
-  return c.html(renderPortalDashboard(label));
+  const access = await portalSession(c);
+  if (!access) return c.html(renderPortalLogin());
+  return c.html(renderPortalDashboard(access.label, access.tag));
 });
 
 app.get("/portal/logout", (c) => {
@@ -1030,8 +1049,8 @@ app.get("/portal/logout", (c) => {
 app.post("/portal/login", async (c) => {
   const form = await c.req.parseBody();
   const code = typeof form.code === "string" ? form.code.trim() : "";
-  const label = await portalCodeLabel(c, code);
-  if (!label) {
+  const meta = await portalCodeMeta(c, code);
+  if (!meta) {
     return c.html(
       renderPortalLogin("That code didn't work — check it and try again, or contact Fledglings for access."),
       401,
@@ -1046,20 +1065,38 @@ app.post("/portal/login", async (c) => {
 });
 
 app.get("/portal/data", async (c) => {
-  const label = await portalSession(c);
-  if (!label) return c.json({ error: "unauthorised" }, 401);
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
 
-  const cached = await c.env.RATE_LIMITS.get("portal:data:v2");
+  /* Cache is per scope — a tag-scoped code must never be served the
+   * whole-school payload. */
+  const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
+  const cacheKey = `portal:data:v3:${scopeKey}`;
+  const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
 
   try {
-    const { totalUsers, sample } = await portalSample(c.env);
+    const { totalUsers, sample } = await portalSample(c.env, access.tag);
     const stats = aggregate(totalUsers, sample, new Date());
-    const risk = await getRiskReport(c.env);
-    const history = JSON.parse(
-      (await c.env.RATE_LIMITS.get(RISK_HISTORY_KEY)) || "[]",
-    ) as RiskHistoryPoint[];
+    const riskAll = await getRiskReport(c.env);
+    const learners = riskAll.learners.filter((a) => inScope(a.tags, access.tag));
+    const summary = access.tag ? summarise(learners, new Date()) : riskAll.summary;
+    const history = access.tag
+      ? [] /* history is school-wide; scoped views grow their own later */
+      : (JSON.parse(
+          (await c.env.RATE_LIMITS.get(RISK_HISTORY_KEY)) || "[]",
+        ) as RiskHistoryPoint[]);
+
+    /* Distinct cohorts (whole-school codes only) power the in-page
+     * cohort switcher. */
+    const cohortCounts = new Map<string, number>();
+    if (!access.tag) {
+      for (const a of riskAll.learners) {
+        for (const t of a.tags) cohortCounts.set(t, (cohortCounts.get(t) ?? 0) + 1);
+      }
+    }
+
     let narrative = "";
     try {
       narrative = await generate(
@@ -1067,11 +1104,12 @@ app.get("/portal/data", async (c) => {
         c.env.COACH_MODEL || "claude-sonnet-4-6",
         narrativeSystemPrompt(),
         JSON.stringify({
+          scope: access.tag ? `cohort: ${access.tag}` : "whole school",
           engagement: stats,
           earlyWarning: {
-            learnersMonitored: risk.summary.learners,
-            activeLast7Days: risk.summary.activeLast7Days,
-            flaggedForAttention: risk.summary.tiers.high + risk.summary.tiers.medium,
+            learnersMonitored: summary.learners,
+            activeLast7Days: summary.activeLast7Days,
+            flaggedForAttention: summary.tiers.high + summary.tiers.medium,
             monitoringNote:
               "Learners are monitored continuously; those going quiet are flagged for personal follow-up.",
           },
@@ -1083,8 +1121,17 @@ app.get("/portal/data", async (c) => {
       narrative =
         "Narrative unavailable just now — the figures above are live from the platform.";
     }
-    const payload = { stats, narrative, risk, history };
-    await c.env.RATE_LIMITS.put("portal:data:v2", JSON.stringify(payload), {
+    const payload = {
+      stats,
+      narrative,
+      risk: { summary, learners },
+      history,
+      scopedTag: access.tag,
+      cohorts: [...cohortCounts.entries()]
+        .map(([tag, count]) => ({ tag, count }))
+        .sort((a, b) => b.count - a.count),
+    };
+    await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
       expirationTtl: PORTAL_CACHE_TTL,
     });
     return c.json(payload);
@@ -1095,11 +1142,11 @@ app.get("/portal/data", async (c) => {
 });
 
 app.get("/portal/export.csv", async (c) => {
-  const label = await portalSession(c);
-  if (!label) return c.json({ error: "unauthorised" }, 401);
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
-    const { sample } = await portalSample(c.env);
+    const { sample } = await portalSample(c.env, access.tag);
     let riskByEmail: Map<string, { tier: string; daysSinceLogin: number | null }> | undefined;
     try {
       const risk = await getRiskReport(c.env);

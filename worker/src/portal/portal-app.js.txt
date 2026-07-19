@@ -1,0 +1,325 @@
+/* Provider portal client — renders /portal/data into the ledger UI.
+ * Whole-school codes get a cohort switcher (client-side re-filter);
+ * tag-scoped codes are filtered server-side and locked to their tag. */
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var TIER = {
+    high: { l: "Needs contact", c: "#D9452B" },
+    medium: { l: "Drifting", c: "#ED9249" },
+    watch: { l: "Early wobble", c: "#13507F" },
+    new: { l: "New", c: "#8a97a1" },
+    ok: { l: "Engaged", c: "#1B7A4B" },
+  };
+  var ORDER = ["high", "medium", "watch", "new", "ok"];
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  /* ---- tabs ---- */
+  var tabs = document.querySelectorAll(".ltab");
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () {
+      tabs.forEach(function (x) { x.classList.remove("on"); x.setAttribute("aria-selected", "false"); });
+      t.classList.add("on");
+      t.setAttribute("aria-selected", "true");
+      document.querySelectorAll(".lview").forEach(function (v) { v.classList.remove("on"); });
+      $("lv-" + t.dataset.v).classList.add("on");
+    });
+  });
+
+  var DATA = null;
+  var FILTER = null; // client-side cohort filter (whole-school codes only)
+
+  function learners() {
+    var all = (DATA.risk.learners || []);
+    if (!FILTER) return all;
+    if (FILTER === "__none__") return all.filter(function (a) { return !a.tags || a.tags.length === 0; });
+    return all.filter(function (a) { return (a.tags || []).indexOf(FILTER) !== -1; });
+  }
+
+  function summarise(list) {
+    var s = { learners: list.length, activeLast7Days: 0, neverLoggedIn: 0, tiers: { high: 0, medium: 0, watch: 0, new: 0, ok: 0 } };
+    list.forEach(function (a) {
+      s.tiers[a.tier] += 1;
+      if (a.daysSinceLogin !== null && a.daysSinceLogin <= 7) s.activeLast7Days += 1;
+      if (a.daysSinceLogin === null) s.neverLoggedIn += 1;
+    });
+    return s;
+  }
+
+  function median(list) {
+    var days = list
+      .map(function (a) { return a.daysSinceLogin; })
+      .filter(function (d) { return d !== null; })
+      .sort(function (a, b) { return a - b; });
+    if (!days.length) return null;
+    return days[Math.floor(days.length / 2)];
+  }
+
+  /* ---- masthead ledger ---- */
+  function renderLedger() {
+    var list = learners();
+    var sm = FILTER ? summarise(list) : DATA.risk.summary;
+    var attn = sm.tiers.high + sm.tiers.medium;
+    var activation = sm.learners ? Math.round((sm.learners - sm.neverLoggedIn) * 100 / sm.learners) : 0;
+    var med = median(list);
+    $("lg-total").textContent = sm.learners;
+    $("lg-active").textContent = sm.activeLast7Days;
+    $("lg-activepct").textContent = sm.learners ? Math.round(sm.activeLast7Days * 100 / sm.learners) + "%" : "";
+    $("lg-activation").textContent = activation + "%";
+    $("lg-median").textContent = med === null ? "—" : med + "d";
+    $("lg-attn").textContent = attn;
+    var h = DATA.history || [];
+    var delta = "";
+    if (!FILTER && h.length >= 2) {
+      var d = h[h.length - 1].activeLast7Days - h[h.length - 2].activeLast7Days;
+      if (d !== 0) delta = (d > 0 ? "▲ " : "▼ ") + Math.abs(d) + " vs last snapshot";
+    }
+    $("lg-delta").textContent = delta;
+    var badge = $("t-warnn");
+    badge.textContent = attn;
+    badge.hidden = attn === 0;
+  }
+
+  /* ---- cohort pulse (segmented bar) ---- */
+  function renderPulse() {
+    var sm = FILTER ? summarise(learners()) : DATA.risk.summary;
+    var total = sm.learners || 1;
+    var seg = "";
+    var lab = "";
+    ORDER.forEach(function (k) {
+      var n = sm.tiers[k] || 0;
+      if (!n) return;
+      seg += "<i style='width:" + (n * 100 / total) + "%;background:" + TIER[k].c + "'></i>";
+      lab += "<span class='pl'><i style='background:" + TIER[k].c + "'></i>" + TIER[k].l + " <b>" + n + "</b></span>";
+    });
+    $("pulse-bar").innerHTML = seg;
+    $("pulse-legend").innerHTML = lab;
+  }
+
+  /* ---- engagement trend (area chart) ---- */
+  function renderTrend() {
+    var h = DATA.history || [];
+    var host = $("trend-svg");
+    if (FILTER || DATA.scopedTag || h.length < 2) {
+      host.innerHTML = "";
+      $("trend-note").textContent = FILTER
+        ? "The trend is measured school-wide — clear the cohort filter to see it."
+        : DATA.scopedTag
+          ? "Your cohort's trend line starts growing from today's snapshot."
+          : "The trend appears after a few nightly snapshots — the first is already banked.";
+      return;
+    }
+    var W = 560, H = 150, PAD = 26;
+    var pts = h.map(function (p, i) {
+      var x = PAD + i * ((W - PAD * 2) / (h.length - 1));
+      var pct = p.learners ? p.activeLast7Days / p.learners : 0;
+      var y = H - 22 - pct * (H - 48);
+      return { x: x, y: y, pct: Math.round(pct * 100), date: p.date };
+    });
+    var line = pts.map(function (p, i) { return (i ? "L" : "M") + p.x.toFixed(1) + " " + p.y.toFixed(1); }).join(" ");
+    var area = line + " L" + pts[pts.length - 1].x.toFixed(1) + " " + (H - 22) + " L" + pts[0].x.toFixed(1) + " " + (H - 22) + " Z";
+    var last = pts[pts.length - 1];
+    host.innerHTML =
+      "<defs><linearGradient id='tg' x1='0' y1='0' x2='0' y2='1'>" +
+      "<stop offset='0' stop-color='#D9452B' stop-opacity='.28'/>" +
+      "<stop offset='1' stop-color='#D9452B' stop-opacity='0'/></linearGradient></defs>" +
+      "<line x1='" + PAD + "' y1='" + (H - 22) + "' x2='" + (W - PAD) + "' y2='" + (H - 22) + "' stroke='#d8d2cf' stroke-width='1'/>" +
+      "<path d='" + area + "' fill='url(#tg)'/>" +
+      "<path d='" + line + "' fill='none' stroke='#D9452B' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/>" +
+      "<circle cx='" + last.x + "' cy='" + last.y + "' r='4.5' fill='#D9452B'/>" +
+      "<text x='" + Math.min(last.x, W - 60) + "' y='" + (last.y - 10) + "' font-size='12' font-weight='700' fill='#05253C'>" + last.pct + "% active</text>" +
+      "<text x='" + PAD + "' y='" + (H - 6) + "' font-size='10' fill='#8a97a1'>" + pts[0].date.slice(5) + "</text>" +
+      "<text x='" + (W - PAD) + "' y='" + (H - 6) + "' font-size='10' fill='#8a97a1' text-anchor='end'>" + last.date.slice(5) + "</text>";
+    $("trend-note").textContent = "Share of learners active in the last 7 days, across " + h.length + " nightly snapshots.";
+  }
+
+  /* ---- recency ladder ---- */
+  function renderRecency() {
+    var list = learners();
+    var buckets = [
+      { l: "Today", f: function (d) { return d === 0; } },
+      { l: "This week", f: function (d) { return d !== null && d >= 1 && d <= 7; } },
+      { l: "1–2 weeks", f: function (d) { return d !== null && d >= 8 && d <= 14; } },
+      { l: "2–4 weeks", f: function (d) { return d !== null && d >= 15 && d <= 30; } },
+      { l: "Over a month", f: function (d) { return d !== null && d > 30; } },
+      { l: "Never logged in", f: function (d) { return d === null; } },
+    ];
+    var max = 1;
+    var counts = buckets.map(function (b) {
+      var n = list.filter(function (a) { return b.f(a.daysSinceLogin); }).length;
+      if (n > max) max = n;
+      return n;
+    });
+    var out = "";
+    buckets.forEach(function (b, i) {
+      var warm = i >= 3;
+      out +=
+        "<div class='rrow'><span class='rl'>" + b.l + "</span>" +
+        "<span class='rb'><i style='width:" + (counts[i] * 100 / max) + "%;background:" + (warm ? "#D9452B" : "#13507F") + "'></i></span>" +
+        "<b class='rn'>" + counts[i] + "</b></div>";
+    });
+    $("recency").innerHTML = out;
+  }
+
+  /* ---- most-used modules (whole-school sample) ---- */
+  function renderModules() {
+    var rows = DATA.stats.courseStats || [];
+    var mini = "";
+    rows.slice(0, 6).forEach(function (r, i) {
+      var pct = r.enrolled ? Math.round(r.completed * 100 / r.enrolled) : 0;
+      mini +=
+        "<div class='mrow'><span class='mrank'>" + String(i + 1).padStart(2, "0") + "</span>" +
+        "<span class='mtitle'>" + esc(r.title) + "<em>" + r.enrolled + " enrolled · " + r.completed + " completed</em></span>" +
+        "<span class='mpct'>" + pct + "%</span>" +
+        "<span class='mbar'><i style='width:" + pct + "%'></i></span></div>";
+    });
+    $("mods-mini").innerHTML = mini || "<p class='muted'>No module activity in the sample yet.</p>";
+    $("mods-note").hidden = !FILTER;
+
+    var table = "";
+    rows.forEach(function (r) {
+      var pct = r.enrolled ? Math.round(r.completed * 100 / r.enrolled) : 0;
+      table +=
+        "<tr><td>" + esc(r.title) + "</td><td class='num'>" + r.enrolled + "</td>" +
+        "<td class='num'>" + r.completed + "</td>" +
+        "<td class='barcell'><span class='mbar'><i style='width:" + pct + "%'></i></span></td>" +
+        "<td class='num'>" + pct + "%</td></tr>";
+    });
+    $("mods-table").innerHTML =
+      "<table><thead><tr><th>Module</th><th class='num'>Enrolled</th><th class='num'>Completed</th><th style='width:30%'>Completion</th><th class='num'>%</th></tr></thead><tbody>" +
+      table + "</tbody></table>";
+  }
+
+  /* ---- early warning ledger ---- */
+  function renderWarning() {
+    var list = learners();
+    var sm = summarise(list);
+    var chips = "<button class='fchip on' data-t='flagged'>Flagged <b>" + (sm.tiers.high + sm.tiers.medium + sm.tiers.watch) + "</b></button>";
+    ORDER.forEach(function (k) {
+      chips += "<button class='fchip' data-t='" + k + "'><i style='background:" + TIER[k].c + "'></i>" + TIER[k].l + " <b>" + (sm.tiers[k] || 0) + "</b></button>";
+    });
+    chips += "<button class='fchip' data-t='all'>Everyone <b>" + sm.learners + "</b></button>";
+    $("warn-chips").innerHTML = chips;
+
+    var current = "flagged";
+    function rowsFor(t) {
+      if (t === "all") return list;
+      if (t === "flagged") return list.filter(function (a) { return a.tier === "high" || a.tier === "medium" || a.tier === "watch"; });
+      return list.filter(function (a) { return a.tier === t; });
+    }
+    function draw(t) {
+      current = t;
+      var rows = rowsFor(t);
+      if (!rows.length) {
+        $("warn-list").innerHTML = "<div class='empty'>Nobody in this view — " + (t === "flagged" ? "everyone is engaged or brand new. Lovely." : "try another filter.") + "</div>";
+        return;
+      }
+      var out = "";
+      var lastTier = "";
+      rows.forEach(function (a, i) {
+        if (a.tier !== lastTier) {
+          lastTier = a.tier;
+          out += "<div class='wgroup'><i style='background:" + TIER[a.tier].c + "'></i>" + TIER[a.tier].l + "</div>";
+        }
+        var days = a.daysSinceLogin === null ? "never" : a.daysSinceLogin + "d";
+        out +=
+          "<div class='wrow' data-i='" + i + "'>" +
+          "<span class='wdot' style='background:" + TIER[a.tier].c + "'></span>" +
+          "<span class='wname'>" + esc(a.name) + "<em>" + esc(a.email) + (a.cohort ? " · " + esc(a.cohort) : "") + "</em></span>" +
+          "<span class='wreason'>" + esc(a.reasons[0] || "") + "</span>" +
+          "<span class='wdays " + (a.daysSinceLogin === null || a.daysSinceLogin > 20 ? "hot" : "") + "'>" + days + "</span>" +
+          "<span class='wchev'>›</span></div>" +
+          "<div class='wdetail' id='wd-" + i + "'>" +
+          (a.reasons.length > 1 ? "<ul>" + a.reasons.slice(1).map(function (r) { return "<li>" + esc(r) + "</li>"; }).join("") + "</ul>" : "") +
+          "<blockquote>" + esc(a.nudge) + "</blockquote>" +
+          "<button class='copybtn' data-n='" + i + "'>Copy nudge message</button>" +
+          "<span class='copied' id='wc-" + i + "' hidden>Copied ✓</span></div>";
+      });
+      $("warn-list").innerHTML = out;
+      document.querySelectorAll(".wrow").forEach(function (r) {
+        r.addEventListener("click", function () {
+          var d = $("wd-" + r.dataset.i);
+          var open = d.classList.contains("on");
+          document.querySelectorAll(".wdetail").forEach(function (x) { x.classList.remove("on"); });
+          document.querySelectorAll(".wrow").forEach(function (x) { x.classList.remove("open"); });
+          if (!open) { d.classList.add("on"); r.classList.add("open"); }
+        });
+      });
+      document.querySelectorAll(".copybtn").forEach(function (b) {
+        b.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var a = rowsFor(current)[+b.dataset.n];
+          var ok = $("wc-" + b.dataset.n);
+          function done() { ok.hidden = false; setTimeout(function () { ok.hidden = true; }, 2400); }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(a.nudge).then(done, function () { window.prompt("Copy the nudge:", a.nudge); });
+          } else { window.prompt("Copy the nudge:", a.nudge); }
+        });
+      });
+    }
+    document.querySelectorAll(".fchip").forEach(function (c) {
+      c.addEventListener("click", function () {
+        document.querySelectorAll(".fchip").forEach(function (x) { x.classList.remove("on"); });
+        c.classList.add("on");
+        draw(c.dataset.t);
+      });
+    });
+    draw("flagged");
+  }
+
+  function renderAll() {
+    renderLedger();
+    renderPulse();
+    renderTrend();
+    renderRecency();
+    renderModules();
+    renderWarning();
+  }
+
+  fetch("/portal/data")
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.error) {
+        $("p-err").hidden = false;
+        $("p-err").textContent = "Could not load data: " + d.error;
+        return;
+      }
+      DATA = d;
+      $("p-meta").textContent =
+        "Generated " +
+        new Date(d.risk.summary.assessedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) +
+        " · refreshes every 6 hours" +
+        (d.scopedTag ? " · scoped to " + d.scopedTag : "");
+      /* cohort switcher (whole-school codes only) */
+      var sel = $("cohort-sel");
+      if (!d.scopedTag && d.cohorts && d.cohorts.length) {
+        sel.hidden = false;
+        var opts = "<option value=''>Whole school</option>";
+        d.cohorts.forEach(function (c) {
+          opts += "<option value='" + esc(c.tag) + "'>" + esc(c.tag) + " (" + c.count + ")</option>";
+        });
+        var untagged = (d.risk.learners || []).filter(function (a) { return !a.tags || !a.tags.length; }).length;
+        if (untagged) opts += "<option value='__none__'>Untagged (" + untagged + ")</option>";
+        sel.innerHTML = opts;
+        sel.addEventListener("change", function () {
+          FILTER = sel.value || null;
+          renderAll();
+        });
+      }
+      $("narrative").textContent = d.narrative || "";
+      $("copy-narr").addEventListener("click", function () {
+        function done() { $("copied-narr").hidden = false; setTimeout(function () { $("copied-narr").hidden = true; }, 2400); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(d.narrative || "").then(done);
+        } else { window.prompt("Copy:", d.narrative || ""); }
+      });
+      renderAll();
+      document.body.classList.add("loaded");
+    })
+    .catch(function () {
+      $("p-err").hidden = false;
+      $("p-err").textContent = "Could not reach the portal service — try refreshing.";
+    });
+})();
