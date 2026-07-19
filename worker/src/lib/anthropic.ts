@@ -128,6 +128,34 @@ export async function coach(
   return text;
 }
 
+/**
+ * Generic single-turn generation with the standard rails (timeout,
+ * one retry, cached system prompt). Used by the review tools and the
+ * portal narrative; the chat coach keeps its dedicated path above.
+ */
+export async function generate(
+  apiKey: string,
+  model: string,
+  system: string,
+  user: string,
+  maxTokens: number,
+): Promise<string> {
+  const client = new Anthropic({
+    apiKey: cleanApiKey(apiKey),
+    timeout: COACH_TIMEOUT_MS,
+    maxRetries: MAX_RETRIES,
+  });
+  const response = await client.messages.create({
+    model,
+    max_tokens: maxTokens,
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: user }],
+  });
+  const text = textOf(response);
+  if (!text) throw new Error("Empty generation response");
+  return text;
+}
+
 /* Authored responses — served without a model call. The learner never
  * sees an error state; the worst case is one of these. */
 

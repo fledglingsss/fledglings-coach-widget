@@ -171,16 +171,116 @@ export async function listCourses(
   return courses;
 }
 
+export interface LwUser {
+  id: string;
+  email?: string;
+  first_name?: string;
+  username?: string;
+  created?: number;
+}
+
 /** Find a LearnWorlds user by email. Returns the user id, or null. */
 export async function findUserByEmail(
   env: LwEnv,
   email: string,
 ): Promise<string | null> {
+  const user = await getUserByEmail(env, email);
+  return user?.id ?? null;
+}
+
+/** Full user record by email/id, or null when not found. */
+export async function getUserByEmail(
+  env: LwEnv,
+  email: string,
+): Promise<LwUser | null> {
   const res = await lwRequest(env, "GET", `/users/${encodeURIComponent(email)}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`LearnWorlds user lookup failed: HTTP ${res.status}`);
-  const user = (await res.json()) as { id?: string };
-  return user.id ?? null;
+  const user = (await res.json()) as LwUser;
+  return user.id ? user : null;
+}
+
+export interface LwUserCourse {
+  title: string;
+  progressRate: number | null;
+  completed: boolean;
+}
+
+/** A user's course enrolments with whatever progress detail the API
+ * exposes — parsed defensively because the exact response shape varies
+ * across LearnWorlds versions. */
+export async function getUserCourses(
+  env: LwEnv,
+  userId: string,
+): Promise<LwUserCourse[]> {
+  const out: LwUserCourse[] = [];
+  let page = 1;
+  for (;;) {
+    const res = await lwRequest(
+      env,
+      "GET",
+      `/users/${encodeURIComponent(userId)}/courses?page=${page}&items_per_page=50`,
+    );
+    if (!res.ok) throw new Error(`LearnWorlds user courses failed: HTTP ${res.status}`);
+    const payload = (await res.json()) as {
+      data?: Array<Record<string, unknown>>;
+      meta?: { totalPages?: number; total_pages?: number };
+    };
+    const items = payload.data ?? [];
+    for (const raw of items) {
+      const course = (raw.course ?? raw) as Record<string, unknown>;
+      const title =
+        typeof course.title === "string"
+          ? course.title
+          : typeof raw.title === "string"
+            ? (raw.title as string)
+            : "";
+      if (!title) continue;
+      const rateRaw =
+        raw.progress_rate ?? raw.completion_rate ?? course.progress_rate ?? null;
+      const progressRate =
+        typeof rateRaw === "number" ? Math.max(0, Math.min(100, rateRaw)) : null;
+      const status = typeof raw.status === "string" ? raw.status : "";
+      out.push({
+        title: title.trim(),
+        progressRate,
+        completed: status === "completed" || (progressRate !== null && progressRate >= 100),
+      });
+    }
+    const totalPages = payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1;
+    if (page >= totalPages || items.length === 0) break;
+    page += 1;
+  }
+  return out;
+}
+
+export interface LwUserListPage {
+  users: LwUser[];
+  totalPages: number;
+  totalItems: number | null;
+}
+
+/** One page of the school's user list (newest first). */
+export async function listUsersPage(
+  env: LwEnv,
+  page: number,
+): Promise<LwUserListPage> {
+  const res = await lwRequest(env, "GET", `/users?page=${page}&items_per_page=100`);
+  if (!res.ok) throw new Error(`LearnWorlds user list failed: HTTP ${res.status}`);
+  const payload = (await res.json()) as {
+    data?: LwUser[];
+    meta?: {
+      totalPages?: number;
+      total_pages?: number;
+      totalItems?: number;
+      total_items?: number;
+    };
+  };
+  return {
+    users: payload.data ?? [],
+    totalPages: payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1,
+    totalItems: payload.meta?.totalItems ?? payload.meta?.total_items ?? null,
+  };
 }
 
 /* NOTE: deliberately NO tagging function here. Founder decision

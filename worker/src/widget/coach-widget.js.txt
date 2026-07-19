@@ -217,6 +217,7 @@
 
   var QUICK_STARTS = [
     { label: "Find my pathway 🧭", wizard: true },
+    { label: "My passport 📜", passport: true },
     { label: "Spot a scam 🕵️", q: "How do I spot a scam?" },
     { label: "My payslip 💷", q: "Can you explain what's on my payslip?" },
     { label: "Interview nerves 🎤", q: "How do I handle interview nerves?" },
@@ -374,10 +375,63 @@
 
   function renderChips() {
     if (document.getElementById("fl-coach-chips")) return;
-    chipRow(QUICK_STARTS, function (item) {
+    var items = QUICK_STARTS.filter(function (i) {
+      return !(i.passport && !learnerEmail);
+    });
+    chipRow(items, function (item) {
       if (item.wizard) { startWizard(); return; }
+      if (item.passport) { requestPassport(); return; }
       sendText(item.q);
     });
+  }
+
+  function addLinkMsg(text, linkText, href) {
+    var div = document.createElement("div");
+    div.className = "fl-msg fl-msg-coach";
+    renderInto(div, text + " ");
+    var a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = linkText;
+    a.style.color = "#D9452B";
+    a.style.fontWeight = "600";
+    div.appendChild(a);
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function requestPassport() {
+    removeChipRows();
+    addMsg("user", "My passport 📜");
+    setBusy(true);
+    fetch(ENDPOINT + "/api/passport", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ learner_id: learnerId, session_id: sessionId, email: learnerEmail }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setBusy(false);
+        if (data && data.ok && data.url) {
+          addLinkMsg(
+            "Here you go — **" + data.completed + "** completed, **" + data.in_progress +
+              "** in progress. Your printable passport:",
+            "Open my Readiness Passport",
+            ENDPOINT + data.url,
+          );
+        } else if (data && data.reason === "account_not_found") {
+          addMsg("coach", "I couldn't match your account just now — ask your tutor to check your email on the platform.");
+        } else if (data && data.reason === "daily_cap") {
+          addMsg("coach", "You've made a few passports today already — use the latest one, or ask again tomorrow.");
+        } else {
+          addMsg("coach", "I couldn't build your passport just now — try again in a minute.");
+        }
+      })
+      .catch(function () {
+        setBusy(false);
+        addMsg("coach", "I couldn't reach the passport service — try again in a minute.");
+      });
   }
 
   /* Wizard flow: three chip questions, then the pathway API. The
