@@ -67,6 +67,7 @@ import {
   type StreakState,
 } from "./lib/skills-passport";
 import { renderSkillsPassport } from "./pages-skills";
+import { runCvChecks } from "./lib/cv-checks";
 import {
   parseReviewReport,
   REVIEW_CAPS,
@@ -651,7 +652,7 @@ app.post("/api/enrol", async (c) => {
  * #3 — AI employability tools (ATS CV review, LinkedIn review)
  * ================================================================== */
 
-const REVIEW_MAX_TOKENS = 1600;
+const REVIEW_MAX_TOKENS = 2000;
 
 app.post("/api/review", async (c) => {
   let body: Record<string, unknown>;
@@ -693,12 +694,24 @@ app.post("/api/review", async (c) => {
     });
   }
 
+  /* Deterministic recruiter checks — computed before the model runs so
+   * the AI can complement rather than repeat them. */
+  const checks = runCvChecks(validated.text, validated.kind);
+  const checksNote =
+    "\n<automated_checks_already_shown_to_learner>\n" +
+    checks.groups
+      .flatMap((g) => g.items)
+      .map((i) => `${i.status.toUpperCase()}: ${i.label}`)
+      .join("\n") +
+    "\n</automated_checks_already_shown_to_learner>\n" +
+    "The learner sees those rule-based results separately — do not repeat them; add the judgement a rule cannot make.";
+
   try {
     const raw = await generate(
       c.env.ANTHROPIC_API_KEY,
       c.env.COACH_MODEL || "claude-sonnet-4-6",
       reviewSystemPrompt(validated.kind),
-      reviewUserMessage(validated),
+      reviewUserMessage(validated) + checksNote,
       REVIEW_MAX_TOKENS,
     );
     const report = parseReviewReport(raw);
@@ -724,9 +737,9 @@ app.post("/api/review", async (c) => {
     }
     await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     console.log(
-      `[coach] kind=review tool=${validated.kind} outcome=ok overall=${report.overall}`,
+      `[coach] kind=review tool=${validated.kind} outcome=ok overall=${report.overall} checks=${checks.passed}/${checks.total}`,
     );
-    return c.json({ report, kind: "review" });
+    return c.json({ report, checks, kind: "review" });
   } catch (err) {
     return c.json(modelFailure("review", err));
   }

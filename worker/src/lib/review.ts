@@ -57,8 +57,15 @@ Output exactly this JSON shape:
   "improvements": [
     {"title": "<short imperative title>", "detail": "<2 specific sentences — what kind of content or edit, never invented content>"}
   , ...exactly 3-4 items],
+  "rewrite": {
+    "before": "<ONE verbatim weak line copied exactly from the learner's text>",
+    "after": "<that same line rewritten to lead with an action verb and a result, using ONLY facts already in their text; where a number would strengthen it that they have not provided, insert a placeholder in square brackets like [how many] or [how often] for them to fill in>"
+  },
+  "keywords": {"matched": ["<term from the job advert their text genuinely evidences>"], "missing": ["<important term from the advert their text does not evidence>"]},
   "next_step": "<the single highest-impact edit, 1-2 sentences>"
-}`;
+}
+The "keywords" field: ONLY when a target job advert was provided, extract the 6-12 most important skills/requirements from the advert and split them into matched (their text genuinely shows it) vs missing (it does not). If no advert was provided, use {"matched":[],"missing":[]}.
+The "rewrite" field teaches the XYZ/STAR pattern — accomplished X, measured by Y, by doing Z — but the after-line must contain nothing the learner did not write, other than square-bracket placeholders they will fill themselves.`;
 
 const CV_SYSTEM = `You are Fledge, the Fledglings employability coach, reviewing a young person's (16-24) CV. Fledglings is a UK life-skills platform.
 ${SHARED_RULES}
@@ -82,6 +89,8 @@ export interface ReviewReport {
   dimensions: Array<{ label: string; score: number; tip: string }>;
   strengths: string[];
   improvements: Array<{ title: string; detail: string }>;
+  rewrite: { before: string; after: string } | null;
+  keywords: { matched: string[]; missing: string[] };
   next_step: string;
 }
 
@@ -146,7 +155,36 @@ export function parseReviewReport(raw: string): ReviewReport | "crisis" | null {
   if (dimensions.length < 3 || strengths.length < 1 || improvements.length < 2) {
     return null;
   }
-  return { overall, verdict, dimensions, strengths, improvements, next_step: next };
+
+  /* Optional extras — a report without them is still a report. */
+  let rewrite: { before: string; after: string } | null = null;
+  if (typeof p.rewrite === "object" && p.rewrite !== null) {
+    const rw = p.rewrite as Record<string, unknown>;
+    const before = asString(rw.before, 300);
+    const after = asString(rw.after, 400);
+    if (before && after) rewrite = { before, after };
+  }
+
+  const kw = (typeof p.keywords === "object" && p.keywords !== null
+    ? p.keywords
+    : {}) as Record<string, unknown>;
+  const kwList = (v: unknown): string[] =>
+    (Array.isArray(v) ? v : [])
+      .map((s) => asString(s, 60))
+      .filter((s): s is string => s !== null)
+      .slice(0, 15);
+  const keywords = { matched: kwList(kw.matched), missing: kwList(kw.missing) };
+
+  return {
+    overall,
+    verdict,
+    dimensions,
+    strengths,
+    improvements,
+    rewrite,
+    keywords,
+    next_step: next,
+  };
 }
 
 export function reviewUserMessage(req: ReviewRequest): string {

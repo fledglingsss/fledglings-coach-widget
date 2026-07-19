@@ -156,9 +156,22 @@ export function renderToolsPage(): string {
     "<div class='r-headtxt'><div class='r-kind' id='r-kind'>CV REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
+    "<div class='card' id='r-kwcard' hidden><h3>Match against the job advert <span class='badge' id='r-kwpct'></span></h3>" +
+    "<p class='kw-note'>Screening software compares your wording to the advert's — aim for 75%+ matched. " +
+    "Only claim a missing skill if you genuinely have it.</p>" +
+    "<div class='kw-h'>✓ Found in your document</div><div class='chips' id='r-kwm'></div>" +
+    "<div class='kw-h miss'>Missing from your document</div><div class='chips' id='r-kwx'></div></div>" +
+    "<div class='card'><h3>Recruiter checks <span class='badge' id='r-ckcount'></span></h3>" +
+    "<p class='kw-note'>Objective, rule-based checks — the things screening software and a skim-reading recruiter " +
+    "judge before reading a word properly.</p><div id='r-checks'></div></div>" +
     "<div class='card'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
     "<div class='card'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
     "<div class='card'><h3>What to improve</h3><div id='r-fixes'></div></div>" +
+    "<div class='card' id='r-rwcard' hidden><h3>Example rewrite — your line, upgraded</h3>" +
+    "<p class='kw-note'>The pattern: what you achieved, measured how, by doing what. Anything in [brackets] is " +
+    "yours to fill in — Fledge never invents your numbers.</p>" +
+    "<div class='rw before'><div class='rw-tag'>BEFORE</div><div id='r-rwb'></div></div>" +
+    "<div class='rw after'><div class='rw-tag'>AFTER</div><div id='r-rwa'></div></div></div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='btnrow no-print'>" +
     "<button type='button' class='btn' onclick='window.print()'>Print / save feedback</button>" +
@@ -233,12 +246,30 @@ export function renderToolsPage(): string {
     "fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
     "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
-    "if(d&&d.report){renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
+    "if(d&&d.report){renderReport(d.report,d.checks);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
     "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
-    "function renderReport(r){" +
+    "function renderReport(r,checks){" +
     "var col=band(r.overall);" +
+    /* keyword match (Jobscan model) */
+    "var kw=r.keywords||{matched:[],missing:[]};var kwTotal=kw.matched.length+kw.missing.length;" +
+    "if(kwTotal>0){var pct=Math.round(kw.matched.length*100/kwTotal);" +
+    "$('r-kwpct').textContent=pct+'% match';$('r-kwpct').style.background=band(pct);$('r-kwpct').style.color='#fff';" +
+    "$('r-kwm').innerHTML=kw.matched.map(function(k){return \"<span class='chip ok'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>none yet</span>\";" +
+    "$('r-kwx').innerHTML=kw.missing.map(function(k){return \"<span class='chip miss'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>nothing important missing</span>\";" +
+    "$('r-kwcard').hidden=false}else{$('r-kwcard').hidden=true}" +
+    /* deterministic recruiter checks (Resume Worded model) */
+    "if(checks&&checks.groups){$('r-ckcount').textContent=checks.passed+' of '+checks.total+' passed';" +
+    "var ck='';checks.groups.forEach(function(g){ck+=\"<div class='ck-g'>\"+esc(g.label)+'</div>';" +
+    "g.items.forEach(function(c){var ic=c.status==='pass'?'✓':c.status==='warn'?'!':'✗';" +
+    "ck+=\"<div class='ck \"+c.status+\"'><span class='ck-i'>\"+ic+\"</span><div><div class='ck-l'>\"+esc(c.label)+\"</div>\"+" +
+    "\"<div class='ck-d'>\"+esc(c.detail)+'</div>'+" +
+    "(c.evidence?\"<div class='ck-e'>“\"+esc(c.evidence)+\"”</div>\":'')+'</div></div>'})});" +
+    "$('r-checks').innerHTML=ck}" +
+    /* rewrite (XYZ/STAR teaching) */
+    "if(r.rewrite&&r.rewrite.before){$('r-rwb').textContent=r.rewrite.before;" +
+    "$('r-rwa').textContent=r.rewrite.after;$('r-rwcard').hidden=false}else{$('r-rwcard').hidden=true}" +
     "$('r-score').textContent=r.overall;$('r-score').style.color=col;" +
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-kind').textContent=(kind==='cv'?'CV REVIEW':'LINKEDIN REVIEW');" +
@@ -310,6 +341,32 @@ export function renderToolsPage(): string {
   display:flex;align-items:center;justify-content:center;flex:none;margin-top:2px;}
 .fix-t{font-weight:700;font-size:14.5px;}
 .fix-d{font-size:13.5px;color:#4a5b66;line-height:1.55;margin-top:2px;}
+.kw-note{font-size:13px;color:var(--blue);line-height:1.55;margin-bottom:14px;}
+.kw-h{font-size:12.5px;font-weight:700;color:var(--ok);margin:12px 0 8px;letter-spacing:.03em;}
+.kw-h.miss{color:var(--orange);}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;}
+.chip.ok{background:#E7F3EC;color:var(--ok);border:1.5px solid #BBDECB;}
+.chip.miss{background:#fff;color:var(--orange);border:1.5px dashed var(--orange);}
+.kw-none{font-size:13px;color:#8a97a1;font-style:italic;}
+.ck-g{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;
+  margin:16px 0 8px;border-bottom:2px solid var(--off);padding-bottom:4px;}
+.ck-g:first-child{margin-top:0;}
+.ck{display:flex;gap:12px;padding:9px 0;}
+.ck-i{width:24px;height:24px;border-radius:50%;font-weight:800;font-size:13px;flex:none;
+  display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.ck.pass .ck-i{background:#E7F3EC;color:var(--ok);}
+.ck.warn .ck-i{background:#FBF0E2;color:#B96A16;}
+.ck.fail .ck-i{background:#FCE9E5;color:var(--orange);}
+.ck-l{font-weight:700;font-size:14px;}
+.ck-d{font-size:13px;color:#4a5b66;line-height:1.5;margin-top:2px;}
+.ck-e{font-size:12.5px;color:#8a97a1;font-style:italic;margin-top:4px;border-left:3px solid var(--off);padding-left:10px;}
+.rw{border-radius:14px;padding:14px 16px;margin-bottom:10px;font-size:14px;line-height:1.6;}
+.rw.before{background:var(--off);color:#5c6b75;}
+.rw.after{background:#E7F3EC;border:1.5px solid #BBDECB;}
+.rw-tag{font-size:10.5px;font-weight:800;letter-spacing:.1em;margin-bottom:4px;}
+.rw.before .rw-tag{color:#8a97a1;}
+.rw.after .rw-tag{color:var(--ok);}
 .nextstep{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;}
 .nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
