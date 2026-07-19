@@ -304,6 +304,8 @@ export interface LwProgress {
   progressRate: number;
   scoreRate: number | null;
   timeSeconds: number;
+  unitsDone: number;
+  unitsTotal: number;
 }
 
 /** Per-course progress: {status, progress_rate, average_score_rate,
@@ -324,6 +326,8 @@ export async function getUserProgress(
     progress_rate?: number;
     average_score_rate?: number;
     time_on_course?: number;
+    total_units?: number;
+    completed_units?: number;
   };
   const status =
     p.status === "completed"
@@ -343,6 +347,8 @@ export async function getUserProgress(
         ? Math.max(0, Math.min(100, p.average_score_rate))
         : null,
     timeSeconds: typeof p.time_on_course === "number" ? Math.max(0, p.time_on_course) : 0,
+    unitsDone: typeof p.completed_units === "number" ? Math.max(0, p.completed_units) : 0,
+    unitsTotal: typeof p.total_units === "number" ? Math.max(0, p.total_units) : 0,
   };
 }
 

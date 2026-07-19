@@ -4,6 +4,7 @@ import {
   advanceStreak,
   cohortTag,
   computeSkillsPassport,
+  displayName,
   formatMinutes,
   gradeFor,
   isModuleTitle,
@@ -59,6 +60,24 @@ describe("cohortTag", () => {
     expect(cohortTag(["Group A"])).toBe("Group A");
     expect(cohortTag([])).toBeNull();
     expect(cohortTag(undefined)).toBeNull();
+  });
+});
+
+describe("displayName", () => {
+  it("derives a spaced, title-cased name from the email local part", () => {
+    expect(displayName({ email: "sak.awan@example.com" })).toBe("Sak Awan");
+    expect(displayName({ email: "sak_awan@example.com" })).toBe("Sak Awan");
+    expect(displayName({ email: "SAK-AWAN@example.com" })).toBe("Sak Awan");
+  });
+  it("splits a run-together username using the first name as prefix", () => {
+    expect(displayName({ email: "sakawan@example.com", firstName: "sak", username: "sakawan" })).toBe("Sak Awan");
+  });
+  it("prefers first+last fields when both are present", () => {
+    expect(displayName({ email: "x@example.com", firstName: "sak", lastName: "awan" })).toBe("Sak Awan");
+  });
+  it("falls back gracefully", () => {
+    expect(displayName({ email: "sakawan@example.com" })).toBe("Sakawan");
+    expect(displayName({})).toBe("Fledglings Learner");
   });
 });
 
@@ -130,6 +149,40 @@ describe("computeSkillsPassport", () => {
     expect(jr.toGo).toBe(1);
     const onFire = model.badges.find((b) => b.code === "OF")!;
     expect(onFire.state).toBe("earned"); // 8-day streak
+  });
+
+  it("builds the top-5 board (plus me if outside), nearly-there and steps", () => {
+    const entries = Array.from({ length: 7 }, (_, i) => ({
+      h: `h${i}`,
+      n: `Learner ${i}`,
+      completed: 7 - i,
+      score: 80,
+    }));
+    const model = computeSkillsPassport({
+      firstName: "A",
+      fullName: "A B",
+      cohort: "Cohort 24B",
+      courses: [
+        course({ courseId: "a", status: "completed", progressRate: 100, scoreRate: 90, unitsDone: 8, unitsTotal: 8 }),
+        course({ courseId: "b", title: "Money Confidence & Everyday Decisions", progressRate: 62, unitsDone: 5, unitsTotal: 8 }),
+        course({ courseId: "c", title: "What is Online Safety?", label: "Staying Safe Online", progressRate: 30, unitsDone: 2, unitsTotal: 6 }),
+      ],
+      streak: { cur: 1, best: 1, last: "2026-07-19" },
+      rank: 7,
+      cohortSize: 7,
+      board: { entries, builtAt: "2026-07-19" },
+      myHash: "h6",
+      now: NOW,
+    });
+    expect(model.board.length).toBe(6); // top 5 + me
+    expect(model.board[0]).toEqual({ rank: 1, name: "Learner 0", completed: 7, isMe: false });
+    expect(model.board[5]).toEqual({ rank: 7, name: "Learner 6", completed: 1, isMe: true });
+    expect(model.nearlyThere).toEqual([
+      { title: "Money Confidence & Everyday Decisions", percent: 62 },
+      { title: "What is Online Safety?", percent: 30 },
+    ]);
+    expect(model.stats.stepsDone).toBe(15);
+    expect(model.stats.stepsTotal).toBe(22);
   });
 
   it("filters container courses everywhere", () => {

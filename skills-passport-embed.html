@@ -7,25 +7,34 @@
   HOW IT WORKS: LearnWorlds replaces {{USER.EMAIL}} with the
   logged-in learner's email when it serves the page, so every
   learner automatically sees their own passport — scores, streak,
-  badges, and their cohort (from their LearnWorlds tag) are then
-  looked up server-side. If Liquid isn't substituted (e.g. a
-  logged-out preview), the sample passport shows instead.
+  badges, leaderboard, and their cohort (from their LearnWorlds
+  tag) are then looked up server-side. If Liquid isn't substituted
+  (e.g. a logged-out preview), the sample passport shows instead.
+  The iframe auto-sizes to the passport's height, so the full page
+  is always visible without an inner scrollbar.
   ============================================================ -->
 <div id="fl-skills-passport" style="width:100%;"></div>
 <script>
   (function () {
     var email = "{{USER.EMAIL}}";
-    var base = "https://fledglings-coach.fledglings.workers.dev/skills-passport";
+    var origin = "https://fledglings-coach.fledglings.workers.dev";
     var src =
       email && email.indexOf("{{") === -1 && email.indexOf("@") !== -1
-        ? base + "?email=" + encodeURIComponent(email)
-        : base + "?demo=1";
+        ? origin + "/skills-passport?email=" + encodeURIComponent(email)
+        : origin + "/skills-passport?demo=1";
     var frame = document.createElement("iframe");
     frame.src = src;
     frame.title = "My Skills Passport";
     frame.style.cssText =
-      "width:100%;height:1500px;border:none;border-radius:12px;display:block;";
+      "width:100%;height:2100px;border:none;border-radius:12px;display:block;";
     frame.setAttribute("loading", "lazy");
     document.getElementById("fl-skills-passport").appendChild(frame);
+    window.addEventListener("message", function (e) {
+      if (e.origin !== origin) return;
+      var h = e.data && e.data.flPassportHeight;
+      if (typeof h === "number" && h > 400 && h < 12000) {
+        frame.style.height = Math.ceil(h) + "px";
+      }
+    });
   })();
 </script>

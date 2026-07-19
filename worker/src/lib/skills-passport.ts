@@ -19,6 +19,53 @@ export interface CourseRecord {
   progressRate: number; // 0-100
   scoreRate: number | null; // 0-100 average_score_rate, null if none
   timeSeconds: number;
+  unitsDone?: number;
+  unitsTotal?: number;
+}
+
+/**
+ * Display name rule (founder 2026-07-19): usernames/ids are the name
+ * without separators ("sakawan"), but the EMAIL local part carries the
+ * separator ("sak.awan@…") — so derive "Sak Awan" from the email,
+ * falling back to first/last name fields, then the username.
+ */
+export function displayName(input: {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+}): string {
+  const fromFields = [input.firstName, input.lastName]
+    .map((s) => (s ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  if (fromFields.includes(" ")) return titleCase(fromFields);
+
+  const local = (input.email ?? "").split("@")[0] ?? "";
+  const parts = local.split(/[._\-+]+/).filter((p) => /[a-z]/i.test(p));
+  if (parts.length >= 2) return titleCase(parts.join(" "));
+
+  /* Username is first+last run together ("sakawan"): if it starts with
+   * the known first name, the remainder is the surname → "Sak Awan". */
+  const username = (input.username ?? "").trim();
+  const first = (input.firstName ?? "").trim();
+  if (first && username.toLowerCase().startsWith(first.toLowerCase())) {
+    const rest = username.slice(first.length).replace(/^[._\- ]+/, "");
+    if (rest) return titleCase(`${first} ${rest}`);
+  }
+
+  if (fromFields) return titleCase(fromFields);
+  if (username) return titleCase(username);
+  if (parts.length === 1) return titleCase(parts[0]!);
+  return "Fledglings Learner";
+}
+
+function titleCase(text: string): string {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
 }
 
 export interface StreakState {
@@ -47,9 +94,13 @@ export interface SkillsPassportModel {
     cohortSize: number | null;
     modulesDone: number;
     modulesTotal: number;
+    stepsDone: number;
+    stepsTotal: number;
   };
   badges: BadgeModel[];
   skills: Array<{ name: string; percent: number }>;
+  board: Array<{ rank: number; name: string; completed: number; isMe: boolean }>;
+  nearlyThere: Array<{ title: string; percent: number }>;
   modules: Array<{
     title: string;
     label: string;
@@ -101,7 +152,7 @@ export function advanceStreak(prev: StreakState | null, todayIso: string): Strea
 
 export interface LeaderboardEntry {
   h: string; // 12-char email-hash prefix (never the email)
-  n: string; // first name for display
+  n: string; // display name (see displayName), e.g. "Sak Awan"
   completed: number;
   score: number;
 }
@@ -200,6 +251,8 @@ export function computeSkillsPassport(input: {
   streak: StreakState;
   rank: number | null;
   cohortSize: number | null;
+  board?: Leaderboard | null;
+  myHash?: string;
   now: Date;
 }): SkillsPassportModel {
   const modules = learnerModules(input.courses);
@@ -274,6 +327,32 @@ export function computeSkillsPassport(input: {
     return `${start}/${String(start + 1).slice(2)}`;
   })();
 
+  /* Cohort top-5 (plus the learner if outside the top 5). */
+  const boardEntries = input.board?.entries ?? [];
+  const board = boardEntries.slice(0, 5).map((e, i) => ({
+    rank: i + 1,
+    name: e.n,
+    completed: e.completed,
+    isMe: e.h === input.myHash,
+  }));
+  if (input.myHash && !board.some((b) => b.isMe)) {
+    const idx = boardEntries.findIndex((e) => e.h === input.myHash);
+    if (idx >= 5) {
+      board.push({
+        rank: idx + 1,
+        name: boardEntries[idx].n,
+        completed: boardEntries[idx].completed,
+        isMe: true,
+      });
+    }
+  }
+
+  const nearlyThere = modules
+    .filter((m) => m.status !== "completed" && m.progressRate > 0)
+    .sort((a, b) => b.progressRate - a.progressRate)
+    .slice(0, 3)
+    .map((m) => ({ title: m.title, percent: Math.round(m.progressRate) }));
+
   return {
     learner: {
       name: input.fullName || input.firstName,
@@ -292,9 +371,13 @@ export function computeSkillsPassport(input: {
       cohortSize: input.cohortSize,
       modulesDone: done.length,
       modulesTotal: modules.length,
+      stepsDone: modules.reduce((s, m) => s + (m.unitsDone ?? 0), 0),
+      stepsTotal: modules.reduce((s, m) => s + (m.unitsTotal ?? 0), 0),
     },
     badges,
     skills,
+    board,
+    nearlyThere,
     modules: modules
       .map((m) => ({
         title: m.title,

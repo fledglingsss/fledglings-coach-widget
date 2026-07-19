@@ -58,6 +58,7 @@ import {
   advanceStreak,
   cohortTag,
   computeSkillsPassport,
+  displayName,
   isModuleTitle,
   rankOf,
   upsertLeaderboard,
@@ -249,17 +250,28 @@ const SP_MAX_PROGRESS_CALLS = 36;
 function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
   const now = new Date();
   const courses: CourseRecord[] = [
-    { courseId: "a", title: "Money Confidence & Everyday Decisions", label: "Financial Literacy", status: "completed", progressRate: 100, scoreRate: 91, timeSeconds: 5400 },
-    { courseId: "b", title: "Budgeting That Actually Works", label: "Financial Literacy", status: "completed", progressRate: 100, scoreRate: 84, timeSeconds: 6100 },
-    { courseId: "c", title: "Pay, Payslips, and Planning for Tax & NI", label: "Financial Literacy", status: "in_progress", progressRate: 55, scoreRate: 78, timeSeconds: 2400 },
-    { courseId: "d", title: "Introduction to Employability Skills", label: "Employability Skills", status: "completed", progressRate: 100, scoreRate: 88, timeSeconds: 4800 },
-    { courseId: "e", title: "Communication That Builds Trust", label: "Employability Skills", status: "completed", progressRate: 100, scoreRate: 90, timeSeconds: 5200 },
-    { courseId: "f", title: "Interviews, CVs & Early-Career Mindset", label: "Employability Skills", status: "in_progress", progressRate: 40, scoreRate: null, timeSeconds: 1800 },
-    { courseId: "g", title: "What is Online Safety?", label: "Staying Safe Online", status: "completed", progressRate: 100, scoreRate: 86, timeSeconds: 3900 },
-    { courseId: "h", title: "Online Scams, Fraud & Money Safety", label: "Staying Safe Online", status: "in_progress", progressRate: 70, scoreRate: 82, timeSeconds: 2600 },
-    { courseId: "i", title: "Confidence & Resilience Introduction", label: "Confidence & Resilience", status: "completed", progressRate: 100, scoreRate: 80, timeSeconds: 3600 },
-    { courseId: "j", title: "Preparing for an Interview", label: "Deep Dive Mini Series", status: "completed", progressRate: 100, scoreRate: 89, timeSeconds: 1900 },
+    { courseId: "a", title: "Money Confidence & Everyday Decisions", label: "Financial Literacy", status: "completed", progressRate: 100, scoreRate: 91, timeSeconds: 5400, unitsDone: 8, unitsTotal: 8 },
+    { courseId: "b", title: "Budgeting That Actually Works", label: "Financial Literacy", status: "completed", progressRate: 100, scoreRate: 84, timeSeconds: 6100, unitsDone: 9, unitsTotal: 9 },
+    { courseId: "c", title: "Pay, Payslips, and Planning for Tax & NI", label: "Financial Literacy", status: "in_progress", progressRate: 55, scoreRate: 78, timeSeconds: 2400, unitsDone: 5, unitsTotal: 9 },
+    { courseId: "d", title: "Introduction to Employability Skills", label: "Employability Skills", status: "completed", progressRate: 100, scoreRate: 88, timeSeconds: 4800, unitsDone: 7, unitsTotal: 7 },
+    { courseId: "e", title: "Communication That Builds Trust", label: "Employability Skills", status: "completed", progressRate: 100, scoreRate: 90, timeSeconds: 5200, unitsDone: 8, unitsTotal: 8 },
+    { courseId: "f", title: "Interviews, CVs & Early-Career Mindset", label: "Employability Skills", status: "in_progress", progressRate: 40, scoreRate: null, timeSeconds: 1800, unitsDone: 3, unitsTotal: 8 },
+    { courseId: "g", title: "What is Online Safety?", label: "Staying Safe Online", status: "completed", progressRate: 100, scoreRate: 86, timeSeconds: 3900, unitsDone: 6, unitsTotal: 6 },
+    { courseId: "h", title: "Online Scams, Fraud & Money Safety", label: "Staying Safe Online", status: "in_progress", progressRate: 70, scoreRate: 82, timeSeconds: 2600, unitsDone: 5, unitsTotal: 7 },
+    { courseId: "i", title: "Confidence & Resilience Introduction", label: "Confidence & Resilience", status: "completed", progressRate: 100, scoreRate: 80, timeSeconds: 3600, unitsDone: 6, unitsTotal: 6 },
+    { courseId: "j", title: "Preparing for an Interview", label: "Deep Dive Mini Series", status: "completed", progressRate: 100, scoreRate: 89, timeSeconds: 1900, unitsDone: 4, unitsTotal: 4 },
   ];
+  const stamp = now.toISOString();
+  const demoBoard: Leaderboard = {
+    entries: [
+      { h: "demo-jordan", n: "Jordan Lee", completed: 9, score: 92 },
+      { h: "demo-priya", n: "Priya Patel", completed: 8, score: 88 },
+      { h: "demo-sam", n: "Sam Okafor", completed: 8, score: 81 },
+      { h: "demo-maya", n: "Maya Thompson", completed: 7, score: 86 },
+      { h: "demo-tyler", n: "Tyler Brooks", completed: 6, score: 74 },
+    ],
+    builtAt: stamp,
+  };
   return computeSkillsPassport({
     firstName: "Maya",
     fullName: "Maya Thompson",
@@ -268,6 +280,8 @@ function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
     streak: { cur: 12, best: 18, last: now.toISOString().slice(0, 10) },
     rank: 4,
     cohortSize: 120,
+    board: demoBoard,
+    myHash: "demo-maya",
     now,
   });
 }
@@ -340,14 +354,23 @@ app.get("/skills-passport", async (c) => {
       }
     }
 
+    const fullName = displayName({
+      email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.username,
+    });
+    const myHash = emailHash.slice(0, 12);
+
     /* Cohort leaderboard: upsert this learner, read rank + size. */
     const tag = cohortTag(user.tags);
     let rank: number | null = null;
     let cohortSize: number | null = null;
+    let board: Leaderboard | null = null;
     if (tag) {
       const tagSlug = tag.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       const lbKey = `sp:lb:${tagSlug}`;
-      const board = JSON.parse(
+      const prev = JSON.parse(
         (await c.env.RATE_LIMITS.get(lbKey)) || "null",
       ) as Leaderboard | null;
       const completed = courses.filter((x) => x.status === "completed").length;
@@ -355,23 +378,17 @@ app.get("/skills-passport", async (c) => {
         courses.length > 0
           ? Math.round(courses.reduce((s, x) => s + x.progressRate, 0) / courses.length)
           : 0;
-      const firstName =
-        (user.first_name || user.username || "Learner").trim().split(/\s+/)[0] || "Learner";
-      const next = upsertLeaderboard(
-        board,
-        { h: emailHash.slice(0, 12), n: firstName, completed, score: avg },
+      board = upsertLeaderboard(
+        prev,
+        { h: myHash, n: fullName, completed, score: avg },
         new Date().toISOString(),
       );
-      await c.env.RATE_LIMITS.put(lbKey, JSON.stringify(next));
-      rank = rankOf(next, emailHash.slice(0, 12));
-      cohortSize = (await countUsersByTag(c.env, tag)) ?? next.entries.length;
-      if (cohortSize < next.entries.length) cohortSize = next.entries.length;
+      await c.env.RATE_LIMITS.put(lbKey, JSON.stringify(board));
+      rank = rankOf(board, myHash);
+      cohortSize = (await countUsersByTag(c.env, tag)) ?? board.entries.length;
+      if (cohortSize < board.entries.length) cohortSize = board.entries.length;
     }
 
-    const fullName =
-      [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
-      user.username ||
-      "Fledglings Learner";
     const model = computeSkillsPassport({
       firstName: fullName.split(/\s+/)[0] || "Learner",
       fullName,
@@ -380,6 +397,8 @@ app.get("/skills-passport", async (c) => {
       streak,
       rank,
       cohortSize,
+      board,
+      myHash,
       now: new Date(),
     });
 
