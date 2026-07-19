@@ -28,8 +28,13 @@ export function lwConfigured(env: LwEnv): boolean {
   );
 }
 
+/* Normalise the stored school URL: strip trailing slashes and a
+ * trailing /admin/api (people copy the URL from the developers page
+ * with the path attached — diagnosed live 2026-07-19). */
 function schoolUrl(env: LwEnv): string {
-  return (env.LEARNWORLDS_SCHOOL_URL || "").replace(/\/+$/, "");
+  return (env.LEARNWORLDS_SCHOOL_URL || "")
+    .replace(/\/+$/, "")
+    .replace(/\/admin\/api$/, "");
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
@@ -51,7 +56,8 @@ async function getToken(env: LwEnv): Promise<string> {
     client_id: env.LEARNWORLDS_CLIENT_ID || "",
     client_secret: env.LEARNWORLDS_CLIENT_SECRET || "",
   });
-  const res = await fetchWithTimeout(`${schoolUrl(env)}/oauth2/access_token`, {
+  /* Documented token endpoint: {school}/admin/api/oauth2/access_token */
+  const res = await fetchWithTimeout(`${schoolUrl(env)}/admin/api/oauth2/access_token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
@@ -59,15 +65,64 @@ async function getToken(env: LwEnv): Promise<string> {
   if (!res.ok) {
     throw new Error(`LearnWorlds token request failed: HTTP ${res.status}`);
   }
-  const payload = (await res.json()) as { access_token?: string; expires_in?: number };
-  if (!payload.access_token) {
-    throw new Error("LearnWorlds token response missing access_token");
+  /* LearnWorlds wraps the token in a tokenData object; accept the
+   * flat OAuth shape too for safety. */
+  const payload = (await res.json()) as {
+    access_token?: string;
+    expires_in?: number;
+    errors?: unknown;
+    tokenData?: { access_token?: string; expires_in?: number };
+  };
+  const accessToken = payload.tokenData?.access_token ?? payload.access_token;
+  const expiresIn = payload.tokenData?.expires_in ?? payload.expires_in ?? 3600;
+  if (!accessToken) {
+    throw new Error(
+      `LearnWorlds token response missing access_token (keys: ${Object.keys(
+        payload,
+      ).join(",")})`,
+    );
   }
-  const ttl = Math.max(60, (payload.expires_in ?? 3600) - 120);
-  await env.RATE_LIMITS.put(TOKEN_KV_KEY, payload.access_token, {
-    expirationTtl: ttl,
-  });
-  return payload.access_token;
+  const ttl = Math.max(60, expiresIn - 120);
+  await env.RATE_LIMITS.put(TOKEN_KV_KEY, accessToken, { expirationTtl: ttl });
+  return accessToken;
+}
+
+/* The documented data-API base is {SCHOOLHOMEPAGE}/admin/api (paths
+ * then start /v2/...). The school homepage can differ from the stored
+ * URL by a www prefix, so resolve the working base once by probing
+ * candidates, then cache the winner in KV for a day. */
+const BASE_KV_KEY = "lw:base:v1";
+
+function baseCandidates(env: LwEnv): string[] {
+  const stored = schoolUrl(env);
+  const isWww = /^https:\/\/www\./.test(stored);
+  const other = isWww
+    ? stored.replace(/^https:\/\/www\./, "https://")
+    : stored.replace(/^https:\/\//, "https://www.");
+  return [...new Set([stored, other])].map((h) => `${h}/admin/api`);
+}
+
+async function resolveBase(env: LwEnv, token: string): Promise<string> {
+  const cached = await env.RATE_LIMITS.get(BASE_KV_KEY);
+  if (cached) return cached;
+  const results: string[] = [];
+  for (const base of baseCandidates(env)) {
+    const res = await fetchWithTimeout(`${base}/v2/courses?items_per_page=1`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Lw-Client": env.LEARNWORLDS_CLIENT_ID || "",
+      },
+      redirect: "follow",
+    });
+    if (res.ok) {
+      await env.RATE_LIMITS.put(BASE_KV_KEY, base, { expirationTtl: 86_400 });
+      return base;
+    }
+    const bodyHint = (await res.text()).replace(/\s+/g, " ").slice(0, 120);
+    results.push(`${base} -> HTTP ${res.status} ${bodyHint}`);
+  }
+  throw new Error(`LearnWorlds API base resolution failed: ${results.join(" | ")}`);
 }
 
 async function lwRequest(
@@ -77,7 +132,8 @@ async function lwRequest(
   jsonBody?: unknown,
 ): Promise<Response> {
   const token = await getToken(env);
-  return fetchWithTimeout(`${schoolUrl(env)}/admin/api/v2${path}`, {
+  const base = await resolveBase(env, token);
+  return fetchWithTimeout(`${base}/v2${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -86,6 +142,33 @@ async function lwRequest(
     },
     body: jsonBody !== undefined ? JSON.stringify(jsonBody) : undefined,
   });
+}
+
+/** List all courses (id + title). Used by /lw-check to verify the
+ * stored credentials and to build the module -> course-id map. */
+export async function listCourses(
+  env: LwEnv,
+): Promise<Array<{ id: string; title: string }>> {
+  const courses: Array<{ id: string; title: string }> = [];
+  let page = 1;
+  for (;;) {
+    const res = await lwRequest(
+      env,
+      "GET",
+      `/courses?page=${page}&items_per_page=50`,
+    );
+    if (!res.ok) throw new Error(`LearnWorlds course list failed: HTTP ${res.status}`);
+    const payload = (await res.json()) as {
+      data?: Array<{ id: string; title: string }>;
+      meta?: { totalPages?: number; total_pages?: number };
+    };
+    const items = payload.data ?? [];
+    for (const course of items) courses.push({ id: course.id, title: course.title });
+    const totalPages = payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1;
+    if (page >= totalPages || items.length === 0) break;
+    page += 1;
+  }
+  return courses;
 }
 
 /** Find a LearnWorlds user by email. Returns the user id, or null. */

@@ -43,6 +43,7 @@ import { courseIdFor } from "./lib/course-map";
 import {
   enrolUserInCourse,
   findUserByEmail,
+  listCourses,
   lwConfigured,
 } from "./lib/learnworlds";
 import {
@@ -169,10 +170,30 @@ app.get("/preview", (c) =>
       "<body><h1>Fledglings page stand-in</h1>" +
       "<p>Internal QA page. The Fledge button should appear bottom-right, " +
       "fully live against the production coach.</p>" +
-      "<script>window.FLEDGLINGS_COACH={endpoint:location.origin,learnerName:'Preview Tester'};</script>" +
+      "<script>window.FLEDGLINGS_COACH={endpoint:location.origin,learnerName:'Preview Tester'," +
+      "learnerEmail:new URLSearchParams(location.search).get('email')||''};</script>" +
       "<script src='/widget.js' defer></script></body></html>",
   ),
 );
+
+/* Ops probe: verifies the stored LearnWorlds credentials by listing
+ * courses (titles + ids — already public on the school site; no
+ * secrets, no learner data). */
+app.get("/lw-check", async (c) => {
+  if (!lwConfigured(c.env)) {
+    return c.json({ configured: false, ok: false });
+  }
+  try {
+    const courses = await listCourses(c.env);
+    return c.json({ configured: true, ok: true, count: courses.length, courses });
+  } catch (err) {
+    return c.json({
+      configured: true,
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
 
 app.get("/widget.js", (c) =>
   c.body(widgetSource, 200, {

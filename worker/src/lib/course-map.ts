@@ -1,48 +1,56 @@
 /* Module title -> LearnWorlds course id.
  *
- * A null id means "recommend but cannot auto-enrol" — the pathway
- * still renders, the learner is pointed at the module by name, and no
- * API write is attempted. Populate ids by running the founder script
- * `set-lw-keys.ps1`, which fetches the school's course list and writes
- * `config/courses.generated.json`; paste the matching ids here.
+ * Ids fetched live from the school via /lw-check on 2026-07-19
+ * (53 courses) and matched by meaning — LearnWorlds titles differ
+ * slightly from the site catalogue (hyphens vs em-dashes, casing,
+ * trailing spaces), so matching is done here once, by hand, not at
+ * runtime. A null id means "recommend but cannot auto-enrol".
  *
  * Every key MUST be an exact catalogue title (pinned by tests against
  * lib/pathway's title list). */
 
 export const COURSE_MAP: Record<string, string | null> = {
-  "Money Confidence & Everyday Decisions": null,
-  "Budgeting that Actually Works": null,
-  "Credit, Borrowing & Your Score": null,
-  "Saving, Emergency Funds & Building a Safety Net": null,
-  "Pay, Payslips, and Planning for Tax & NI": null,
-  "Smart Spending: Big Purchases, Contracts & Consumer Rights": null,
-  "Living Independently — Housing & Household Bills": null,
-  "First Time Renting & Housing Rights": null,
-  "Debt Traps and Payday Loans": null,
-  "Introduction to Employability Skills": null,
-  "Communication That Builds Trust": null,
-  "Teamwork & Collaboration": null,
-  "Problem Solving & Decision Making": null,
-  "Professionalism, Reliability & Time Management": null,
-  "Interviews, CVs & Early Career Mindset": null,
-  "Preparing for an Interview": null,
-  "Boosting Confidence before an Interview": null,
-  "How to Use AI": null,
-  "AI in the Workplace": null,
-  "What They Are & How to Build Them": null,
-  "Building Real Confidence (Even When You Feel None)": null,
-  "Resilience in Practice — Pressure, Setbacks & Bounce-Back Plans": null,
-  "Communicating Under Pressure: Calm Voice, Clear Steps, Trusted Results": null,
-  "Grit & Growth — Motivation That Lasts (Goals, Habits, Accountability)": null,
-  "Feedback, Reviews & Continuous Growth": null,
-  "Assertive Boundaries — Saying No Well & Protecting Your Focus": null,
-  "Managing Stress & Burnout": null,
-  "What is Online Safety": null,
-  "Cybersecurity Fundamentals": null,
-  "Understanding Online Identity & Reputation": null,
-  "Toxic Online Culture & Group Chats": null,
-  "Digital Well-being & Time Online": null,
-  "Online Scams, Fraud & Money Safety": null,
+  /* Financial Literacy */
+  "Money Confidence & Everyday Decisions": "sso-2-2",
+  "Budgeting that Actually Works": "sso-3-3",
+  "Credit, Borrowing & Your Score": "sso-4-3",
+  "Saving, Emergency Funds & Building a Safety Net": "sso-5-2",
+  "Pay, Payslips, and Planning for Tax & NI": "sso-6-3",
+  "Smart Spending: Big Purchases, Contracts & Consumer Rights": "sso-7-3",
+  "Living Independently — Housing & Household Bills": "sso-8-2",
+  /* Deep Dives (money/housing) */
+  "First Time Renting & Housing Rights": "sso-3-4",
+  "Debt Traps and Payday Loans": "sso-1-2",
+  /* Employability */
+  "Introduction to Employability Skills": "sso-1",
+  "Communication That Builds Trust": "sso-2",
+  "Teamwork & Collaboration": "sso-3-1",
+  "Problem Solving & Decision Making": "sso-4-1",
+  "Professionalism, Reliability & Time Management": "sso-5",
+  "Interviews, CVs & Early Career Mindset": "sso-6-1",
+  /* Deep Dives (work/AI) */
+  "Preparing for an Interview": "sso-2-3",
+  "Boosting Confidence before an Interview": "sso-7-4",
+  "How to Use AI": "sso-8-3",
+  "AI in the Workplace": "sso-5-3",
+  /* Confidence & Resilience ("What They Are…" is titled
+   * "Confidence & Resilience Introduction" in LearnWorlds) */
+  "What They Are & How to Build Them": "sso-2-1",
+  "Building Real Confidence (Even When You Feel None)": "sso-3-2",
+  "Resilience in Practice — Pressure, Setbacks & Bounce-Back Plans": "sso-4-2",
+  "Communicating Under Pressure: Calm Voice, Clear Steps, Trusted Results": "sso-5-1",
+  "Grit & Growth — Motivation That Lasts (Goals, Habits, Accountability)": "sso-6-2",
+  "Feedback, Reviews & Continuous Growth": "sso-9",
+  "Assertive Boundaries — Saying No Well & Protecting Your Focus": "sso-8-1",
+  /* Deep Dive (wellbeing) */
+  "Managing Stress & Burnout": "sso-6-4",
+  /* Online Safety (the intro course's LearnWorlds id really is "test") */
+  "What is Online Safety": "test",
+  "Cybersecurity Fundamentals": "sso-3",
+  "Understanding Online Identity & Reputation": "sso-4",
+  "Toxic Online Culture & Group Chats": "sso5",
+  "Digital Well-being & Time Online": "sso-6",
+  "Online Scams, Fraud & Money Safety": "sso-7",
 };
 
 export function courseIdFor(title: string): string | null {
