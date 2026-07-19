@@ -336,22 +336,30 @@ app.get("/skills-passport", async (c) => {
     const enrolments = (await getEnrolments(c.env, user.id)).filter((e) =>
       isModuleTitle(e.title),
     );
+    /* Progress calls run in parallel batches — serial took ~1s per
+     * module; batches of 6 stay inside LearnWorlds' 30 req/10s limit. */
+    const wanted = enrolments.slice(0, SP_MAX_PROGRESS_CALLS);
     const courses: CourseRecord[] = [];
-    for (const e of enrolments.slice(0, SP_MAX_PROGRESS_CALLS)) {
-      try {
-        const p = await getUserProgress(c.env, user.id, e.courseId);
-        courses.push({ courseId: e.courseId, title: e.title, label: e.label, ...p });
-      } catch {
-        courses.push({
-          courseId: e.courseId,
-          title: e.title,
-          label: e.label,
-          status: "not_started",
-          progressRate: 0,
-          scoreRate: null,
-          timeSeconds: 0,
-        });
-      }
+    for (let i = 0; i < wanted.length; i += 6) {
+      const batch = await Promise.all(
+        wanted.slice(i, i + 6).map(async (e) => {
+          try {
+            const p = await getUserProgress(c.env, user.id, e.courseId);
+            return { courseId: e.courseId, title: e.title, label: e.label, ...p };
+          } catch {
+            return {
+              courseId: e.courseId,
+              title: e.title,
+              label: e.label,
+              status: "not_started" as const,
+              progressRate: 0,
+              scoreRate: null,
+              timeSeconds: 0,
+            };
+          }
+        }),
+      );
+      courses.push(...batch);
     }
 
     const fullName = displayName({

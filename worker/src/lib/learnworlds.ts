@@ -171,6 +171,20 @@ export async function listCourses(
   return courses;
 }
 
+/** LearnWorlds returns some text fields HTML-encoded ("Confidence
+ * &amp;amp; Resilience") — decode them once at the API boundary so our
+ * own output escaping doesn't double-encode. */
+export function decodeHtml(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
 export interface LwUser {
   id: string;
   email?: string;
@@ -199,7 +213,14 @@ export async function getUserByEmail(
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`LearnWorlds user lookup failed: HTTP ${res.status}`);
   const user = (await res.json()) as LwUser;
-  return user.id ? user : null;
+  if (!user.id) return null;
+  return {
+    ...user,
+    first_name: user.first_name ? decodeHtml(user.first_name) : user.first_name,
+    last_name: user.last_name ? decodeHtml(user.last_name) : user.last_name,
+    username: user.username ? decodeHtml(user.username) : user.username,
+    tags: user.tags?.map(decodeHtml),
+  };
 }
 
 export interface LwUserCourse {
@@ -288,8 +309,8 @@ export async function getEnrolments(
       if (!course.id || !course.title) continue;
       out.push({
         courseId: course.id,
-        title: course.title.trim(),
-        label: (course.label ?? "").trim(),
+        title: decodeHtml(course.title.trim()),
+        label: decodeHtml((course.label ?? "").trim()),
       });
     }
     const totalPages = payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1;

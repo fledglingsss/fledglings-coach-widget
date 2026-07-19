@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { decodeHtml } from "../src/lib/learnworlds";
 import {
   advanceStreak,
   cohortTag,
@@ -60,6 +61,14 @@ describe("cohortTag", () => {
     expect(cohortTag(["Group A"])).toBe("Group A");
     expect(cohortTag([])).toBeNull();
     expect(cohortTag(undefined)).toBeNull();
+  });
+});
+
+describe("decodeHtml", () => {
+  it("decodes LearnWorlds-encoded labels so output escaping does not double-encode", () => {
+    expect(decodeHtml("Confidence &amp; Resilience")).toBe("Confidence & Resilience");
+    expect(decodeHtml("Tom&#39;s &quot;guide&quot; &lt;draft&gt;")).toBe("Tom's \"guide\" <draft>");
+    expect(decodeHtml("plain text")).toBe("plain text");
   });
 });
 

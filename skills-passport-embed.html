@@ -13,6 +13,7 @@
     frame.style.cssText =
       "width:100%;height:2100px;border:none;border-radius:12px;display:block;";
     frame.setAttribute("loading", "lazy");
+    frame.setAttribute("allow", "clipboard-write");
     document.getElementById("fl-skills-passport").appendChild(frame);
     window.addEventListener("message", function (e) {
       if (e.origin !== origin) return;

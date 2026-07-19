@@ -34,6 +34,25 @@ const ICONS = {
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9aa7b4" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
 };
 
+/* One hand-drawn icon per badge — white strokes so they sit on the
+ * tier-gradient medal. Keyed by badge code. */
+const BADGE_ICONS: Record<string, string> = {
+  /* Money Master — pound coin */
+  MM: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 8.6a2.6 2.6 0 0 0-4.4 1.9c0 1.2.4 2 .4 3.2 0 1-.4 1.7-1.2 2.3h6"/><path d="M9 12.5h4"/></svg>',
+  /* Job Ready — briefcase with clasp */
+  JR: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="11" rx="2.5"/><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8"/><path d="M3.5 12.5h17M12 11.5v2.5"/></svg>',
+  /* True Grit — mountain peaks with flag */
+  TG: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19l6-10 3.5 5.5L15 11l6 8z"/><path d="M15 11V5.5l3.5 1.5L15 8.5"/></svg>',
+  /* Cyber Smart — shield with tick */
+  CS: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-3 7.6-7 9.8-4-2.2-7-5.4-7-9.8V5.8z"/><path d="M9 12l2.2 2.2L15.5 9.7"/></svg>',
+  /* Deep Diver — magnifying glass with depth lines */
+  DD: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M14.8 14.8L20 20"/><path d="M8 9.5c.7-1 1.6-1.5 2.5-1.5"/></svg>',
+  /* On Fire — flame */
+  OF: '<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3c.8 2.8-1.8 4-1.8 6.6 0 1.8.9 2.8 1.8 2.8s1.8-1 1.8-2.8c1.8 1.9 2.7 3.7 2.7 5.5a4.5 4.5 0 1 1-9 0c0-3.7 2.7-5.5 4.5-12.1z"/></svg>',
+  /* All Rounder — star */
+  AR: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9z"/></svg>',
+};
+
 const MEDAL = {
   gold: {
     bg: "radial-gradient(circle at 35% 28%,#FFE3AE,#ED9249 55%,#D9452B)",
@@ -65,7 +84,7 @@ body{font-family:'Outfit',sans-serif;background:#ECE7E6;color:#05253C;-webkit-fo
 @keyframes fl-flame{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.14) rotate(3deg)}}
 @keyframes fl-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes fl-pop{from{opacity:0;transform:scale(.82) translateY(12px)}to{opacity:1;transform:none}}
-.page{min-height:100vh;padding:40px 20px;display:flex;justify-content:center}
+.page{padding:40px 20px;display:flex;justify-content:center}
 .shell{width:100%;max-width:1160px;border-radius:28px;overflow:hidden;background:#fff;
   box-shadow:0 30px 70px -30px rgba(5,37,60,.45);border:1px solid rgba(5,37,60,.07)}
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 30px;
@@ -114,9 +133,17 @@ body{font-family:'Outfit',sans-serif;background:#ECE7E6;color:#05253C;-webkit-fo
   align-items:center;gap:10px;cursor:default;transition:transform .15s,box-shadow .15s;animation:fl-pop .5s both}
 .chip:hover{transform:translateY(-4px);box-shadow:0 12px 24px -12px rgba(5,37,60,.4)}
 .chip.locked{border-style:dashed;border-color:rgba(5,37,60,.2);opacity:.7;background:#fff}
-.med{width:70px;height:70px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-weight:800;font-size:18px;position:relative;overflow:hidden;flex:none}
-.med .sh{position:absolute;top:0;left:0;width:40%;height:100%;
+.medwrap{position:relative;padding-bottom:12px;flex:none}
+.medwrap.earned::before,.medwrap.earned::after{content:'';position:absolute;bottom:0;width:15px;height:30px;
+  clip-path:polygon(0 0,100% 0,100% 100%,50% 72%,0 100%)}
+.medwrap.earned::before{left:calc(50% - 19px);background:#13507F;transform:rotate(-10deg)}
+.medwrap.earned::after{right:calc(50% - 19px);background:#D9452B;transform:rotate(10deg)}
+.med{width:72px;height:78px;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;
+  clip-path:polygon(50% 0,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);overflow:hidden;flex:none}
+.med .ic{position:relative;z-index:2;display:flex}
+.med .rim{position:absolute;inset:5px;clip-path:polygon(50% 0,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  background:transparent;border:0;box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)}
+.med .sh{position:absolute;top:0;left:0;width:40%;height:100%;z-index:3;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);animation:fl-shine 3.4s ease-in-out infinite}
 .chip .bn{font-size:13.5px;font-weight:600;line-height:1.1;text-align:center}
 .chip .bt{font-size:10.5px;font-weight:700;text-align:center}
@@ -152,10 +179,11 @@ function badgeChip(b: {
   state: "earned" | "locked";
   toGo?: number;
 }, index: number): string {
+  const icon = BADGE_ICONS[b.code] ?? esc(b.code);
   if (b.state === "locked") {
     return (
       `<div class='chip locked' role='listitem' aria-label='${esc(b.name)}, locked, ${b.toGo ?? 1} to go'>` +
-      `<div class='med' style='background:#ECE7E6'>${ICONS.lock}</div>` +
+      `<div class='medwrap'><div class='med' style='background:#ECE7E6'><span class='ic'>${ICONS.lock}</span></div></div>` +
       `<div><div class='bn' style='color:#7d8a93'>${esc(b.name)}</div>` +
       `<div class='bt' style='color:#9aa7b4'>${b.toGo ?? 1} TO GO</div></div></div>`
     );
@@ -165,7 +193,8 @@ function badgeChip(b: {
   return (
     `<div class='chip' style='background:${m.card};animation-delay:${(index * 0.06).toFixed(2)}s' role='listitem' ` +
     `aria-label='${esc(b.name)}, ${b.tier} badge, earned'>` +
-    `<div class='med' style='background:${m.bg};border:3px solid ${m.ring};color:${m.text}'>${esc(b.code)}${shine}</div>` +
+    `<div class='medwrap earned'><div class='med' style='background:${m.bg};color:${m.text}'>` +
+    `<span class='rim'></span><span class='ic'>${icon}</span>${shine}</div></div>` +
     `<div><div class='bn'>${esc(b.name)}</div><div class='bt' style='color:${m.label}'>${b.tier.toUpperCase()}</div></div></div>`
   );
 }
@@ -310,14 +339,25 @@ export function renderSkillsPassport(
         "fetch('/api/passport',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
         `learner_id:stored(localStorage,'fl_coach_learner_v1'),session_id:stored(sessionStorage,'fl_coach_session_v1'),email:${JSON.stringify(opts.shareEmail)}})})` +
         ".then(function(r){return r.json()}).then(function(d){sh.disabled=false;" +
-        "if(d&&d.ok&&d.url){navigator.clipboard.writeText(location.origin+d.url).then(function(){" +
-        "var t=document.getElementById('toast');t.className='toast on';setTimeout(function(){t.className='toast'},2600);});}" +
+        "if(d&&d.ok&&d.url){var u=location.origin+d.url;" +
+        "var ok=function(){var t=document.getElementById('toast');t.className='toast on';setTimeout(function(){t.className='toast'},2600);};" +
+        /* Clipboard API is blocked in iframes without an allow attribute —
+         * fall back to execCommand, then to a prompt the learner can copy. */
+        "var legacy=function(){var ta=document.createElement('textarea');ta.value=u;" +
+        "ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();" +
+        "var done=false;try{done=document.execCommand('copy')}catch(e){}document.body.removeChild(ta);" +
+        "if(done){ok()}else{window.prompt('Copy your passport link:',u)}};" +
+        "if(navigator.clipboard&&navigator.clipboard.writeText){" +
+        "navigator.clipboard.writeText(u).then(ok,legacy)}else{legacy()}}" +
         "}).catch(function(){sh.disabled=false;});});}"
       : "") +
     /* Tell the embedding page (LearnWorlds iframe) how tall we are so it
      * can size the frame without clipping or a scrollbar. */
-    "if(window.parent!==window){var ph=function(){try{parent.postMessage({flPassportHeight:document.documentElement.scrollHeight},'*')}catch(e){}};" +
-    "window.addEventListener('load',ph);window.addEventListener('resize',ph);setTimeout(ph,700);}" +
+    /* Measure .page, not scrollHeight — scrollHeight can never shrink
+     * below the iframe viewport, which ratchets the frame ever taller. */
+    "if(window.parent!==window){var ph=function(){var p=document.querySelector('.page');" +
+    "if(p){try{parent.postMessage({flPassportHeight:Math.ceil(p.getBoundingClientRect().height)},'*')}catch(e){}}};" +
+    "window.addEventListener('load',ph);window.addEventListener('resize',ph);setTimeout(ph,700);setTimeout(ph,1600);}" +
     "})();</script>";
 
   return (
