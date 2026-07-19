@@ -198,7 +198,7 @@ describe("POST /api/passport + GET /passport", () => {
 
     getUserMock.mockResolvedValue({ id: "u1" });
     const env = makeEnv();
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 10; i++) {
       await app.request(post("/api/passport", body), undefined, env);
     }
     out = await (

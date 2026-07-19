@@ -247,7 +247,7 @@ app.get("/lw-check", async (c) => {
 const SP_CACHE_TTL = 600; // 10 min per learner
 /* Bump whenever the rendered passport changes so learners see fixes
  * immediately instead of waiting out a stale cached page. */
-const SP_CACHE_VERSION = "v2";
+const SP_CACHE_VERSION = "v3";
 const SP_MAX_PROGRESS_CALLS = 36;
 
 function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
@@ -725,7 +725,7 @@ app.get("/tools", (c) => c.html(renderToolsPage(), 200, FRAME_HEADERS));
  * #4 — Readiness Passport
  * ================================================================== */
 
-const PASSPORTS_PER_DAY = 3;
+const PASSPORTS_PER_DAY = 10;
 
 app.post("/api/passport", async (c) => {
   let body: Record<string, unknown>;

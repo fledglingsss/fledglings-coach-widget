@@ -339,8 +339,10 @@ export function renderSkillsPassport(
         "fetch('/api/passport',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
         `learner_id:stored(localStorage,'fl_coach_learner_v1'),session_id:stored(sessionStorage,'fl_coach_session_v1'),email:${JSON.stringify(opts.shareEmail)}})})` +
         ".then(function(r){return r.json()}).then(function(d){sh.disabled=false;" +
+        "var say=function(msg){var t=document.getElementById('toast');t.textContent=msg;" +
+        "t.className='toast on';setTimeout(function(){t.className='toast'},3200);};" +
         "if(d&&d.ok&&d.url){var u=location.origin+d.url;" +
-        "var ok=function(){var t=document.getElementById('toast');t.className='toast on';setTimeout(function(){t.className='toast'},2600);};" +
+        "var ok=function(){say('Link copied — share away!')};" +
         /* Clipboard API is blocked in iframes without an allow attribute —
          * fall back to execCommand, then to a prompt the learner can copy. */
         "var legacy=function(){var ta=document.createElement('textarea');ta.value=u;" +
@@ -349,7 +351,12 @@ export function renderSkillsPassport(
         "if(done){ok()}else{window.prompt('Copy your passport link:',u)}};" +
         "if(navigator.clipboard&&navigator.clipboard.writeText){" +
         "navigator.clipboard.writeText(u).then(ok,legacy)}else{legacy()}}" +
-        "}).catch(function(){sh.disabled=false;});});}"
+        "else{say(d&&d.reason==='daily_cap'?" +
+        "'Share limit reached for today — try again tomorrow.':" +
+        "'Could not create your share link — please try again.')}" +
+        "}).catch(function(){sh.disabled=false;" +
+        "var t=document.getElementById('toast');t.textContent='Could not create your share link — please try again.';" +
+        "t.className='toast on';setTimeout(function(){t.className='toast'},3200);});});}"
       : "") +
     /* Tell the embedding page (LearnWorlds iframe) how tall we are so it
      * can size the frame without clipping or a scrollbar. */
