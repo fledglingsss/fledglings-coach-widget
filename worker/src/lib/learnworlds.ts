@@ -100,7 +100,9 @@ export async function findUserByEmail(
   return user.id ?? null;
 }
 
-/** Add tags to a user. Non-fatal by design — callers may ignore errors. */
+/** Attach tags to a user. Non-fatal by design — callers may ignore
+ * errors. Body shape per learnworlds.dev "Update user tags":
+ * PUT /v2/users/{id}/tags with {tags, action: "attach"|"detach"}. */
 export async function addUserTags(
   env: LwEnv,
   userId: string,
@@ -108,6 +110,7 @@ export async function addUserTags(
 ): Promise<boolean> {
   const res = await lwRequest(env, "PUT", `/users/${encodeURIComponent(userId)}/tags`, {
     tags,
+    action: "attach",
   });
   return res.ok;
 }
