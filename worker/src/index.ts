@@ -245,6 +245,9 @@ app.get("/lw-check", async (c) => {
  * ================================================================== */
 
 const SP_CACHE_TTL = 600; // 10 min per learner
+/* Bump whenever the rendered passport changes so learners see fixes
+ * immediately instead of waiting out a stale cached page. */
+const SP_CACHE_VERSION = "v2";
 const SP_MAX_PROGRESS_CALLS = 36;
 
 function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
@@ -317,7 +320,7 @@ app.get("/skills-passport", async (c) => {
     await c.env.RATE_LIMITS.put(streakKey, JSON.stringify(streak));
   }
 
-  const cacheKey = `sp:html:${emailHash}`;
+  const cacheKey = `sp:html:${SP_CACHE_VERSION}:${emailHash}`;
   if (!streakChanged) {
     const cached = await c.env.RATE_LIMITS.get(cacheKey);
     if (cached) return c.html(cached, 200, FRAME_HEADERS);

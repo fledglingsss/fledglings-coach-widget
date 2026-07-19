@@ -17,6 +17,36 @@
   if (!ENDPOINT) return;
   if (document.getElementById("fl-coach-root")) return;
 
+  /* Safety net: an early version of the paste-in snippet carried an
+   * HTML comment that LearnWorlds' editor stripped the markers from,
+   * leaving the comment text rendered on the page. If any copy of that
+   * legacy text is still saved somewhere in the site builder, remove it
+   * from the page so learners never see it. */
+  function removeLegacySnippetText() {
+    try {
+      var marker = "is a LearnWorlds Liquid variable";
+      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      var doomed = [];
+      var node;
+      while ((node = walker.nextNode())) {
+        var text = node.textContent;
+        if (
+          text.indexOf(marker) !== -1 ||
+          text.indexOf("Fledglings coach — LearnWorlds paste-in snippet") !== -1 ||
+          (/^[\s=]+$/.test(text) && text.indexOf("==") !== -1)
+        ) {
+          doomed.push(node);
+        }
+      }
+      doomed.forEach(function (n) { n.textContent = ""; });
+    } catch (e) { /* cosmetic only — never break the page */ }
+  }
+  removeLegacySnippetText();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", removeLegacySnippetText);
+  }
+  setTimeout(removeLegacySnippetText, 1500);
+
   var STORAGE_HISTORY = "fl_coach_history_v1";
   var STORAGE_LEARNER = "fl_coach_learner_v1";
   var STORAGE_SESSION = "fl_coach_session_v1";
