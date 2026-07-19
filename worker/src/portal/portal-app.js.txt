@@ -169,10 +169,11 @@
     var mini = "";
     rows.slice(0, 6).forEach(function (r, i) {
       var pct = r.enrolled ? Math.round(r.completed * 100 / r.enrolled) : 0;
+      var pcol = pct >= 70 ? "#1B7A4B" : pct >= 40 ? "#13507F" : "#D9452B";
       mini +=
         "<div class='mrow'><span class='mrank'>" + String(i + 1).padStart(2, "0") + "</span>" +
         "<span class='mtitle'>" + esc(r.title) + "<em>" + r.enrolled + " enrolled · " + r.completed + " completed</em></span>" +
-        "<span class='mpct'>" + pct + "%</span>" +
+        "<span class='mpct' style='color:" + pcol + "'>" + pct + "%</span>" +
         "<span class='mbar'><i style='width:" + pct + "%'></i></span></div>";
     });
     $("mods-mini").innerHTML = mini || "<p class='muted'>No module activity in the sample yet.</p>";
@@ -224,9 +225,10 @@
           out += "<div class='wgroup'><i style='background:" + TIER[a.tier].c + "'></i>" + TIER[a.tier].l + "</div>";
         }
         var days = a.daysSinceLogin === null ? "never" : a.daysSinceLogin + "d";
+        var initials = (a.name || "?").split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join("").toUpperCase() || "?";
         out +=
-          "<div class='wrow' data-i='" + i + "'>" +
-          "<span class='wdot' style='background:" + TIER[a.tier].c + "'></span>" +
+          "<div class='wrow" + (a.tier === "watch" ? " cool" : "") + "' data-i='" + i + "'>" +
+          "<span class='wava'>" + esc(initials) + "</span>" +
           "<span class='wname'>" + esc(a.name) + "<em>" + esc(a.email) + (a.cohort ? " · " + esc(a.cohort) : "") + "</em></span>" +
           "<span class='wreason'>" + esc(a.reasons[0] || "") + "</span>" +
           "<span class='wdays " + (a.daysSinceLogin === null || a.daysSinceLogin > 20 ? "hot" : "") + "'>" + days + "</span>" +

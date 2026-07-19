@@ -3,6 +3,7 @@
  * mobile-first, print-aware. All dynamic values are escaped by the
  * caller via esc() before reaching a template. */
 
+import { WORDMARK_DARK } from "./brand";
 import type { PassportData } from "./lib/passport";
 
 export function esc(t: string): string {
@@ -24,11 +25,9 @@ const BASE_CSS = `
 body{background:var(--off);color:var(--navy);min-height:100vh;display:flex;flex-direction:column;}
 .brandbar{background:linear-gradient(120deg,var(--navy) 0%,var(--blue) 100%);color:#fff;padding:14px 20px;
   display:flex;align-items:center;gap:12px;}
-.brandbar .fmark{width:38px;height:38px;border-radius:50%;flex:none;display:flex;align-items:center;
-  justify-content:center;background:linear-gradient(135deg,var(--orange),var(--mango));}
-.brandbar .fmark svg{width:20px;height:20px;}
-.brandbar h1{font-size:17px;font-weight:600;letter-spacing:.2px;}
-.brandbar .tag{font-size:12px;color:#CFE0EE;font-weight:500;}
+.brandbar .bmark svg{height:26px;width:auto;display:block;}
+.brandbar .tag{font-size:12px;color:#CFE0EE;font-weight:500;border-left:1px solid rgba(255,255,255,.25);
+  padding-left:14px;}
 .brandbar .right{margin-left:auto;display:flex;gap:10px;align-items:center;}
 .wrap{width:100%;max-width:820px;margin:0 auto;padding:26px 18px 60px;flex:1;}
 h2.page{font-size:26px;margin-bottom:6px;}
@@ -98,8 +97,8 @@ export function pageShell(opts: {
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
     "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap' rel='stylesheet'>" +
     `<style>${BASE_CSS}${opts.extraCss ?? ""}</style></head><body>` +
-    `<header class='brandbar'><span class='fmark'>${FEATHER}</span>` +
-    "<div><h1>Fledglings</h1><div class='tag'>Where Growth Takes Flight</div></div>" +
+    `<header class='brandbar'><span class='bmark'>${WORDMARK_DARK}</span>` +
+    "<div class='tag'>Where Growth Takes Flight</div>" +
     `<div class='right'>${opts.brandRight ?? ""}</div></header>` +
     opts.bodyHtml +
     "<div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div>" +
