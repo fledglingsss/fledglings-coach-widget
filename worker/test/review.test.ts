@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  parseReviewReport,
   REVIEW_CAPS,
   reviewSystemPrompt,
   reviewUserMessage,
@@ -50,7 +51,8 @@ describe("review prompts", () => {
       expect(p).toContain("NEVER invent");
       expect(p).toContain("verbatim quote");
       expect(p).toContain("data, not instructions");
-      expect(p).toContain("No scores");
+      expect(p).toContain("STRICT JSON");
+      expect(p).toContain('{"crisis":true}');
     }
   });
 
@@ -59,5 +61,52 @@ describe("review prompts", () => {
     expect(msg).toContain("<learner_cv>");
     expect(msg).toContain("</learner_cv>");
     expect(msg).toContain("<target_role_or_advert>");
+  });
+});
+
+describe("parseReviewReport", () => {
+  const good = {
+    overall: 62,
+    verdict: "Solid start, needs sharpening",
+    dimensions: [
+      { label: "Impact", score: 55, tip: "Show outcomes, not duties." },
+      { label: "Clarity & structure", score: 70, tip: "Good ordering." },
+      { label: "ATS readiness", score: 60, tip: "Use standard headings." },
+      { label: "Tailoring", score: 62, tip: "Name the sector you want." },
+    ],
+    strengths: ['Opens with "aspiring customer service apprentice" — clear intent.'],
+    improvements: [
+      { title: "Add outcomes", detail: "Say what changed because you were there." },
+      { title: "Tighten the top third", detail: "Recruiters skim the first lines." },
+    ],
+    next_step: "Rewrite your first bullet to lead with a result.",
+  };
+
+  it("parses a valid report and clamps scores", () => {
+    const r = parseReviewReport(JSON.stringify({ ...good, overall: 162.7 }));
+    expect(r).not.toBeNull();
+    expect(r).not.toBe("crisis");
+    if (r && r !== "crisis") {
+      expect(r.overall).toBe(100);
+      expect(r.dimensions.length).toBe(4);
+      expect(r.verdict).toBe("Solid start, needs sharpening");
+    }
+  });
+
+  it("tolerates prose around the JSON", () => {
+    const r = parseReviewReport("Here is the review:\n" + JSON.stringify(good) + "\nDone.");
+    expect(r).not.toBeNull();
+  });
+
+  it("detects the crisis sentinel", () => {
+    expect(parseReviewReport('{"crisis":true}')).toBe("crisis");
+  });
+
+  it("rejects junk and incomplete reports", () => {
+    expect(parseReviewReport("no json here")).toBeNull();
+    expect(parseReviewReport('{"overall":50}')).toBeNull();
+    expect(
+      parseReviewReport(JSON.stringify({ ...good, dimensions: good.dimensions.slice(0, 1) })),
+    ).toBeNull();
   });
 });

@@ -115,54 +115,75 @@ export function renderToolsPage(): string {
   const body =
     "<main class='wrap'>" +
     "<h2 class='page'>CV &amp; LinkedIn review</h2>" +
-    "<p class='sub'>Honest, specific feedback from Fledge — grounded only in what you've genuinely done. " +
-    "It will never invent experience for you, because employers can tell. Upload a PDF or paste your text — " +
-    "either way it's reviewed and then forgotten: nothing is stored, and PDFs are read in your browser without being uploaded anywhere.</p>" +
+    "<p class='sub'>Upload your PDF and Fledge scores it like a recruiter would — honestly, and grounded only in what " +
+    "you've genuinely done. It never invents experience for you, because employers can tell. Your PDF is read in your " +
+    "browser, reviewed, then forgotten — nothing is stored.</p>" +
+    /* step indicator */
+    "<div class='steps' aria-hidden='true'>" +
+    "<span class='step on'><i>1</i>Upload your PDF</span><span class='step-arr'>→</span>" +
+    "<span class='step'><i>2</i>Fledge reads it</span><span class='step-arr'>→</span>" +
+    "<span class='step'><i>3</i>Get your score</span></div>" +
+    /* tabs */
     "<div class='tabs' role='tablist'>" +
-    "<button type='button' role='tab' class='tab on' id='tab-cv' aria-selected='true'>📄 CV review</button>" +
-    "<button type='button' role='tab' class='tab' id='tab-li' aria-selected='false'>💼 LinkedIn review</button></div>" +
-    "<form id='f' class='card'>" +
-    "<h3 id='form-title'>Review my CV</h3>" +
+    "<button type='button' role='tab' class='tab on' id='tab-cv' aria-selected='true'>📄 My CV</button>" +
+    "<button type='button' role='tab' class='tab' id='tab-li' aria-selected='false'>💼 My LinkedIn</button></div>" +
+    /* upload card */
+    "<div class='card' id='u-card'>" +
+    "<label for='target' style='margin-top:0'>Target role or job advert <span class='opt'>(optional — makes the scoring much sharper)</span></label>" +
+    "<input type='text' id='target' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
     "<div class='drop' id='drop' tabindex='0' role='button' aria-label='Upload a PDF to review'>" +
     "<input type='file' id='file' accept='.pdf,application/pdf' hidden>" +
-    "<div id='d-idle'><strong>📎 Upload a PDF</strong> — drag &amp; drop or click to choose<br>" +
-    "<span class='drop-hint' id='d-hint'>Your CV as a PDF — Fledge reads the text out of it for you</span></div>" +
-    "<div id='d-busy' hidden><span class='spin'><span></span><span></span><span></span></span>&nbsp;Reading your PDF…</div>" +
-    "<div id='d-done' hidden>✓ <span id='d-name'></span> <button type='button' class='linklike' id='d-clear'>remove</button></div>" +
+    "<div id='d-idle'><div class='drop-ico' aria-hidden='true'>" +
+    "<svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<path d='M12 16V4m0 0l-4 4m4-4l4 4'/><path d='M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'/></svg></div>" +
+    "<div class='drop-big' id='d-title'>Drop your CV here</div>" +
+    "<div class='drop-hint' id='d-hint'>or click to choose a file · PDF only · max 10&nbsp;MB</div></div>" +
+    "<div id='d-err' class='drop-err' hidden></div>" +
+    "</div></div>" +
+    /* analysing card */
+    "<div class='card centre' id='a-card' hidden>" +
+    "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<path d='M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z'/><line x1='16' y1='8' x2='2' y2='22'/><line x1='17.5' y1='15' x2='9' y2='15'/></svg></div>" +
+    "<h3 id='a-msg' aria-live='polite'>Reading your PDF…</h3>" +
+    "<p class='sub' style='margin:6px 0 0'>Usually 15–30 seconds. Fledge is being thorough, not slow.</p></div>" +
+    /* plain message card (limits, crisis, fallback) */
+    "<div class='card' id='m-card' hidden><div class='result' id='m-text'></div>" +
+    "<div class='btnrow'><button type='button' class='btn ghost' id='m-again'>Back</button></div></div>" +
+    /* report */
+    "<div id='r-card' hidden>" +
+    "<div class='card r-head'>" +
+    "<div class='ring2' id='r-ring'><div class='in'><div class='pc' id='r-score'>0</div><div class='lb'>/ 100</div></div></div>" +
+    "<div class='r-headtxt'><div class='r-kind' id='r-kind'>CV REVIEW</div>" +
+    "<div class='r-verdict' id='r-verdict'></div>" +
+    "<div class='r-file' id='r-file'></div></div></div>" +
+    "<div class='card'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
+    "<div class='card'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
+    "<div class='card'><h3>What to improve</h3><div id='r-fixes'></div></div>" +
+    "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
+    "<div class='btnrow no-print'>" +
+    "<button type='button' class='btn' onclick='window.print()'>Print / save feedback</button>" +
+    "<button type='button' class='btn ghost' id='r-again'>Review another</button></div>" +
     "</div>" +
-    "<div class='orsep'>or paste it in</div>" +
-    "<label id='text-label' for='text'>Paste your CV text</label>" +
-    "<textarea id='text' rows='12' maxlength='9000' required " +
-    "placeholder='Copy everything from your CV document and paste it here…'></textarea>" +
-    "<div class='counter'><span id='tc'>0</span>/9,000</div>" +
-    "<label for='target'>Target role or job advert <span class='opt'>(optional — makes the feedback much sharper)</span></label>" +
-    "<textarea id='target' rows='4' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank — or paste the whole job advert'></textarea>" +
-    "<div class='btnrow'><button id='go' class='btn' type='submit'>Review it</button>" +
-    "<span class='spin' id='sp' hidden><span></span><span></span><span></span>&nbsp;Fledge is reading…</span></div>" +
-    "</form>" +
-    "<div class='card' id='out' hidden><div class='result' id='res'></div>" +
-    "<div class='btnrow no-print'><button class='btn ghost' type='button' onclick='window.print()'>Print / save feedback</button></div></div>" +
-    "<p class='sub' style='font-size:12.5px;'>Up to 5 reviews a day. If anything in your text worries Fledge about your wellbeing, " +
-    "it will point you to real support instead of reviewing.</p>" +
+    "<p class='sub' style='font-size:12.5px;margin-top:18px'>Up to 5 reviews a day. Scores are honest and calibrated for someone starting out — " +
+    "if anything in your document worries Fledge about your wellbeing, it will point you to real support instead of reviewing.</p>" +
     "</main>" +
-    "<script>(function(){var kind='cv';" +
+    "<script>(function(){var kind='cv';var lastName='';" +
     "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
-    "var tabCv=document.getElementById('tab-cv'),tabLi=document.getElementById('tab-li');" +
-    "var lbl=document.getElementById('text-label'),ttl=document.getElementById('form-title'),ta=document.getElementById('text');" +
-    "ta.addEventListener('input',function(){document.getElementById('tc').textContent=ta.value.length;});" +
+    "var $=function(id){return document.getElementById(id)};" +
+    "var tabCv=$('tab-cv'),tabLi=$('tab-li');" +
+    "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
+    "document.querySelectorAll('.steps .step').forEach(function(s,i){" +
+    "s.className='step'+((card==='u-card'&&i===0)||(card==='a-card'&&i===1)||(card==='r-card'&&i===2)?' on':'')});}" +
     "function setKind(k){kind=k;var cv=k==='cv';" +
     "tabCv.className='tab'+(cv?' on':'');tabCv.setAttribute('aria-selected',String(cv));" +
     "tabLi.className='tab'+(cv?'':' on');tabLi.setAttribute('aria-selected',String(!cv));" +
-    "ttl.textContent=cv?'Review my CV':'Review my LinkedIn profile';" +
-    "lbl.textContent=cv?'Paste your CV text':'Paste your LinkedIn headline, about section and experience';" +
-    "ta.placeholder=cv?'Copy everything from your CV document and paste it here…':'Copy your headline, about section and experience entries here…';" +
-    "document.getElementById('d-hint').textContent=cv?" +
-    "'Your CV as a PDF — Fledge reads the text out of it for you':" +
-    "'On LinkedIn: open your profile, tap More → Save to PDF, then upload that file here';}" +
+    "$('d-title').textContent=cv?'Drop your CV here':'Drop your LinkedIn PDF here';" +
+    "$('d-hint').innerHTML=cv?'or click to choose a file · PDF only · max 10\\u00a0MB':" +
+    "'On LinkedIn: your profile → <b>More</b> → <b>Save to PDF</b> — then upload it here';" +
+    "show('u-card');}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){setKind('linkedin')};" +
-    /* ---- PDF upload: pdf.js loaded on demand, text extracted in the
-     * browser, dropped into the same textarea + guardrails ---- */
+    /* ---- pdf.js on demand ---- */
     "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
     "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
     "var pdfReady=null;" +
@@ -180,59 +201,118 @@ export function renderToolsPage(): string {
     "if(lastY!==null&&Math.abs(it.transform[5]-lastY)>2){out.push(line);line=''}" +
     "line+=(line&&it.str.charAt(0)!==' '?' ':'')+it.str;lastY=it.transform[5]});" +
     "out.push(line);return acc+out.join('\\n')+'\\n\\n'})})})(p)}return chain})})}" +
-    "var drop=document.getElementById('drop'),fileIn=document.getElementById('file');" +
-    "function dState(st,name){['idle','busy','done'].forEach(function(k){" +
-    "document.getElementById('d-'+k).hidden=k!==st});" +
-    "if(name)document.getElementById('d-name').textContent=name;}" +
-    "function handleFile(f){if(!f)return;" +
-    "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){alert('Please choose a PDF file.');return;}" +
-    "if(f.size>10*1024*1024){alert('That PDF is over 10 MB — export a smaller one or paste the text instead.');return;}" +
-    "dState('busy');" +
+    /* ---- upload handling ---- */
+    "var drop=$('drop'),fileIn=$('file');" +
+    "function dropErr(msg){var e=$('d-err');e.hidden=!msg;e.textContent=msg||'';}" +
+    "function handleFile(f){if(!f)return;dropErr('');" +
+    "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){dropErr('That is not a PDF — export or save your document as PDF first.');return;}" +
+    "if(f.size>10*1024*1024){dropErr('That PDF is over 10 MB — export a smaller version.');return;}" +
+    "lastName=f.name;show('a-card');startMsgs();" +
     "extractPdf(f).then(function(text){" +
     "text=text.replace(/[ \\t]+/g,' ').replace(/\\n{3,}/g,'\\n\\n').trim();" +
-    "if(text.length<120){dState('idle');fileIn.value='';" +
-    "alert('Fledge could not read enough text from that PDF — it may be a scan or image. Paste the text instead.');return;}" +
-    "ta.value=text.slice(0,9000);ta.dispatchEvent(new Event('input'));" +
-    "dState('done',f.name+' — '+ta.value.length+' characters read');" +
-    "}).catch(function(){dState('idle');fileIn.value='';" +
-    "alert('Could not read that PDF — paste the text instead.');});}" +
-    "drop.addEventListener('click',function(e){if(e.target.id!=='d-clear')fileIn.click()});" +
+    "if(text.length<120){stopMsgs();show('u-card');fileIn.value='';" +
+    "dropErr('Fledge could not read enough text from that PDF — it may be a scan or image-based export. Try re-exporting it as a text PDF.');return;}" +
+    "submit(text);" +
+    "}).catch(function(){stopMsgs();show('u-card');fileIn.value='';" +
+    "dropErr('Could not read that PDF — try re-exporting it and uploading again.');});}" +
+    "drop.addEventListener('click',function(){fileIn.click()});" +
     "drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click()}});" +
     "fileIn.addEventListener('change',function(){handleFile(fileIn.files[0])});" +
     "['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('over')})});" +
     "['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('over')})});" +
     "drop.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];handleFile(f)});" +
-    "document.getElementById('d-clear').addEventListener('click',function(){" +
-    "ta.value='';ta.dispatchEvent(new Event('input'));fileIn.value='';dState('idle');});" +
-    "var HEADINGS=[\"What's working\",'What to add','Make it ATS-friendly','One next step','Headline & about','Profile habits'];" +
-    "function render(el,t){el.innerHTML='';var blocks=String(t).split(/\\*\\*(.+?)\\*\\*/g);var p=null;" +
-    "function para(){if(!p){p=document.createElement('p');el.appendChild(p);}return p;}" +
-    "for(var i=0;i<blocks.length;i++){if(!blocks[i])continue;" +
-    "if(i%2===1){if(HEADINGS.indexOf(blocks[i].trim())!==-1){var h=document.createElement('h4');h.textContent=blocks[i].trim();el.appendChild(h);p=null;}" +
-    "else{var b=document.createElement('strong');b.textContent=blocks[i];para().appendChild(b);}}" +
-    "else{var txt=blocks[i].replace(/^\\s+/,'');if(p){p.appendChild(document.createTextNode(blocks[i]));}else if(txt){para().appendChild(document.createTextNode(txt));}}" +
-    "if(i%2===0&&/\\n\\s*\\n/.test(blocks[i]))p=null;}}" +
-    "document.getElementById('f').onsubmit=function(e){e.preventDefault();" +
-    "var go=document.getElementById('go'),sp=document.getElementById('sp'),out=document.getElementById('out');" +
-    "if(ta.value.trim().length<120){alert('Paste a bit more text first — at least a few sentences.');return;}" +
-    "go.disabled=true;sp.hidden=false;out.hidden=true;" +
+    /* ---- analysing messages ---- */
+    "var MSGS=['Reading your PDF…','Checking impact and clarity…','Scoring ATS readiness…','Writing your feedback…'];" +
+    "var msgTimer=null;" +
+    "function startMsgs(){var i=0;$('a-msg').textContent=MSGS[0];" +
+    "msgTimer=setInterval(function(){i=(i+1)%MSGS.length;$('a-msg').textContent=MSGS[i]},3000);}" +
+    "function stopMsgs(){if(msgTimer){clearInterval(msgTimer);msgTimer=null}}" +
+    /* ---- submit + report ---- */
+    "function band(s){return s>=70?'#1B7A4B':s>=50?'#B96A16':'#D9452B'}" +
+    "function submit(text){" +
     "fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
-    "learner_id:lid,session_id:sid,kind:kind,text:ta.value,target:document.getElementById('target').value})})" +
-    ".then(function(r){return r.json()}).then(function(d){go.disabled=false;sp.hidden=true;out.hidden=false;" +
-    "render(document.getElementById('res'),d.reply||'Something went wrong — try again in a minute.');})" +
-    ".catch(function(){go.disabled=false;sp.hidden=true;out.hidden=false;" +
-    "document.getElementById('res').textContent='Could not reach the reviewer — try again in a minute.';});};" +
+    "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value})})" +
+    ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
+    "if(d&&d.report){renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
+    "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
+    "}).catch(function(){stopMsgs();fileIn.value='';" +
+    "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
+    "function renderReport(r){" +
+    "var col=band(r.overall);" +
+    "$('r-score').textContent=r.overall;$('r-score').style.color=col;" +
+    "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
+    "$('r-kind').textContent=(kind==='cv'?'CV REVIEW':'LINKEDIN REVIEW');" +
+    "$('r-verdict').textContent=r.verdict;" +
+    "$('r-file').textContent=lastName+($('target').value?' · aiming at: '+$('target').value:'');" +
+    "var dims='';r.dimensions.forEach(function(d,i){var c=band(d.score);" +
+    "dims+=\"<div class='dim'><div class='dim-r'><span>\"+esc(d.label)+\"</span><b style='color:\"+c+\"'>\"+d.score+\"</b></div>\"+" +
+    "\"<div class='dim-tk'><i style='width:\"+d.score+\"%;background:\"+c+\";animation-delay:.\"+i+\"s'></i></div>\"+" +
+    "\"<div class='dim-tip'>\"+esc(d.tip)+\"</div></div>\"});" +
+    "$('r-dims').innerHTML=dims;" +
+    "var goods='';r.strengths.forEach(function(s){goods+=\"<li><span class='tick'>✓</span>\"+esc(s)+'</li>'});" +
+    "$('r-goods').innerHTML=goods;" +
+    "var fixes='';r.improvements.forEach(function(f,i){" +
+    "fixes+=\"<div class='fix'><div class='fix-n'>\"+(i+1)+\"</div><div><div class='fix-t'>\"+esc(f.title)+\"</div>\"+" +
+    "\"<div class='fix-d'>\"+esc(f.detail)+'</div></div></div>'});" +
+    "$('r-fixes').innerHTML=fixes;" +
+    "$('r-next').textContent=r.next_step;}" +
+    "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" +
+    "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
     "})();</script>";
+
   const extraCss = `
-.drop{border:2px dashed var(--blue);border-radius:14px;padding:16px;text-align:center;cursor:pointer;
-  background:rgba(19,80,127,.05);font-size:14px;line-height:1.6;margin-top:4px;}
-.drop.over{border-color:var(--orange);background:rgba(217,69,43,.07);}
+.steps{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+.step{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#8a97a1;
+  background:#fff;border-radius:999px;padding:7px 14px;border:1.5px solid var(--off);}
+.step i{width:20px;height:20px;border-radius:50%;background:var(--off);color:#8a97a1;font-style:normal;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;}
+.step.on{color:var(--navy);border-color:var(--mango);}
+.step.on i{background:linear-gradient(135deg,var(--mango),var(--orange));color:#fff;}
+.step-arr{color:#b9c2c9;font-weight:700;}
+.drop{border:2.5px dashed var(--blue);border-radius:18px;padding:34px 20px;text-align:center;cursor:pointer;
+  background:rgba(19,80,127,.04);margin-top:16px;transition:border-color .15s,background .15s;}
+.drop:hover,.drop.over{border-color:var(--orange);background:rgba(217,69,43,.06);}
 .drop:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
-.drop-hint{color:var(--blue);font-size:12.5px;}
-.orsep{text-align:center;color:#8a97a1;font-size:12px;font-weight:600;margin:12px 0 0;
-  text-transform:uppercase;letter-spacing:.08em;}
-.linklike{border:none;background:none;color:var(--orange);cursor:pointer;font-family:inherit;
-  font-size:13px;text-decoration:underline;}
+.drop-ico{width:58px;height:58px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;
+  justify-content:center;background:linear-gradient(135deg,var(--mango),var(--orange));}
+.drop-ico svg{width:28px;height:28px;}
+.drop-big{font-size:19px;font-weight:700;}
+.drop-hint{color:var(--blue);font-size:13px;margin-top:6px;line-height:1.5;}
+.drop-err{color:var(--orange);font-weight:600;font-size:13.5px;margin-top:12px;}
+.centre{text-align:center;padding:40px 22px;}
+.pulse{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--mango),var(--orange));animation:flPulse 1.6s ease-in-out infinite;}
+.pulse svg{width:30px;height:30px;}
+@keyframes flPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,69,43,.35)}
+  50%{transform:scale(1.07);box-shadow:0 0 0 16px rgba(217,69,43,0)}}
+.r-head{display:flex;align-items:center;gap:22px;flex-wrap:wrap;border-top:6px solid var(--orange);}
+.ring2{width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;}
+.ring2 .in{width:84px;height:84px;border-radius:50%;background:#fff;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;}
+.ring2 .pc{font-size:32px;font-weight:800;line-height:1;}
+.ring2 .lb{font-size:11px;color:var(--blue);font-weight:600;}
+.r-kind{font-size:11.5px;font-weight:700;color:var(--blue);letter-spacing:.08em;}
+.r-verdict{font-size:24px;font-weight:700;line-height:1.2;margin:4px 0;}
+.r-file{font-size:12.5px;color:#8a97a1;}
+.dim{margin-bottom:16px;}
+.dim:last-child{margin-bottom:0;}
+.dim-r{display:flex;justify-content:space-between;font-size:14.5px;font-weight:600;margin-bottom:6px;}
+.dim-tk{height:10px;border-radius:999px;background:var(--off);overflow:hidden;}
+.dim-tk i{display:block;height:100%;border-radius:999px;transform-origin:left;animation:flFill .9s both;}
+@keyframes flFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.dim-tip{font-size:13px;color:var(--blue);margin-top:5px;line-height:1.5;}
+.goods{list-style:none;line-height:1.65;font-size:14.5px;}
+.goods li{margin-bottom:10px;padding-left:2px;}
+.goods .tick{color:var(--ok);font-weight:700;margin-right:8px;}
+.fix{display:flex;gap:14px;margin-bottom:14px;}
+.fix:last-child{margin-bottom:0;}
+.fix-n{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;font-size:13px;
+  display:flex;align-items:center;justify-content:center;flex:none;margin-top:2px;}
+.fix-t{font-weight:700;font-size:14.5px;}
+.fix-d{font-size:13.5px;color:#4a5b66;line-height:1.55;margin-top:2px;}
+.nextstep{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;}
+.nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
+.nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 `;
   return pageShell({ title: "Fledglings — CV & LinkedIn review", bodyHtml: body, extraCss });
 }

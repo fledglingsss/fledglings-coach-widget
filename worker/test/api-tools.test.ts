@@ -53,8 +53,25 @@ function post(path: string, body: Record<string, unknown>) {
   });
 }
 
+const REPORT_JSON = JSON.stringify({
+  overall: 64,
+  verdict: "Solid start, needs sharpening",
+  dimensions: [
+    { label: "Impact", score: 55, tip: "Show outcomes, not duties." },
+    { label: "Clarity & structure", score: 72, tip: "Good ordering." },
+    { label: "ATS readiness", score: 60, tip: "Use standard headings." },
+    { label: "Tailoring", score: 68, tip: "Name the retail role directly." },
+  ],
+  strengths: ['Real experience: "handled tills and customers".'],
+  improvements: [
+    { title: "Add outcomes", detail: "Say what changed because you were there." },
+    { title: "Tighten the top third", detail: "Recruiters skim the first lines." },
+  ],
+  next_step: "Rewrite your first bullet to lead with a result.",
+});
+
 beforeEach(() => {
-  generateMock.mockReset().mockResolvedValue("**What's working**\nGood stuff \"handled tills\".");
+  generateMock.mockReset().mockResolvedValue(REPORT_JSON);
   getUserMock.mockReset().mockResolvedValue({
     id: "u1",
     first_name: "Alex",
@@ -75,12 +92,20 @@ describe("POST /api/review", () => {
     target: "Retail assistant",
   };
 
-  it("returns a review", async () => {
+  it("returns a structured, scored report", async () => {
     const res = await app.request(post("/api/review", body), undefined, makeEnv());
     const out = await res.json();
     expect(out.kind).toBe("review");
-    expect(out.reply).toContain("What's working");
+    expect(out.report.overall).toBe(64);
+    expect(out.report.dimensions.length).toBe(4);
+    expect(out.report.verdict).toContain("Solid start");
     expect(generateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes a model crisis sentinel to signposting", async () => {
+    generateMock.mockResolvedValue('{"crisis":true}');
+    const res = await app.request(post("/api/review", body), undefined, makeEnv());
+    expect((await res.json()).kind).toBe("crisis");
   });
 
   it("routes a disclosure in the CV to crisis signposting, no model call", async () => {

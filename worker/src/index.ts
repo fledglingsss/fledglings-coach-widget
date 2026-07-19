@@ -68,6 +68,7 @@ import {
 } from "./lib/skills-passport";
 import { renderSkillsPassport } from "./pages-skills";
 import {
+  parseReviewReport,
   REVIEW_CAPS,
   reviewSystemPrompt,
   reviewUserMessage,
@@ -650,7 +651,7 @@ app.post("/api/enrol", async (c) => {
  * #3 — AI employability tools (ATS CV review, LinkedIn review)
  * ================================================================== */
 
-const REVIEW_MAX_TOKENS = 1100;
+const REVIEW_MAX_TOKENS = 1600;
 
 app.post("/api/review", async (c) => {
   let body: Record<string, unknown>;
@@ -700,14 +701,32 @@ app.post("/api/review", async (c) => {
       reviewUserMessage(validated),
       REVIEW_MAX_TOKENS,
     );
-    const reply = guardReply(raw, 5000);
-    if (reply === null) {
-      console.error("[coach] review reply failed output gate");
+    const report = parseReviewReport(raw);
+    if (report === "crisis") {
+      console.log("[coach] kind=review outcome=model_crisis");
+      return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+    }
+    if (report === null) {
+      console.error("[coach] review report failed to parse");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    /* Output gate over every string the learner will see. */
+    const visible = [
+      report.verdict,
+      report.next_step,
+      ...report.strengths,
+      ...report.dimensions.map((d) => d.tip),
+      ...report.improvements.map((i) => `${i.title} ${i.detail}`),
+    ].join("\n");
+    if (guardReply(visible, 8000) === null) {
+      console.error("[coach] review report failed output gate");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
     await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
-    console.log(`[coach] kind=review tool=${validated.kind} outcome=ok`);
-    return c.json({ reply, kind: "review" });
+    console.log(
+      `[coach] kind=review tool=${validated.kind} outcome=ok overall=${report.overall}`,
+    );
+    return c.json({ report, kind: "review" });
   } catch (err) {
     return c.json(modelFailure("review", err));
   }
