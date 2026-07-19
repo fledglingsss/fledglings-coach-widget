@@ -191,7 +191,12 @@ export interface LwUser {
   first_name?: string;
   last_name?: string;
   username?: string;
-  created?: number;
+  created?: number; // Unix seconds (fractional)
+  last_login?: number; // Unix seconds (fractional); 0/absent = never
+  is_admin?: boolean;
+  is_instructor?: boolean;
+  is_suspended?: boolean;
+  is_reporter?: boolean;
   tags?: string[];
 }
 
@@ -394,6 +399,18 @@ export interface LwUserListPage {
 }
 
 /** One page of the school's user list (newest first). */
+/** Every user in the school (paged under the hood, capped for
+ * Workers subrequest budgets — 5 pages = 500 users). */
+export async function listAllUsers(env: LwEnv, maxPages = 5): Promise<LwUser[]> {
+  const users: LwUser[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const res = await listUsersPage(env, page);
+    users.push(...res.users);
+    if (page >= res.totalPages || res.users.length === 0) break;
+  }
+  return users;
+}
+
 export async function listUsersPage(
   env: LwEnv,
   page: number,

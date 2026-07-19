@@ -18,7 +18,7 @@ vi.mock("../src/lib/learnworlds", async (importOriginal) => {
   };
 });
 
-import app, { type Env } from "../src/index";
+import { app, type Env } from "../src/index";
 import { FALLBACK_REPLY, generate } from "../src/lib/anthropic";
 import { getUserByEmail, getUserCourses } from "../src/lib/learnworlds";
 

@@ -49,6 +49,7 @@ import {
   countUsersByTag,
   getEnrolments,
   getUserProgress,
+  listAllUsers,
   listUsersPage,
   lwConfigured,
   type LwUser,
@@ -89,7 +90,16 @@ import {
   renderPortalLogin,
   renderToolsPage,
 } from "./pages";
-import { aggregate, csvExport, narrativeSystemPrompt } from "./lib/portal";
+import { aggregate, csvExport, EXCLUDED_TITLES, narrativeSystemPrompt } from "./lib/portal";
+import {
+  appendHistory,
+  assessLearner,
+  sortAssessments,
+  summarise,
+  type RiskAssessment,
+  type RiskHistoryPoint,
+  type RiskSummary,
+} from "./lib/risk";
 import { b64urlDecode, b64urlEncode, signPayload, verifyPayload } from "./lib/sign";
 import { generate } from "./lib/anthropic";
 import {
@@ -155,7 +165,7 @@ function modelFailure(where: string, err: unknown) {
   return { reply: FALLBACK_REPLY, kind: "fallback" };
 }
 
-const app = new Hono<{ Bindings: Env }>();
+export const app = new Hono<{ Bindings: Env }>();
 
 app.use(
   "*",
@@ -882,12 +892,16 @@ async function portalSession(c: {
   return portalCodeLabel(c, code);
 }
 
+function isLearner(u: LwUser): boolean {
+  return Boolean(u.email) && !u.is_admin && !u.is_instructor && !u.is_suspended;
+}
+
 async function portalSample(env: Env): Promise<{
   totalUsers: number | null;
   sample: Array<{ user: LwUser; courses: LwUserCourse[] }>;
 }> {
   const page = await listUsersPage(env, 1);
-  const learners = page.users.filter((u) => u.email).slice(0, PORTAL_SAMPLE_SIZE);
+  const learners = page.users.filter(isLearner).slice(0, PORTAL_SAMPLE_SIZE);
   const sample: Array<{ user: LwUser; courses: LwUserCourse[] }> = [];
   for (const user of learners) {
     try {
@@ -897,6 +911,106 @@ async function portalSample(env: Env): Promise<{
     }
   }
   return { totalUsers: page.totalItems, sample };
+}
+
+/* ---------------- early-warning engine (#6) ---------------- */
+
+const RISK_CACHE_KEY = "portal:risk:v1";
+const RISK_HISTORY_KEY = "portal:risk:history:v1";
+const RISK_CACHE_TTL = 6 * 3600;
+const RISK_ENRICH_TOP = 10;
+
+interface RiskReport {
+  summary: RiskSummary;
+  learners: RiskAssessment[];
+}
+
+async function buildRiskReport(env: Env, now: Date): Promise<RiskReport> {
+  const users = (await listAllUsers(env)).filter(isLearner);
+  let assessments = users.map((u) =>
+    assessLearner(
+      {
+        id: u.id,
+        email: (u.email || "").toLowerCase(),
+        name: displayName({
+          email: u.email,
+          firstName: u.first_name,
+          lastName: u.last_name,
+          username: u.username,
+        }),
+        createdSecs: typeof u.created === "number" && u.created > 0 ? u.created : null,
+        lastLoginSecs:
+          typeof u.last_login === "number" && u.last_login > 0 ? u.last_login : null,
+        tags: u.tags ?? [],
+      },
+      now,
+    ),
+  );
+  assessments = sortAssessments(assessments);
+
+  /* Enrich the most urgent learners with module context so the nudge
+   * can name the module they're part-way through. */
+  const enrichable = assessments
+    .filter((a) => a.tier === "high" || a.tier === "medium" || a.tier === "watch")
+    .slice(0, RISK_ENRICH_TOP);
+  for (const a of enrichable) {
+    try {
+      const courses = (await getUserCourses(env, a.id)).filter(
+        (course) => course.title && !EXCLUDED_TITLES.has(course.title),
+      );
+      const stalled =
+        courses.find(
+          (course) =>
+            !course.completed && course.progressRate !== null && course.progressRate > 0,
+        ) ?? null;
+      const enrichment = {
+        modulesEnrolled: courses.length,
+        modulesCompleted: courses.filter((course) => course.completed).length,
+        stalledTitle: stalled?.title ?? null,
+      };
+      const user = users.find((u) => u.id === a.id);
+      if (user) {
+        const idx = assessments.findIndex((x) => x.id === a.id);
+        assessments[idx] = assessLearner(
+          {
+            id: a.id,
+            email: a.email,
+            name: a.name,
+            createdSecs:
+              typeof user.created === "number" && user.created > 0 ? user.created : null,
+            lastLoginSecs:
+              typeof user.last_login === "number" && user.last_login > 0
+                ? user.last_login
+                : null,
+            tags: user.tags ?? [],
+          },
+          now,
+          enrichment,
+        );
+      }
+    } catch {
+      /* Enrichment is a bonus — never sinks the report. */
+    }
+  }
+  assessments = sortAssessments(assessments);
+  return { summary: summarise(assessments, now), learners: assessments };
+}
+
+async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport> {
+  if (!forceRefresh) {
+    const cached = await env.RATE_LIMITS.get(RISK_CACHE_KEY);
+    if (cached) return JSON.parse(cached) as RiskReport;
+  }
+  const report = await buildRiskReport(env, new Date());
+  await env.RATE_LIMITS.put(RISK_CACHE_KEY, JSON.stringify(report), {
+    expirationTtl: RISK_CACHE_TTL,
+  });
+  const history = appendHistory(
+    JSON.parse((await env.RATE_LIMITS.get(RISK_HISTORY_KEY)) || "null"),
+    report.summary,
+  );
+  await env.RATE_LIMITS.put(RISK_HISTORY_KEY, JSON.stringify(history));
+  return report;
 }
 
 app.get("/portal", async (c) => {
@@ -936,28 +1050,41 @@ app.get("/portal/data", async (c) => {
   if (!label) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
 
-  const cached = await c.env.RATE_LIMITS.get("portal:data:v1");
+  const cached = await c.env.RATE_LIMITS.get("portal:data:v2");
   if (cached) return c.json(JSON.parse(cached));
 
   try {
     const { totalUsers, sample } = await portalSample(c.env);
     const stats = aggregate(totalUsers, sample, new Date());
+    const risk = await getRiskReport(c.env);
+    const history = JSON.parse(
+      (await c.env.RATE_LIMITS.get(RISK_HISTORY_KEY)) || "[]",
+    ) as RiskHistoryPoint[];
     let narrative = "";
     try {
       narrative = await generate(
         c.env.ANTHROPIC_API_KEY,
         c.env.COACH_MODEL || "claude-sonnet-4-6",
         narrativeSystemPrompt(),
-        JSON.stringify(stats),
-        400,
+        JSON.stringify({
+          engagement: stats,
+          earlyWarning: {
+            learnersMonitored: risk.summary.learners,
+            activeLast7Days: risk.summary.activeLast7Days,
+            flaggedForAttention: risk.summary.tiers.high + risk.summary.tiers.medium,
+            monitoringNote:
+              "Learners are monitored continuously; those going quiet are flagged for personal follow-up.",
+          },
+        }),
+        450,
       );
     } catch (err) {
       console.error("[coach] portal narrative failed:", String(err));
       narrative =
         "Narrative unavailable just now — the figures above are live from the platform.";
     }
-    const payload = { stats, narrative };
-    await c.env.RATE_LIMITS.put("portal:data:v1", JSON.stringify(payload), {
+    const payload = { stats, narrative, risk, history };
+    await c.env.RATE_LIMITS.put("portal:data:v2", JSON.stringify(payload), {
       expirationTtl: PORTAL_CACHE_TTL,
     });
     return c.json(payload);
@@ -973,7 +1100,16 @@ app.get("/portal/export.csv", async (c) => {
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const { sample } = await portalSample(c.env);
-    return c.body(csvExport(sample), 200, {
+    let riskByEmail: Map<string, { tier: string; daysSinceLogin: number | null }> | undefined;
+    try {
+      const risk = await getRiskReport(c.env);
+      riskByEmail = new Map(
+        risk.learners.map((a) => [a.email, { tier: a.tier, daysSinceLogin: a.daysSinceLogin }]),
+      );
+    } catch {
+      /* CSV still exports without risk columns filled. */
+    }
+    return c.body(csvExport(sample, riskByEmail), 200, {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": "attachment; filename=fledglings-learners.csv",
     });
@@ -995,4 +1131,27 @@ app.onError((err, c) => {
   return c.json({ error: "internal_error" }, 500);
 });
 
-export default app;
+/* Nightly cron: rebuild the early-warning report so the portal opens
+ * instantly and the trend history accrues even on days nobody signs
+ * in. */
+async function scheduled(
+  _event: ScheduledController,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<void> {
+  if (!lwConfigured(env)) return;
+  ctx.waitUntil(
+    getRiskReport(env, true)
+      .then((r) =>
+        console.log(
+          `[coach] kind=risk-cron learners=${r.summary.learners} high=${r.summary.tiers.high}`,
+        ),
+      )
+      .catch((err) => console.error("[coach] risk cron failed:", String(err))),
+  );
+}
+
+export default {
+  fetch: app.fetch,
+  scheduled,
+};

@@ -25,7 +25,7 @@ vi.mock("../src/lib/course-map", async (importOriginal) => {
   };
 });
 
-import app, { type Env } from "../src/index";
+import { app, type Env } from "../src/index";
 import { enrolUserInCourse, findUserByEmail } from "../src/lib/learnworlds";
 
 const findMock = vi.mocked(findUserByEmail);

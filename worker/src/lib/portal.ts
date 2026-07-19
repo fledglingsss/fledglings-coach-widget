@@ -25,7 +25,7 @@ export interface PortalStats {
   generatedAt: string;
 }
 
-const EXCLUDED_TITLES = new Set([
+export const EXCLUDED_TITLES = new Set([
   "Financial Literacy",
   "Employability Skills",
   "Confidence & Resilience",
@@ -82,20 +82,25 @@ export function aggregate(
 
 export function narrativeSystemPrompt(): string {
   return `You write short evidence narratives for UK apprenticeship training providers and schools using the Fledglings life-skills platform, for use in self-assessment reports and Ofsted personal development evidence.
-RULES: Use ONLY the aggregate figures provided — never invent numbers, learners, quotes or outcomes. Never name any individual. State clearly that figures are from a recent sample of learner accounts. Frame contribution honestly ("contributes towards", "provides evidence of") — never claim attribution or outcomes the data cannot show. British English. Three short paragraphs, max 220 words total: (1) what the provision is and reach; (2) what the engagement/completion figures show; (3) how this maps to personal development evidence themes (safeguarding awareness, financial literacy, employability, character). No headings, no bullets.`;
+RULES: Use ONLY the aggregate figures provided — never invent numbers, learners, quotes or outcomes. Never name any individual. State clearly that figures are from a recent sample of learner accounts. Frame contribution honestly ("contributes towards", "provides evidence of") — never claim attribution or outcomes the data cannot show. If early-warning aggregates are provided (learners flagged for attention), present them as evidence of ACTIVE MONITORING and pastoral responsiveness — providers demonstrating they spot disengagement early is itself strong personal development evidence. British English. Three short paragraphs, max 240 words total: (1) what the provision is and reach; (2) what the engagement/completion figures show, including the monitoring process if figures are present; (3) how this maps to personal development evidence themes (safeguarding awareness, financial literacy, employability, character). No headings, no bullets.`;
 }
 
 export function csvExport(
   sample: Array<{ user: LwUser; courses: LwUserCourse[] }>,
+  riskByEmail?: Map<string, { tier: string; daysSinceLogin: number | null }>,
 ): string {
-  const lines = ["email,name,modules_enrolled,modules_completed,in_progress"];
+  const lines = [
+    "email,name,modules_enrolled,modules_completed,in_progress,days_since_login,attention_level",
+  ];
   for (const { user, courses } of sample) {
     const modules = courses.filter((c) => c.title && !EXCLUDED_TITLES.has(c.title));
     const completed = modules.filter((c) => c.completed).length;
     const inProgress = modules.length - completed;
     const name = (user.username || user.first_name || "").replace(/[",\n]/g, " ");
+    const risk = riskByEmail?.get((user.email || "").toLowerCase());
     lines.push(
-      `${(user.email || "").replace(/[",\n]/g, " ")},${name},${modules.length},${completed},${inProgress}`,
+      `${(user.email || "").replace(/[",\n]/g, " ")},${name},${modules.length},${completed},${inProgress},` +
+        `${risk ? (risk.daysSinceLogin === null ? "never logged in" : risk.daysSinceLogin) : ""},${risk?.tier ?? ""}`,
     );
   }
   return lines.join("\n");

@@ -54,9 +54,9 @@ describe("csvExport", () => {
   it("escapes commas and includes counts", () => {
     const csv = csvExport(SAMPLE);
     const lines = csv.split("\n");
-    expect(lines[0]).toBe("email,name,modules_enrolled,modules_completed,in_progress");
-    expect(lines[1]).toBe("a@x.com,A One,2,1,1");
-    expect(lines[2]).toBe("b@x.com,B  Two,1,0,1");
+    expect(lines[0]).toBe("email,name,modules_enrolled,modules_completed,in_progress,days_since_login,attention_level");
+    expect(lines[1]).toBe("a@x.com,A One,2,1,1,,");
+    expect(lines[2]).toBe("b@x.com,B  Two,1,0,1,,");
   });
 });
 

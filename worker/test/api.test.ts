@@ -12,7 +12,7 @@ vi.mock("../src/lib/anthropic", async (importOriginal) => {
   return { ...actual, moderate: vi.fn(), coach: vi.fn() };
 });
 
-import app, { type Env } from "../src/index";
+import { app, type Env } from "../src/index";
 import {
   BLOCKED_REPLY,
   BUSY_REPLY,

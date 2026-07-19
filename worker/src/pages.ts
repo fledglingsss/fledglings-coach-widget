@@ -464,64 +464,261 @@ export function renderPassportExpired(): string {
  * /portal — provider evidence portal
  * ------------------------------------------------------------------ */
 export function renderPortalLogin(error?: string): string {
+  const extraCss = `
+.login-wrap{max-width:520px;margin:40px auto;padding:0 18px;}
+.login-hero{background:linear-gradient(125deg,var(--navy) 0%,var(--blue) 70%,#1E6396 100%);border-radius:24px 24px 0 0;
+  color:#fff;padding:34px 30px;position:relative;overflow:hidden;}
+.login-hero .fm{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--mango),var(--orange));margin-bottom:16px;}
+.login-hero .fm svg{width:26px;height:26px;}
+.login-hero h2{font-size:24px;margin-bottom:6px;}
+.login-hero p{color:#CFE0EE;font-size:14px;line-height:1.55;}
+.login-hero .wm{position:absolute;right:-30px;bottom:-40px;opacity:.08;transform:rotate(-15deg);}
+.login-hero .wm svg{width:190px;height:190px;}
+.login-card{background:#fff;border-radius:0 0 24px 24px;padding:28px 30px;box-shadow:0 20px 50px -20px rgba(5,37,60,.4);}
+`;
   return pageShell({
     title: "Fledglings — provider portal",
+    extraCss,
     bodyHtml:
-      "<main class='wrap'>" +
-      "<h2 class='page'>Provider evidence portal</h2>" +
-      "<p class='sub'>Live engagement figures and an evidence narrative for your self-assessment and personal development reporting. " +
-      "Access codes are issued by Fledglings — contact us if you need one.</p>" +
+      "<main class='login-wrap'>" +
+      "<div class='login-hero'>" +
+      `<div class='fm'>${FEATHER}</div>` +
+      "<h2>Provider Evidence Portal</h2>" +
+      "<p>Live engagement figures, an early-warning view of learners who need a nudge, " +
+      "and an evidence narrative ready for your SAR and personal development reporting.</p>" +
+      `<div class='wm'>${FEATHER}</div></div>` +
+      "<div class='login-card'>" +
       (error ? `<div class='notice'>${esc(error)}</div>` : "") +
-      "<form method='POST' action='/portal/login' class='card'>" +
-      "<h3>Sign in</h3><label for='code'>Access code</label>" +
-      "<input type='text' id='code' name='code' autocomplete='off' required>" +
-      "<div class='btnrow'><button class='btn' type='submit'>Open portal</button></div></form></main>",
+      "<form method='POST' action='/portal/login'>" +
+      "<label for='code' style='margin-top:0'>Access code</label>" +
+      "<input type='text' id='code' name='code' autocomplete='off' required " +
+      "placeholder='Issued by Fledglings'>" +
+      "<div class='btnrow'><button class='btn' type='submit'>Open portal</button></div>" +
+      "<p class='sub' style='font-size:12.5px;margin:14px 0 0'>Codes are issued by Fledglings to named provider staff — " +
+      "contact us if you need one.</p></form></div></main>",
   });
 }
 
+const TIER_META: Record<
+  string,
+  { label: string; colour: string; blurb: string }
+> = {
+  high: { label: "Needs contact", colour: "#D9452B", blurb: "long silence or never arrived" },
+  medium: { label: "Drifting", colour: "#ED9249", blurb: "quiet for 10–20 days" },
+  watch: { label: "Early wobble", colour: "#13507F", blurb: "5–9 days quiet, or stuck" },
+  new: { label: "New", colour: "#8a97a1", blurb: "joined this week" },
+  ok: { label: "Engaged", colour: "#1B7A4B", blurb: "active recently" },
+};
+
 export function renderPortalDashboard(label: string): string {
+  const extraCss = `
+.hero{background:linear-gradient(125deg,var(--navy) 0%,var(--blue) 72%,#1E6396 100%);color:#fff;
+  border-radius:22px;padding:28px 30px;margin-bottom:20px;position:relative;overflow:hidden;}
+.hero h2{font-size:24px;margin-bottom:4px;}
+.hero .sub2{color:#CFE0EE;font-size:13.5px;}
+.hero .wm{position:absolute;right:-20px;top:-30px;opacity:.08;transform:rotate(-14deg);}
+.hero .wm svg{width:170px;height:170px;}
+.ptabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.ptab{border:1.5px solid var(--off);background:#fff;color:var(--navy);border-radius:999px;padding:10px 18px;
+  font-weight:600;font-size:14px;cursor:pointer;min-height:42px;display:inline-flex;align-items:center;gap:8px;}
+.ptab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.ptab .cnt{background:var(--orange);color:#fff;border-radius:999px;font-size:11.5px;font-weight:700;
+  padding:2px 8px;min-width:22px;text-align:center;}
+.ptab:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+.pview{display:none;}.pview.on{display:block;}
+.kpis4{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px;}
+.kpi2{background:#fff;border-radius:18px;padding:20px;box-shadow:0 2px 10px rgba(5,37,60,.08);position:relative;overflow:hidden;}
+.kpi2::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;}
+.kpi2.k1::before{background:linear-gradient(90deg,var(--blue),#1E6396);}
+.kpi2.k2::before{background:linear-gradient(90deg,var(--ok),#2FA36B);}
+.kpi2.k3::before{background:linear-gradient(90deg,var(--orange),var(--mango));}
+.kpi2.k4::before{background:linear-gradient(90deg,var(--navy),var(--blue));}
+.kpi2 .n{font-size:32px;font-weight:800;line-height:1.1;}
+.kpi2 .l{font-size:12px;color:var(--blue);font-weight:600;margin-top:4px;letter-spacing:.03em;}
+.kpi2 .s{font-size:12px;color:#8a97a1;margin-top:2px;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media(max-width:760px){.two{grid-template-columns:1fr;}}
+.donut-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+.donut{width:150px;height:150px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;}
+.donut .in{width:96px;height:96px;border-radius:50%;background:#fff;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;}
+.donut .in .n{font-size:26px;font-weight:800;}
+.donut .in .l{font-size:10.5px;color:var(--blue);font-weight:600;}
+.legend{display:flex;flex-direction:column;gap:8px;font-size:13.5px;}
+.legend .row{display:flex;align-items:center;gap:9px;}
+.legend .sw{width:12px;height:12px;border-radius:4px;flex:none;}
+.legend b{margin-left:auto;padding-left:14px;}
+.trend-note{font-size:12.5px;color:#8a97a1;margin-top:8px;}
+.mods-mini .mrow{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin-bottom:12px;font-size:13.5px;}
+.mods-mini .mt{font-weight:600;}
+.mods-mini .mc{color:var(--blue);font-weight:600;}
+.mods-mini .bar{grid-column:1/-1;}
+.tierstrip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+.tierpill{display:inline-flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:8px 16px;
+  font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(5,37,60,.07);}
+.tierpill .dot{width:10px;height:10px;border-radius:50%;}
+.rcard{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(5,37,60,.08);margin-bottom:12px;
+  display:grid;grid-template-columns:6px 1fr;overflow:hidden;}
+.rcard .stripe{height:100%;}
+.rcard .body{padding:16px 18px;}
+.rcard .top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.rcard .nm{font-weight:700;font-size:15.5px;}
+.rcard .em{color:#8a97a1;font-size:12.5px;}
+.rcard .tag{margin-left:auto;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;color:#fff;}
+.rcard .why{margin:8px 0 0;font-size:13.5px;color:#4a5b66;line-height:1.55;}
+.rcard .why li{margin-left:18px;margin-bottom:2px;}
+.rcard .actions{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.nudgebtn{border:1.5px solid var(--blue);background:#fff;color:var(--blue);border-radius:999px;
+  padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+.nudgebtn:hover{background:var(--blue);color:#fff;}
+.nudgeprev{display:none;background:var(--off);border-radius:12px;padding:12px 14px;font-size:13px;
+  line-height:1.6;margin-top:10px;color:#374652;}
+.nudgeprev.on{display:block;}
+.allgood{background:#E7F3EC;border:1.5px solid #BBDECB;border-radius:16px;padding:22px;text-align:center;
+  font-weight:600;color:var(--ok);}
+.spark{width:100%;height:64px;}
+.copy-ok{color:var(--ok);font-size:12.5px;font-weight:600;}
+@media print{.ptabs,.hero .wm{display:none!important;}.pview{display:block!important;}}
+`;
+
   const body =
-    "<main class='wrap'>" +
-    `<h2 class='page'>Evidence dashboard</h2>` +
-    `<p class='sub'>${esc(label)} · aggregate view · figures are drawn from a recent sample of learner accounts and refresh every few hours.</p>` +
-    "<div class='kpis' id='kpis'>" +
-    "<div class='kpi'><div class='n' id='k-total'>…</div><div class='l'>REGISTERED LEARNERS</div></div>" +
-    "<div class='kpi'><div class='n' id='k-sample'>…</div><div class='l'>IN THIS SAMPLE</div></div>" +
-    "<div class='kpi'><div class='n' id='k-active'>…</div><div class='l'>ACTIVE IN SAMPLE</div></div>" +
-    "<div class='kpi'><div class='n' id='k-avg'>…</div><div class='l'>AVG MODULES EACH</div></div></div>" +
-    "<div class='card' id='ncard' hidden><h3>Evidence narrative <span class='badge'>draft for your SAR</span></h3>" +
-    "<div class='result' id='narrative' style='white-space:pre-wrap;'></div>" +
-    "<div class='btnrow no-print'><button class='btn ghost' type='button' id='copy'>Copy narrative</button></div></div>" +
-    "<div class='card' id='tcard' hidden><h3>Module engagement (sample)</h3><div id='table' style='overflow-x:auto;'></div></div>" +
-    "<div class='notice' id='err' hidden></div>" +
+    "<main class='wrap' style='max-width:980px'>" +
+    "<div class='hero'>" +
+    `<h2>${esc(label)}</h2>` +
+    "<div class='sub2' id='p-meta'>Evidence &amp; early-warning dashboard · loading live figures…</div>" +
+    `<div class='wm'>${FEATHER}</div></div>` +
+    /* tabs */
+    "<div class='ptabs no-print' role='tablist'>" +
+    "<button class='ptab on' data-v='overview' role='tab' aria-selected='true'>Overview</button>" +
+    "<button class='ptab' data-v='risk' role='tab' aria-selected='false'>Early warning <span class='cnt' id='t-riskn' hidden></span></button>" +
+    "<button class='ptab' data-v='mods' role='tab' aria-selected='false'>Modules</button>" +
+    "<button class='ptab' data-v='evidence' role='tab' aria-selected='false'>Evidence pack</button></div>" +
+    "<div class='notice' id='p-err' hidden></div>" +
+    /* overview */
+    "<div class='pview on' id='pv-overview'>" +
+    "<div class='kpis4'>" +
+    "<div class='kpi2 k1'><div class='n' id='k-total'>…</div><div class='l'>REGISTERED LEARNERS</div><div class='s'>on your Fledglings school</div></div>" +
+    "<div class='kpi2 k2'><div class='n' id='k-active'>…</div><div class='l'>ACTIVE LAST 7 DAYS</div><div class='s' id='k-activep'></div></div>" +
+    "<div class='kpi2 k3'><div class='n' id='k-attn'>…</div><div class='l'>NEED ATTENTION</div><div class='s'>flagged by early warning</div></div>" +
+    "<div class='kpi2 k4'><div class='n' id='k-avg'>…</div><div class='l'>AVG MODULES EACH</div><div class='s'>from a recent sample</div></div></div>" +
+    "<div class='two'>" +
+    "<div class='card'><h3>Cohort pulse</h3><div class='donut-wrap'>" +
+    "<div class='donut' id='donut'><div class='in'><div class='n' id='d-n'></div><div class='l'>LEARNERS</div></div></div>" +
+    "<div class='legend' id='d-legend'></div></div></div>" +
+    "<div class='card'><h3>Engagement trend</h3><svg class='spark' id='spark' viewBox='0 0 300 64' preserveAspectRatio='none'></svg>" +
+    "<div class='trend-note' id='spark-note'></div></div></div>" +
+    "<div class='card mods-mini'><h3>Most-used modules</h3><div id='mods-top'></div></div>" +
+    "</div>" +
+    /* early warning */
+    "<div class='pview' id='pv-risk'>" +
+    "<div class='tierstrip' id='tierstrip'></div>" +
+    "<div id='risk-list'></div>" +
+    "<p class='sub' style='font-size:12.5px'>How tiers work: <b>Needs contact</b> = 21+ days silent or never logged in · " +
+    "<b>Drifting</b> = 10–20 days · <b>Early wobble</b> = 5–9 days or logging in without finishing anything. " +
+    "Nudge messages are ready to copy and send through your own channel — they're written to encourage, never to guilt-trip. " +
+    "This view is for your safeguarding/pastoral staff; treat it with the same care as any learner record.</p>" +
+    "<div class='btnrow no-print'><button class='btn ghost' onclick='window.print()'>Print early-warning digest</button></div>" +
+    "</div>" +
+    /* modules */
+    "<div class='pview' id='pv-mods'><div class='card'><h3>Module engagement (sample)</h3>" +
+    "<div id='mods-table' style='overflow-x:auto'></div></div></div>" +
+    /* evidence */
+    "<div class='pview' id='pv-evidence'>" +
+    "<div class='card'><h3>Evidence narrative <span class='badge'>draft for your SAR</span></h3>" +
+    "<div class='result' id='narrative' style='white-space:pre-wrap'></div>" +
+    "<div class='btnrow no-print'><button class='btn ghost' type='button' id='copy'>Copy narrative</button>" +
+    "<span class='copy-ok' id='copy-ok' hidden>Copied ✓</span></div></div>" +
     "<div class='btnrow no-print'>" +
     "<button class='btn' onclick='window.print()'>Print / save as PDF</button>" +
     "<button class='btn quiet' onclick=\"location.href='/portal/export.csv'\">Download learner CSV</button>" +
     "<button class='btn ghost' onclick=\"location.href='/portal/logout'\">Sign out</button></div>" +
-    "<p class='sub' style='font-size:12.5px;margin-top:14px;'>Figures describe engagement with Fledglings life-skills modules and are stated from a sample — " +
-    "they evidence provision and participation, not attributed outcomes. The CSV lists your learners' module counts.</p>" +
-    "</main>" +
+    "<p class='sub' style='font-size:12.5px'>Figures describe engagement with Fledglings life-skills modules; sampled figures are " +
+    "labelled as such. They evidence provision, participation and active monitoring — not attributed outcomes. " +
+    "The CSV lists your learners with module counts, days since last login and attention level.</p>" +
+    "</div></main>" +
     "<script>(function(){" +
+    "var $=function(id){return document.getElementById(id)};" +
+    "var TIER={high:{l:'Needs contact',c:'#D9452B'},medium:{l:'Drifting',c:'#ED9249'},watch:{l:'Early wobble',c:'#13507F'},new:{l:'New',c:'#8a97a1'},ok:{l:'Engaged',c:'#1B7A4B'}};" +
+    "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" +
+    /* tabs */
+    "document.querySelectorAll('.ptab').forEach(function(t){t.addEventListener('click',function(){" +
+    "document.querySelectorAll('.ptab').forEach(function(x){x.className='ptab';x.setAttribute('aria-selected','false')});" +
+    "t.className='ptab on';t.setAttribute('aria-selected','true');" +
+    "document.querySelectorAll('.pview').forEach(function(v){v.className='pview'});" +
+    "$('pv-'+t.dataset.v).className='pview on';});});" +
     "fetch('/portal/data').then(function(r){return r.json()}).then(function(d){" +
-    "if(d.error){var e=document.getElementById('err');e.hidden=false;e.textContent='Could not load data: '+d.error;return;}" +
-    "var s=d.stats;" +
-    "document.getElementById('k-total').textContent=s.totalUsers!==null?s.totalUsers:'—';" +
-    "document.getElementById('k-sample').textContent=s.sampleSize;" +
-    "document.getElementById('k-active').textContent=s.activeInSample;" +
-    "document.getElementById('k-avg').textContent=s.avgModulesPerLearner;" +
-    "var n=document.getElementById('ncard');n.hidden=false;document.getElementById('narrative').textContent=d.narrative||'';" +
-    "document.getElementById('copy').onclick=function(){navigator.clipboard.writeText(d.narrative||'').then(function(){" +
-    "document.getElementById('copy').textContent='Copied ✓';});};" +
-    "var rows='';for(var i=0;i<s.courseStats.length;i++){var r=s.courseStats[i];" +
-    "rows+='<tr><td>'+r.title.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td><td class=c>'+r.enrolled+'</td><td class=c>'+r.completed+'</td>'" +
-    "+'<td class=c style=\"min-width:90px;\"><div class=bar><i style=\"width:'+r.completionRate+'%\"></i></div>'+r.completionRate+'%</td></tr>';}" +
-    "var t=document.getElementById('tcard');t.hidden=false;" +
-    "document.getElementById('table').innerHTML='<table><tr><th>Module</th><th class=c>Enrolled</th><th class=c>Completed</th><th class=c>Completion</th></tr>'+rows+'</table>';" +
-    "}).catch(function(){var e=document.getElementById('err');e.hidden=false;e.textContent='Could not load data — refresh to retry.';});" +
+    "if(d.error){var e=$('p-err');e.hidden=false;e.textContent='Could not load data: '+d.error;return;}" +
+    "var s=d.stats,rk=d.risk,sm=rk.summary;" +
+    "$('p-meta').textContent='Evidence & early-warning dashboard · figures generated '+new Date(sm.assessedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' · refreshes every 6 hours';" +
+    /* KPIs */
+    "$('k-total').textContent=sm.learners;" +
+    "$('k-active').textContent=sm.activeLast7Days;" +
+    "$('k-activep').textContent=sm.learners?Math.round(sm.activeLast7Days*100/sm.learners)+'% of learners':'';" +
+    "var attn=sm.tiers.high+sm.tiers.medium;$('k-attn').textContent=attn;" +
+    "$('k-attn').style.color=attn>0?'#D9452B':'#1B7A4B';" +
+    "$('k-avg').textContent=s.avgModulesPerLearner;" +
+    "if(attn>0){$('t-riskn').hidden=false;$('t-riskn').textContent=attn;}" +
+    /* donut */
+    "var order=['high','medium','watch','new','ok'];var total=sm.learners||1;var acc=0;var stops=[];" +
+    "order.forEach(function(k){var n=sm.tiers[k]||0;if(!n)return;var from=acc/total*360;acc+=n;var to=acc/total*360;" +
+    "stops.push(TIER[k].c+' '+from+'deg '+to+'deg')});" +
+    "$('donut').style.background=stops.length?'conic-gradient('+stops.join(',')+')':'#ECE7E6';" +
+    "$('d-n').textContent=sm.learners;" +
+    "$('d-legend').innerHTML=order.map(function(k){var n=sm.tiers[k]||0;if(!n)return '';" +
+    "return \"<div class='row'><span class='sw' style='background:\"+TIER[k].c+\"'></span>\"+TIER[k].l+' <b>'+n+'</b></div>'}).join('');" +
+    /* trend sparkline */
+    "var h=d.history||[];" +
+    "if(h.length>=2){var pts=h.map(function(p,i){var x=i*(300/(h.length-1));" +
+    "var y=60-(p.learners?p.activeLast7Days/p.learners:0)*56;return x.toFixed(1)+','+y.toFixed(1)});" +
+    "$('spark').innerHTML=\"<polyline points='\"+pts.join(' ')+\"' fill='none' stroke='#D9452B' stroke-width='2.5' stroke-linejoin='round'/>\";" +
+    "$('spark-note').textContent='Share of learners active in the last 7 days, over the past '+h.length+' snapshots.';}" +
+    "else{$('spark-note').textContent='The trend line appears once the portal has a few days of snapshots — one is taken nightly.';}" +
+    /* top modules */
+    "var top=(s.courseStats||[]).slice(0,5);var mm='';" +
+    "top.forEach(function(r){var pct=r.enrolled?Math.round(r.completed*100/r.enrolled):0;" +
+    "mm+=\"<div class='mrow'><span class='mt'>\"+esc(r.title)+\"</span><span class='mc'>\"+r.enrolled+' enrolled · '+pct+'% completed</span>'+" +
+    "\"<div class='bar'><i style='width:\"+pct+\"%'></i></div></div>\"});" +
+    "$('mods-top').innerHTML=mm||'<p class=sub>No module data in the sample yet.</p>';" +
+    /* early warning list */
+    "var strip='';['high','medium','watch','new','ok'].forEach(function(k){" +
+    "strip+=\"<span class='tierpill'><span class='dot' style='background:\"+TIER[k].c+\"'></span>\"+TIER[k].l+' <b>&nbsp;'+(sm.tiers[k]||0)+'</b></span>'});" +
+    "$('tierstrip').innerHTML=strip;" +
+    "var flagged=(rk.learners||[]).filter(function(a){return a.tier==='high'||a.tier==='medium'||a.tier==='watch'});" +
+    "if(!flagged.length){$('risk-list').innerHTML=\"<div class='allgood'>No learners flagged right now — everyone is either engaged or brand new. Lovely.</div>\";}" +
+    "else{var out='';flagged.forEach(function(a,i){var t=TIER[a.tier];" +
+    "out+=\"<div class='rcard'><div class='stripe' style='background:\"+t.c+\"'></div><div class='body'>\"+" +
+    "\"<div class='top'><span class='nm'>\"+esc(a.name)+\"</span><span class='em'>\"+esc(a.email)+(a.cohort?' · '+esc(a.cohort):'')+\"</span>\"+" +
+    "\"<span class='tag' style='background:\"+t.c+\"'>\"+t.l+'</span></div>'+" +
+    "\"<ul class='why'>\"+a.reasons.map(function(r){return '<li>'+esc(r)+'</li>'}).join('')+'</ul>'+" +
+    "\"<div class='actions'><button class='nudgebtn' data-i='\"+i+\"'>Copy nudge message</button>\"+" +
+    "\"<button class='nudgebtn' data-p='\"+i+\"'>Preview</button><span class='copy-ok' id='cok-\"+i+\"' hidden>Copied ✓</span></div>\"+" +
+    "\"<div class='nudgeprev' id='prev-\"+i+\"'>\"+esc(a.nudge)+'</div>'+" +
+    "'</div></div>'});" +
+    "$('risk-list').innerHTML=out;" +
+    "document.querySelectorAll('.nudgebtn[data-i]').forEach(function(b){b.addEventListener('click',function(){" +
+    "var a=flagged[+b.dataset.i];var ok=$('cok-'+b.dataset.i);" +
+    "function done(){ok.hidden=false;setTimeout(function(){ok.hidden=true},2400)}" +
+    "if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(a.nudge).then(done,function(){window.prompt('Copy the nudge:',a.nudge)})}" +
+    "else{window.prompt('Copy the nudge:',a.nudge)}});});" +
+    "document.querySelectorAll('.nudgebtn[data-p]').forEach(function(b){b.addEventListener('click',function(){" +
+    "var p=$('prev-'+b.dataset.p);p.className=p.className==='nudgeprev on'?'nudgeprev':'nudgeprev on';});});}" +
+    /* modules table */
+    "var rows='';(s.courseStats||[]).forEach(function(r){var pct=r.enrolled?Math.round(r.completed*100/r.enrolled):0;" +
+    "rows+='<tr><td>'+esc(r.title)+'</td><td class=c>'+r.enrolled+'</td><td class=c>'+r.completed+'</td>'+" +
+    "\"<td><div class='bar'><i style='width:\"+pct+\"%'></i></div></td><td class=c>\"+pct+'%</td></tr>'});" +
+    "$('mods-table').innerHTML='<table><thead><tr><th>Module</th><th class=c>Enrolled</th><th class=c>Completed</th><th>Completion</th><th class=c>%</th></tr></thead><tbody>'+rows+'</tbody></table>';" +
+    /* narrative */
+    "$('narrative').textContent=d.narrative||'';" +
+    "$('copy').onclick=function(){function done(){$('copy-ok').hidden=false;setTimeout(function(){$('copy-ok').hidden=true},2400)}" +
+    "if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(d.narrative||'').then(done)}else{window.prompt('Copy:',d.narrative||'')}};" +
+    "}).catch(function(){var e=$('p-err');e.hidden=false;e.textContent='Could not reach the portal service — try refreshing.';});" +
     "})();</script>";
+
   return pageShell({
-    title: "Fledglings — evidence dashboard",
+    title: `Fledglings portal — ${label}`,
     bodyHtml: body,
+    extraCss,
     brandRight: `<span class='badge' style='background:rgba(255,255,255,.15);color:#fff;'>${esc(label)}</span>`,
   });
 }
