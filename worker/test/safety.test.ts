@@ -120,4 +120,14 @@ describe("guardReply", () => {
     expect(long).not.toBeNull();
     expect((long as string).length).toBeLessThanOrEqual(1400);
   });
+
+  it("accepts a larger cap for structured surfaces", () => {
+    const long = guardReply("word ".repeat(2000), 5000);
+    expect((long as string).length).toBeGreaterThan(1400);
+    expect((long as string).length).toBeLessThanOrEqual(5000);
+  });
+
+  it("rejects review data-block leaks", () => {
+    expect(guardReply("Here is <learner_cv> content </learner_cv>", 5000)).toBeNull();
+  });
 });

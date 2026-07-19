@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPassport,
+  groupForTitle,
+  groupPassport,
   isPassportData,
   passportAgeDays,
 } from "../src/lib/passport";
@@ -57,5 +59,44 @@ describe("passport link ageing", () => {
     expect(isPassportData(null)).toBe(false);
     expect(isPassportData({ v: 2 })).toBe(false);
     expect(isPassportData("hi")).toBe(false);
+  });
+});
+
+describe("curriculum grouping", () => {
+  it("matches LearnWorlds title variants to the right curriculum", () => {
+    /* Exact site titles */
+    expect(groupForTitle("Budgeting that Actually Works")).toBe("Financial Literacy");
+    /* LearnWorlds casing/hyphen/parenthetical variants */
+    expect(groupForTitle("Budgeting That Actually Works")).toBe("Financial Literacy");
+    expect(groupForTitle("Building Real Confidence")).toBe("Confidence & Resilience");
+    expect(groupForTitle("Interviews, CVs & Early-Career Mindset ")).toBe(
+      "Employability Skills",
+    );
+    expect(groupForTitle("What is Online Safety?")).toBe("Staying Safe Online");
+    expect(groupForTitle("Digital Wellbeing & Time Online")).toBe(
+      "Staying Safe Online",
+    );
+    expect(groupForTitle("How to use AI")).toBe("Deep Dive Mini Series");
+    expect(groupForTitle("Something Entirely New")).toBe("More learning");
+  });
+
+  it("groups a passport in catalogue order and drops empty groups", () => {
+    const data = buildPassport(
+      USER,
+      [
+        { title: "Preparing for an Interview", progressRate: 100, completed: true },
+        { title: "Budgeting That Actually Works", progressRate: 50, completed: false },
+        { title: "What is Online Safety?", progressRate: 100, completed: true },
+      ],
+      NOW,
+    );
+    const groups = groupPassport(data);
+    expect(groups.map((g) => g.group)).toEqual([
+      "Financial Literacy",
+      "Staying Safe Online",
+      "Deep Dive Mini Series",
+    ]);
+    expect(groups[0].inProgress[0].title).toBe("Budgeting That Actually Works");
+    expect(groups[2].completed).toEqual(["Preparing for an Interview"]);
   });
 });

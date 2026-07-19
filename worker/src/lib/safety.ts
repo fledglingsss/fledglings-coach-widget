@@ -73,19 +73,25 @@ export function crisisHeuristic(message: string): boolean {
   return CRISIS_PATTERNS.some((re) => re.test(message));
 }
 
-/* Output gate — the coach reply must never leak the prompt scaffolding
+/* Output gate — a model reply must never leak the prompt scaffolding
  * or run away in length. Returns the cleaned reply, or null when the
- * reply is unsafe to show (caller serves the authored fallback). */
-const MAX_REPLY_CHARS = 1400;
+ * reply is unsafe to show (caller serves the authored fallback).
+ * Chat bubbles use the default cap; structured surfaces (reviews)
+ * pass a larger one. */
+const DEFAULT_MAX_REPLY_CHARS = 1400;
 const LEAK_MARKERS = [
   /<\/?context>/i,
-  /you are fledge, the fledglings learning coach/i,
+  /<\/?learner_(?:cv|linkedin)>/i,
+  /you are fledge, the fledglings/i,
   /\bHARD RULES\b/,
   /\bsystem prompt\b/i,
 ];
 
-export function guardReply(reply: string): string | null {
-  const cleaned = sanitiseText(reply, MAX_REPLY_CHARS);
+export function guardReply(
+  reply: string,
+  maxChars: number = DEFAULT_MAX_REPLY_CHARS,
+): string | null {
+  const cleaned = sanitiseText(reply, maxChars);
   if (!cleaned) return null;
   if (LEAK_MARKERS.some((re) => re.test(cleaned))) return null;
   return cleaned;

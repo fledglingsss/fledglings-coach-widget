@@ -57,7 +57,20 @@ import {
   reviewUserMessage,
   validateReviewRequest,
 } from "./lib/review";
-import { buildPassport, isPassportData, passportAgeDays } from "./lib/passport";
+import {
+  buildPassport,
+  groupPassport,
+  isPassportData,
+  passportAgeDays,
+  type PassportData,
+} from "./lib/passport";
+import {
+  renderPassportExpired,
+  renderPassportPage,
+  renderPortalDashboard,
+  renderPortalLogin,
+  renderToolsPage,
+} from "./pages";
 import { aggregate, csvExport, narrativeSystemPrompt } from "./lib/portal";
 import { b64urlDecode, b64urlEncode, signPayload, verifyPayload } from "./lib/sign";
 import { generate } from "./lib/anthropic";
@@ -431,7 +444,7 @@ app.post("/api/enrol", async (c) => {
  * #3 — AI employability tools (ATS CV review, LinkedIn review)
  * ================================================================== */
 
-const REVIEW_MAX_TOKENS = 700;
+const REVIEW_MAX_TOKENS = 1100;
 
 app.post("/api/review", async (c) => {
   let body: Record<string, unknown>;
@@ -481,7 +494,7 @@ app.post("/api/review", async (c) => {
       reviewUserMessage(validated),
       REVIEW_MAX_TOKENS,
     );
-    const reply = guardReply(raw.slice(0, 4000)) ?? null;
+    const reply = guardReply(raw, 5000);
     if (reply === null) {
       console.error("[coach] review reply failed output gate");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
@@ -494,72 +507,13 @@ app.post("/api/review", async (c) => {
   }
 });
 
-/* Shared page chrome for the standalone tool/passport pages. */
-const PAGE_HEAD =
-  "<meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>" +
-  "<meta name='robots' content='noindex'>" +
-  "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
-  "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap' rel='stylesheet'>" +
-  "<style>:root{--navy:#05253C;--orange:#D9452B;--mango:#ED9249;--blue:#13507F;--off:#ECE7E6;}" +
-  "*{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}" +
-  "body{background:var(--off);color:var(--navy);padding:24px;}" +
-  ".wrap{max-width:760px;margin:0 auto;}" +
-  "h1{font-size:24px;margin-bottom:4px;}.sub{color:var(--blue);margin-bottom:20px;font-size:14.5px;}" +
-  "textarea,input[type=text]{width:100%;border:2px solid #fff;border-radius:12px;padding:12px;font-size:14.5px;" +
-  "font-family:inherit;color:var(--navy);}textarea:focus,input:focus{outline:none;border-color:var(--blue);}" +
-  "label{display:block;font-weight:600;font-size:14px;margin:14px 0 6px;}" +
-  "button{background:var(--orange);color:#fff;border:none;border-radius:12px;padding:13px 22px;font-size:15px;" +
-  "font-weight:600;cursor:pointer;margin-top:16px;min-height:46px;}button:disabled{opacity:.5;}" +
-  ".card{background:#fff;border-radius:16px;padding:20px;margin-top:20px;box-shadow:0 2px 8px rgba(5,37,60,.08);" +
-  "line-height:1.65;font-size:14.5px;white-space:pre-wrap;}" +
-  ".tabs{display:flex;gap:8px;margin-bottom:18px;}" +
-  ".tab{border:1.5px solid var(--mango);background:#fff;color:var(--navy);border-radius:999px;padding:9px 16px;" +
-  "font-weight:600;font-size:13.5px;cursor:pointer;margin-top:0;}" +
-  ".tab.on{background:var(--navy);border-color:var(--navy);color:#fff;}" +
-  "@media print{button,.tabs,form{display:none!important;}body{background:#fff;}}</style>";
-
 const FRAME_HEADERS = {
   "Content-Security-Policy":
     "frame-ancestors 'self' https://*.fledglings.co https://fledglings.co " +
     "https://*.learnworlds.com https://*.mycourse.app https://*.fledglings-school.co.uk",
 };
 
-app.get("/tools", (c) =>
-  c.html(
-    `<!doctype html><html><head>${PAGE_HEAD}<title>Fledglings — CV & LinkedIn review</title></head><body><div class='wrap'>` +
-      "<h1>CV & LinkedIn review</h1>" +
-      "<p class='sub'>Honest feedback from Fledge — grounded in what you've genuinely done. Nothing invented, ever.</p>" +
-      "<div class='tabs'><button type='button' class='tab on' id='tab-cv'>CV review</button>" +
-      "<button type='button' class='tab' id='tab-li'>LinkedIn review</button></div>" +
-      "<form id='f'>" +
-      "<label id='text-label' for='text'>Paste your CV text</label>" +
-      "<textarea id='text' rows='12' maxlength='9000' required></textarea>" +
-      "<label for='target'>Target role or job advert (optional, recommended)</label>" +
-      "<textarea id='target' rows='4' maxlength='2500'></textarea>" +
-      "<button id='go' type='submit'>Review it</button></form>" +
-      "<div class='card' id='out' hidden></div>" +
-      "<script>(function(){var kind='cv';" +
-      "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
-      "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
-      "var tabCv=document.getElementById('tab-cv'),tabLi=document.getElementById('tab-li'),lbl=document.getElementById('text-label');" +
-      "function setKind(k){kind=k;tabCv.className='tab'+(k==='cv'?' on':'');tabLi.className='tab'+(k==='linkedin'?' on':'');" +
-      "lbl.textContent=k==='cv'?'Paste your CV text':'Paste your LinkedIn headline, about section and experience';}" +
-      "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){setKind('linkedin')};" +
-      "document.getElementById('f').onsubmit=function(e){e.preventDefault();" +
-      "var go=document.getElementById('go'),out=document.getElementById('out');" +
-      "go.disabled=true;go.textContent='Fledge is reading\\u2026';out.hidden=true;" +
-      "fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
-      "learner_id:lid,session_id:sid,kind:kind,text:document.getElementById('text').value,target:document.getElementById('target').value})})" +
-      ".then(function(r){return r.json()}).then(function(d){go.disabled=false;go.textContent='Review it';" +
-      "out.hidden=false;out.innerHTML='';var t=(d.reply||d.error||'Something went wrong \\u2014 try again.');" +
-      "var parts=String(t).split(/\\*\\*(.+?)\\*\\*/g);for(var i=0;i<parts.length;i++){if(!parts[i])continue;" +
-      "if(i%2===1){var b=document.createElement('strong');b.textContent=parts[i];out.appendChild(b);}else{out.appendChild(document.createTextNode(parts[i]));}}})" +
-      ".catch(function(){go.disabled=false;go.textContent='Review it';out.hidden=false;out.textContent='Could not reach the reviewer \\u2014 try again in a minute.';});};" +
-      "})();</script></div></body></html>",
-    200,
-    FRAME_HEADERS,
-  ),
-);
+app.get("/tools", (c) => c.html(renderToolsPage(), 200, FRAME_HEADERS));
 
 /* ==================================================================
  * #4 — Readiness Passport
@@ -624,40 +578,33 @@ app.get("/passport", async (c) => {
     data = null;
   }
   if (!isPassportData(data) || passportAgeDays(data, new Date()) > 7) {
-    return c.html(
-      `<!doctype html><html><head>${PAGE_HEAD}<title>Passport link expired</title></head><body><div class='wrap'>` +
-        "<h1>This passport link has expired</h1><p class='sub'>Ask Fledge for a fresh one — open the coach and tap “My passport”.</p></div></body></html>",
-      200,
-      FRAME_HEADERS,
-    );
+    return c.html(renderPassportExpired(), 200, FRAME_HEADERS);
   }
-  const esc = (t: string) =>
-    t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const completedRows = data.completed.map((t) => `<li>✅ ${esc(t)}</li>`).join("");
-  const progressRows = data.inProgress
-    .map(
-      (m) =>
-        `<li>⏳ ${esc(m.title)}${m.pct !== null ? ` <span style='color:var(--blue)'>(${m.pct}%)</span>` : ""}</li>`,
-    )
-    .join("");
-  return c.html(
-    `<!doctype html><html><head>${PAGE_HEAD}<title>Fledglings Readiness Passport</title></head><body><div class='wrap'>` +
-      "<div class='card' style='border-top:6px solid var(--orange);'>" +
-      "<h1 style='margin-bottom:2px;'>Readiness Passport</h1>" +
-      `<p class='sub'>${esc(data.firstName)} · Fledglings learner${data.sinceYear ? ` since ${esc(data.sinceYear)}` : ""} · issued ${esc(data.issuedAt)}</p>` +
-      `<p style='margin-bottom:14px;'><strong>${data.completed.length}</strong> module${data.completed.length === 1 ? "" : "s"} completed · ` +
-      `<strong>${data.inProgress.length}</strong> in progress · <strong>${data.totalEnrolled}</strong> enrolled</p>` +
-      (completedRows
-        ? `<p style='font-weight:600;margin-bottom:6px;'>Completed</p><ul style='list-style:none;line-height:1.9;margin-bottom:14px;'>${completedRows}</ul>`
-        : "") +
-      (progressRows
-        ? `<p style='font-weight:600;margin-bottom:6px;'>In progress</p><ul style='list-style:none;line-height:1.9;'>${progressRows}</ul>`
-        : "") +
-      "<p class='sub' style='margin-top:18px;'>This passport records modules practised and completed on the Fledglings life-skills platform (fledglings.co). It describes learning activity, not an assessment of the person.</p>" +
-      "<button onclick='window.print()'>Print / save as PDF</button></div></div></body></html>",
-    200,
-    FRAME_HEADERS,
-  );
+  return c.html(renderPassportPage(data, groupPassport(data), false), 200, FRAME_HEADERS);
+});
+
+/* A clearly-watermarked SAMPLE passport — for showing providers and
+ * design QA. Contains no real learner data. */
+app.get("/passport/sample", (c) => {
+  const demo: PassportData = {
+    v: 1,
+    firstName: "Sample",
+    sinceYear: "2026",
+    completed: [
+      "Money Confidence & Everyday Decisions",
+      "Budgeting That Actually Works",
+      "What is Online Safety?",
+      "Preparing for an Interview",
+    ],
+    inProgress: [
+      { title: "Online Scams, Fraud & Money Safety", pct: 60 },
+      { title: "Interviews, CVs & Early-Career Mindset", pct: 25 },
+      { title: "Building Real Confidence", pct: null },
+    ],
+    totalEnrolled: 7,
+    issuedAt: new Date().toISOString().slice(0, 10),
+  };
+  return c.html(renderPassportPage(demo, groupPassport(demo), true), 200, FRAME_HEADERS);
 });
 
 /* ==================================================================
@@ -716,32 +663,16 @@ async function portalSample(env: Env): Promise<{
 
 app.get("/portal", async (c) => {
   const label = await portalSession(c);
-  if (!label) {
-    return c.html(
-      `<!doctype html><html><head>${PAGE_HEAD}<title>Fledglings — provider portal</title></head><body><div class='wrap'>` +
-        "<h1>Provider evidence portal</h1><p class='sub'>Enter your access code. Codes are issued by Fledglings.</p>" +
-        "<form method='POST' action='/portal/login'><label for='code'>Access code</label>" +
-        "<input type='text' id='code' name='code' autocomplete='off' required>" +
-        "<button type='submit'>Open portal</button></form></div></body></html>",
-    );
-  }
-  return c.html(
-    `<!doctype html><html><head>${PAGE_HEAD}<title>Fledglings — evidence dashboard</title></head><body><div class='wrap'>` +
-      `<h1>Evidence dashboard</h1><p class='sub'>${label} · aggregate view · figures from a recent sample of learner accounts</p>` +
-      "<div class='card' id='kpis'>Loading live figures…</div>" +
-      "<div class='card' id='narrative' hidden></div>" +
-      "<div class='card' id='table' hidden></div>" +
-      "<button onclick='window.print()'>Print / save as PDF</button> " +
-      "<button onclick=\"location.href='/portal/export.csv'\" style='background:var(--blue);'>Download learner CSV</button>" +
-      "<script>fetch('/portal/data').then(function(r){return r.json()}).then(function(d){" +
-      "if(d.error){document.getElementById('kpis').textContent='Could not load data: '+d.error;return;}" +
-      "var s=d.stats;document.getElementById('kpis').innerHTML='<strong>'+ (s.totalUsers!==null?s.totalUsers:'—') +'</strong> registered learners · sample of <strong>'+s.sampleSize+'</strong>: <strong>'+s.activeInSample+'</strong> active · avg <strong>'+s.avgModulesPerLearner+'</strong> modules each';" +
-      "var n=document.getElementById('narrative');n.hidden=false;n.textContent=d.narrative||'';" +
-      "var t=document.getElementById('table');t.hidden=false;var html='<p style=\\'font-weight:600;margin-bottom:8px;\\'>Module engagement (sample)</p><table style=\\'width:100%;border-collapse:collapse;font-size:13.5px;\\'><tr><th style=\\'text-align:left;padding:6px 4px;border-bottom:2px solid var(--off);\\'>Module</th><th style=\\'padding:6px 4px;border-bottom:2px solid var(--off);\\'>Enrolled</th><th style=\\'padding:6px 4px;border-bottom:2px solid var(--off);\\'>Completed</th><th style=\\'padding:6px 4px;border-bottom:2px solid var(--off);\\'>Rate</th></tr>';" +
-      "for(var i=0;i<s.courseStats.length;i++){var r=s.courseStats[i];html+='<tr><td style=\\'padding:6px 4px;border-bottom:1px solid var(--off);\\'>'+r.title.replace(/</g,'&lt;')+'</td><td style=\\'text-align:center;\\'>'+r.enrolled+'</td><td style=\\'text-align:center;\\'>'+r.completed+'</td><td style=\\'text-align:center;\\'>'+r.completionRate+'%</td></tr>';}" +
-      "t.innerHTML=html+'</table>';}).catch(function(){document.getElementById('kpis').textContent='Could not load data.';});</script>" +
-      "</div></body></html>",
+  if (!label) return c.html(renderPortalLogin());
+  return c.html(renderPortalDashboard(label));
+});
+
+app.get("/portal/logout", (c) => {
+  c.header(
+    "Set-Cookie",
+    PORTAL_COOKIE + "=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0",
   );
+  return c.redirect("/portal");
 });
 
 app.post("/portal/login", async (c) => {
@@ -750,8 +681,7 @@ app.post("/portal/login", async (c) => {
   const label = await portalCodeLabel(c, code);
   if (!label) {
     return c.html(
-      `<!doctype html><html><head>${PAGE_HEAD}<title>Fledglings — provider portal</title></head><body><div class='wrap'>` +
-        "<h1>That code didn't work</h1><p class='sub'>Check it and <a href='/portal'>try again</a>, or contact Fledglings for access.</p></div></body></html>",
+      renderPortalLogin("That code didn't work — check it and try again, or contact Fledglings for access."),
       401,
     );
   }
