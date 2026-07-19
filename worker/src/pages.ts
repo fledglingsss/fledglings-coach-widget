@@ -116,12 +116,21 @@ export function renderToolsPage(): string {
     "<main class='wrap'>" +
     "<h2 class='page'>CV &amp; LinkedIn review</h2>" +
     "<p class='sub'>Honest, specific feedback from Fledge — grounded only in what you've genuinely done. " +
-    "It will never invent experience for you, because employers can tell. Your text is reviewed and then forgotten: nothing you paste is stored.</p>" +
+    "It will never invent experience for you, because employers can tell. Upload a PDF or paste your text — " +
+    "either way it's reviewed and then forgotten: nothing is stored, and PDFs are read in your browser without being uploaded anywhere.</p>" +
     "<div class='tabs' role='tablist'>" +
     "<button type='button' role='tab' class='tab on' id='tab-cv' aria-selected='true'>📄 CV review</button>" +
     "<button type='button' role='tab' class='tab' id='tab-li' aria-selected='false'>💼 LinkedIn review</button></div>" +
     "<form id='f' class='card'>" +
     "<h3 id='form-title'>Review my CV</h3>" +
+    "<div class='drop' id='drop' tabindex='0' role='button' aria-label='Upload a PDF to review'>" +
+    "<input type='file' id='file' accept='.pdf,application/pdf' hidden>" +
+    "<div id='d-idle'><strong>📎 Upload a PDF</strong> — drag &amp; drop or click to choose<br>" +
+    "<span class='drop-hint' id='d-hint'>Your CV as a PDF — Fledge reads the text out of it for you</span></div>" +
+    "<div id='d-busy' hidden><span class='spin'><span></span><span></span><span></span></span>&nbsp;Reading your PDF…</div>" +
+    "<div id='d-done' hidden>✓ <span id='d-name'></span> <button type='button' class='linklike' id='d-clear'>remove</button></div>" +
+    "</div>" +
+    "<div class='orsep'>or paste it in</div>" +
     "<label id='text-label' for='text'>Paste your CV text</label>" +
     "<textarea id='text' rows='12' maxlength='9000' required " +
     "placeholder='Copy everything from your CV document and paste it here…'></textarea>" +
@@ -147,8 +156,54 @@ export function renderToolsPage(): string {
     "tabLi.className='tab'+(cv?'':' on');tabLi.setAttribute('aria-selected',String(!cv));" +
     "ttl.textContent=cv?'Review my CV':'Review my LinkedIn profile';" +
     "lbl.textContent=cv?'Paste your CV text':'Paste your LinkedIn headline, about section and experience';" +
-    "ta.placeholder=cv?'Copy everything from your CV document and paste it here…':'Copy your headline, about section and experience entries here…';}" +
+    "ta.placeholder=cv?'Copy everything from your CV document and paste it here…':'Copy your headline, about section and experience entries here…';" +
+    "document.getElementById('d-hint').textContent=cv?" +
+    "'Your CV as a PDF — Fledge reads the text out of it for you':" +
+    "'On LinkedIn: open your profile, tap More → Save to PDF, then upload that file here';}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){setKind('linkedin')};" +
+    /* ---- PDF upload: pdf.js loaded on demand, text extracted in the
+     * browser, dropped into the same textarea + guardrails ---- */
+    "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
+    "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
+    "var pdfReady=null;" +
+    "function loadPdf(){if(pdfReady)return pdfReady;" +
+    "pdfReady=new Promise(function(res,rej){var s=document.createElement('script');s.src=PDFJS;" +
+    "s.onload=function(){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFWK;res(window.pdfjsLib)}catch(e){rej(e)}};" +
+    "s.onerror=function(){pdfReady=null;rej(new Error('load failed'))};document.head.appendChild(s)});return pdfReady;}" +
+    "function extractPdf(file){return loadPdf().then(function(lib){" +
+    "return file.arrayBuffer().then(function(buf){return lib.getDocument({data:buf}).promise})" +
+    ".then(function(doc){var chain=Promise.resolve('');var total=Math.min(doc.numPages,12);" +
+    "for(var p=1;p<=total;p++){(function(pn){chain=chain.then(function(acc){" +
+    "return doc.getPage(pn).then(function(pg){return pg.getTextContent()}).then(function(tc){" +
+    "var line='',out=[],lastY=null;" +
+    "tc.items.forEach(function(it){if(!it.str)return;" +
+    "if(lastY!==null&&Math.abs(it.transform[5]-lastY)>2){out.push(line);line=''}" +
+    "line+=(line&&it.str.charAt(0)!==' '?' ':'')+it.str;lastY=it.transform[5]});" +
+    "out.push(line);return acc+out.join('\\n')+'\\n\\n'})})})(p)}return chain})})}" +
+    "var drop=document.getElementById('drop'),fileIn=document.getElementById('file');" +
+    "function dState(st,name){['idle','busy','done'].forEach(function(k){" +
+    "document.getElementById('d-'+k).hidden=k!==st});" +
+    "if(name)document.getElementById('d-name').textContent=name;}" +
+    "function handleFile(f){if(!f)return;" +
+    "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){alert('Please choose a PDF file.');return;}" +
+    "if(f.size>10*1024*1024){alert('That PDF is over 10 MB — export a smaller one or paste the text instead.');return;}" +
+    "dState('busy');" +
+    "extractPdf(f).then(function(text){" +
+    "text=text.replace(/[ \\t]+/g,' ').replace(/\\n{3,}/g,'\\n\\n').trim();" +
+    "if(text.length<120){dState('idle');fileIn.value='';" +
+    "alert('Fledge could not read enough text from that PDF — it may be a scan or image. Paste the text instead.');return;}" +
+    "ta.value=text.slice(0,9000);ta.dispatchEvent(new Event('input'));" +
+    "dState('done',f.name+' — '+ta.value.length+' characters read');" +
+    "}).catch(function(){dState('idle');fileIn.value='';" +
+    "alert('Could not read that PDF — paste the text instead.');});}" +
+    "drop.addEventListener('click',function(e){if(e.target.id!=='d-clear')fileIn.click()});" +
+    "drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click()}});" +
+    "fileIn.addEventListener('change',function(){handleFile(fileIn.files[0])});" +
+    "['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('over')})});" +
+    "['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('over')})});" +
+    "drop.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];handleFile(f)});" +
+    "document.getElementById('d-clear').addEventListener('click',function(){" +
+    "ta.value='';ta.dispatchEvent(new Event('input'));fileIn.value='';dState('idle');});" +
     "var HEADINGS=[\"What's working\",'What to add','Make it ATS-friendly','One next step','Headline & about','Profile habits'];" +
     "function render(el,t){el.innerHTML='';var blocks=String(t).split(/\\*\\*(.+?)\\*\\*/g);var p=null;" +
     "function para(){if(!p){p=document.createElement('p');el.appendChild(p);}return p;}" +
@@ -168,7 +223,18 @@ export function renderToolsPage(): string {
     ".catch(function(){go.disabled=false;sp.hidden=true;out.hidden=false;" +
     "document.getElementById('res').textContent='Could not reach the reviewer — try again in a minute.';});};" +
     "})();</script>";
-  return pageShell({ title: "Fledglings — CV & LinkedIn review", bodyHtml: body });
+  const extraCss = `
+.drop{border:2px dashed var(--blue);border-radius:14px;padding:16px;text-align:center;cursor:pointer;
+  background:rgba(19,80,127,.05);font-size:14px;line-height:1.6;margin-top:4px;}
+.drop.over{border-color:var(--orange);background:rgba(217,69,43,.07);}
+.drop:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
+.drop-hint{color:var(--blue);font-size:12.5px;}
+.orsep{text-align:center;color:#8a97a1;font-size:12px;font-weight:600;margin:12px 0 0;
+  text-transform:uppercase;letter-spacing:.08em;}
+.linklike{border:none;background:none;color:var(--orange);cursor:pointer;font-family:inherit;
+  font-size:13px;text-decoration:underline;}
+`;
+  return pageShell({ title: "Fledglings — CV & LinkedIn review", bodyHtml: body, extraCss });
 }
 
 /* ------------------------------------------------------------------
