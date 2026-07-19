@@ -38,10 +38,9 @@ import {
   ID_PATTERN,
   validateCoachRequest,
 } from "./lib/validate";
-import { computePathway, validAnswers } from "./lib/pathway";
+import { allPathwayTitles, computePathway, validAnswers } from "./lib/pathway";
 import { courseIdFor } from "./lib/course-map";
 import {
-  addUserTags,
   enrolUserInCourse,
   findUserByEmail,
   lwConfigured,
@@ -74,9 +73,9 @@ export interface Env {
   LEARNWORLDS_SCHOOL_URL?: string;
 }
 
-/* Max auto-enrol actions per learner per UTC day — a hard cost/abuse
- * cap on the one write path this worker has. */
-const PATHWAY_ACTIONS_PER_DAY = 3;
+/* Max learner-confirmed enrolments per learner per UTC day — a hard
+ * cost/abuse cap on the one write path this worker has. */
+const ENROLS_PER_DAY = 6;
 
 /* Map a model failure to the learner-facing reply + a loud log line.
  * Billing and auth failures mean the coach is DOWN until the founder
@@ -288,13 +287,14 @@ app.post("/api/coach", async (c) => {
 interface PathwayBody {
   learner_id?: unknown;
   session_id?: unknown;
-  email?: unknown;
   stage?: unknown;
   area?: unknown;
   focus?: unknown;
-  enrol?: unknown;
 }
 
+/* Recommendations ONLY. This route never writes anything anywhere —
+ * enrolment happens solely via POST /api/enrol, one module at a time,
+ * after the learner confirms that module by name. */
 app.post("/api/pathway", async (c) => {
   let body: PathwayBody;
   try {
@@ -311,80 +311,83 @@ app.post("/api/pathway", async (c) => {
   const answers = validAnswers(body);
   if (!answers) return c.json({ error: "invalid_answers" }, 400);
 
-  const email =
-    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  const wantEnrol = body.enrol === true;
-
   const recommendations = computePathway(answers);
-  const learnerHash = await hashLearnerId(learnerId);
+  console.log(
+    `[coach] kind=pathway area=${answers.area} stage=${answers.stage} focus=${answers.focus}`,
+  );
+  return c.json({
+    recommendations,
+    /* Widget offers the add-to-dashboard step only when a confirmed
+     * enrolment could actually succeed. */
+    can_enrol: lwConfigured(c.env),
+  });
+});
 
-  /* Recommendation-only path: no email / no creds / not requested. */
-  const respond = (enrolment: Record<string, unknown>) => {
-    console.log(
-      `[coach] kind=pathway area=${answers.area} stage=${answers.stage} enrol=${String(
-        enrolment.attempted,
-      )} outcome=${String(enrolment.reason ?? "ok")}`,
-    );
-    return c.json({ recommendations, enrolment });
+interface EnrolBody {
+  learner_id?: unknown;
+  session_id?: unknown;
+  email?: unknown;
+  title?: unknown;
+}
+
+/* One module, explicitly confirmed by the learner in the widget.
+ * No tagging, no batch writes, allowlisted titles only. */
+app.post("/api/enrol", async (c) => {
+  let body: EnrolBody;
+  try {
+    body = await c.req.json<EnrolBody>();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  const sessionId = typeof body.session_id === "string" ? body.session_id : "";
+  if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const title = typeof body.title === "string" ? body.title : "";
+
+  /* The title must be one the pathway engine can actually emit. */
+  if (!allPathwayTitles().includes(title)) {
+    return c.json({ error: "unknown_title" }, 400);
+  }
+
+  const respond = (ok: boolean, reason?: string) => {
+    console.log(`[coach] kind=enrol ok=${String(ok)} outcome=${reason ?? "enrolled"}`);
+    return c.json({ ok, title, reason });
   };
 
-  if (!wantEnrol) return respond({ attempted: false, reason: "not_requested" });
-  if (!lwConfigured(c.env)) {
-    return respond({ attempted: false, reason: "not_configured" });
-  }
-  if (!EMAIL_PATTERN.test(email)) {
-    return respond({ attempted: false, reason: "no_email" });
-  }
+  if (!lwConfigured(c.env)) return respond(false, "not_configured");
+  if (!EMAIL_PATTERN.test(email)) return respond(false, "no_email");
 
-  /* Hard daily cap on the write path. */
-  const capKey = `pw:day:${learnerHash}:${new Date().toISOString().slice(0, 10)}`;
+  const courseId = courseIdFor(title);
+  if (!courseId) return respond(false, "not_mapped");
+
+  const learnerHash = await hashLearnerId(learnerId);
+  const capKey = `enrol:day:${learnerHash}:${new Date().toISOString().slice(0, 10)}`;
   const used = parseInt((await c.env.RATE_LIMITS.get(capKey)) || "0", 10) || 0;
-  if (used >= PATHWAY_ACTIONS_PER_DAY) {
-    return respond({ attempted: false, reason: "daily_cap" });
-  }
+  if (used >= ENROLS_PER_DAY) return respond(false, "daily_cap");
 
   try {
     const userId = await findUserByEmail(c.env, email);
-    if (!userId) {
-      return respond({ attempted: true, reason: "account_not_found" });
-    }
+    if (!userId) return respond(false, "account_not_found");
 
-    /* Tagging is best-effort — never blocks enrolment. */
-    try {
-      await addUserTags(c.env, userId, ["fledge-pathway", `pathway-${answers.area}`]);
-    } catch (err) {
-      console.error("[coach] pathway tagging failed:", String(err));
+    const result = await enrolUserInCourse(
+      c.env,
+      userId,
+      courseId,
+      "Learner-confirmed via Fledge pathway finder",
+    );
+    if (!result.ok) {
+      console.error(`[coach] enrol failed: HTTP ${result.status} for course ${courseId}`);
+      return respond(false, "enrol_failed");
     }
-
-    const enrolled: string[] = [];
-    const skipped: string[] = [];
-    for (const rec of recommendations) {
-      const courseId = courseIdFor(rec.title);
-      if (!courseId) {
-        skipped.push(rec.title);
-        continue;
-      }
-      const result = await enrolUserInCourse(
-        c.env,
-        userId,
-        courseId,
-        "Fledge pathway finder",
-      );
-      (result.ok ? enrolled : skipped).push(rec.title);
-      if (!result.ok) {
-        console.error(
-          `[coach] pathway enrol failed: HTTP ${result.status} for course ${courseId}`,
-        );
-      }
-    }
-
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), {
-      expirationTtl: 86_400,
-    });
-    return respond({ attempted: true, enrolled, skipped });
+    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+    return respond(true);
   } catch (err) {
-    console.error("[coach] pathway enrolment error:", String(err));
-    return respond({ attempted: true, reason: "service_error" });
+    console.error("[coach] enrol error:", String(err));
+    return respond(false, "service_error");
   }
 });
 

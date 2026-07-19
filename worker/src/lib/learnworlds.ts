@@ -100,20 +100,10 @@ export async function findUserByEmail(
   return user.id ?? null;
 }
 
-/** Attach tags to a user. Non-fatal by design — callers may ignore
- * errors. Body shape per learnworlds.dev "Update user tags":
- * PUT /v2/users/{id}/tags with {tags, action: "attach"|"detach"}. */
-export async function addUserTags(
-  env: LwEnv,
-  userId: string,
-  tags: string[],
-): Promise<boolean> {
-  const res = await lwRequest(env, "PUT", `/users/${encodeURIComponent(userId)}/tags`, {
-    tags,
-    action: "attach",
-  });
-  return res.ok;
-}
+/* NOTE: deliberately NO tagging function here. Founder decision
+ * 2026-07-19: learners are never tagged, and the only write this
+ * worker may ever perform is a single-course enrolment that the
+ * learner explicitly confirmed by name in the widget. */
 
 /** Enrol a user in a course (free enrolment). */
 export async function enrolUserInCourse(

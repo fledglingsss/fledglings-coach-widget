@@ -425,11 +425,9 @@
       body: JSON.stringify({
         learner_id: learnerId,
         session_id: sessionId,
-        email: learnerEmail || undefined,
         stage: answers.stage,
         area: answers.area,
         focus: answers.focus,
-        enrol: Boolean(learnerEmail),
       }),
     })
       .then(function (r) { return r.json(); })
@@ -444,28 +442,92 @@
         for (var i = 0; i < recs.length; i++) {
           lines.push((i + 1) + ". **" + recs[i].title + "** — " + recs[i].why);
         }
-        var enr = (data && data.enrolment) || {};
-        if (enr.enrolled && enr.enrolled.length) {
-          lines.push("");
-          lines.push("✅ I've added " + (enr.enrolled.length === recs.length ? "all of these" : "some of these") +
-            " to your account — refresh your dashboard and they'll be waiting for you.");
-        } else if (enr.reason === "account_not_found") {
-          lines.push("");
-          lines.push("I couldn't match your account automatically — no drama, just find these by name in the course catalogue.");
-        } else if (enr.attempted === false && enr.reason !== "not_requested") {
-          lines.push("");
-          lines.push("Find these by name in the course catalogue to get started.");
-        }
         var summary = lines.join("\n");
         addMsg("coach", summary);
         history.push({ role: "user", content: "I used the pathway finder. Stage: " + answers.stage + ", area: " + answers.area + ", focus: " + answers.focus + "." });
         history.push({ role: "assistant", content: summary });
         saveHistory(history);
+
+        /* Explicit-consent step: nothing is ever added to a learner's
+         * account unless they tap the specific module by name. */
+        if (data.can_enrol && learnerEmail) {
+          offerEnrolment(recs);
+        } else {
+          addMsg("coach", "You can start any of these from the course catalogue — just search the name.");
+        }
       })
       .catch(function () {
         setBusy(false);
         addMsg("coach", "I couldn't reach the pathway service — give it another go in a minute.");
       });
+  }
+
+  function offerEnrolment(recs) {
+    addMsg("coach", "Would you like me to add any of these to your dashboard? Nothing gets added unless you choose it.");
+    chipRow(
+      [{ label: "Yes — let me choose ✅", value: "yes" }, { label: "No thanks", value: "no" }],
+      function (opt) {
+        removeChipRows();
+        addMsg("user", opt.label);
+        if (opt.value === "no") {
+          addMsg("coach", "No problem — they'll be in the course catalogue whenever you're ready.");
+          return;
+        }
+        addMsg("coach", "Tap a module to add it — each one is added only when you tap it. Tap **Done** when you're finished.");
+        showEnrolChips(recs.map(function (r) { return r.title; }));
+      },
+    );
+  }
+
+  function showEnrolChips(titles) {
+    var options = titles.map(function (t) {
+      return { label: "➕ " + t, value: t };
+    });
+    options.push({ label: "Done ✔", value: "__done__" });
+    chipRow(options, function (opt) {
+      removeChipRows();
+      if (opt.value === "__done__") {
+        addMsg("coach", "Sorted! Refresh your dashboard to see anything you added. Ask me if you want a hand getting started.");
+        return;
+      }
+      addMsg("user", "Add " + opt.value);
+      setBusy(true);
+      fetch(ENDPOINT + "/api/enrol", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          learner_id: learnerId,
+          session_id: sessionId,
+          email: learnerEmail,
+          title: opt.value,
+        }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          setBusy(false);
+          var remaining = titles.filter(function (t) { return t !== opt.value; });
+          if (data && data.ok) {
+            addMsg("coach", "✅ **" + opt.value + "** is on your dashboard.");
+          } else if (data && data.reason === "account_not_found") {
+            addMsg("coach", "I couldn't match your account automatically — you can add it yourself from the course catalogue.");
+          } else if (data && data.reason === "daily_cap") {
+            addMsg("coach", "That's your adding done for today — the rest are in the course catalogue whenever you want them.");
+            return;
+          } else {
+            addMsg("coach", "That one didn't go through — find **" + opt.value + "** in the course catalogue instead.");
+            remaining = titles.filter(function (t) { return t !== opt.value; });
+          }
+          if (remaining.length) {
+            showEnrolChips(remaining);
+          } else {
+            addMsg("coach", "That's all of them! Refresh your dashboard and they'll be waiting.");
+          }
+        })
+        .catch(function () {
+          setBusy(false);
+          addMsg("coach", "I couldn't reach the enrolment service — you can add modules from the course catalogue instead.");
+        });
+    });
   }
 
   function renderHistory() {
