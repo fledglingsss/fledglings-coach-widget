@@ -33,7 +33,11 @@ export const CAPS = {
 
 /* Ids are client-generated hex-ish tokens — anything else is rejected
  * rather than cleaned, because a malformed id means a tampered client. */
-const ID_PATTERN = /^[A-Za-z0-9_-]{8,80}$/;
+export const ID_PATTERN = /^[A-Za-z0-9_-]{8,80}$/;
+
+/* Deliberately simple email shape check — LearnWorlds is the actual
+ * authority on whether the account exists. */
+export const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{3,190}$/;
 
 export type ValidationResult =
   | { ok: true; request: CoachRequest }

@@ -49,6 +49,9 @@
   if (learnerName.indexOf("{{") !== -1) learnerName = "";
   var firstName = learnerName.split(" ")[0] || "";
 
+  var learnerEmail = typeof cfg.learnerEmail === "string" ? cfg.learnerEmail.trim() : "";
+  if (learnerEmail.indexOf("{{") !== -1 || learnerEmail.indexOf("@") === -1) learnerEmail = "";
+
   /* ---- history (browser only) ---- */
   function loadHistory() {
     try {
@@ -128,7 +131,7 @@
     "@keyframes flBounce{0%,60%,100%{transform:none;opacity:.5;}30%{transform:translateY(-5px);opacity:1;}}" +
 
     /* quick-start chips */
-    "#fl-coach-chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px 2px 6px;}" +
+    "#fl-coach-root .fl-chip-row{display:flex;flex-wrap:wrap;gap:8px;padding:2px 2px 6px;}" +
     "#fl-coach-root .fl-chip{border:1.5px solid var(--fl-mango);background:#fff;color:var(--fl-navy);border-radius:999px;" +
       "padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s ease;min-height:38px;}" +
     "#fl-coach-root .fl-chip:hover{background:var(--fl-mango);color:#fff;transform:translateY(-1px);}" +
@@ -213,12 +216,72 @@
     "**Shout** — text 85258\nIn immediate danger, call **999**.";
 
   var QUICK_STARTS = [
-    { label: "Where do I start? 🧭", q: "I'm new — which modules should I start with?" },
+    { label: "Find my pathway 🧭", wizard: true },
     { label: "Spot a scam 🕵️", q: "How do I spot a scam?" },
     { label: "My payslip 💷", q: "Can you explain what's on my payslip?" },
     { label: "Interview nerves 🎤", q: "How do I handle interview nerves?" },
     { label: "Budgeting 📊", q: "How do I start budgeting my money?" },
   ];
+
+  /* ---- pathway wizard (deterministic, no model calls) ---- */
+  var WIZARD_STEPS = {
+    stage: {
+      question: "Love it — let's find your starting point. Where are you at right now?",
+      options: [
+        { label: "School 🏫", value: "school" },
+        { label: "College 📚", value: "college" },
+        { label: "Apprenticeship 🛠️", value: "apprenticeship" },
+        { label: "First job 💼", value: "first_job" },
+        { label: "Looking for work 🔍", value: "looking" },
+      ],
+    },
+    area: {
+      question: "Which of these feels most urgent for you?",
+      options: [
+        { label: "Money 💷", value: "money" },
+        { label: "Work & jobs 💼", value: "work" },
+        { label: "Confidence 💪", value: "confidence" },
+        { label: "Staying safe online 🛡️", value: "online" },
+      ],
+    },
+    focus: {
+      money: {
+        question: "And within money, what's the biggest one?",
+        options: [
+          { label: "Day-to-day spending", value: "day_to_day" },
+          { label: "Credit & debt", value: "credit_debt" },
+          { label: "Saving up", value: "saving" },
+          { label: "Living independently", value: "independent_living" },
+        ],
+      },
+      work: {
+        question: "And with work, what matters most right now?",
+        options: [
+          { label: "Getting hired", value: "get_hired" },
+          { label: "Doing well at work", value: "do_well" },
+          { label: "Using AI well", value: "ai_tools" },
+        ],
+      },
+      confidence: {
+        question: "And with confidence, where's the pinch?",
+        options: [
+          { label: "Building it up", value: "build" },
+          { label: "Handling pressure", value: "pressure" },
+          { label: "Setting boundaries", value: "boundaries" },
+          { label: "Staying motivated", value: "motivation" },
+        ],
+      },
+      online: {
+        question: "And online, what worries you most?",
+        options: [
+          { label: "Scams & fraud", value: "scams" },
+          { label: "My digital footprint", value: "footprint" },
+          { label: "Group chats turning nasty", value: "toxic_chats" },
+          { label: "Screen time & balance", value: "wellbeing" },
+        ],
+      },
+    },
+  };
 
   /* Safe mini-formatter: escapes everything via DOM text nodes, then
    * supports **bold** and line breaks only. No HTML injection path. */
@@ -253,8 +316,7 @@
     if (busy) return;
     text = String(text).replace(/\s+$/, "").slice(0, MAX_INPUT_CHARS);
     if (!text) return;
-    var chips = document.getElementById("fl-coach-chips");
-    if (chips) chips.parentNode.removeChild(chips);
+    removeChipRows();
     addMsg("user", text);
     history.push({ role: "user", content: text });
     saveHistory(history);
@@ -287,22 +349,123 @@
       });
   }
 
-  function renderChips() {
-    if (document.getElementById("fl-coach-chips")) return;
+  function removeChipRows() {
+    var rows = msgs.querySelectorAll(".fl-chip-row");
+    for (var i = 0; i < rows.length; i++) rows[i].parentNode.removeChild(rows[i]);
+  }
+
+  function chipRow(options, onPick) {
     var wrap = document.createElement("div");
+    wrap.className = "fl-chip-row";
     wrap.id = "fl-coach-chips";
-    for (var i = 0; i < QUICK_STARTS.length; i++) {
-      (function (item) {
+    for (var i = 0; i < options.length; i++) {
+      (function (opt) {
         var chip = document.createElement("button");
         chip.type = "button";
         chip.className = "fl-chip";
-        chip.textContent = item.label;
-        chip.addEventListener("click", function () { sendText(item.q); });
+        chip.textContent = opt.label;
+        chip.addEventListener("click", function () { onPick(opt); });
         wrap.appendChild(chip);
-      })(QUICK_STARTS[i]);
+      })(options[i]);
     }
     msgs.appendChild(wrap);
     msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function renderChips() {
+    if (document.getElementById("fl-coach-chips")) return;
+    chipRow(QUICK_STARTS, function (item) {
+      if (item.wizard) { startWizard(); return; }
+      sendText(item.q);
+    });
+  }
+
+  /* Wizard flow: three chip questions, then the pathway API. The
+   * conversation history gets a compact summary so the model coach has
+   * context if the learner keeps chatting afterwards. */
+  function startWizard() {
+    removeChipRows();
+    addMsg("user", "Find my pathway 🧭");
+    var answers = {};
+    askStep("stage", function () {
+      askStep("area", function () {
+        askFocus(function () {
+          submitWizard(answers);
+        });
+      });
+    });
+
+    function askStep(key, next) {
+      var step = WIZARD_STEPS[key];
+      addMsg("coach", step.question);
+      chipRow(step.options, function (opt) {
+        removeChipRows();
+        addMsg("user", opt.label);
+        answers[key] = opt.value;
+        next();
+      });
+    }
+    function askFocus(next) {
+      var step = WIZARD_STEPS.focus[answers.area];
+      addMsg("coach", step.question);
+      chipRow(step.options, function (opt) {
+        removeChipRows();
+        addMsg("user", opt.label);
+        answers.focus = opt.value;
+        next();
+      });
+    }
+  }
+
+  function submitWizard(answers) {
+    setBusy(true);
+    fetch(ENDPOINT + "/api/pathway", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        learner_id: learnerId,
+        session_id: sessionId,
+        email: learnerEmail || undefined,
+        stage: answers.stage,
+        area: answers.area,
+        focus: answers.focus,
+        enrol: Boolean(learnerEmail),
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setBusy(false);
+        var recs = (data && data.recommendations) || [];
+        if (!recs.length) {
+          addMsg("coach", "Sorry — I couldn't build your pathway just now. Try again in a minute.");
+          return;
+        }
+        var lines = ["Here's your pathway — in this order:"];
+        for (var i = 0; i < recs.length; i++) {
+          lines.push((i + 1) + ". **" + recs[i].title + "** — " + recs[i].why);
+        }
+        var enr = (data && data.enrolment) || {};
+        if (enr.enrolled && enr.enrolled.length) {
+          lines.push("");
+          lines.push("✅ I've added " + (enr.enrolled.length === recs.length ? "all of these" : "some of these") +
+            " to your account — refresh your dashboard and they'll be waiting for you.");
+        } else if (enr.reason === "account_not_found") {
+          lines.push("");
+          lines.push("I couldn't match your account automatically — no drama, just find these by name in the course catalogue.");
+        } else if (enr.attempted === false && enr.reason !== "not_requested") {
+          lines.push("");
+          lines.push("Find these by name in the course catalogue to get started.");
+        }
+        var summary = lines.join("\n");
+        addMsg("coach", summary);
+        history.push({ role: "user", content: "I used the pathway finder. Stage: " + answers.stage + ", area: " + answers.area + ", focus: " + answers.focus + "." });
+        history.push({ role: "assistant", content: summary });
+        saveHistory(history);
+      })
+      .catch(function () {
+        setBusy(false);
+        addMsg("coach", "I couldn't reach the pathway service — give it another go in a minute.");
+      });
   }
 
   function renderHistory() {
