@@ -1328,11 +1328,19 @@ app.post("/hooks/learnworlds", async (c) => {
     return c.json({ error: "invalid_json" }, 400);
   }
   const now = new Date();
+  /* Any correctly-signed delivery proves the connection — record the
+   * heartbeat BEFORE deciding whether we act on the event. */
+  await c.env.RATE_LIMITS.put(HOOK_SEEN_KV_KEY, now.toISOString());
   const ev = parseWebhookEvent(body, now);
   /* Unknown/ignored event types still get a 200 so LW doesn't retry. */
-  if (!ev) return c.json({ ok: true, ignored: true });
-
-  await c.env.RATE_LIMITS.put(HOOK_SEEN_KV_KEY, now.toISOString());
+  if (!ev) {
+    const t =
+      typeof body === "object" && body !== null
+        ? String((body as Record<string, unknown>).type ?? "?")
+        : "?";
+    console.log(`[coach] kind=webhook type=${t} outcome=ignored`);
+    return c.json({ ok: true, ignored: true });
+  }
 
   /* Cohort: prefer tags in the payload; fall back to a user lookup. */
   let tags = ev.tags;
