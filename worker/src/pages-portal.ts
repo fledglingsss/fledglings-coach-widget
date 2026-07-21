@@ -196,6 +196,21 @@ td.barcell .mbar{margin-top:0;}
 .cvhead{display:grid;grid-template-columns:minmax(160px,1.4fr) 1fr 1fr;gap:16px;padding:6px 2px;
   font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
   border-bottom:2px solid var(--hair);}
+/* live activity */
+.livedot{width:9px;height:9px;border-radius:50%;background:#B9AFAB;flex:none;}
+.livedot.on{background:var(--ok);animation:flLive 2s ease-in-out infinite;}
+@keyframes flLive{0%,100%{box-shadow:0 0 0 0 rgba(27,122,75,.35)}50%{box-shadow:0 0 0 7px rgba(27,122,75,0)}}
+.ferow{display:flex;gap:12px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--hair);}
+.ferow:last-child{border-bottom:none;}
+.fico{width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;margin-top:1px;}
+.ferow.completion .fico{background:#E7F3EC;color:var(--ok);}
+.ferow.joined .fico{background:#E8F1F8;color:var(--blue);}
+.ferow.lead .fico{background:#FBF0E2;color:#B96A16;}
+.fetxt{font-size:13.5px;line-height:1.5;color:var(--ink);}
+.fetxt b{font-weight:700;color:var(--navy);}
+.fetime{font-size:11.5px;color:var(--mut);margin-top:1px;}
+.feempty{padding:16px 0;font-size:13px;color:var(--mut);line-height:1.6;}
 .foot{border-top:1px solid var(--hair);color:var(--mut);font-size:12.5px;text-align:center;padding:22px;}
 .foot b{color:var(--orange);font-weight:700;}
 body:not(.loaded) .content{opacity:.45;transition:opacity .2s;}
@@ -321,9 +336,16 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     sectionHead("Last seen") +
     "<div id='recency'></div></div>" +
     "</div>" +
+    "<div class='duo' style='margin-top:40px'>" +
+    "<div>" +
     sectionHead("Most-used modules", "from a recent sample") +
     "<span class='hint muted' id='mods-note' hidden>module figures are whole-school</span>" +
-    "<div id='mods-mini'></div>" +
+    "<div id='mods-mini'></div></div>" +
+    "<div>" +
+    "<div class='sect'><span class='livedot' id='livedot'></span><h3>Live activity</h3>" +
+    "<span class='hint' id='live-hint'></span></div>" +
+    "<div id='feed-list'></div></div>" +
+    "</div>" +
     "</div>" +
     /* early warning */
     "<div class='lview' id='lv-warning'>" +

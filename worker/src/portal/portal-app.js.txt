@@ -430,6 +430,53 @@
     $("shift-list").innerHTML = out ||
       "<div class='muted' style='padding:20px 0'>No reflection submissions yet — figures appear as learners complete their pre and post reflections.</div>";
   }
+  /* ---------- live activity feed ---------- */
+  function ago(ts) {
+    var s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + "h ago";
+    return Math.floor(s / 86400) + "d ago";
+  }
+  function renderFeed(d) {
+    var dot = $("livedot"), hint = $("live-hint"), list = $("feed-list");
+    if (!list) return;
+    if (!d.configured) {
+      dot.className = "livedot";
+      hint.textContent = "not connected yet";
+      list.innerHTML =
+        "<div class='feempty'>Real-time updates switch on once the LearnWorlds webhook is connected — " +
+        "completions and new learners will appear here the moment they happen.</div>";
+      return;
+    }
+    dot.className = "livedot on";
+    hint.textContent = d.lastEvent ? "streaming from LearnWorlds" : "connected — waiting for first event";
+    var rows = "";
+    (d.feed || []).forEach(function (f) {
+      var ic = f.kind === "completion" ? "✓" : f.kind === "joined" ? "＋" : "★";
+      var what =
+        f.kind === "completion"
+          ? "<b>" + esc(f.name) + "</b> completed <b>" + esc(f.detail) + "</b>"
+          : f.kind === "joined"
+            ? "<b>" + esc(f.name) + "</b> joined Fledglings"
+            : "New lead: <b>" + esc(f.name) + "</b>";
+      rows +=
+        "<div class='ferow " + f.kind + "'><span class='fico'>" + ic + "</span>" +
+        "<div><div class='fetxt'>" + what + (f.cohort ? " · " + esc(f.cohort) : "") + "</div>" +
+        "<div class='fetime'>" + ago(f.at) + "</div></div></div>";
+    });
+    list.innerHTML = rows ||
+      "<div class='feempty'>Nothing yet today — activity appears here in real time.</div>";
+  }
+  function loadFeed() {
+    fetch("/portal/feed")
+      .then(function (r) { return r.json(); })
+      .then(renderFeed)
+      .catch(function () {});
+  }
+  loadFeed();
+  setInterval(loadFeed, 30000);
+
   function loadReflections() {
     fetch("/portal/reflections")
       .then(function (r) { return r.json(); })

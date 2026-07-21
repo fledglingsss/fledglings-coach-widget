@@ -110,6 +110,13 @@ import {
   parseInterviewReport,
   validateInterviewRequest,
 } from "./lib/interview";
+import {
+  parseWebhookEvent,
+  pushFeed,
+  toFeedEntry,
+  verifyWebhookSignature,
+  type FeedEntry,
+} from "./lib/webhooks";
 import { aggregate, csvExport, EXCLUDED_TITLES, narrativeSystemPrompt } from "./lib/portal";
 import {
   appendHistory,
@@ -148,6 +155,10 @@ export interface Env {
   LEARNWORLDS_CLIENT_ID?: string;
   LEARNWORLDS_CLIENT_SECRET?: string;
   LEARNWORLDS_SCHOOL_URL?: string;
+  /* Pre-shared value from LW admin Settings > Developers > Webhooks.
+   * Unset = webhook endpoint answers 503 and the real-time layer is
+   * simply off. */
+  LW_WEBHOOK_SIGNATURE?: string;
 }
 
 /* Max learner-confirmed enrolments per learner per UTC day — a hard
@@ -230,6 +241,7 @@ app.get("/health", (c) => {
       "sk-ant-",
     ),
     learnworlds_configured: lwConfigured(c.env),
+    webhooks_configured: Boolean(c.env.LW_WEBHOOK_SIGNATURE),
   });
 });
 
@@ -1291,6 +1303,101 @@ app.post("/api/interview", async (c) => {
   }
 });
 
+/* ==================================================================
+ * LearnWorlds webhooks — the real-time layer. Configure in LW admin:
+ * Settings > Developers > Webhooks -> this URL, events: course
+ * completed + user registered/updated + lead created. The pre-shared
+ * signature goes in the LW_WEBHOOK_SIGNATURE secret. Payments and
+ * subscriptions are deliberately not handled.
+ * ================================================================== */
+
+const FEED_KV_KEY = "portal:feed:v1";
+const HOOK_SEEN_KV_KEY = "hooks:last-event";
+
+app.post("/hooks/learnworlds", async (c) => {
+  const secret = c.env.LW_WEBHOOK_SIGNATURE || "";
+  if (!secret) return c.json({ error: "webhook_not_configured" }, 503);
+  if (!verifyWebhookSignature(c.req.header("Learnworlds-Webhook-Signature"), secret)) {
+    console.error("[coach] webhook rejected: bad signature");
+    return c.json({ error: "bad_signature" }, 401);
+  }
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const now = new Date();
+  const ev = parseWebhookEvent(body, now);
+  /* Unknown/ignored event types still get a 200 so LW doesn't retry. */
+  if (!ev) return c.json({ ok: true, ignored: true });
+
+  await c.env.RATE_LIMITS.put(HOOK_SEEN_KV_KEY, now.toISOString());
+
+  /* Cohort: prefer tags in the payload; fall back to a user lookup. */
+  let tags = ev.tags;
+  if (tags === null && lwConfigured(c.env)) {
+    try {
+      tags = (await getUserByEmail(c.env, ev.email))?.tags ?? [];
+    } catch {
+      tags = [];
+    }
+  }
+  const cohort = cohortTag(tags ?? []);
+
+  /* Feed */
+  const entry = toFeedEntry(ev, cohort, now);
+  if (entry) {
+    const feed = JSON.parse(
+      (await c.env.RATE_LIMITS.get(FEED_KV_KEY)) || "[]",
+    ) as FeedEntry[];
+    await c.env.RATE_LIMITS.put(FEED_KV_KEY, JSON.stringify(pushFeed(feed, entry)));
+  }
+
+  /* Completions bump the cohort leaderboard live (same entry shape the
+   * Skills Passport maintains on visit). */
+  if (ev.type === "courseCompleted" && cohort) {
+    try {
+      const emailHash = (await hashLearnerId(ev.email)).slice(0, 12);
+      const slug = cohort.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const lbKey = `sp:lb:${slug}`;
+      const board = JSON.parse(
+        (await c.env.RATE_LIMITS.get(lbKey)) || "null",
+      ) as Leaderboard | null;
+      const existing = board?.entries.find((e) => e.h === emailHash);
+      if (board && existing) {
+        const next = upsertLeaderboard(
+          board,
+          { ...existing, completed: existing.completed + 1 },
+          now.toISOString(),
+        );
+        await c.env.RATE_LIMITS.put(lbKey, JSON.stringify(next));
+      }
+    } catch {
+      /* live bump is best-effort; the nightly/visit paths reconcile */
+    }
+  }
+
+  /* Tag changes keep the reflections cohort map fresh. */
+  if (ev.type === "userUpdated" && ev.tags !== null) {
+    try {
+      const raw = await c.env.RATE_LIMITS.get(REFLECT_KV_KEY);
+      if (raw) {
+        const state = JSON.parse(raw) as ReflectionsState;
+        state.userTags[ev.email] = ev.tags;
+        await c.env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
+          expirationTtl: 24 * 3600,
+        });
+      }
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  console.log(`[coach] kind=webhook type=${ev.type} cohort=${cohort ?? "-"}`);
+  return c.json({ ok: true });
+});
+
 /* #8 — personalised instant demo (outreach landing page). Public,
  * marketing-only: no learner data is reachable from it. */
 app.get("/demo", (c) =>
@@ -1404,6 +1511,30 @@ app.get("/portal/data", async (c) => {
     console.error("[coach] portal data error:", String(err));
     return c.json({ error: "service_error" });
   }
+});
+
+/* Live activity feed — deliberately uncached; the webhook layer
+ * writes it in real time. Scoped codes see only their cohort's
+ * completions/joins; leads are HQ-only. */
+app.get("/portal/feed", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const feed = JSON.parse(
+    (await c.env.RATE_LIMITS.get(FEED_KV_KEY)) || "[]",
+  ) as FeedEntry[];
+  const scoped = access.tag
+    ? feed.filter(
+        (f) =>
+          f.kind !== "lead" &&
+          f.cohort !== null &&
+          f.cohort.toLowerCase() === access.tag!.toLowerCase(),
+      )
+    : feed;
+  return c.json({
+    configured: Boolean(c.env.LW_WEBHOOK_SIGNATURE),
+    lastEvent: (await c.env.RATE_LIMITS.get(HOOK_SEEN_KV_KEY)) || null,
+    feed: scoped.slice(0, 30),
+  });
 });
 
 app.get("/portal/export.csv", async (c) => {
