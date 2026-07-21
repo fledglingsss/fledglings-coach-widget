@@ -41,6 +41,8 @@ import {
 import { allPathwayTitles, computePathway, validAnswers } from "./lib/pathway";
 import { COURSE_MAP, courseIdFor } from "./lib/course-map";
 import {
+  accurateUserCourses,
+  courseTitleMap,
   enrolUserInCourse,
   findUserByEmail,
   getAssessmentResponses,
@@ -51,6 +53,7 @@ import {
   countUsersByTag,
   getEnrolments,
   getUserProgress,
+  getUserProgressAll,
   listAllUsers,
   listUsersPage,
   lwConfigured,
@@ -291,7 +294,7 @@ app.get("/lw-check", async (c) => {
 const SP_CACHE_TTL = 600; // 10 min per learner
 /* Bump whenever the rendered passport changes so learners see fixes
  * immediately instead of waiting out a stale cached page. */
-const SP_CACHE_VERSION = "v4";
+const SP_CACHE_VERSION = "v5";
 const SP_MAX_PROGRESS_CALLS = 36;
 
 function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
@@ -383,31 +386,27 @@ app.get("/skills-passport", async (c) => {
     const enrolments = (await getEnrolments(c.env, user.id)).filter((e) =>
       isModuleTitle(e.title),
     );
-    /* Progress calls run in parallel batches — serial took ~1s per
-     * module; batches of 6 stay inside LearnWorlds' 30 req/10s limit. */
-    const wanted = enrolments.slice(0, SP_MAX_PROGRESS_CALLS);
-    const courses: CourseRecord[] = [];
-    for (let i = 0; i < wanted.length; i += 6) {
-      const batch = await Promise.all(
-        wanted.slice(i, i + 6).map(async (e) => {
-          try {
-            const p = await getUserProgress(c.env, user.id, e.courseId);
-            return { courseId: e.courseId, title: e.title, label: e.label, ...p };
-          } catch {
-            return {
-              courseId: e.courseId,
-              title: e.title,
-              label: e.label,
-              status: "not_started" as const,
-              progressRate: 0,
-              scoreRate: null,
-              timeSeconds: 0,
-            };
-          }
-        }),
-      );
-      courses.push(...batch);
-    }
+    /* One /users/{id}/progress call carries every course's real state —
+     * joined to enrolments for titles/curriculum labels. (Replaced the
+     * 36-per-course-call batch on 2026-07-21.) */
+    const progressAll = await getUserProgressAll(c.env, user.id);
+    const byCourse = new Map(progressAll.map((p) => [p.courseId, p]));
+    const courses: CourseRecord[] = enrolments
+      .slice(0, SP_MAX_PROGRESS_CALLS)
+      .map((e) => {
+        const p = byCourse.get(e.courseId);
+        return {
+          courseId: e.courseId,
+          title: e.title,
+          label: e.label,
+          status: p?.status ?? ("not_started" as const),
+          progressRate: p?.progressRate ?? 0,
+          scoreRate: p?.scoreRate ?? null,
+          timeSeconds: p?.timeSeconds ?? 0,
+          unitsDone: p?.unitsDone ?? undefined,
+          unitsTotal: p?.unitsTotal ?? undefined,
+        };
+      });
 
     const fullName = displayName({
       email,
@@ -826,7 +825,11 @@ app.post("/api/passport", async (c) => {
   try {
     const user = await getUserByEmail(c.env, email);
     if (!user) return c.json({ ok: false, reason: "account_not_found" });
-    const courses = await getUserCourses(c.env, user.id);
+    const courses = await accurateUserCourses(
+      c.env,
+      user.id,
+      await courseTitleMap(c.env),
+    );
     const data = buildPassport(user, courses, new Date());
     const payload = b64urlEncode(JSON.stringify(data));
     const sig = await signPayload(c.env.LEARNWORLDS_CLIENT_SECRET || "", payload);
@@ -950,6 +953,7 @@ async function portalSample(
   sample: Array<{ user: LwUser; courses: LwUserCourse[] }>;
 }> {
   const page = await listUsersPage(env, 1);
+  const titles = await courseTitleMap(env);
   const learners = page.users
     .filter(isLearner)
     .filter((u) => inScope(u.tags ?? [], tag))
@@ -957,7 +961,7 @@ async function portalSample(
   const sample: Array<{ user: LwUser; courses: LwUserCourse[] }> = [];
   for (const user of learners) {
     try {
-      sample.push({ user, courses: await getUserCourses(env, user.id) });
+      sample.push({ user, courses: await accurateUserCourses(env, user.id, titles) });
     } catch {
       /* One failed learner never sinks the report. */
     }
@@ -967,7 +971,7 @@ async function portalSample(
 
 /* ---------------- early-warning engine (#6) ---------------- */
 
-const RISK_CACHE_KEY = "portal:risk:v2";
+const RISK_CACHE_KEY = "portal:risk:v3";
 const RISK_HISTORY_KEY = "portal:risk:history:v1";
 const RISK_CACHE_TTL = 6 * 3600;
 const RISK_ENRICH_TOP = 10;
@@ -1005,9 +1009,10 @@ async function buildRiskReport(env: Env, now: Date): Promise<RiskReport> {
   const enrichable = assessments
     .filter((a) => a.tier === "high" || a.tier === "medium" || a.tier === "watch")
     .slice(0, RISK_ENRICH_TOP);
+  const enrichTitles = enrichable.length > 0 ? await courseTitleMap(env) : null;
   for (const a of enrichable) {
     try {
-      const courses = (await getUserCourses(env, a.id)).filter(
+      const courses = (await accurateUserCourses(env, a.id, enrichTitles!)).filter(
         (course) => course.title && !EXCLUDED_TITLES.has(course.title),
       );
       const stalled =
@@ -1462,7 +1467,7 @@ app.get("/portal/data", async (c) => {
   /* Cache is per scope — a tag-scoped code must never be served the
    * whole-school payload. */
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `portal:data:v3:${scopeKey}`;
+  const cacheKey = `portal:data:v4:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
 

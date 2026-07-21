@@ -520,3 +520,94 @@ export async function getAssessmentResponses(
     totalPages: payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1,
   };
 }
+
+/* ---------------- accurate per-user progress (one call) ---------------- */
+
+/** Per-course progress from GET /v2/users/{id}/progress — the ONLY
+ * user-level endpoint that carries real completion data (the
+ * enrolments payload has none; that gap made every portal completion
+ * read as zero until 2026-07-21). One paginated call covers every
+ * course the user touches. */
+export interface LwCourseProgress {
+  courseId: string;
+  status: "not_started" | "in_progress" | "completed";
+  progressRate: number;
+  scoreRate: number | null;
+  timeSeconds: number;
+  unitsDone: number | null;
+  unitsTotal: number | null;
+}
+
+export async function getUserProgressAll(
+  env: LwEnv,
+  userId: string,
+): Promise<LwCourseProgress[]> {
+  const out: LwCourseProgress[] = [];
+  let page = 1;
+  for (;;) {
+    const res = await lwRequest(
+      env,
+      "GET",
+      `/users/${encodeURIComponent(userId)}/progress?page=${page}&items_per_page=100`,
+    );
+    if (!res.ok) throw new Error(`LearnWorlds user progress failed: HTTP ${res.status}`);
+    const payload = (await res.json()) as {
+      data?: Array<Record<string, unknown>>;
+      meta?: { totalPages?: number; total_pages?: number };
+    };
+    const items = payload.data ?? [];
+    for (const raw of items) {
+      const courseId = typeof raw.course_id === "string" ? raw.course_id : "";
+      if (!courseId) continue;
+      const status =
+        raw.status === "completed"
+          ? "completed"
+          : raw.status === "not_started"
+            ? "not_started"
+            : "in_progress";
+      out.push({
+        courseId,
+        status,
+        progressRate:
+          typeof raw.progress_rate === "number" ? Math.round(raw.progress_rate) : 0,
+        scoreRate:
+          typeof raw.average_score_rate === "number" ? raw.average_score_rate : null,
+        timeSeconds: typeof raw.time_on_course === "number" ? raw.time_on_course : 0,
+        unitsDone: typeof raw.completed_units === "number" ? raw.completed_units : null,
+        unitsTotal: typeof raw.total_units === "number" ? raw.total_units : null,
+      });
+    }
+    const totalPages = payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1;
+    if (page >= totalPages || items.length === 0) break;
+    page += 1;
+  }
+  return out;
+}
+
+/** Course id -> title map (decoded), KV-cached for 6h so samples cost
+ * one extra call at most. */
+export async function courseTitleMap(env: LwEnv): Promise<Map<string, string>> {
+  const KEY = "lw:titles:v1";
+  const cached = await env.RATE_LIMITS.get(KEY);
+  if (cached) return new Map(Object.entries(JSON.parse(cached) as Record<string, string>));
+  const courses = await listCourses(env);
+  const obj: Record<string, string> = {};
+  for (const c of courses) obj[c.id] = decodeHtml(c.title.trim());
+  await env.RATE_LIMITS.put(KEY, JSON.stringify(obj), { expirationTtl: 6 * 3600 });
+  return new Map(Object.entries(obj));
+}
+
+/** Accurate replacement for the legacy getUserCourses: real progress
+ * joined to titles. */
+export async function accurateUserCourses(
+  env: LwEnv,
+  userId: string,
+  titles: Map<string, string>,
+): Promise<LwUserCourse[]> {
+  const rows = await getUserProgressAll(env, userId);
+  return rows.map((r) => ({
+    title: titles.get(r.courseId) ?? r.courseId,
+    progressRate: r.progressRate,
+    completed: r.status === "completed",
+  }));
+}
