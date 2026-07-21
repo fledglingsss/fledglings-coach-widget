@@ -97,7 +97,8 @@ export function assessLearner(
           ? `Added ${joined} days ago but has never logged in`
           : "Has never logged in",
       );
-    } else if (joined >= 3) {
+    } else if (joined >= 7) {
+      /* Past the week's grace but under the two-week escalation. */
       tier = "watch";
       score = 45 + joined;
       reasons.push(`Added ${joined} days ago and hasn't logged in yet`);
@@ -122,7 +123,9 @@ export function assessLearner(
     reasons.push(
       `Quiet for ${sinceLogin} days (last seen ${shortDate(input.lastLoginSecs!)})`,
     );
-  } else if (sinceLogin >= 5) {
+  } else if (sinceLogin >= 8) {
+    /* 8-9 days: consistent with "Engaged = active in the last 7 days"
+     * and the Active-this-week KPI (<=7). */
     tier = "watch";
     score = 20 + sinceLogin;
     reasons.push(`Starting to drift — ${sinceLogin} days since last login`);

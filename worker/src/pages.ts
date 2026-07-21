@@ -11,7 +11,8 @@ export function esc(t: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;"); /* templates use single-quoted attributes */
 }
 
 const FEATHER =

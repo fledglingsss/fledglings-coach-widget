@@ -13,7 +13,8 @@
   };
   var ORDER = ["high", "medium", "watch", "new", "ok"];
   function esc(t) {
-    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   /* ---- tabs ---- */
@@ -131,9 +132,9 @@
 
   /* ---- cohort pulse (stacked bar + plain-English legend rows) ---- */
   var TIER_DEF = {
-    high: "21+ days quiet, or never logged in",
+    high: "21+ days quiet, or never logged in after two weeks",
     medium: "10–20 days since last visit",
-    watch: "5–9 days, or active without finishing",
+    watch: "8–9 days quiet, or active without finishing",
     new: "joined within the last week",
     ok: "active in the last 7 days",
   };
@@ -407,6 +408,11 @@
   }
   function renderReflections(d) {
     var state = $("reflect-state"), body = $("reflect-body");
+    if (d.error) {
+      body.hidden = true;
+      state.innerHTML = "<div class='err'>Could not load reflections — try refreshing.</div>";
+      return;
+    }
     if (d.status === "building") {
       body.hidden = true;
       state.innerHTML =

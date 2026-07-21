@@ -550,6 +550,10 @@ export async function getUserProgressAll(
       "GET",
       `/users/${encodeURIComponent(userId)}/progress?page=${page}&items_per_page=100`,
     );
+    /* A learner with zero course activity gets a 404 here, not an
+     * empty list — that's "no progress", not an error (QA 2026-07-22:
+     * this silently dropped a high-risk learner from the CSV). */
+    if (res.status === 404) return out;
     if (!res.ok) throw new Error(`LearnWorlds user progress failed: HTTP ${res.status}`);
     const payload = (await res.json()) as {
       data?: Array<Record<string, unknown>>;
@@ -569,7 +573,9 @@ export async function getUserProgressAll(
         courseId,
         status,
         progressRate:
-          typeof raw.progress_rate === "number" ? Math.round(raw.progress_rate) : 0,
+          typeof raw.progress_rate === "number"
+            ? Math.max(0, Math.min(100, Math.round(raw.progress_rate)))
+            : 0,
         scoreRate:
           typeof raw.average_score_rate === "number" ? raw.average_score_rate : null,
         timeSeconds: typeof raw.time_on_course === "number" ? raw.time_on_course : 0,
@@ -605,9 +611,14 @@ export async function accurateUserCourses(
   titles: Map<string, string>,
 ): Promise<LwUserCourse[]> {
   const rows = await getUserProgressAll(env, userId);
-  return rows.map((r) => ({
-    title: titles.get(r.courseId) ?? r.courseId,
-    progressRate: r.progressRate,
-    completed: r.status === "completed",
-  }));
+  /* Rows whose course id isn't in the (6h-cached) catalogue are
+   * dropped: a raw id would leak into provider tables/nudges AND
+   * dodge the EXCLUDED_TITLES filter (QA 2026-07-22). */
+  return rows
+    .filter((r) => titles.has(r.courseId))
+    .map((r) => ({
+      title: titles.get(r.courseId)!,
+      progressRate: r.progressRate,
+      completed: r.status === "completed",
+    }));
 }

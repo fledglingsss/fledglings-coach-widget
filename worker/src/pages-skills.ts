@@ -216,7 +216,7 @@ export function renderSkillsPassport(
       : "—";
   const rankSub =
     s.rank !== null && s.cohortSize !== null && s.cohortSize > 1
-      ? `top ${Math.max(1, Math.round((s.rank / s.cohortSize) * 100))}% of ${esc(model.learner.cohort ?? "cohort")}`
+      ? `among ${esc(model.learner.cohort ?? "cohort")} learners using their passport`
       : "cohort rank appears as classmates join in";
   const modulesPct = s.modulesTotal > 0 ? Math.round((s.modulesDone / s.modulesTotal) * 100) : 0;
 

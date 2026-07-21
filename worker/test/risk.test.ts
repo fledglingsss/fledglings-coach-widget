@@ -43,10 +43,10 @@ describe("assessLearner tiers", () => {
     expect(old.reasons[0]).toContain("never logged in");
 
     const recent = assessLearner(
-      learner({ lastLoginSecs: null, createdSecs: nowSecs - 4 * DAY }),
+      learner({ lastLoginSecs: null, createdSecs: nowSecs - 8 * DAY }),
       NOW,
     );
-    expect(recent.tier).toBe("watch");
+    expect(recent.tier).toBe("watch"); /* past the week grace, under 14d */
 
     const brandNew = assessLearner(
       learner({ lastLoginSecs: null, createdSecs: nowSecs - 1 * DAY }),
@@ -55,14 +55,14 @@ describe("assessLearner tiers", () => {
     expect(brandNew.tier).toBe("new");
   });
 
-  it("maps the day bands: medium 10-20, watch 5-9, ok under 5", () => {
+  it("maps the day bands: medium 10-20, watch 8-9, ok up to 7 (matches Active-this-week)", () => {
     expect(assessLearner(learner({ lastLoginSecs: nowSecs - 14 * DAY }), NOW).tier).toBe(
       "medium",
     );
-    expect(assessLearner(learner({ lastLoginSecs: nowSecs - 6 * DAY }), NOW).tier).toBe(
+    expect(assessLearner(learner({ lastLoginSecs: nowSecs - 8 * DAY }), NOW).tier).toBe(
       "watch",
     );
-    expect(assessLearner(learner({ lastLoginSecs: nowSecs - 2 * DAY }), NOW).tier).toBe("ok");
+    expect(assessLearner(learner({ lastLoginSecs: nowSecs - 6 * DAY }), NOW).tier).toBe("ok");
   });
 
   it("treats recent joiners who have logged in as new, not at-risk", () => {

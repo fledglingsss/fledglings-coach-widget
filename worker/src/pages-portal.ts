@@ -263,6 +263,42 @@ body.loaded .content{opacity:1;}
 .login-r input{width:100%;border:1.5px solid var(--hair);border-radius:12px;padding:14px 16px;font-size:15px;
   font-family:inherit;color:var(--navy);margin-bottom:16px;}
 .login-r input:focus{outline:none;border-color:var(--blue);}
+/* ---------- mobile (QA pass 2026-07-22: rows must stack, not squash) ---------- */
+@media(max-width:700px){
+  .kpi{flex:1 1 50%;min-width:50%;padding:14px 16px 12px;border-top:1px solid var(--hair);}
+  .kpi:nth-child(-n+2){border-top:none;}
+  .kpi:nth-child(odd){border-left:none;}
+  .kpi .v{font-size:25px;}
+  .kpi.attn{flex-basis:100%;min-width:100%;}
+  .arow{grid-template-columns:38px minmax(0,1fr) auto auto;
+    grid-template-areas:"av nm dy bt" "rs rs rs rs";row-gap:7px;gap:8px;}
+  .arow .aname{min-width:0;}
+  .arow .aname em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .arow .abtn2{padding:7px 10px;}
+  .arow .wava{grid-area:av;}
+  .arow .aname{grid-area:nm;}
+  .arow .wdays{grid-area:dy;align-self:center;}
+  .arow .abtn2{grid-area:bt;}
+  .arow .areason{grid-area:rs;}
+  .wrow{grid-template-columns:38px 1fr auto 14px;
+    grid-template-areas:"av nm dy ch" "rs rs rs rs";row-gap:6px;}
+  .wrow .wava{grid-area:av;}
+  .wrow .wname{grid-area:nm;}
+  .wrow .wdays{grid-area:dy;align-self:center;}
+  .wrow .wchev{grid-area:ch;align-self:center;}
+  .wrow .wreason{grid-area:rs;}
+  .wdetail{padding-left:8px;}
+  .abtn2{min-height:38px;}
+  .fchip{min-height:38px;}
+  .signout,#cohort-sel{min-height:38px;}
+  .cvhead{display:none;}
+  .cvrow{grid-template-columns:1fr;gap:5px;padding:12px 0;}
+  .cvrow .m{font-size:13.5px;}
+  .shrow{grid-template-columns:1fr;gap:8px;}
+  .shrow .spill{justify-self:start;}
+  .mmr{grid-template-columns:22px 1fr 44px;}
+  .mmr .mbar{display:none;}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 @media print{.rail,.signout,#cohort-sel,.actions,.fchips,.foot,.keyline,.plink,.abtn2{display:none!important;}
   .lview{display:block!important;}body{background:#fff;}.panel{box-shadow:none;break-inside:avoid;}
@@ -407,7 +443,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s7",
       title: "Most-used modules",
-      caption: "from a recent sample of learner accounts" + (tag ? " · module figures are whole-school" : ""),
+      caption: "from a recent sample of learner accounts" + (tag ? " in your cohort" : ""),
       body: "<span id='mods-note' hidden></span><div id='mods-mini'></div>",
       footer: "<button class='plink' id='mods-all' type='button'>Full module table →</button>",
     }) +
@@ -428,8 +464,8 @@ export function renderPortalDashboard(label: string, tag: string | null): string
       bodyPad: false,
     }) +
     "</div>" +
-    "<p class='fineprint'><b>The tiers:</b> Needs contact = 21+ days quiet or never logged in · Drifting = 10–20 days · " +
-    "Early wobble = 5–9 days, or logging in without finishing anything · new joiners get a week's grace. " +
+    "<p class='fineprint'><b>The tiers:</b> Needs contact = 21+ days quiet, or never logged in after two weeks · Drifting = 10–20 days · " +
+    "Early wobble = 8–9 days quiet, a never-logged-in account past its first week, or a month on the platform without finishing a module · new joiners get a week's grace. " +
     "This view is for pastoral and safeguarding staff — treat it with the same care as any learner record.</p>" +
     "<div class='actions' style='margin-top:14px'><button class='abtn ghost' onclick='window.print()'>Print early-warning digest</button></div>" +
     "</div>" +

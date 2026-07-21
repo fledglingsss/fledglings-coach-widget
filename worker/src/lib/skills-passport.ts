@@ -111,7 +111,10 @@ export interface SkillsPassportModel {
 }
 
 /* Container/showcase courses that are not learner modules. */
-const EXCLUDED = new Set([
+/** Canonical non-module (container/showcase) titles — the ONE list
+ * every surface must share (QA 2026-07-22: three divergent copies made
+ * provider counts disagree with the learner passport). */
+export const EXCLUDED_TITLES = new Set([
   "Financial Literacy",
   "Employability Skills",
   "Confidence & Resilience",
@@ -127,13 +130,13 @@ const EXCLUDED = new Set([
 ]);
 
 export function learnerModules(courses: CourseRecord[]): CourseRecord[] {
-  return courses.filter((c) => c.title && !EXCLUDED.has(c.title.trim()));
+  return courses.filter((c) => c.title && !EXCLUDED_TITLES.has(c.title.trim()));
 }
 
 /** Whether an enrolment title is a real learner module (used to skip
  * container/showcase courses BEFORE spending progress API calls). */
 export function isModuleTitle(title: string): boolean {
-  return Boolean(title) && !EXCLUDED.has(title.trim());
+  return Boolean(title) && !EXCLUDED_TITLES.has(title.trim());
 }
 
 /* ---------------- streak ---------------- */

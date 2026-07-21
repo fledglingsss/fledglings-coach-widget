@@ -345,7 +345,19 @@ app.get("/skills-passport", async (c) => {
     );
   }
   const email = (c.req.query("email") || "").trim().toLowerCase();
-  if (!EMAIL_PATTERN.test(email) || !lwConfigured(c.env)) {
+  /* IDOR guard (QA 2026-07-22): a live passport carries a learner's
+   * name, cohort and progress, so the email form is only honoured when
+   * the request comes from an allowlisted embedding page (the
+   * LearnWorlds iframe sends its origin as Referer). Anything else —
+   * including a URL typed straight into a browser — gets the sample.
+   * Header-forgery remains possible outside a browser; the data is
+   * low-sensitivity but this closes the casual guess-an-email path. */
+  const referer = c.req.header("Referer") || c.req.header("Origin") || "";
+  if (
+    !EMAIL_PATTERN.test(email) ||
+    !lwConfigured(c.env) ||
+    !isOriginAllowed(referer)
+  ) {
     return c.html(
       renderSkillsPassport(demoSkillsModel(), { demo: true, shareEmail: null }),
       200,
@@ -851,9 +863,12 @@ app.get("/passport", async (c) => {
   const d = c.req.query("d") || "";
   const s = c.req.query("s") || "";
   const decoded = b64urlDecode(d);
+  /* Never verify against an empty secret — a misconfigured deployment
+   * must fail closed, not render forgeable "verified" passports. */
   const valid =
+    Boolean(c.env.LEARNWORLDS_CLIENT_SECRET) &&
     decoded !== null &&
-    (await verifyPayload(c.env.LEARNWORLDS_CLIENT_SECRET || "", d, s));
+    (await verifyPayload(c.env.LEARNWORLDS_CLIENT_SECRET!, d, s));
   let data: unknown = null;
   try {
     data = valid && decoded ? JSON.parse(decoded) : null;
@@ -963,7 +978,10 @@ async function portalSample(
     try {
       sample.push({ user, courses: await accurateUserCourses(env, user.id, titles) });
     } catch {
-      /* One failed learner never sinks the report. */
+      /* A failed lookup must never silently DROP a learner — the CSV
+       * and dashboard counts have to reconcile. Empty courses is the
+       * honest degraded state. */
+      sample.push({ user, courses: [] });
     }
   }
   return { totalUsers: page.totalItems, sample };
@@ -971,7 +989,7 @@ async function portalSample(
 
 /* ---------------- early-warning engine (#6) ---------------- */
 
-const RISK_CACHE_KEY = "portal:risk:v3";
+const RISK_CACHE_KEY = "portal:risk:v4";
 const RISK_HISTORY_KEY = "portal:risk:history:v1";
 const RISK_CACHE_TTL = 6 * 3600;
 const RISK_ENRICH_TOP = 10;
@@ -1006,9 +1024,23 @@ async function buildRiskReport(env: Env, now: Date): Promise<RiskReport> {
 
   /* Enrich the most urgent learners with module context so the nudge
    * can name the module they're part-way through. */
-  const enrichable = assessments
+  /* Flagged learners get module context for their nudges — and
+   * long-standing "ok" learners are included so the engaged-but-never-
+   * finishing rule can actually fire (QA 2026-07-22: it was
+   * structurally unreachable before). */
+  const flagged = assessments
     .filter((a) => a.tier === "high" || a.tier === "medium" || a.tier === "watch")
     .slice(0, RISK_ENRICH_TOP);
+  const okLongStanders = assessments.filter((a) => {
+    if (a.tier !== "ok") return false;
+    const u = users.find((x) => x.id === a.id);
+    const joined =
+      typeof u?.created === "number"
+        ? Math.floor((now.getTime() / 1000 - u.created) / 86_400)
+        : null;
+    return joined !== null && joined >= 30;
+  }).slice(0, 5);
+  const enrichable = [...flagged, ...okLongStanders];
   const enrichTitles = enrichable.length > 0 ? await courseTitleMap(env) : null;
   for (const a of enrichable) {
     try {
@@ -1077,6 +1109,7 @@ async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport
  * ================================================================== */
 
 const REFLECT_KV_KEY = "portal:reflect:v3";
+const REFLECT_TAGS_PATCH_KEY = "portal:reflect:tags-patch";
 const REFLECT_MAX_AGE_MS = 6 * 3600 * 1000;
 const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
 const LW_SUPPORT_ASK =
@@ -1108,9 +1141,11 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
 
   let calls = 0;
 
-  /* First step of a fresh sweep: capture email -> tags for every
-   * learner (1 call per 100 users) so cohort scoping is self-contained. */
-  if (state.cursor === 0 && Object.keys(state.userTags).length === 0) {
+  /* Capture email -> tags for every learner (1 call per 100 users) so
+   * cohort scoping is self-contained. Retried on EVERY build step while
+   * the map is empty — a transient failure here must never leave
+   * scoped safeguarding flags silently hidden (QA 2026-07-22). */
+  if (Object.keys(state.userTags).length === 0) {
     try {
       const users = await listAllUsers(env, 5);
       calls += Math.max(1, Math.ceil(users.length / 100));
@@ -1124,6 +1159,12 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
 
   while (state.cursor < courseEntries.length && calls < REFLECT_CALL_BUDGET) {
     const [courseTitle, courseId] = courseEntries[state.cursor]!;
+    /* Idempotency guard: two concurrent requests can both advance the
+     * sweep (KV has no locks) — never double-record a course. */
+    if (state.coverage.some((cv) => cv.courseId === courseId)) {
+      state.cursor++;
+      continue;
+    }
     try {
       calls++;
       const units = await getCourseContents(env, courseId);
@@ -1188,11 +1229,13 @@ app.get("/portal/reflections", async (c) => {
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const state = await advanceReflections(c.env);
-    /* Scope filtering uses the email->tags map captured in the same
-     * sweep — no dependency on any other cache. Flags are annotated
-     * with the learner's cohort tag either way. */
+    /* Scope filtering uses the email->tags map captured in the sweep,
+     * overlaid with live webhook tag patches. */
+    const tagPatch = JSON.parse(
+      (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+    ) as Record<string, string[]>;
     const tagsOf = (email: string): string[] =>
-      state.userTags[email.toLowerCase()] ?? [];
+      tagPatch[email.toLowerCase()] ?? state.userTags[email.toLowerCase()] ?? [];
     let flags = state.flags.map((f) => ({
       ...f,
       cohort: cohortTag(tagsOf(f.email)),
@@ -1333,9 +1376,19 @@ app.post("/hooks/learnworlds", async (c) => {
     return c.json({ error: "invalid_json" }, 400);
   }
   const now = new Date();
-  /* Any correctly-signed delivery proves the connection — record the
-   * heartbeat BEFORE deciding whether we act on the event. */
-  await c.env.RATE_LIMITS.put(HOOK_SEEN_KV_KEY, now.toISOString());
+  /* Any correctly-signed delivery proves the connection — heartbeat is
+   * throttled to one KV write a minute so event bursts (bulk tagging)
+   * can't trip KV's per-key write limit. All KV work on this path is
+   * best-effort: a verified event ALWAYS gets a 200, otherwise LW
+   * retries and amplifies the burst. */
+  try {
+    const seen = await c.env.RATE_LIMITS.get(HOOK_SEEN_KV_KEY);
+    if (!seen || now.getTime() - new Date(seen).getTime() > 60_000) {
+      await c.env.RATE_LIMITS.put(HOOK_SEEN_KV_KEY, now.toISOString());
+    }
+  } catch {
+    /* best-effort */
+  }
   const ev = parseWebhookEvent(body, now);
   /* Unknown/ignored event types still get a 200 so LW doesn't retry. */
   if (!ev) {
@@ -1345,6 +1398,21 @@ app.post("/hooks/learnworlds", async (c) => {
         : "?";
     console.log(`[coach] kind=webhook type=${t} outcome=ignored`);
     return c.json({ ok: true, ignored: true });
+  }
+
+  /* Idempotency: LearnWorlds redelivers on timeouts. Completions are
+   * deduped on their stable completed_at; user/tag/lead events on a
+   * 5-minute bucket (absorbs retries, allows genuine later changes). */
+  try {
+    const stamp =
+      ev.type === "courseCompleted" ? String(ev.at) : String(Math.floor(ev.at / 300));
+    const idKey = `hooks:evt:${ev.type}:${ev.email}:${ev.courseId ?? ""}:${stamp}`;
+    if (await c.env.RATE_LIMITS.get(idKey)) {
+      return c.json({ ok: true, duplicate: true });
+    }
+    await c.env.RATE_LIMITS.put(idKey, "1", { expirationTtl: 86_400 });
+  } catch {
+    /* dedupe is best-effort */
   }
 
   /* Cohort: prefer tags in the payload; fall back to a user lookup. */
@@ -1361,10 +1429,14 @@ app.post("/hooks/learnworlds", async (c) => {
   /* Feed */
   const entry = toFeedEntry(ev, cohort, now);
   if (entry) {
-    const feed = JSON.parse(
-      (await c.env.RATE_LIMITS.get(FEED_KV_KEY)) || "[]",
-    ) as FeedEntry[];
-    await c.env.RATE_LIMITS.put(FEED_KV_KEY, JSON.stringify(pushFeed(feed, entry)));
+    try {
+      const feed = JSON.parse(
+        (await c.env.RATE_LIMITS.get(FEED_KV_KEY)) || "[]",
+      ) as FeedEntry[];
+      await c.env.RATE_LIMITS.put(FEED_KV_KEY, JSON.stringify(pushFeed(feed, entry)));
+    } catch {
+      /* feed is best-effort */
+    }
   }
 
   /* Completions bump the cohort leaderboard live (same entry shape the
@@ -1391,10 +1463,11 @@ app.post("/hooks/learnworlds", async (c) => {
     }
   }
 
-  /* Tag changes keep the reflections cohort map fresh. userUpdated
-   * carries the full tag list; userTagAdded/Deleted payloads are
-   * unverified, so re-fetch the authoritative tags instead of trusting
-   * the event body. */
+  /* Tag changes keep the reflections cohort map fresh — via a small
+   * SEPARATE patch key, never by rewriting the sweep state (writing
+   * the whole state here could roll back an in-flight sweep's cursor
+   * and flags — QA 2026-07-22). userTagAdded/Deleted payloads are
+   * unverified, so re-fetch the authoritative tags. */
   const tagEvent = ev.type === "userTagAdded" || ev.type === "userTagDeleted";
   if ((ev.type === "userUpdated" && ev.tags !== null) || tagEvent) {
     try {
@@ -1403,14 +1476,13 @@ app.post("/hooks/learnworlds", async (c) => {
         freshTags = (await getUserByEmail(c.env, ev.email))?.tags ?? null;
       }
       if (freshTags !== null) {
-        const raw = await c.env.RATE_LIMITS.get(REFLECT_KV_KEY);
-        if (raw) {
-          const state = JSON.parse(raw) as ReflectionsState;
-          state.userTags[ev.email] = freshTags;
-          await c.env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
-            expirationTtl: 24 * 3600,
-          });
-        }
+        const patch = JSON.parse(
+          (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+        ) as Record<string, string[]>;
+        patch[ev.email] = freshTags;
+        await c.env.RATE_LIMITS.put(REFLECT_TAGS_PATCH_KEY, JSON.stringify(patch), {
+          expirationTtl: 24 * 3600,
+        });
       }
     } catch {
       /* best-effort */
@@ -1467,7 +1539,7 @@ app.get("/portal/data", async (c) => {
   /* Cache is per scope — a tag-scoped code must never be served the
    * whole-school payload. */
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `portal:data:v4:${scopeKey}`;
+  const cacheKey = `portal:data:v5:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
 

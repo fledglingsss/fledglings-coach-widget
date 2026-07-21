@@ -25,15 +25,8 @@ export interface PortalStats {
   generatedAt: string;
 }
 
-export const EXCLUDED_TITLES = new Set([
-  "Financial Literacy",
-  "Employability Skills",
-  "Confidence & Resilience",
-  "Staying Safe Online",
-  "Deep Dive Mini Series",
-  "Flight Prep",
-  "Tutor Resources",
-]);
+import { EXCLUDED_TITLES } from "./skills-passport";
+export { EXCLUDED_TITLES };
 
 export function aggregate(
   totalUsers: number | null,
@@ -85,6 +78,15 @@ export function narrativeSystemPrompt(): string {
 RULES: Use ONLY the aggregate figures provided — never invent numbers, learners, quotes or outcomes. Never name any individual. State clearly that figures are from a recent sample of learner accounts. Frame contribution honestly ("contributes towards", "provides evidence of") — never claim attribution or outcomes the data cannot show. If early-warning aggregates are provided (learners flagged for attention), present them as evidence of ACTIVE MONITORING and pastoral responsiveness — providers demonstrating they spot disengagement early is itself strong personal development evidence. British English. Three short paragraphs, max 240 words total: (1) what the provision is and reach; (2) what the engagement/completion figures show, including the monitoring process if figures are present; (3) how this maps to personal development evidence themes (safeguarding awareness, financial literacy, employability, character). No headings, no bullets.`;
 }
 
+/** CSV cell hardening: strip delimiters AND neutralise spreadsheet
+ * formula injection — a username crafted to start with = + - or @
+ * would otherwise execute as a formula when the provider opens the
+ * export in Excel. */
+function csvCell(value: string): string {
+  const clean = value.replace(/[",\n\r]/g, " ").trim();
+  return /^[=+\-@\t]/.test(clean) ? `'${clean}` : clean;
+}
+
 export function csvExport(
   sample: Array<{ user: LwUser; courses: LwUserCourse[] }>,
   riskByEmail?: Map<string, { tier: string; daysSinceLogin: number | null }>,
@@ -96,10 +98,10 @@ export function csvExport(
     const modules = courses.filter((c) => c.title && !EXCLUDED_TITLES.has(c.title));
     const completed = modules.filter((c) => c.completed).length;
     const inProgress = modules.length - completed;
-    const name = (user.username || user.first_name || "").replace(/[",\n]/g, " ");
+    const name = csvCell(user.username || user.first_name || "");
     const risk = riskByEmail?.get((user.email || "").toLowerCase());
     lines.push(
-      `${(user.email || "").replace(/[",\n]/g, " ")},${name},${modules.length},${completed},${inProgress},` +
+      `${csvCell(user.email || "")},${name},${modules.length},${completed},${inProgress},` +
         `${risk ? (risk.daysSinceLogin === null ? "never logged in" : risk.daysSinceLogin) : ""},${risk?.tier ?? ""}`,
     );
   }

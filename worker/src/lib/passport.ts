@@ -6,6 +6,7 @@
  * and totals. No scores, no judgements, no personal data beyond the
  * first name — evidence of practice, not a rating of the person. */
 
+import { EXCLUDED_TITLES } from "./skills-passport";
 import type { LwUser, LwUserCourse } from "./learnworlds";
 
 export interface PassportData {
@@ -19,15 +20,7 @@ export interface PassportData {
 }
 
 /* Container/showcase courses that aren't learner modules. */
-const EXCLUDED_TITLES = new Set([
-  "Financial Literacy",
-  "Employability Skills",
-  "Confidence & Resilience",
-  "Staying Safe Online",
-  "Deep Dive Mini Series",
-  "Flight Prep",
-  "Tutor Resources",
-]);
+
 
 export function buildPassport(
   user: LwUser,
