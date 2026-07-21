@@ -101,6 +101,7 @@ import {
   renderToolsPage,
 } from "./pages";
 import { renderPortalDashboard, renderPortalLogin } from "./pages-portal";
+import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { aggregate, csvExport, EXCLUDED_TITLES, narrativeSystemPrompt } from "./lib/portal";
 import {
   appendHistory,
@@ -1197,6 +1198,12 @@ app.get("/portal/reflections", async (c) => {
     return c.json({ error: "service_error" });
   }
 });
+
+/* #8 — personalised instant demo (outreach landing page). Public,
+ * marketing-only: no learner data is reachable from it. */
+app.get("/demo", (c) =>
+  c.html(renderDemoPage(demoProviderName(c.req.query("p")))),
+);
 
 app.get("/portal", async (c) => {
   const access = await portalSession(c);
