@@ -35,3 +35,19 @@ up server-side. If Liquid isn't substituted (e.g. a logged-out
 preview), the sample passport shows instead. The iframe auto-sizes to
 the passport's height, so the full page is always visible without an
 inner scrollbar.
+
+## Mock interview — `interview-embed.html`
+
+**Where:** create a page or embed activity for logged-in learners and
+paste the file's contents into a Custom Code / HTML block.
+
+**Critical:** the iframe carries `allow="microphone"` — without it the
+browser silently blocks the mic inside LearnWorlds and learners can
+only type. Do not remove that attribute.
+
+**How it works:** learners pick a role, answer five first-job interview
+questions out loud (speech is transcribed on their own device by the
+browser — no audio is recorded or uploaded), and get a scored
+STAR-style report. Typing fallback exists for unsupported browsers or
+denied mic permission. 3 interviews per learner per day; crisis
+language routes to signposting instead of scoring.

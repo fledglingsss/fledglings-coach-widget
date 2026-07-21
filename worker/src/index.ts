@@ -102,6 +102,14 @@ import {
 } from "./pages";
 import { renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
+import { renderInterviewPage } from "./pages-interview";
+import {
+  INTERVIEW_CAPS,
+  interviewSystemPrompt,
+  interviewUserMessage,
+  parseInterviewReport,
+  validateInterviewRequest,
+} from "./lib/interview";
 import { aggregate, csvExport, EXCLUDED_TITLES, narrativeSystemPrompt } from "./lib/portal";
 import {
   appendHistory,
@@ -1196,6 +1204,90 @@ app.get("/portal/reflections", async (c) => {
   } catch (err) {
     console.error("[coach] reflections error:", String(err));
     return c.json({ error: "service_error" });
+  }
+});
+
+/* ==================================================================
+ * #3b — voice mock interview. Speech is transcribed on-device; only
+ * text arrives here. Same guardrail stack as the CV review.
+ * ================================================================== */
+
+const INTERVIEW_MAX_TOKENS = 2200;
+
+app.get("/interview", (c) => c.html(renderInterviewPage(), 200, FRAME_HEADERS));
+
+app.post("/api/interview", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  const sessionId = typeof body.session_id === "string" ? body.session_id : "";
+  if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+  const validated = validateInterviewRequest(body);
+  if ("error" in validated) {
+    return c.json({ error: "invalid_interview", detail: validated.error }, 400);
+  }
+
+  if ((c.env.COACH_DISABLED || "false").toLowerCase() === "true") {
+    return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+  }
+
+  /* Safeguarding first — a spoken answer can carry a disclosure. */
+  if (validated.answers.some((a) => crisisHeuristic(a.answer))) {
+    console.log("[coach] kind=interview outcome=crisis");
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
+
+  const learnerHash = await hashLearnerId(learnerId);
+  const capKey = `iv:day:${learnerHash}:${new Date().toISOString().slice(0, 10)}`;
+  const used = parseInt((await c.env.RATE_LIMITS.get(capKey)) || "0", 10) || 0;
+  if (used >= INTERVIEW_CAPS.perDay) {
+    return c.json({
+      reply:
+        "You've done today's three mock interviews — that's genuinely good practice. " +
+        "They top back up tomorrow; work the feedback you've got in the meantime.",
+      kind: "limit",
+    });
+  }
+
+  try {
+    const raw = await generate(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.COACH_MODEL || "claude-sonnet-4-6",
+      interviewSystemPrompt(),
+      interviewUserMessage(validated),
+      INTERVIEW_MAX_TOKENS,
+    );
+    const report = parseInterviewReport(raw, validated.answers.length);
+    if (report === "crisis") {
+      console.log("[coach] kind=interview outcome=model_crisis");
+      return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+    }
+    if (report === null) {
+      console.error("[coach] interview report failed to parse");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    const visible = [
+      report.verdict,
+      report.next_step,
+      ...report.answers.flatMap((a) => [a.strength, a.improve, a.sharper]),
+    ].join("\n");
+    if (guardReply(visible, 10_000) === null) {
+      console.error("[coach] interview report failed output gate");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+    console.log(
+      `[coach] kind=interview role=${validated.role} answers=${validated.answers.length} outcome=ok overall=${report.overall}`,
+    );
+    return c.json({ report, kind: "interview" });
+  } catch (err) {
+    return c.json(modelFailure("interview", err));
   }
 });
 
