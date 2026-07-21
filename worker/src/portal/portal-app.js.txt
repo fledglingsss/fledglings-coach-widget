@@ -75,7 +75,10 @@
     var med = median(list);
     $("lg-total").textContent = sm.learners;
     $("lg-active").textContent = sm.activeLast7Days;
-    $("lg-activepct").textContent = sm.learners ? Math.round(sm.activeLast7Days * 100 / sm.learners) + "%" : "";
+    var activePct = sm.learners ? Math.round(sm.activeLast7Days * 100 / sm.learners) : 0;
+    $("lg-activepct").textContent = sm.learners ? activePct + "%" : "";
+    var abar = $("lg-activebar");
+    if (abar) abar.style.width = activePct + "%";
     $("lg-activation").textContent = activation + "%";
     $("lg-median").textContent = med === null ? "—" : med + "d";
     $("lg-attn").textContent = attn;
@@ -89,6 +92,56 @@
     var badge = $("t-warnn");
     badge.textContent = attn;
     badge.hidden = attn === 0;
+  }
+
+  /* ---- alert strip (safeguarding first, then early warning) ---- */
+  function renderAlerts(flagCount) {
+    var host = $("alerts");
+    if (!host) return;
+    var sm = FILTER ? summarise(learners()) : DATA.risk.summary;
+    var attn = sm.tiers.high + sm.tiers.medium;
+    var out = "";
+    if (flagCount > 0) {
+      out +=
+        "<div class='alert red' data-go='reflect'><span class='ai'>⚠</span><div>" +
+        "<div class='at'>Safeguarding flags need review</div>" +
+        "<div class='ad'>" + flagCount + " reflection answer" + (flagCount === 1 ? "" : "s") +
+        " flagged for crisis language — read " + (flagCount === 1 ? "it" : "them") + " today and follow your policy.</div></div>" +
+        "<span class='al'>Review now →</span></div>";
+    }
+    if (attn > 0) {
+      out +=
+        "<div class='alert amber' data-go='warning'><span class='ai'>◔</span><div>" +
+        "<div class='at'>" + attn + " learner" + (attn === 1 ? "" : "s") + " going quiet</div>" +
+        "<div class='ad'>Each has a ready-to-send nudge — a two-minute message now beats a withdrawal call later.</div></div>" +
+        "<span class='al'>See who →</span></div>";
+    }
+    host.innerHTML = out;
+    host.querySelectorAll(".alert").forEach(function (a) {
+      a.addEventListener("click", function () { goTab(a.dataset.go); });
+    });
+  }
+
+  /* ---- curriculum impact (framework bars) ---- */
+  function renderCurriculum() {
+    var host = $("curric");
+    if (!host) return;
+    var rows = DATA.curriculum || [];
+    if (!rows.length) {
+      host.innerHTML = "<p class='muted'>Curriculum figures appear once the sample has module activity.</p>";
+      return;
+    }
+    var out = "";
+    rows.forEach(function (r) {
+      var startedPct = r.enrolled ? 100 : 0;
+      out +=
+        "<div class='cirow'><span class='cn'>" + esc(r.area) +
+        "<em>" + r.completed + " completions · " + r.enrolled + " enrolments</em></span>" +
+        "<span class='citrack'><i class='prog' style='width:" + startedPct + "%'></i>" +
+        "<i class='done' style='width:" + r.pct + "%'></i></span>" +
+        "<span class='cp'>" + r.pct + "%</span></div>";
+    });
+    host.innerHTML = out;
   }
 
   /* ---- who needs you today (top 5 most urgent) ---- */
@@ -328,8 +381,11 @@
     draw("flagged");
   }
 
+  var FLAG_COUNT = 0;
   function renderAll() {
     renderLedger();
+    renderAlerts(FLAG_COUNT);
+    renderCurriculum();
     renderActions();
     renderPulse();
     renderTrend();
@@ -447,6 +503,8 @@
     var flags = d.flags || [];
     var badge = $("t-flagn");
     if (flags.length) { badge.hidden = false; badge.textContent = flags.length; }
+    FLAG_COUNT = flags.length;
+    if (DATA) renderAlerts(FLAG_COUNT);
     var sg = "";
     flags.forEach(function (f) {
       sg +=

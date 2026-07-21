@@ -93,6 +93,7 @@ import {
 } from "./lib/review";
 import {
   buildPassport,
+  groupForTitle,
   groupPassport,
   isPassportData,
   passportAgeDays,
@@ -1539,7 +1540,7 @@ app.get("/portal/data", async (c) => {
   /* Cache is per scope — a tag-scoped code must never be served the
    * whole-school payload. */
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `portal:data:v5:${scopeKey}`;
+  const cacheKey = `portal:data:v6:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
 
@@ -1588,8 +1589,38 @@ app.get("/portal/data", async (c) => {
       narrative =
         "Narrative unavailable just now — the figures above are live from the platform.";
     }
+    /* Curriculum impact: module stats rolled up to the four learning
+     * areas (+ deep dives) for the framework-style overview bars. */
+    const areaOrder = [
+      "Financial Literacy",
+      "Employability Skills",
+      "Confidence & Resilience",
+      "Staying Safe Online",
+      "Deep Dive Mini Series",
+    ];
+    const byArea = new Map<string, { enrolled: number; completed: number }>();
+    for (const cs of stats.courseStats) {
+      const area = groupForTitle(cs.title);
+      const entry = byArea.get(area) ?? { enrolled: 0, completed: 0 };
+      entry.enrolled += cs.enrolled;
+      entry.completed += cs.completed;
+      byArea.set(area, entry);
+    }
+    const curriculum = areaOrder
+      .filter((a) => byArea.has(a))
+      .map((a) => {
+        const e = byArea.get(a)!;
+        return {
+          area: a,
+          enrolled: e.enrolled,
+          completed: e.completed,
+          pct: e.enrolled ? Math.round((e.completed / e.enrolled) * 100) : 0,
+        };
+      });
+
     const payload = {
       stats,
+      curriculum,
       narrative,
       risk: { summary, learners },
       history,

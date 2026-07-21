@@ -53,6 +53,28 @@ b,strong{font-weight:700;}
 .kpi.attn{background:#FFF6F1;border-left:1px solid var(--hair);box-shadow:inset 3px 0 0 var(--orange);}
 .kpi.attn .v{color:var(--orange);}
 .kpi.attn .k{color:#B0563F;}
+.kbar{height:5px;border-radius:999px;background:var(--off);overflow:hidden;margin-top:8px;}
+.kbar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--mango),var(--orange));
+  width:0;transition:width .8s ease;}
+/* alert strip */
+.alert{display:flex;align-items:flex-start;gap:13px;border-radius:14px;padding:15px 18px;margin-bottom:18px;
+  border:1px solid;cursor:pointer;}
+.alert.red{background:#FFF3F0;border-color:rgba(217,69,43,.35);border-left:4px solid var(--orange);}
+.alert.amber{background:#FFF9F0;border-color:rgba(237,146,73,.4);border-left:4px solid var(--mango);}
+.alert .ai{font-size:17px;line-height:1;margin-top:2px;}
+.alert .at{font-size:14px;font-weight:800;}
+.alert .ad{font-size:13px;color:var(--ink);margin-top:2px;line-height:1.5;}
+.alert .al{margin-left:auto;font-size:13px;font-weight:700;color:var(--orange);white-space:nowrap;align-self:center;}
+/* curriculum impact bars */
+.cirow{display:grid;grid-template-columns:minmax(150px,220px) 1fr auto;gap:16px;align-items:center;padding:10px 0;}
+.cirow .cn{font-size:14px;font-weight:700;}
+.cirow .cn em{display:block;font-style:normal;font-size:11.5px;color:var(--mut);font-weight:500;margin-top:1px;}
+.citrack{height:18px;border-radius:999px;background:var(--off);overflow:hidden;position:relative;}
+.citrack i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;transition:width .9s ease;}
+.citrack .prog{background:#CFE0EE;}
+.citrack .done{background:linear-gradient(90deg,var(--mango),var(--orange));}
+.cirow .cp{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;min-width:44px;text-align:right;}
+@media(max-width:700px){.cirow{grid-template-columns:1fr auto;}.cirow .citrack{grid-column:1/-1;}}
 @media(max-width:900px){.kpi{min-width:33%;}}
 /* ---------- tab rail ---------- */
 .rail{max-width:1200px;margin:18px auto 0;padding:0 26px;display:flex;gap:8px;overflow-x:auto;}
@@ -391,6 +413,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     "<div class='c'>on the platform" + (tag ? " in your cohort" : "") + "</div></div>" +
     "<div class='kpi'><div class='k'>Active this week</div>" +
     "<div class='v'><span id='lg-active'>–</span><small id='lg-activepct'></small></div>" +
+    "<div class='kbar'><i id='lg-activebar'></i></div>" +
     "<div class='c'>logged in within 7 days <b id='lg-delta'></b></div></div>" +
     "<div class='kpi'><div class='k'>Ever logged in</div><div class='v' id='lg-activation'>–</div>" +
     "<div class='c'>have used their account at least once</div></div>" +
@@ -410,7 +433,15 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     "<main class='content'>" +
     "<div class='err' id='p-err' hidden></div>" +
     /* ---- TODAY ---- */
-    "<div class='lview on' id='lv-overview'><div class='grid12'>" +
+    "<div class='lview on' id='lv-overview'>" +
+    "<div id='alerts'></div>" +
+    "<div class='grid12'>" +
+    panel({
+      span: "s12",
+      title: "Curriculum impact",
+      caption: "completion across the Fledglings learning areas — the personal development picture at a glance",
+      body: "<div id='curric'></div>",
+    }) +
     panel({
       span: "s7",
       title: "Who needs you today",
