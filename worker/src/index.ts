@@ -39,10 +39,12 @@ import {
   validateCoachRequest,
 } from "./lib/validate";
 import { allPathwayTitles, computePathway, validAnswers } from "./lib/pathway";
-import { courseIdFor } from "./lib/course-map";
+import { COURSE_MAP, courseIdFor } from "./lib/course-map";
 import {
   enrolUserInCourse,
   findUserByEmail,
+  getAssessmentResponses,
+  getCourseContents,
   getUserByEmail,
   getUserCourses,
   listCourses,
@@ -55,6 +57,15 @@ import {
   type LwUser,
   type LwUserCourse,
 } from "./lib/learnworlds";
+import {
+  classifyUnit,
+  emptyState,
+  moduleShift,
+  parseResponse,
+  scanForSafeguarding,
+  type ReflectionResponse,
+  type ReflectionsState,
+} from "./lib/reflections";
 import {
   advanceStreak,
   cohortTag,
@@ -1031,6 +1042,144 @@ async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport
   await env.RATE_LIMITS.put(RISK_HISTORY_KEY, JSON.stringify(history));
   return report;
 }
+
+/* ==================================================================
+ * Reflections + safeguarding flags (pre/post assessmentV2 answers).
+ * Built incrementally to stay inside Workers subrequest limits; the
+ * snapshot is whole-school, filtered per scope at read time.
+ * ================================================================== */
+
+const REFLECT_KV_KEY = "portal:reflect:v1";
+const REFLECT_MAX_AGE_MS = 6 * 3600 * 1000;
+const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
+const LW_SUPPORT_ASK =
+  "Hi LearnWorlds — we're on a plan with API access, but GET /v2/assessments/{id}/responses " +
+  "and GET /v2/forms/{id}/responses return 404 on our school (other v2 endpoints work fine). " +
+  "Please enable the Assessments & Forms API endpoints for our school so we can read learner " +
+  "assessment responses. Thanks!";
+
+async function advanceReflections(env: Env): Promise<ReflectionsState> {
+  const now = new Date();
+  let state: ReflectionsState | null = JSON.parse(
+    (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
+  );
+  const stale =
+    state !== null &&
+    now.getTime() - new Date(state.builtAt).getTime() > REFLECT_MAX_AGE_MS;
+  const courseEntries = Object.entries(COURSE_MAP).filter(
+    (e): e is [string, string] => e[1] !== null,
+  );
+  if (state === null || stale || state.totalCourses !== courseEntries.length) {
+    state = emptyState(courseEntries.length, now);
+  }
+  if (state.status === "ready" || state.status === "unavailable") return state;
+
+  let calls = 0;
+  while (state.cursor < courseEntries.length && calls < REFLECT_CALL_BUDGET) {
+    const [courseTitle, courseId] = courseEntries[state.cursor]!;
+    try {
+      calls++;
+      const units = await getCourseContents(env, courseId);
+      const pre: ReflectionResponse[] = [];
+      const post: ReflectionResponse[] = [];
+      for (const u of units) {
+        if (u.type !== "assessmentV2") continue;
+        const kind = classifyUnit(u.title);
+        if (kind === "other") continue;
+        const assessmentUnit = {
+          courseId,
+          courseTitle,
+          unitId: u.id,
+          unitTitle: u.title,
+          kind,
+        };
+        let page = 1;
+        for (;;) {
+          calls++;
+          const res = await getAssessmentResponses(env, u.id, page);
+          if (res === null) {
+            state.status = "unavailable";
+            state.reason = LW_SUPPORT_ASK;
+            state.builtAt = now.toISOString();
+            await env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
+              expirationTtl: 6 * 3600,
+            });
+            return state;
+          }
+          for (const raw of res.rows) {
+            const parsed = parseResponse(raw);
+            if (!parsed) continue;
+            (kind === "pre" ? pre : post).push(parsed);
+            state.flags.push(...scanForSafeguarding(assessmentUnit, parsed));
+            const bucket =
+              kind === "pre" ? state.preRespondents : state.postRespondents;
+            if (parsed.email && !bucket.includes(parsed.email)) bucket.push(parsed.email);
+          }
+          if (page >= res.totalPages || page >= 3) break;
+          page++;
+        }
+      }
+      if (pre.length > 0 || post.length > 0) {
+        state.shifts.push(moduleShift(courseId, courseTitle, pre, post));
+      }
+    } catch {
+      /* one broken course never sinks the sweep */
+    }
+    state.cursor++;
+  }
+  if (state.cursor >= courseEntries.length) state.status = "ready";
+  state.builtAt = now.toISOString();
+  await env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
+    expirationTtl: 24 * 3600,
+  });
+  return state;
+}
+
+app.get("/portal/reflections", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
+  try {
+    const state = await advanceReflections(c.env);
+    /* Scope filtering: flags + respondent counts are limited to the
+     * cohort for tag-scoped codes (via the risk snapshot's tag map). */
+    let flags = state.flags;
+    let preCount = state.preRespondents.length;
+    let postCount = state.postRespondents.length;
+    if (access.tag) {
+      const riskRaw = await c.env.RATE_LIMITS.get(RISK_CACHE_KEY);
+      const risk = riskRaw
+        ? (JSON.parse(riskRaw) as { learners?: Array<{ email: string; tags?: string[] }> })
+        : null;
+      const cohortEmails = new Set(
+        (risk?.learners ?? [])
+          .filter((l) => inScope(l.tags, access.tag))
+          .map((l) => l.email.toLowerCase()),
+      );
+      flags = flags.filter((f) => cohortEmails.has(f.email.toLowerCase()));
+      preCount = state.preRespondents.filter((e) =>
+        cohortEmails.has(e.toLowerCase()),
+      ).length;
+      postCount = state.postRespondents.filter((e) =>
+        cohortEmails.has(e.toLowerCase()),
+      ).length;
+    }
+    return c.json({
+      status: state.status,
+      reason: state.reason ?? null,
+      progress: { done: state.cursor, total: state.totalCourses },
+      shifts: state.shifts,
+      flags,
+      preCount,
+      postCount,
+      scoped: access.tag,
+      builtAt: state.builtAt,
+    });
+  } catch (err) {
+    console.error("[coach] reflections error:", String(err));
+    return c.json({ error: "service_error" });
+  }
+});
 
 app.get("/portal", async (c) => {
   const access = await portalSession(c);

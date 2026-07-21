@@ -150,6 +150,39 @@ td.barcell .mbar{margin-top:0;}
 .abtn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--hair);}
 .err{background:#FFF2EE;border-left:4px solid var(--orange);border-radius:0 10px 10px 0;padding:14px 16px;
   font-size:13.5px;margin-bottom:20px;}
+/* reflections */
+.notice{border-left:4px solid var(--mango);background:#FFF9F2;border-radius:0 12px 12px 0;padding:18px 20px;
+  font-size:14px;line-height:1.65;max-width:60em;}
+.notice b{display:block;margin-bottom:6px;font-size:15px;}
+.notice .ask{background:#fff;border:1px dashed var(--hair);border-radius:10px;padding:12px 14px;margin:12px 0;
+  font-size:13px;color:var(--ink);line-height:1.6;}
+.sgrow{border-left:3px solid var(--orange);background:#FFF6F2;border-radius:0 14px 14px 0;padding:16px 20px;
+  margin-bottom:14px;max-width:64em;}
+.sgrow .who{font-weight:800;font-size:14.5px;}
+.sgrow .whr{font-size:12.5px;color:var(--mut);margin:3px 0 10px;}
+.sgrow .q{font-size:13px;font-weight:600;color:var(--blue);margin-bottom:5px;}
+.sgrow blockquote{font-size:14px;line-height:1.7;color:var(--ink);background:#fff;border-radius:10px;
+  padding:12px 16px;border:1px solid rgba(217,69,43,.18);}
+.sgok{padding:30px 0;color:var(--ok);font-weight:600;font-size:14.5px;}
+.shrow{display:grid;grid-template-columns:minmax(160px,1.3fr) 3fr auto;gap:18px;align-items:center;
+  padding:14px 0;border-bottom:1px solid var(--hair);}
+.shrow:last-child{border-bottom:none;}
+.shname{font-size:14.5px;font-weight:600;}
+.shname em{display:block;font-style:normal;font-size:12px;color:var(--mut);font-weight:500;margin-top:2px;}
+.dtrack{position:relative;height:30px;}
+.dtrack .rail2{position:absolute;top:13px;left:0;right:0;height:4px;border-radius:999px;background:var(--hair);}
+.dtrack .fill{position:absolute;top:13px;height:4px;border-radius:999px;background:linear-gradient(90deg,var(--mango),var(--ok));}
+.dtrack .fill.down{background:linear-gradient(90deg,var(--orange),var(--mango));}
+.dtrack .dot{position:absolute;top:8px;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;
+  box-shadow:0 0 0 1.5px var(--hair);}
+.dtrack .dot.pre{background:#B9AFAB;}
+.dtrack .dot.post{background:var(--ok);}
+.dtrack .dot.post.down{background:var(--orange);}
+.dtrack .lab{position:absolute;top:-6px;font-size:10.5px;font-weight:700;color:var(--mut);transform:translateX(-50%);}
+.spill{font-weight:800;border-radius:999px;padding:5px 13px;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.spill.up{background:#E7F3EC;color:var(--ok);}
+.spill.down{background:#FCE9E5;color:var(--orange);}
+.spill.na{background:var(--off);color:var(--mut);}
 .foot{border-top:1px solid var(--hair);color:var(--mut);font-size:12.5px;text-align:center;padding:22px;}
 .foot b{color:var(--orange);font-weight:700;}
 body:not(.loaded) .content{opacity:.45;transition:opacity .2s;}
@@ -257,6 +290,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     "<button class='ltab on' data-v='overview' role='tab' aria-selected='true'>Overview</button>" +
     "<button class='ltab' data-v='warning' role='tab' aria-selected='false'>Early warning <span class='cnt' id='t-warnn' hidden></span></button>" +
     "<button class='ltab' data-v='modules' role='tab' aria-selected='false'>Modules</button>" +
+    "<button class='ltab' data-v='reflect' role='tab' aria-selected='false'>Reflections <span class='cnt' id='t-flagn' hidden></span></button>" +
     "<button class='ltab' data-v='evidence' role='tab' aria-selected='false'>Evidence pack</button>" +
     "</div></nav>" +
     "<main class='content'>" +
@@ -294,6 +328,21 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     sectionHead("Module engagement", "from a recent sample of learner accounts") +
     "<div id='mods-table' style='overflow-x:auto'></div>" +
     "</div>" +
+    /* reflections */
+    "<div class='lview' id='lv-reflect'>" +
+    "<div id='reflect-state'></div>" +
+    "<div id='reflect-body' hidden>" +
+    sectionHead("Safeguarding flags", "crisis language detected in reflection answers") +
+    "<p class='fineprint' style='margin:0 0 16px'>Machine-flagged, not a judgement — the same 33-pattern screen that guards the Fledge coach, " +
+    "run over free-text reflection answers. Follow your safeguarding policy: a flag means <b>read it and decide</b>, fast.</p>" +
+    "<div id='sg-list'></div>" +
+    sectionHead("Confidence shift", "self-rated, before vs after each module") +
+    "<div class='muted' id='reflect-meta' style='margin-bottom:14px'></div>" +
+    "<div id='shift-list'></div>" +
+    "<p class='fineprint'>Shift compares average self-ratings in each module's initial reflection against its post-completion feedback. " +
+    "Module aggregates are whole-school; flag and completion counts respect your cohort scope. " +
+    "This is powerful Ofsted personal-development evidence: learners saying, in their own assessment, that they've grown.</p>" +
+    "</div></div>" +
     /* evidence */
     "<div class='lview' id='lv-evidence'>" +
     sectionHead("Evidence narrative", "draft for your SAR / personal development reporting") +

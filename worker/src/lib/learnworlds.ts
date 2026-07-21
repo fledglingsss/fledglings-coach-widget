@@ -47,7 +47,7 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
   }
 }
 
-async function getToken(env: LwEnv): Promise<string> {
+export async function getToken(env: LwEnv): Promise<string> {
   const cached = await env.RATE_LIMITS.get(TOKEN_KV_KEY);
   if (cached) return cached;
 
@@ -125,7 +125,7 @@ async function resolveBase(env: LwEnv, token: string): Promise<string> {
   throw new Error(`LearnWorlds API base resolution failed: ${results.join(" | ")}`);
 }
 
-async function lwRequest(
+export async function lwRequest(
   env: LwEnv,
   method: string,
   path: string,
@@ -458,4 +458,65 @@ export async function enrolUserInCourse(
     },
   );
   return { ok: res.ok, status: res.status };
+}
+
+/* ---------------- course contents + assessment responses ---------------- */
+
+export interface LwCourseUnit {
+  id: string;
+  title: string;
+  type: string;
+}
+
+/** All units of a course (flattened across sections). */
+export async function getCourseContents(
+  env: LwEnv,
+  courseId: string,
+): Promise<LwCourseUnit[]> {
+  const res = await lwRequest(
+    env,
+    "GET",
+    `/courses/${encodeURIComponent(courseId)}/contents`,
+  );
+  if (!res.ok) throw new Error(`LearnWorlds contents failed: HTTP ${res.status}`);
+  const payload = (await res.json()) as {
+    sections?: Array<{ learningUnits?: Array<Record<string, unknown>>; units?: Array<Record<string, unknown>> }>;
+  };
+  const units: LwCourseUnit[] = [];
+  for (const section of payload.sections ?? []) {
+    for (const u of section.learningUnits ?? section.units ?? []) {
+      if (typeof u.id === "string" && typeof u.type === "string") {
+        units.push({
+          id: u.id,
+          title: decodeHtml(String(u.title ?? u.name ?? "").trim()),
+          type: u.type,
+        });
+      }
+    }
+  }
+  return units;
+}
+
+/** One page of responses for an assessment unit. Returns null when the
+ * Assessments API is not enabled on this school's plan (404). */
+export async function getAssessmentResponses(
+  env: LwEnv,
+  unitId: string,
+  page: number,
+): Promise<{ rows: unknown[]; totalPages: number } | null> {
+  const res = await lwRequest(
+    env,
+    "GET",
+    `/assessments/${encodeURIComponent(unitId)}/responses?page=${page}&items_per_page=100`,
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`LearnWorlds assessment responses failed: HTTP ${res.status}`);
+  const payload = (await res.json()) as {
+    data?: unknown[];
+    meta?: { totalPages?: number; total_pages?: number };
+  };
+  return {
+    rows: payload.data ?? [],
+    totalPages: payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1,
+  };
 }

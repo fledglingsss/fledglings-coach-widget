@@ -324,4 +324,100 @@
       $("p-err").hidden = false;
       $("p-err").textContent = "Could not reach the portal service — try refreshing.";
     });
+
+  /* ---------- reflections + safeguarding flags ---------- */
+  function fmtWhen(ts) {
+    if (!ts) return "";
+    try {
+      return new Date(ts * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    } catch (e) { return ""; }
+  }
+  function renderReflections(d) {
+    var state = $("reflect-state"), body = $("reflect-body");
+    if (d.status === "unavailable") {
+      body.hidden = true;
+      state.innerHTML =
+        "<div class='notice'><b>Reflection answers need one switch flipping at LearnWorlds</b>" +
+        "Your modules collect pre and post self-reflections, but the LearnWorlds plan hasn't got the " +
+        "Assessments API endpoints enabled, so their answers can't be read yet. Send LearnWorlds support this:" +
+        "<div class='ask' id='lw-ask'>" + esc(d.reason || "") + "</div>" +
+        "<button class='copybtn' id='copy-ask'>Copy message</button><span class='copied' id='copied-ask' hidden>Copied ✓</span>" +
+        "<div style='margin-top:10px;font-size:12.5px;color:#7d8a93'>The moment it's enabled, this tab fills itself in — no rebuild needed.</div></div>";
+      var btn = document.getElementById("copy-ask");
+      if (btn) btn.addEventListener("click", function () {
+        var t = d.reason || "";
+        function done() { document.getElementById("copied-ask").hidden = false; }
+        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(done); }
+        else { window.prompt("Copy:", t); }
+      });
+      return;
+    }
+    if (d.status === "building") {
+      body.hidden = true;
+      state.innerHTML =
+        "<div class='notice'><b>Reading reflections…</b>Scanned " + d.progress.done + " of " +
+        d.progress.total + " modules. This first sweep takes a minute — the tab updates itself.</div>";
+      setTimeout(loadReflections, 2500);
+      return;
+    }
+    /* ready */
+    state.innerHTML = "";
+    body.hidden = false;
+    var flags = d.flags || [];
+    var badge = $("t-flagn");
+    if (flags.length) { badge.hidden = false; badge.textContent = flags.length; }
+    var sg = "";
+    flags.forEach(function (f) {
+      sg +=
+        "<div class='sgrow'><div class='who'>" + esc(f.email) + "</div>" +
+        "<div class='whr'>" + esc(f.courseTitle) + " · " + esc(f.unitTitle) +
+        (f.submittedAt ? " · " + fmtWhen(f.submittedAt) : "") + "</div>" +
+        "<div class='q'>" + esc(f.question || "Free-text answer") + "</div>" +
+        "<blockquote>" + esc(f.answer) + "</blockquote></div>";
+    });
+    $("sg-list").innerHTML = flags.length ? sg :
+      "<div class='sgok'>✓ No crisis language detected in any reflection answers" +
+      (d.scoped ? " in your cohort" : "") + ".</div>";
+    $("reflect-meta").textContent =
+      d.preCount + " learner" + (d.preCount === 1 ? "" : "s") + " completed an initial reflection · " +
+      d.postCount + " completed post-module feedback" + (d.scoped ? " (your cohort)" : "");
+    var shifts = (d.shifts || []).slice().sort(function (a, b) {
+      return (b.shift === null ? -999 : b.shift) - (a.shift === null ? -999 : a.shift);
+    });
+    var out = "";
+    shifts.forEach(function (s) {
+      var hasBoth = s.preAvgPct !== null && s.postAvgPct !== null;
+      var up = hasBoth && s.shift >= 0;
+      var lo = hasBoth ? Math.min(s.preAvgPct, s.postAvgPct) : 0;
+      var hi = hasBoth ? Math.max(s.preAvgPct, s.postAvgPct) : 0;
+      out +=
+        "<div class='shrow'><span class='shname'>" + esc(s.courseTitle) +
+        "<em>" + s.preCount + " pre · " + s.postCount + " post</em></span>" +
+        "<span class='dtrack'>" +
+        "<span class='rail2'></span>" +
+        (hasBoth
+          ? "<span class='fill" + (up ? "" : " down") + "' style='left:" + lo + "%;width:" + Math.max(1, hi - lo) + "%'></span>" +
+            "<span class='dot pre' style='left:calc(" + s.preAvgPct + "% - 7px)'></span>" +
+            "<span class='dot post" + (up ? "" : " down") + "' style='left:calc(" + s.postAvgPct + "% - 7px)'></span>" +
+            "<span class='lab' style='left:" + s.preAvgPct + "%'>" + s.preAvgPct + "</span>" +
+            "<span class='lab' style='left:" + s.postAvgPct + "%'>" + s.postAvgPct + "</span>"
+          : "") +
+        "</span>" +
+        (hasBoth
+          ? "<span class='spill " + (up ? "up" : "down") + "'>" + (s.shift >= 0 ? "+" : "") + s.shift + " pts</span>"
+          : "<span class='spill na'>awaiting post data</span>") +
+        "</div>";
+    });
+    $("shift-list").innerHTML = out ||
+      "<div class='muted' style='padding:20px 0'>No reflection submissions yet — figures appear as learners complete their pre and post reflections.</div>";
+  }
+  function loadReflections() {
+    fetch("/portal/reflections")
+      .then(function (r) { return r.json(); })
+      .then(renderReflections)
+      .catch(function () {
+        $("reflect-state").innerHTML = "<div class='err'>Could not load reflections — try refreshing.</div>";
+      });
+  }
+  loadReflections();
 })();
