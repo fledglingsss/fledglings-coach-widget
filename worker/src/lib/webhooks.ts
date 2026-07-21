@@ -33,7 +33,7 @@ export function verifyWebhookSignature(
 }
 
 export interface WebhookEvent {
-  type: "courseCompleted" | "userUpdated" | "leadCreated";
+  type: "courseCompleted" | "userUpdated" | "leadCreated" | "userTagAdded" | "userTagDeleted";
   email: string;
   name: string;
   tags: string[] | null;
@@ -54,7 +54,13 @@ export function parseWebhookEvent(body: unknown, now: Date): WebhookEvent | null
   if (typeof body !== "object" || body === null) return null;
   const b = body as Record<string, unknown>;
   const type = str(b.type);
-  if (!["courseCompleted", "userUpdated", "leadCreated"].includes(type)) return null;
+  if (
+    !["courseCompleted", "userUpdated", "leadCreated", "userTagAdded", "userTagDeleted"].includes(
+      type,
+    )
+  ) {
+    return null;
+  }
   const data = (typeof b.data === "object" && b.data !== null ? b.data : {}) as Record<
     string,
     unknown
@@ -105,6 +111,8 @@ export function toFeedEntry(
   if (ev.type === "leadCreated") {
     return { kind: "lead", email: ev.email, name: ev.name, detail: "", cohort, at: ev.at };
   }
+  /* Tag changes update the cohort map but never make the feed. */
+  if (ev.type === "userTagAdded" || ev.type === "userTagDeleted") return null;
   /* userUpdated fires for every profile touch — only surface users
    * created in the last 10 minutes as "joined". */
   const nowS = now.getTime() / 1000;

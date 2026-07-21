@@ -114,3 +114,20 @@ describe("pushFeed", () => {
     expect(feed.length).toBe(FEED_MAX);
   });
 });
+
+describe("tag events", () => {
+  it("accepts userTagAdded/Deleted but keeps them out of the feed", () => {
+    const ev = parseWebhookEvent(
+      { type: "userTagAdded", data: { user: { email: "a@b.c", username: "ab" } } },
+      NOW,
+    );
+    expect(ev).not.toBeNull();
+    expect(ev!.type).toBe("userTagAdded");
+    expect(toFeedEntry(ev!, null, NOW)).toBeNull();
+    const del = parseWebhookEvent(
+      { type: "userTagDeleted", data: { user: { email: "a@b.c", username: "ab" } } },
+      NOW,
+    );
+    expect(toFeedEntry(del!, null, NOW)).toBeNull();
+  });
+});

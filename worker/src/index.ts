@@ -1386,16 +1386,26 @@ app.post("/hooks/learnworlds", async (c) => {
     }
   }
 
-  /* Tag changes keep the reflections cohort map fresh. */
-  if (ev.type === "userUpdated" && ev.tags !== null) {
+  /* Tag changes keep the reflections cohort map fresh. userUpdated
+   * carries the full tag list; userTagAdded/Deleted payloads are
+   * unverified, so re-fetch the authoritative tags instead of trusting
+   * the event body. */
+  const tagEvent = ev.type === "userTagAdded" || ev.type === "userTagDeleted";
+  if ((ev.type === "userUpdated" && ev.tags !== null) || tagEvent) {
     try {
-      const raw = await c.env.RATE_LIMITS.get(REFLECT_KV_KEY);
-      if (raw) {
-        const state = JSON.parse(raw) as ReflectionsState;
-        state.userTags[ev.email] = ev.tags;
-        await c.env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
-          expirationTtl: 24 * 3600,
-        });
+      let freshTags = tagEvent ? null : ev.tags;
+      if (freshTags === null && lwConfigured(c.env)) {
+        freshTags = (await getUserByEmail(c.env, ev.email))?.tags ?? null;
+      }
+      if (freshTags !== null) {
+        const raw = await c.env.RATE_LIMITS.get(REFLECT_KV_KEY);
+        if (raw) {
+          const state = JSON.parse(raw) as ReflectionsState;
+          state.userTags[ev.email] = freshTags;
+          await c.env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
+            expirationTtl: 24 * 3600,
+          });
+        }
       }
     } catch {
       /* best-effort */
