@@ -38,14 +38,24 @@ export interface AssessmentUnit {
   kind: ReflectionKind;
 }
 
-/** Classify an assessment unit by title. */
+/** Classify an assessment unit by title.
+ *
+ * Deliberately strict (verified against the live unit inventory,
+ * 2026-07-21): a PRE must be a *reflection* ("Initial Self -
+ * Reflection" / "Initial Self Reflection"), not a knowledge check —
+ * "Initial Knowledge Check" is a quiz and would poison the confidence
+ * shift with a different scale. A POST must be completion
+ * reflection/feedback ("Post Completion Feedback" / "Post Completion
+ * Reflection"); mid-module activity reflections stay out. */
 export function classifyUnit(title: string): ReflectionKind {
   const t = title.toLowerCase();
-  if (/initial|pre[- ]?(module|course|completion)?\s*(self)?[- ]?reflect|baseline|before you start/.test(t)) {
-    return "pre";
-  }
-  if (/post[- ]?(module|course|completion)|completion feedback|final reflect|end of module|closing reflect/.test(t)) {
+  const isReflective = /reflect|feedback/.test(t);
+  if (!isReflective) return "other";
+  if (/post[- ]?(module|course|completion)|completion (feedback|reflection)|final reflect|end of module|closing reflect/.test(t)) {
     return "post";
+  }
+  if (/initial|\bpre[- ]|baseline|before you start/.test(t)) {
+    return "pre";
   }
   return "other";
 }
@@ -179,19 +189,64 @@ export function moduleShift(
   };
 }
 
+/* ---------------- coverage (which units we matched, per module) ---------------- */
+
+/** Per-module record of which assessment units were identified as the
+ * pre/post reflections — so "are we pulling the right things?" has a
+ * checkable answer instead of an assumption. Unmatched assessment unit
+ * titles are listed so naming outliers are visible. */
+export interface CoverageEntry {
+  courseId: string;
+  courseTitle: string;
+  preTitle: string | null;
+  postTitle: string | null;
+  otherTitles: string[];
+}
+
+export function buildCoverage(
+  courseId: string,
+  courseTitle: string,
+  units: Array<{ title: string; type: string }>,
+): CoverageEntry {
+  const entry: CoverageEntry = {
+    courseId,
+    courseTitle,
+    preTitle: null,
+    postTitle: null,
+    otherTitles: [],
+  };
+  for (const u of units) {
+    if (u.type !== "assessmentV2") continue;
+    const kind = classifyUnit(u.title);
+    if (kind === "pre" && entry.preTitle === null) entry.preTitle = u.title;
+    else if (kind === "post" && entry.postTitle === null) entry.postTitle = u.title;
+    else entry.otherTitles.push(u.title);
+  }
+  return entry;
+}
+
 /* ---------------- build-state (incremental sweep) ---------------- */
 
 /** The reflections snapshot is built incrementally across requests to
  * stay inside Workers subrequest limits: each call processes a slice
- * of courses and persists the cursor. */
+ * of courses and persists the cursor. The contents sweep (coverage +
+ * the email->tags map) always completes even when the responses API is
+ * plan-gated, so unit matching is verifiable before LearnWorlds flips
+ * the switch. */
 export interface ReflectionsState {
-  status: "unavailable" | "building" | "ready";
-  /** When unavailable: what to tell LearnWorlds support. */
+  status: "building" | "ready";
+  /** False when GET /v2/assessments/{id}/responses is plan-gated. */
+  responsesEnabled: boolean;
+  /** When gated: what to tell LearnWorlds support. */
   reason?: string;
   cursor: number; // next course index to process
   totalCourses: number;
+  coverage: CoverageEntry[];
   shifts: ModuleShift[];
   flags: SafeguardingFlag[];
+  /** email (lowercased) -> LearnWorlds tags, captured in the same
+   * sweep so cohort scoping never depends on another cache. */
+  userTags: Record<string, string[]>;
   /** emails seen per kind, for the completion stat */
   preRespondents: string[];
   postRespondents: string[];
@@ -201,10 +256,13 @@ export interface ReflectionsState {
 export function emptyState(totalCourses: number, now: Date): ReflectionsState {
   return {
     status: "building",
+    responsesEnabled: true,
     cursor: 0,
     totalCourses,
+    coverage: [],
     shifts: [],
     flags: [],
+    userTags: {},
     preRespondents: [],
     postRespondents: [],
     builtAt: now.toISOString(),

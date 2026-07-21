@@ -183,6 +183,19 @@ td.barcell .mbar{margin-top:0;}
 .spill.up{background:#E7F3EC;color:var(--ok);}
 .spill.down{background:#FCE9E5;color:var(--orange);}
 .spill.na{background:var(--off);color:var(--mut);}
+.cvrow{display:grid;grid-template-columns:minmax(160px,1.4fr) 1fr 1fr;gap:16px;align-items:center;
+  padding:10px 2px;border-bottom:1px solid var(--hair);font-size:13.5px;}
+.cvrow:last-child{border-bottom:none;}
+.cvrow .m{font-weight:600;}
+.cvu{display:inline-flex;align-items:center;gap:7px;color:var(--ink);}
+.cvu i{font-style:normal;font-weight:800;font-size:12px;width:18px;height:18px;border-radius:50%;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;}
+.cvu.ok i{background:#E7F3EC;color:var(--ok);}
+.cvu.miss{color:var(--mut);}
+.cvu.miss i{background:var(--off);color:var(--mut);}
+.cvhead{display:grid;grid-template-columns:minmax(160px,1.4fr) 1fr 1fr;gap:16px;padding:6px 2px;
+  font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
+  border-bottom:2px solid var(--hair);}
 .foot{border-top:1px solid var(--hair);color:var(--mut);font-size:12.5px;text-align:center;padding:22px;}
 .foot b{color:var(--orange);font-weight:700;}
 body:not(.loaded) .content{opacity:.45;transition:opacity .2s;}
@@ -331,6 +344,11 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     /* reflections */
     "<div class='lview' id='lv-reflect'>" +
     "<div id='reflect-state'></div>" +
+    "<div id='coverage-sect' hidden>" +
+    sectionHead("Reflection unit matching", "the exact pre/post units identified in each module") +
+    "<div id='coverage-list'></div>" +
+    "<p class='fineprint'>A dash means no assessment unit in that module matched the pre/post naming — " +
+    "rename the unit in LearnWorlds (e.g. to “Initial Self - Reflection” / “Post Completion Feedback”) and it will be picked up on the next sweep.</p></div>" +
     "<div id='reflect-body' hidden>" +
     sectionHead("Safeguarding flags", "crisis language detected in reflection answers") +
     "<p class='fineprint' style='margin:0 0 16px'>Machine-flagged, not a judgement — the same 33-pattern screen that guards the Fledge coach, " +

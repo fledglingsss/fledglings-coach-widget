@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCoverage,
   classifyUnit,
   emptyState,
   moduleShift,
@@ -47,9 +48,18 @@ const LW_ROW = {
 };
 
 describe("classifyUnit", () => {
-  it("recognises the Fledglings pre/post unit titles", () => {
+  it("recognises every real Fledglings pre/post title (live inventory 2026-07-21)", () => {
     expect(classifyUnit("Initial Self - Reflection")).toBe("pre");
+    expect(classifyUnit("Initial Self Reflection")).toBe("pre");
     expect(classifyUnit("Post Completion Feedback")).toBe("post");
+    expect(classifyUnit("Post Completion Reflection")).toBe("post");
+  });
+
+  it("refuses quizzes and mid-module activities (different measurement scales)", () => {
+    expect(classifyUnit("Initial Knowledge Check")).toBe("other");
+    expect(classifyUnit("Your Initial Knowledge")).toBe("other");
+    expect(classifyUnit("Introduction Test")).toBe("other");
+    expect(classifyUnit("5-Minute Reset Routine Reflection")).toBe("other");
     expect(classifyUnit("The Money Confidence Quiz")).toBe("other");
     expect(classifyUnit("Understanding Your Spending Habits")).toBe("other");
   });
@@ -133,11 +143,38 @@ describe("moduleShift", () => {
 });
 
 describe("emptyState", () => {
-  it("starts a building sweep at course zero", () => {
+  it("starts a building sweep at course zero with responses assumed on", () => {
     const s = emptyState(33, new Date("2026-07-21T12:00:00Z"));
     expect(s.status).toBe("building");
+    expect(s.responsesEnabled).toBe(true);
     expect(s.cursor).toBe(0);
     expect(s.totalCourses).toBe(33);
     expect(s.flags).toEqual([]);
+    expect(s.coverage).toEqual([]);
+    expect(s.userTags).toEqual({});
+  });
+});
+
+describe("buildCoverage", () => {
+  it("maps the real sso-2-2 unit inventory to pre/post/other", () => {
+    const cv = buildCoverage("sso-2-2", "Money Confidence & Everyday Decisions", [
+      { title: "Initial Self - Reflection", type: "assessmentV2" },
+      { title: "Introduction", type: "scorm" },
+      { title: "Understanding Your Spending Habits", type: "assessmentV2" },
+      { title: "The Money Confidence Quiz", type: "assessmentV2" },
+      { title: "Post Completion Feedback", type: "assessmentV2" },
+    ]);
+    expect(cv.preTitle).toBe("Initial Self - Reflection");
+    expect(cv.postTitle).toBe("Post Completion Feedback");
+    expect(cv.otherTitles).toEqual([
+      "Understanding Your Spending Habits",
+      "The Money Confidence Quiz",
+    ]);
+  });
+
+  it("reports missing pre/post as null", () => {
+    const cv = buildCoverage("x", "Module", [{ title: "A Quiz", type: "assessmentV2" }]);
+    expect(cv.preTitle).toBeNull();
+    expect(cv.postTitle).toBeNull();
   });
 });

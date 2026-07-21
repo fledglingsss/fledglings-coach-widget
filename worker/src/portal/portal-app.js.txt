@@ -332,13 +332,39 @@
       return new Date(ts * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
     } catch (e) { return ""; }
   }
+  function renderCoverage(d) {
+    var cov = d.coverage || [];
+    if (!cov.length) { $("coverage-sect").hidden = true; return; }
+    $("coverage-sect").hidden = false;
+    var out = "<div class='cvhead'><span>Module</span><span>Pre reflection</span><span>Post reflection</span></div>";
+    cov.forEach(function (cv) {
+      var pre = cv.preTitle
+        ? "<span class='cvu ok'><i>✓</i>" + esc(cv.preTitle) + "</span>"
+        : "<span class='cvu miss'><i>–</i>not found</span>";
+      var post = cv.postTitle
+        ? "<span class='cvu ok'><i>✓</i>" + esc(cv.postTitle) + "</span>"
+        : "<span class='cvu miss'><i>–</i>not found</span>";
+      out += "<div class='cvrow'><span class='m'>" + esc(cv.courseTitle) + "</span>" + pre + post + "</div>";
+    });
+    $("coverage-list").innerHTML = out;
+  }
   function renderReflections(d) {
     var state = $("reflect-state"), body = $("reflect-body");
-    if (d.status === "unavailable") {
+    if (d.status === "building") {
       body.hidden = true;
       state.innerHTML =
-        "<div class='notice'><b>Reflection answers need one switch flipping at LearnWorlds</b>" +
-        "Your modules collect pre and post self-reflections, but the LearnWorlds plan hasn't got the " +
+        "<div class='notice'><b>Reading reflections…</b>Scanned " + d.progress.done + " of " +
+        d.progress.total + " modules. This first sweep takes a minute — the tab updates itself.</div>";
+      renderCoverage(d);
+      setTimeout(loadReflections, 2500);
+      return;
+    }
+    renderCoverage(d);
+    if (d.responsesEnabled === false) {
+      body.hidden = true;
+      state.innerHTML =
+        "<div class='notice' style='margin-bottom:26px'><b>Answers need one switch flipping at LearnWorlds</b>" +
+        "The reflection units below are all located and ready — but the LearnWorlds plan hasn't got the " +
         "Assessments API endpoints enabled, so their answers can't be read yet. Send LearnWorlds support this:" +
         "<div class='ask' id='lw-ask'>" + esc(d.reason || "") + "</div>" +
         "<button class='copybtn' id='copy-ask'>Copy message</button><span class='copied' id='copied-ask' hidden>Copied ✓</span>" +
@@ -352,15 +378,7 @@
       });
       return;
     }
-    if (d.status === "building") {
-      body.hidden = true;
-      state.innerHTML =
-        "<div class='notice'><b>Reading reflections…</b>Scanned " + d.progress.done + " of " +
-        d.progress.total + " modules. This first sweep takes a minute — the tab updates itself.</div>";
-      setTimeout(loadReflections, 2500);
-      return;
-    }
-    /* ready */
+    /* ready with answers */
     state.innerHTML = "";
     body.hidden = false;
     var flags = d.flags || [];
@@ -369,7 +387,8 @@
     var sg = "";
     flags.forEach(function (f) {
       sg +=
-        "<div class='sgrow'><div class='who'>" + esc(f.email) + "</div>" +
+        "<div class='sgrow'><div class='who'>" + esc(f.email) +
+        (f.cohort ? " <span class='wdays'>" + esc(f.cohort) + "</span>" : "") + "</div>" +
         "<div class='whr'>" + esc(f.courseTitle) + " · " + esc(f.unitTitle) +
         (f.submittedAt ? " · " + fmtWhen(f.submittedAt) : "") + "</div>" +
         "<div class='q'>" + esc(f.question || "Free-text answer") + "</div>" +

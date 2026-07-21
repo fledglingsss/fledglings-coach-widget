@@ -58,6 +58,7 @@ import {
   type LwUserCourse,
 } from "./lib/learnworlds";
 import {
+  buildCoverage,
   classifyUnit,
   emptyState,
   moduleShift,
@@ -1049,7 +1050,7 @@ async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport
  * snapshot is whole-school, filtered per scope at read time.
  * ================================================================== */
 
-const REFLECT_KV_KEY = "portal:reflect:v1";
+const REFLECT_KV_KEY = "portal:reflect:v3";
 const REFLECT_MAX_AGE_MS = 6 * 3600 * 1000;
 const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
 const LW_SUPPORT_ASK =
@@ -1069,20 +1070,42 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
   const courseEntries = Object.entries(COURSE_MAP).filter(
     (e): e is [string, string] => e[1] !== null,
   );
-  if (state === null || stale || state.totalCourses !== courseEntries.length) {
+  if (
+    state === null ||
+    stale ||
+    state.totalCourses !== courseEntries.length ||
+    state.userTags === undefined // pre-v2 cached shape
+  ) {
     state = emptyState(courseEntries.length, now);
   }
-  if (state.status === "ready" || state.status === "unavailable") return state;
+  if (state.status === "ready") return state;
 
   let calls = 0;
+
+  /* First step of a fresh sweep: capture email -> tags for every
+   * learner (1 call per 100 users) so cohort scoping is self-contained. */
+  if (state.cursor === 0 && Object.keys(state.userTags).length === 0) {
+    try {
+      const users = await listAllUsers(env, 5);
+      calls += Math.max(1, Math.ceil(users.length / 100));
+      for (const u of users) {
+        if (u.email) state.userTags[u.email.toLowerCase()] = u.tags ?? [];
+      }
+    } catch {
+      /* tags map is best-effort; scoping falls back to empty */
+    }
+  }
+
   while (state.cursor < courseEntries.length && calls < REFLECT_CALL_BUDGET) {
     const [courseTitle, courseId] = courseEntries[state.cursor]!;
     try {
       calls++;
       const units = await getCourseContents(env, courseId);
+      state.coverage.push(buildCoverage(courseId, courseTitle, units));
       const pre: ReflectionResponse[] = [];
       const post: ReflectionResponse[] = [];
       for (const u of units) {
+        if (state.responsesEnabled === false) break;
         if (u.type !== "assessmentV2") continue;
         const kind = classifyUnit(u.title);
         if (kind === "other") continue;
@@ -1098,13 +1121,11 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
           calls++;
           const res = await getAssessmentResponses(env, u.id, page);
           if (res === null) {
-            state.status = "unavailable";
+            /* Plan-gated: record it, keep sweeping contents-only so the
+             * coverage table still completes. */
+            state.responsesEnabled = false;
             state.reason = LW_SUPPORT_ASK;
-            state.builtAt = now.toISOString();
-            await env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
-              expirationTtl: 6 * 3600,
-            });
-            return state;
+            break;
           }
           for (const raw of res.rows) {
             const parsed = parseResponse(raw);
@@ -1141,33 +1162,29 @@ app.get("/portal/reflections", async (c) => {
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const state = await advanceReflections(c.env);
-    /* Scope filtering: flags + respondent counts are limited to the
-     * cohort for tag-scoped codes (via the risk snapshot's tag map). */
-    let flags = state.flags;
+    /* Scope filtering uses the email->tags map captured in the same
+     * sweep — no dependency on any other cache. Flags are annotated
+     * with the learner's cohort tag either way. */
+    const tagsOf = (email: string): string[] =>
+      state.userTags[email.toLowerCase()] ?? [];
+    let flags = state.flags.map((f) => ({
+      ...f,
+      cohort: cohortTag(tagsOf(f.email)),
+    }));
     let preCount = state.preRespondents.length;
     let postCount = state.postRespondents.length;
     if (access.tag) {
-      const riskRaw = await c.env.RATE_LIMITS.get(RISK_CACHE_KEY);
-      const risk = riskRaw
-        ? (JSON.parse(riskRaw) as { learners?: Array<{ email: string; tags?: string[] }> })
-        : null;
-      const cohortEmails = new Set(
-        (risk?.learners ?? [])
-          .filter((l) => inScope(l.tags, access.tag))
-          .map((l) => l.email.toLowerCase()),
-      );
-      flags = flags.filter((f) => cohortEmails.has(f.email.toLowerCase()));
-      preCount = state.preRespondents.filter((e) =>
-        cohortEmails.has(e.toLowerCase()),
-      ).length;
-      postCount = state.postRespondents.filter((e) =>
-        cohortEmails.has(e.toLowerCase()),
-      ).length;
+      const tag = access.tag;
+      flags = flags.filter((f) => inScope(tagsOf(f.email), tag));
+      preCount = state.preRespondents.filter((e) => inScope(tagsOf(e), tag)).length;
+      postCount = state.postRespondents.filter((e) => inScope(tagsOf(e), tag)).length;
     }
     return c.json({
       status: state.status,
+      responsesEnabled: state.responsesEnabled,
       reason: state.reason ?? null,
       progress: { done: state.cursor, total: state.totalCourses },
+      coverage: state.coverage,
       shifts: state.shifts,
       flags,
       preCount,
