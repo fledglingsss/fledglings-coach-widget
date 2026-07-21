@@ -18,15 +18,23 @@
 
   /* ---- tabs ---- */
   var tabs = document.querySelectorAll(".ltab");
-  tabs.forEach(function (t) {
-    t.addEventListener("click", function () {
-      tabs.forEach(function (x) { x.classList.remove("on"); x.setAttribute("aria-selected", "false"); });
-      t.classList.add("on");
-      t.setAttribute("aria-selected", "true");
-      document.querySelectorAll(".lview").forEach(function (v) { v.classList.remove("on"); });
-      $("lv-" + t.dataset.v).classList.add("on");
+  function goTab(name) {
+    tabs.forEach(function (x) {
+      var on = x.dataset.v === name;
+      x.classList.toggle("on", on);
+      x.setAttribute("aria-selected", String(on));
     });
+    document.querySelectorAll(".lview").forEach(function (v) { v.classList.remove("on"); });
+    $("lv-" + name).classList.add("on");
+    window.scrollTo({ top: 0 });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () { goTab(t.dataset.v); });
   });
+  var aAll = $("action-all");
+  if (aAll) aAll.addEventListener("click", function () { goTab("warning"); });
+  var mAll = $("mods-all");
+  if (mAll) mAll.addEventListener("click", function () { goTab("modules"); });
 
   var DATA = null;
   var FILTER = null; // client-side cohort filter (whole-school codes only)
@@ -82,20 +90,69 @@
     badge.hidden = attn === 0;
   }
 
-  /* ---- cohort pulse (segmented bar) ---- */
+  /* ---- who needs you today (top 5 most urgent) ---- */
+  function renderActions() {
+    var list = learners().filter(function (a) {
+      return a.tier === "high" || a.tier === "medium" || a.tier === "watch";
+    });
+    var count = $("action-count");
+    count.hidden = list.length === 0;
+    count.textContent = list.length + " flagged";
+    var top = list.slice(0, 5);
+    if (!top.length) {
+      $("action-list").innerHTML =
+        "<div class='aok'>✓ Nobody needs chasing today — everyone is engaged or brand new.</div>";
+      return;
+    }
+    var out = "";
+    top.forEach(function (a, i) {
+      var days = a.daysSinceLogin === null ? "never" : a.daysSinceLogin + "d";
+      var initials = (a.name || "?").split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join("").toUpperCase() || "?";
+      out +=
+        "<div class='arow'>" +
+        "<span class='wava" + (a.tier === "watch" ? " cool" : "") + "'>" + esc(initials) + "</span>" +
+        "<span class='aname'>" + esc(a.name) + "<em>" + (a.cohort ? esc(a.cohort) : esc(a.email)) + "</em></span>" +
+        "<span class='areason'>" + esc(a.reasons[0] || "") + "</span>" +
+        "<span class='wdays " + (a.daysSinceLogin === null || a.daysSinceLogin > 20 ? "hot" : "") + "'>" + days + "</span>" +
+        "<button class='abtn2' data-a='" + i + "'>Copy nudge</button>" +
+        "</div>";
+    });
+    $("action-list").innerHTML = out;
+    document.querySelectorAll("#action-list .abtn2").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var a = top[+b.dataset.a];
+        function done() { b.textContent = "Copied ✓"; setTimeout(function () { b.textContent = "Copy nudge"; }, 2200); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(a.nudge).then(done, function () { window.prompt("Copy the nudge:", a.nudge); });
+        } else { window.prompt("Copy the nudge:", a.nudge); }
+      });
+    });
+  }
+
+  /* ---- cohort pulse (stacked bar + plain-English legend rows) ---- */
+  var TIER_DEF = {
+    high: "21+ days quiet, or never logged in",
+    medium: "10–20 days since last visit",
+    watch: "5–9 days, or active without finishing",
+    new: "joined within the last week",
+    ok: "active in the last 7 days",
+  };
   function renderPulse() {
     var sm = FILTER ? summarise(learners()) : DATA.risk.summary;
     var total = sm.learners || 1;
     var seg = "";
-    var lab = "";
+    var rows = "";
     ORDER.forEach(function (k) {
       var n = sm.tiers[k] || 0;
-      if (!n) return;
-      seg += "<i style='width:" + (n * 100 / total) + "%;background:" + TIER[k].c + "'></i>";
-      lab += "<span class='pl'><i style='background:" + TIER[k].c + "'></i>" + TIER[k].l + " <b>" + n + "</b></span>";
+      if (n) seg += "<i style='width:" + (n * 100 / total) + "%;background:" + TIER[k].c + "'></i>";
+      rows +=
+        "<div class='plr'><i style='background:" + TIER[k].c + "'></i>" +
+        "<span class='n'>" + TIER[k].l + "</span>" +
+        "<span class='d'>" + TIER_DEF[k] + "</span>" +
+        "<span class='v'>" + n + "</span></div>";
     });
     $("pulse-bar").innerHTML = seg;
-    $("pulse-legend").innerHTML = lab;
+    $("pulse-legend").innerHTML = rows;
   }
 
   /* ---- engagement trend (area chart) ---- */
@@ -171,13 +228,12 @@
       var pct = r.enrolled ? Math.round(r.completed * 100 / r.enrolled) : 0;
       var pcol = pct >= 70 ? "#1B7A4B" : pct >= 40 ? "#13507F" : "#D9452B";
       mini +=
-        "<div class='mrow'><span class='mrank'>" + String(i + 1).padStart(2, "0") + "</span>" +
-        "<span class='mtitle'>" + esc(r.title) + "<em>" + r.enrolled + " enrolled · " + r.completed + " completed</em></span>" +
-        "<span class='mpct' style='color:" + pcol + "'>" + pct + "%</span>" +
-        "<span class='mbar'><i style='width:" + pct + "%'></i></span></div>";
+        "<div class='mmr'><span class='rk'>" + String(i + 1).padStart(2, "0") + "</span>" +
+        "<span class='ti'>" + esc(r.title) + "<em>" + r.enrolled + " enrolled</em></span>" +
+        "<span class='mbar'><i style='width:" + pct + "%'></i></span>" +
+        "<span class='pc' style='color:" + pcol + "'>" + pct + "%</span></div>";
     });
     $("mods-mini").innerHTML = mini || "<p class='muted'>No module activity in the sample yet.</p>";
-    $("mods-note").hidden = !FILTER;
 
     var table = "";
     rows.forEach(function (r) {
@@ -273,6 +329,7 @@
 
   function renderAll() {
     renderLedger();
+    renderActions();
     renderPulse();
     renderTrend();
     renderRecency();
