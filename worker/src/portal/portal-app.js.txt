@@ -629,6 +629,55 @@
   loadFeed();
   setInterval(loadFeed, 30000);
 
+  /* ---------- module health (where learners stall) ---------- */
+  function renderModuleHealth(d) {
+    var host = $("mh-list");
+    if (!host) return;
+    if (d.error) { host.innerHTML = "<div class='err'>Could not load module health.</div>"; return; }
+    if (d.status === "building") {
+      host.textContent = "Analysing unit-level engagement — module " + d.progress.done + " of " + d.progress.total + "…";
+      setTimeout(loadModuleHealth, 2500);
+      return;
+    }
+    var reports = d.reports || [];
+    if (!reports.length) {
+      host.innerHTML = "<p class='muted'>Not enough unit-level activity yet — this fills in as learners work through modules.</p>";
+      return;
+    }
+    var out = "";
+    reports.forEach(function (r) {
+      var band = r.retention >= 70 ? "good" : r.retention >= 40 ? "mid" : "bad";
+      var max = Math.max.apply(null, r.funnel.concat([1]));
+      /* mark the bar with the biggest onward loss in mango */
+      var lossIdx = -1, worst = 0;
+      for (var i = 0; i < r.funnel.length - 1; i++) {
+        if (r.funnel[i] >= 3) {
+          var loss = (r.funnel[i] - r.funnel[i + 1]) / r.funnel[i];
+          if (loss > worst) { worst = loss; lossIdx = i; }
+        }
+      }
+      var bars = r.funnel.map(function (v, j) {
+        return "<i" + (j === lossIdx && r.stallUnit ? " class='low'" : "") +
+          " style='height:" + Math.max(8, Math.round(v * 100 / max)) + "%'></i>";
+      }).join("");
+      out +=
+        "<div class='mhrow'><span class='mhname'>" + esc(r.title) +
+        "<em>" + r.starters + " started · " + r.finishers + " reached the end" +
+        (r.stallUnit ? " · <b>" + r.stallLossPct + "% stop at “" + esc(r.stallUnit) + "”</b>" : "") +
+        "</em></span>" +
+        "<span class='funnel' title='Learners remaining at each unit'>" + bars + "</span>" +
+        "<span class='mhret " + band + "'>" + r.retention + "% finish</span></div>";
+    });
+    host.innerHTML = out;
+  }
+  function loadModuleHealth() {
+    fetch("/portal/module-health")
+      .then(function (r) { return r.json(); })
+      .then(renderModuleHealth)
+      .catch(function () {});
+  }
+  loadModuleHealth();
+
   function loadReflections() {
     fetch("/portal/reflections")
       .then(function (r) { return r.json(); })

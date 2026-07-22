@@ -622,3 +622,27 @@ export async function accurateUserCourses(
       completed: r.status === "completed",
     }));
 }
+
+/** Per-unit analytics (school-wide). Returns null on 404 (unit with
+ * no analytics yet). */
+export async function getUnitAnalytics(
+  env: LwEnv,
+  courseId: string,
+  unitId: string,
+): Promise<{ viewers: number; completed: number; avgTimeSecs: number } | null> {
+  const res = await lwRequest(
+    env,
+    "GET",
+    `/courses/${encodeURIComponent(courseId)}/units/${encodeURIComponent(unitId)}/analytics`,
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`LearnWorlds unit analytics failed: HTTP ${res.status}`);
+  const payload = (await res.json()) as Record<string, unknown>;
+  return {
+    viewers: typeof payload.viewers === "number" ? payload.viewers : 0,
+    completed:
+      typeof payload.users_completed === "number" ? payload.users_completed : 0,
+    avgTimeSecs:
+      typeof payload.avg_study_time === "number" ? payload.avg_study_time : 0,
+  };
+}

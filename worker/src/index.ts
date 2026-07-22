@@ -47,6 +47,7 @@ import {
   findUserByEmail,
   getAssessmentResponses,
   getCourseContents,
+  getUnitAnalytics,
   getUserByEmail,
   getUserCourses,
   listCourses,
@@ -114,6 +115,12 @@ import {
   parseInterviewReport,
   validateInterviewRequest,
 } from "./lib/interview";
+import {
+  emptyHealthState,
+  healthSummary,
+  type ModuleHealthState,
+  type UnitHealth,
+} from "./lib/module-health";
 import {
   parseWebhookEvent,
   pushFeed,
@@ -1698,6 +1705,85 @@ app.get("/portal/data", async (c) => {
     return c.json(payload);
   } catch (err) {
     console.error("[coach] portal data error:", String(err));
+    return c.json({ error: "service_error" });
+  }
+});
+
+/* ==================================================================
+ * Module health — per-unit stall analysis (school-wide analytics),
+ * swept incrementally and cached a day.
+ * ================================================================== */
+
+const MH_KV_KEY = "portal:mh:v1";
+const MH_MAX_AGE_MS = 24 * 3600 * 1000;
+const MH_CALL_BUDGET = 26; // checked at course boundaries; a course adds 1 + its unit count
+
+async function advanceModuleHealth(env: Env): Promise<ModuleHealthState> {
+  const now = new Date();
+  let state: ModuleHealthState | null = JSON.parse(
+    (await env.RATE_LIMITS.get(MH_KV_KEY)) || "null",
+  );
+  const courseEntries = Object.entries(COURSE_MAP).filter(
+    (e): e is [string, string] => e[1] !== null,
+  );
+  const stale =
+    state !== null &&
+    now.getTime() - new Date(state.builtAt).getTime() > MH_MAX_AGE_MS;
+  if (state === null || stale || state.totalCourses !== courseEntries.length) {
+    state = emptyHealthState(courseEntries.length, now);
+  }
+  if (state.status === "ready") return state;
+  let calls = 0;
+  while (state.cursor < courseEntries.length && calls < MH_CALL_BUDGET) {
+    const [courseTitle, courseId] = courseEntries[state.cursor]!;
+    if (state.courses.some((cs) => cs.courseId === courseId)) {
+      state.cursor++;
+      continue;
+    }
+    try {
+      calls++;
+      const units = await getCourseContents(env, courseId);
+      const healths: UnitHealth[] = [];
+      for (const u of units) {
+        if (/certificate/i.test(u.type)) continue;
+        calls++;
+        const a = await getUnitAnalytics(env, courseId, u.id);
+        healths.push({
+          name: u.title,
+          type: u.type,
+          viewers: a?.viewers ?? 0,
+          completed: a?.completed ?? 0,
+          avgTimeSecs: a?.avgTimeSecs ?? 0,
+        });
+      }
+      state.courses.push({ courseId, title: courseTitle, units: healths });
+    } catch {
+      /* one broken course never sinks the sweep */
+    }
+    state.cursor++;
+  }
+  if (state.cursor >= courseEntries.length) state.status = "ready";
+  state.builtAt = now.toISOString();
+  await env.RATE_LIMITS.put(MH_KV_KEY, JSON.stringify(state), {
+    expirationTtl: 48 * 3600,
+  });
+  return state;
+}
+
+app.get("/portal/module-health", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
+  try {
+    const state = await advanceModuleHealth(c.env);
+    return c.json({
+      status: state.status,
+      progress: { done: state.cursor, total: state.totalCourses },
+      reports: healthSummary(state),
+      builtAt: state.builtAt,
+    });
+  } catch (err) {
+    console.error("[coach] module-health error:", String(err));
     return c.json({ error: "service_error" });
   }
 });

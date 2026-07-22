@@ -259,6 +259,21 @@ td.barcell .mbar{margin:0;}
 .abtn.ghost{background:#fff;color:var(--navy);border:1px solid var(--hair);}
 .err{background:#FFF2EE;border-left:4px solid var(--orange);border-radius:0 10px 10px 0;padding:13px 16px;
   font-size:13px;margin-bottom:18px;}
+/* module health */
+.mhrow{display:grid;grid-template-columns:minmax(160px,1.3fr) 1fr auto;gap:16px;align-items:center;
+  padding:13px 0;border-bottom:1px solid #F1ECE8;}
+.mhrow:last-child{border-bottom:none;}
+.mhname{font-size:14px;font-weight:700;}
+.mhname em{display:block;font-style:normal;font-size:12px;color:var(--mut);font-weight:500;margin-top:2px;line-height:1.45;}
+.mhname em b{color:var(--orange);font-weight:700;}
+.funnel{display:flex;align-items:flex-end;gap:3px;height:36px;}
+.funnel i{flex:1;background:#CFE0EE;border-radius:3px 3px 0 0;min-height:3px;}
+.funnel i.low{background:var(--mango);}
+.mhret{font-weight:800;font-size:14px;border-radius:999px;padding:5px 13px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.mhret.good{background:#E7F3EC;color:var(--ok);}
+.mhret.mid{background:#FBF0E2;color:#B96A16;}
+.mhret.bad{background:#FCE9E5;color:var(--orange);}
+@media(max-width:700px){.mhrow{grid-template-columns:1fr auto;}.mhrow .funnel{grid-column:1/-1;}}
 /* ops console */
 .srow{padding:7px 0;border-bottom:1px solid #F1ECE8;font-size:13.5px;color:var(--ink);}
 .srow:last-child{border-bottom:none;}
@@ -675,6 +690,12 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     "</div>" +
     /* ---- MODULES ---- */
     "<div class='lview' id='lv-modules'><div class='grid12'>" +
+    panel({
+      span: "s12",
+      title: "Where learners stall",
+      caption: "unit-by-unit drop-off inside each module (whole-school figures) — the fix-first list for content improvement",
+      body: "<div id='mh-list' class='muted'>Loading…</div>",
+    }) +
     panel({
       span: "s12",
       title: "Module engagement",
