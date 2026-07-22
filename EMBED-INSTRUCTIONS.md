@@ -51,3 +51,17 @@ browser — no audio is recorded or uploaded), and get a scored
 STAR-style report. Typing fallback exists for unsupported browsers or
 denied mic permission. 3 interviews per learner per day; crisis
 language routes to signposting instead of scoring.
+
+## CV & LinkedIn review — `tools-embed.html`
+
+**Where:** a page or embed activity for logged-in learners.
+Upload-only review with scored report; PDFs are read in the learner's
+browser and never uploaded. `allow="clipboard-write"` keeps copy
+buttons working inside the iframe. 5 reviews/learner/day; crisis
+language routes to signposting.
+
+## The Learner Games — `challenge-embed.html`
+
+**Where:** any learner-facing page. Aggregate-only (cohort names and
+completion counts — never learners), safe anywhere logged-in learners
+can see. Scores update live from module completions.

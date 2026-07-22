@@ -1,0 +1,13 @@
+<div id="fl-tools" style="width:100%;"></div>
+<script>
+  (function () {
+    var frame = document.createElement("iframe");
+    frame.src = "https://fledglings-coach.fledglings.workers.dev/tools";
+    frame.title = "CV & LinkedIn review";
+    frame.style.cssText =
+      "width:100%;height:1750px;border:none;border-radius:12px;display:block;";
+    frame.setAttribute("loading", "lazy");
+    frame.setAttribute("allow", "clipboard-write");
+    document.getElementById("fl-tools").appendChild(frame);
+  })();
+</script>
