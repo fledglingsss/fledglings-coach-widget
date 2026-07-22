@@ -451,6 +451,23 @@ export function renderOpsPage(label: string): string {
     "<div class='c'>instantly pauses Fledge everywhere — learners see the 'currently unavailable' message</div></div></div>" +
     "<div class='pb'><div id='kill-state' class='muted' style='margin-bottom:12px'>…</div>" +
     "<button class='abtn' id='kill-btn' type='button'>…</button></div></section>" +
+    "<section class='panel s12'><div class='ph'><div><div class='t'>Onboard a cohort</div>" +
+    "<div class='c'>paste learners as <b>email, name</b> (one per line) — dry-run shows exactly what will happen before anything is created. " +
+    "Existing accounts are never modified.</div></div></div>" +
+    "<div class='pb'>" +
+    "<textarea id='ob-rows' rows='6' placeholder='sak.awan@college.ac.uk, Sak Awan&#10;jamie.l@college.ac.uk, Jamie Lee' " +
+    "style='width:100%;border:1.5px solid var(--hair);border-radius:10px;padding:12px;font-family:ui-monospace,Consolas,monospace;font-size:13px'></textarea>" +
+    "<div class='opsrow' style='margin-top:12px'>" +
+    "<input id='ob-tag' placeholder='Cohort tag (e.g. Swift Learners)' maxlength='60'>" +
+    "<input id='ob-mods' placeholder='Starter modules, comma-separated exact titles (optional, max 3)'>" +
+    "</div>" +
+    "<label style='display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;margin:12px 0'>" +
+    "<input type='checkbox' id='ob-email' style='width:17px;height:17px'> Send each learner LearnWorlds' welcome email with their sign-in link</label>" +
+    "<div class='actions'>" +
+    "<button class='abtn sec' id='ob-dry' type='button'>Dry run (no changes)</button>" +
+    "<button class='abtn' id='ob-go' type='button' disabled>Create cohort</button>" +
+    "<span class='muted' id='ob-prog'></span></div>" +
+    "<div id='ob-out' style='margin-top:14px'></div></div></section>" +
     "<section class='panel s7'><div class='ph'><div><div class='t'>Maintenance</div>" +
     "<div class='c'>safe to use any time — data rebuilds automatically on the next visit</div></div></div>" +
     "<div class='pb'><div class='actions'>" +
@@ -492,6 +509,35 @@ export function renderOpsPage(label: string): string {
     "act('mint_code',{label:l,tag:$('mint-tag').value.trim()},function(j){" +
     "if(j&&j.ok){$('mint-out').innerHTML=\"New code (share securely): <code style='font-weight:700'>\"+esc(j.code)+'</code>';" +
     "$('mint-label').value='';$('mint-tag').value='';}load();});};" +
+    /* ---- cohort onboarding ---- */
+    "function obRows(){return $('ob-rows').value.split(/\\n+/).map(function(l){" +
+    "var p=l.split(',');return {email:(p[0]||'').trim(),name:(p.slice(1).join(',')||'').trim()};" +
+    "}).filter(function(r){return r.email});}" +
+    "function obMods(){return $('ob-mods').value.split(',').map(function(m){return m.trim()}).filter(Boolean).slice(0,3);}" +
+    "function obRender(all){var out='';all.forEach(function(r){" +
+    "var col=r.action==='created'||r.action==='would_create'?'#1B7A4B':" +
+    "r.action==='exists_skipped'?'#B96A16':'#D9452B';" +
+    "out+=\"<div class='srow'><b style='color:\"+col+\"'>\"+esc(r.action)+'</b> '+esc(r.email)+" +
+    "(r.username?' · username '+esc(r.username):'')+" +
+    "(r.enrolled&&r.enrolled.length?' · enrolled: '+esc(r.enrolled.join(', ')):'')+" +
+    "(r.modules&&r.modules.length?' · will enrol: '+esc(r.modules.join(', ')):'')+" +
+    "(r.welcomeEmail!==undefined?(r.welcomeEmail?' · welcome email':' · NO welcome email'):'')+" +
+    "(r.note?' · '+esc(r.note):'')+'</div>'});" +
+    "$('ob-out').innerHTML=out;}" +
+    "function obRun(dry,then){var rows=obRows();if(!rows.length){alert('Paste at least one email, name line.');return;}" +
+    "var all=[];var chunks=[];for(var i=0;i<rows.length;i+=8)chunks.push(rows.slice(i,i+8));" +
+    "var idx=0;function step(){if(idx>=chunks.length){$('ob-prog').textContent='';obRender(all);if(then)then(all);return;}" +
+    "$('ob-prog').textContent='Batch '+(idx+1)+' of '+chunks.length+'…';" +
+    "fetch('/ops/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
+    "op:'onboard',rows:chunks[idx],tag:$('ob-tag').value.trim(),modules:obMods()," +
+    "send_email:$('ob-email').checked,dry_run:dry})})" +
+    ".then(function(r){return r.json()}).then(function(j){all=all.concat((j&&j.results)||[]);idx++;step();})" +
+    ".catch(function(){$('ob-prog').textContent='Batch failed — results so far shown.';obRender(all);});}" +
+    "step();}" +
+    "$('ob-dry').onclick=function(){obRun(true,function(){$('ob-go').disabled=false;});};" +
+    "$('ob-go').onclick=function(){var n=obRows().length;" +
+    "if(!confirm('Create '+n+' learner account'+(n===1?'':'s')+' in LearnWorlds now?'+($('ob-email').checked?' Welcome emails WILL be sent.':' No emails will be sent.')))return;" +
+    "obRun(false);};" +
     "$('bust-btn').onclick=function(){act('bust_caches',null,function(){flash();load();});};" +
     "$('feed-btn').onclick=function(){act('clear_feed',null,function(){flash();});};" +
     "load();" +

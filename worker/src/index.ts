@@ -43,6 +43,7 @@ import { COURSE_MAP, courseIdFor } from "./lib/course-map";
 import {
   accurateUserCourses,
   courseTitleMap,
+  createUser,
   enrolUserInCourse,
   findUserByEmail,
   getAssessmentResponses,
@@ -107,6 +108,7 @@ import {
 } from "./pages";
 import { renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
+import { renderChallengePage, type ChallengeRow } from "./pages-challenge";
 import { renderInterviewPage } from "./pages-interview";
 import {
   INTERVIEW_CAPS,
@@ -1470,6 +1472,25 @@ app.post("/hooks/learnworlds", async (c) => {
     }
   }
 
+  /* Completions also score a point in the month's Learner Games. */
+  if (ev.type === "courseCompleted" && cohort) {
+    try {
+      const month = now.toISOString().slice(0, 7);
+      const slug = cohort.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const key = `challenge:${month}:${slug}`;
+      const prev = JSON.parse(
+        (await c.env.RATE_LIMITS.get(key)) || "null",
+      ) as { cohort: string; count: number } | null;
+      await c.env.RATE_LIMITS.put(
+        key,
+        JSON.stringify({ cohort, count: (prev?.count ?? 0) + 1 }),
+        { expirationTtl: 90 * 24 * 3600 },
+      );
+    } catch {
+      /* the games are best-effort */
+    }
+  }
+
   /* Completions bump the cohort leaderboard live (same entry shape the
    * Skills Passport maintains on visit). */
   if (ev.type === "courseCompleted" && cohort) {
@@ -1584,6 +1605,34 @@ app.post("/api/next-step", async (c) => {
     console.error("[coach] next-step error:", String(err));
     return c.json({ ok: false });
   }
+});
+
+/* The Learner Games — monthly cohort completions race (aggregate-only,
+ * embeddable). Scored live by the completion webhooks. */
+app.get("/challenge", async (c) => {
+  const now = new Date();
+  const month = now.toISOString().slice(0, 7);
+  const monthLabel = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const rows: ChallengeRow[] = [];
+  try {
+    const list = await c.env.RATE_LIMITS.list({ prefix: `challenge:${month}:` });
+    for (const key of list.keys) {
+      const raw = await c.env.RATE_LIMITS.get(key.name);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw) as { cohort?: string; count?: number };
+        if (parsed.cohort && typeof parsed.count === "number") {
+          rows.push({ cohort: parsed.cohort, count: parsed.count });
+        }
+      } catch {
+        /* skip malformed */
+      }
+    }
+  } catch {
+    /* empty board is fine */
+  }
+  rows.sort((a, b) => b.count - a.count);
+  return c.html(renderChallengePage(monthLabel, rows.slice(0, 12)), 200, FRAME_HEADERS);
 });
 
 /* #8 — personalised instant demo (outreach landing page). Public,
@@ -1901,6 +1950,88 @@ app.post("/ops/action", async (c) => {
       }
       console.log(`[coach] kind=ops op=bust_caches deleted=${deleted}`);
       return c.json({ ok: true, deleted });
+    }
+    if (op === "onboard") {
+      /* Cohort onboarding: batch of up to 8 rows per request (the ops
+       * page chunks larger CSVs). dry_run previews without writing. */
+      const rows = Array.isArray(body.rows) ? body.rows.slice(0, 8) : [];
+      const tag = (typeof body.tag === "string" ? body.tag : "").trim().slice(0, 60);
+      const moduleTitles = (Array.isArray(body.modules) ? body.modules : [])
+        .filter((m): m is string => typeof m === "string")
+        .slice(0, 3);
+      const sendEmail = body.send_email === true;
+      const dryRun = body.dry_run === true;
+      if (rows.length === 0) return c.json({ error: "no_rows" }, 400);
+      const moduleIds = moduleTitles
+        .map((t) => ({ title: t, id: courseIdFor(t.trim()) }))
+        .filter((m): m is { title: string; id: string } => Boolean(m.id));
+      const results: Array<Record<string, unknown>> = [];
+      for (const raw of rows) {
+        const row = raw as Record<string, unknown>;
+        const email =
+          typeof row.email === "string" ? row.email.trim().toLowerCase() : "";
+        const name = typeof row.name === "string" ? row.name.trim() : "";
+        if (!EMAIL_PATTERN.test(email)) {
+          results.push({ email, action: "invalid_email" });
+          continue;
+        }
+        const username =
+          name.replace(/\s+/g, "").toLowerCase().slice(0, 30) ||
+          email.split("@")[0]!.replace(/[^a-z0-9]/gi, "").slice(0, 30);
+        try {
+          const existing = await getUserByEmail(c.env, email);
+          if (existing) {
+            results.push({
+              email,
+              action: "exists_skipped",
+              note: "already registered — add their cohort tag in LearnWorlds admin if needed",
+            });
+            continue;
+          }
+          if (dryRun) {
+            results.push({
+              email,
+              action: "would_create",
+              username,
+              tags: tag ? [tag] : [],
+              modules: moduleIds.map((m) => m.title),
+              welcomeEmail: sendEmail,
+            });
+            continue;
+          }
+          const created = await createUser(c.env, {
+            email,
+            username,
+            tags: tag ? [tag] : [],
+            sendRegistrationEmail: sendEmail,
+          });
+          if (!created.ok) {
+            results.push({ email, action: "create_failed", note: created.reason });
+            continue;
+          }
+          const enrolled: string[] = [];
+          for (const m of moduleIds) {
+            try {
+              await enrolUserInCourse(
+                c.env,
+                created.id,
+                m.id,
+                "Cohort onboarding by provider (founder-confirmed batch)",
+              );
+              enrolled.push(m.title);
+            } catch {
+              /* enrolment failure never blocks the rest */
+            }
+          }
+          results.push({ email, action: "created", username, enrolled });
+          console.log(
+            `[coach] kind=ops op=onboard email_hash=${(await hashLearnerId(email)).slice(0, 8)} tag=${tag || "-"} enrolled=${enrolled.length}`,
+          );
+        } catch (err) {
+          results.push({ email, action: "error", note: String(err).slice(0, 120) });
+        }
+      }
+      return c.json({ ok: true, dryRun, results });
     }
     if (op === "clear_feed") {
       await kv.put(FEED_KV_KEY, "[]");

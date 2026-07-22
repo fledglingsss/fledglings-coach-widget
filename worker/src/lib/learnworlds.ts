@@ -646,3 +646,30 @@ export async function getUnitAnalytics(
       typeof payload.avg_study_time === "number" ? payload.avg_study_time : 0,
   };
 }
+
+/** Create a user (cohort onboarding). Tags are set AT CREATION — this
+ * never re-tags existing learners (founder law: no tag writes on
+ * existing accounts). send_registration_email is always explicit. */
+export async function createUser(
+  env: LwEnv,
+  input: {
+    email: string;
+    username: string;
+    tags: string[];
+    sendRegistrationEmail: boolean;
+  },
+): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
+  const res = await lwRequest(env, "POST", "/users", {
+    email: input.email,
+    username: input.username,
+    tags: input.tags,
+    send_registration_email: input.sendRegistrationEmail,
+  });
+  if (res.ok) {
+    const payload = (await res.json()) as { id?: string; data?: { id?: string } };
+    const id = payload.id ?? payload.data?.id ?? "";
+    return id ? { ok: true, id } : { ok: false, reason: "no_id_in_response" };
+  }
+  const body = (await res.text()).slice(0, 160);
+  return { ok: false, reason: `HTTP ${res.status} ${body}` };
+}
