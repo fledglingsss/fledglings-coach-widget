@@ -121,7 +121,13 @@ import {
   verifyWebhookSignature,
   type FeedEntry,
 } from "./lib/webhooks";
-import { aggregate, csvExport, EXCLUDED_TITLES, narrativeSystemPrompt } from "./lib/portal";
+import {
+  aggregate,
+  csvExport,
+  EXCLUDED_TITLES,
+  narrativeSystemPrompt,
+  type PortalStats,
+} from "./lib/portal";
 import {
   appendHistory,
   assessLearner,
@@ -974,16 +980,22 @@ async function portalSample(
     .filter(isLearner)
     .filter((u) => inScope(u.tags ?? [], tag))
     .slice(0, PORTAL_SAMPLE_SIZE);
+  /* Parallel batches of 6 — serial took ~1.2s per learner and made a
+   * cold scoped load 30s+ (QA 2026-07-22: founder saw 'no data'). */
   const sample: Array<{ user: LwUser; courses: LwUserCourse[] }> = [];
-  for (const user of learners) {
-    try {
-      sample.push({ user, courses: await accurateUserCourses(env, user.id, titles) });
-    } catch {
-      /* A failed lookup must never silently DROP a learner — the CSV
-       * and dashboard counts have to reconcile. Empty courses is the
-       * honest degraded state. */
-      sample.push({ user, courses: [] });
-    }
+  for (let i = 0; i < learners.length; i += 6) {
+    const batch = await Promise.all(
+      learners.slice(i, i + 6).map(async (user) => {
+        try {
+          return { user, courses: await accurateUserCourses(env, user.id, titles) };
+        } catch {
+          /* A failed lookup must never silently DROP a learner — the
+           * CSV and dashboard counts have to reconcile. */
+          return { user, courses: [] as LwUserCourse[] };
+        }
+      }),
+    );
+    sample.push(...batch);
   }
   return { totalUsers: page.totalItems, sample };
 }
@@ -1540,7 +1552,7 @@ app.get("/portal/data", async (c) => {
   /* Cache is per scope — a tag-scoped code must never be served the
    * whole-school payload. */
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `portal:data:v6:${scopeKey}`;
+  const cacheKey = `portal:data:v7:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
 
@@ -1565,30 +1577,9 @@ app.get("/portal/data", async (c) => {
       }
     }
 
-    let narrative = "";
-    try {
-      narrative = await generate(
-        c.env.ANTHROPIC_API_KEY,
-        c.env.COACH_MODEL || "claude-sonnet-4-6",
-        narrativeSystemPrompt(),
-        JSON.stringify({
-          scope: access.tag ? `cohort: ${access.tag}` : "whole school",
-          engagement: stats,
-          earlyWarning: {
-            learnersMonitored: summary.learners,
-            activeLast7Days: summary.activeLast7Days,
-            flaggedForAttention: summary.tiers.high + summary.tiers.medium,
-            monitoringNote:
-              "Learners are monitored continuously; those going quiet are flagged for personal follow-up.",
-          },
-        }),
-        450,
-      );
-    } catch (err) {
-      console.error("[coach] portal narrative failed:", String(err));
-      narrative =
-        "Narrative unavailable just now — the figures above are live from the platform.";
-    }
+    /* The narrative is generated lazily by /portal/narrative — keeping
+     * a Sonnet call off this endpoint's critical path (QA 2026-07-22:
+     * it was part of a 33s cold load). */
     /* Curriculum impact: module stats rolled up to the four learning
      * areas (+ deep dives) for the framework-style overview bars. */
     const areaOrder = [
@@ -1621,7 +1612,6 @@ app.get("/portal/data", async (c) => {
     const payload = {
       stats,
       curriculum,
-      narrative,
       risk: { summary, learners },
       history,
       scopedTag: access.tag,
@@ -1636,6 +1626,62 @@ app.get("/portal/data", async (c) => {
   } catch (err) {
     console.error("[coach] portal data error:", String(err));
     return c.json({ error: "service_error" });
+  }
+});
+
+/* Evidence narrative — generated lazily (a Sonnet call), per-scope
+ * cached 6h, off the dashboard's critical path. */
+app.get("/portal/narrative", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
+  const cacheKey = `portal:narrative:v1:${scopeKey}`;
+  const cached = await c.env.RATE_LIMITS.get(cacheKey);
+  if (cached) return c.json({ narrative: cached });
+  try {
+    /* Reuse the cached dashboard payload when present; otherwise build. */
+    const dataRaw = await c.env.RATE_LIMITS.get(`portal:data:v7:${scopeKey}`);
+    let stats: PortalStats;
+    let summary: RiskSummary;
+    if (dataRaw) {
+      const d = JSON.parse(dataRaw) as {
+        stats: PortalStats;
+        risk: { summary: RiskSummary };
+      };
+      stats = d.stats;
+      summary = d.risk.summary;
+    } else {
+      const { totalUsers, sample } = await portalSample(c.env, access.tag);
+      stats = aggregate(totalUsers, sample, new Date());
+      const riskAll = await getRiskReport(c.env);
+      const learners = riskAll.learners.filter((a) => inScope(a.tags, access.tag));
+      summary = access.tag ? summarise(learners, new Date()) : riskAll.summary;
+    }
+    const narrative = await generate(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.COACH_MODEL || "claude-sonnet-4-6",
+      narrativeSystemPrompt(),
+      JSON.stringify({
+        scope: access.tag ? `cohort: ${access.tag}` : "whole school",
+        engagement: stats,
+        earlyWarning: {
+          learnersMonitored: summary.learners,
+          activeLast7Days: summary.activeLast7Days,
+          flaggedForAttention: summary.tiers.high + summary.tiers.medium,
+          monitoringNote:
+            "Learners are monitored continuously; those going quiet are flagged for personal follow-up.",
+        },
+      }),
+      450,
+    );
+    await c.env.RATE_LIMITS.put(cacheKey, narrative, { expirationTtl: PORTAL_CACHE_TTL });
+    return c.json({ narrative });
+  } catch (err) {
+    console.error("[coach] portal narrative failed:", String(err));
+    return c.json({
+      narrative:
+        "Narrative unavailable just now — the figures on the dashboard are live from the platform.",
+    });
   }
 });
 

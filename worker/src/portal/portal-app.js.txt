@@ -394,9 +394,16 @@
     renderWarning();
   }
 
+  /* Honest first-load message: a cold cache builds live figures from
+   * LearnWorlds and takes a few seconds. */
+  var slowNote = setTimeout(function () {
+    var m = $("p-meta");
+    if (m) m.textContent = "Building your live figures from LearnWorlds — the first view takes a few seconds…";
+  }, 1500);
   fetch("/portal/data")
     .then(function (r) { return r.json(); })
     .then(function (d) {
+      clearTimeout(slowNote);
       if (d.error) {
         $("p-err").hidden = false;
         $("p-err").textContent = "Could not load data: " + d.error;
@@ -424,12 +431,19 @@
           renderAll();
         });
       }
-      $("narrative").textContent = d.narrative || "";
+      /* Narrative loads lazily — it needs a model call and must never
+       * hold up the dashboard. */
+      $("narrative").textContent = "Fledge is drafting your evidence narrative…";
+      var NARR = "";
+      fetch("/portal/narrative")
+        .then(function (r) { return r.json(); })
+        .then(function (n) { NARR = n.narrative || ""; $("narrative").textContent = NARR; })
+        .catch(function () { $("narrative").textContent = "Narrative unavailable just now — the figures on the dashboard are live."; });
       $("copy-narr").addEventListener("click", function () {
         function done() { $("copied-narr").hidden = false; setTimeout(function () { $("copied-narr").hidden = true; }, 2400); }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(d.narrative || "").then(done);
-        } else { window.prompt("Copy:", d.narrative || ""); }
+          navigator.clipboard.writeText(NARR).then(done);
+        } else { window.prompt("Copy:", NARR); }
       });
       renderAll();
       document.body.classList.add("loaded");
