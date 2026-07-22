@@ -104,7 +104,7 @@ import {
   renderPassportPage,
   renderToolsPage,
 } from "./pages";
-import { renderInspectExpired, renderInspectPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
+import { renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderInterviewPage } from "./pages-interview";
 import {
@@ -204,6 +204,17 @@ function modelFailure(where: string, err: unknown) {
   }
   console.error(`[coach] ${where} failed:`, detail.status ?? "", detail.message ?? String(err));
   return { reply: FALLBACK_REPLY, kind: "fallback" };
+}
+
+/** Kill switch: deploy-time env var OR the live KV override the ops
+ * console flips (env vars cannot change without a deploy). */
+async function coachDisabled(env: Env): Promise<boolean> {
+  if ((env.COACH_DISABLED || "false").toLowerCase() === "true") return true;
+  try {
+    return (await env.RATE_LIMITS.get("ops:coach-disabled")) === "true";
+  } catch {
+    return false;
+  }
 }
 
 export const app = new Hono<{ Bindings: Env }>();
@@ -536,7 +547,7 @@ app.post("/api/coach", async (c) => {
   };
 
   /* -- 1. Kill switch ------------------------------------------------ */
-  if ((c.env.COACH_DISABLED || "false").toLowerCase() === "true") {
+  if (await coachDisabled(c.env)) {
     return done("disabled", { reply: FALLBACK_REPLY, kind: "fallback" });
   }
 
@@ -731,7 +742,7 @@ app.post("/api/review", async (c) => {
     return c.json({ error: "invalid_review", detail: validated.error }, 400);
   }
 
-  if ((c.env.COACH_DISABLED || "false").toLowerCase() === "true") {
+  if (await coachDisabled(c.env)) {
     return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
   }
 
@@ -1306,7 +1317,7 @@ app.post("/api/interview", async (c) => {
     return c.json({ error: "invalid_interview", detail: validated.error }, 400);
   }
 
-  if ((c.env.COACH_DISABLED || "false").toLowerCase() === "true") {
+  if (await coachDisabled(c.env)) {
     return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
   }
 
@@ -1688,6 +1699,132 @@ app.get("/portal/data", async (c) => {
   } catch (err) {
     console.error("[coach] portal data error:", String(err));
     return c.json({ error: "service_error" });
+  }
+});
+
+/* ==================================================================
+ * Founder ops console — whole-school (unscoped) codes only. Mint and
+ * revoke provider codes, flip the coach kill switch, bust caches,
+ * see service status. Every action logs loudly.
+ * ================================================================== */
+
+async function opsSession(c: {
+  env: Env;
+  req: { header: (n: string) => string | undefined };
+}) {
+  const access = await portalSession(c);
+  return access && access.tag === null ? access : null;
+}
+
+app.get("/ops", async (c) => {
+  const access = await opsSession(c);
+  if (!access) return c.html(renderPortalLogin("The ops console needs a whole-school access code."));
+  return c.html(renderOpsPage(access.label));
+});
+
+app.get("/ops/status", async (c) => {
+  if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
+  const kv = c.env.RATE_LIMITS;
+  const codes: Array<{ code: string; label: string; tag: string | null }> = [];
+  try {
+    const list = await kv.list({ prefix: "portal:code:" });
+    for (const key of list.keys) {
+      const raw = (await kv.get(key.name)) || "";
+      let label = raw;
+      let tag: string | null = null;
+      try {
+        const parsed = JSON.parse(raw) as { label?: string; tag?: string };
+        label = parsed.label ?? raw;
+        tag = parsed.tag ?? null;
+      } catch {
+        /* legacy plain-string code */
+      }
+      codes.push({ code: key.name.slice("portal:code:".length), label, tag });
+    }
+  } catch {
+    /* list is best-effort */
+  }
+  const age = (iso: string | null): string | null =>
+    iso ? `${Math.round((Date.now() - new Date(iso).getTime()) / 60000)} min ago` : null;
+  const riskRaw = await kv.get(RISK_CACHE_KEY);
+  const reflectRaw = await kv.get(REFLECT_KV_KEY);
+  return c.json({
+    coachKilled: (await kv.get("ops:coach-disabled")) === "true",
+    envKilled: (c.env.COACH_DISABLED || "false").toLowerCase() === "true",
+    apiKeyOk: cleanApiKey(c.env.ANTHROPIC_API_KEY || "").startsWith("sk-ant-"),
+    learnworlds: lwConfigured(c.env),
+    webhooks: Boolean(c.env.LW_WEBHOOK_SIGNATURE),
+    lastWebhook: age(await kv.get(HOOK_SEEN_KV_KEY)),
+    riskBuilt: age(riskRaw ? (JSON.parse(riskRaw) as RiskReport).summary.assessedAt : null),
+    reflectStatus: reflectRaw
+      ? (JSON.parse(reflectRaw) as ReflectionsState).status
+      : "not built",
+    codes,
+  });
+});
+
+app.post("/ops/action", async (c) => {
+  const access = await opsSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const origin = c.req.header("Origin") || c.req.header("Referer") || "";
+  if (!isOriginAllowed(origin)) return c.json({ error: "origin_forbidden" }, 403);
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const op = typeof body.op === "string" ? body.op : "";
+  const kv = c.env.RATE_LIMITS;
+  try {
+    if (op === "mint_code") {
+      const label = (typeof body.label === "string" ? body.label : "").trim().slice(0, 60);
+      const tag = (typeof body.tag === "string" ? body.tag : "").trim().slice(0, 60);
+      if (!label) return c.json({ error: "label_required" }, 400);
+      const rand = crypto.getRandomValues(new Uint8Array(6));
+      const hex = Array.from(rand, (b) => b.toString(16).padStart(2, "0")).join("");
+      const code = `${(tag || label).toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10) || "provider"}-${hex}`;
+      await kv.put(
+        `portal:code:${code}`,
+        JSON.stringify(tag ? { label, tag } : { label }),
+      );
+      console.log(`[coach] kind=ops op=mint_code label=${label} tag=${tag || "-"}`);
+      return c.json({ ok: true, code });
+    }
+    if (op === "revoke_code") {
+      const code = (typeof body.code === "string" ? body.code : "").trim();
+      if (!/^[A-Za-z0-9-]{6,60}$/.test(code)) return c.json({ error: "bad_code" }, 400);
+      await kv.delete(`portal:code:${code}`);
+      console.log(`[coach] kind=ops op=revoke_code code=${code}`);
+      return c.json({ ok: true });
+    }
+    if (op === "coach_kill" || op === "coach_revive") {
+      await kv.put("ops:coach-disabled", op === "coach_kill" ? "true" : "false");
+      console.log(`[coach] kind=ops op=${op}`);
+      return c.json({ ok: true });
+    }
+    if (op === "bust_caches") {
+      const prefixes = ["portal:data:", "portal:narrative:", "portal:risk:", "portal:reflect:"];
+      let deleted = 0;
+      for (const prefix of prefixes) {
+        const list = await kv.list({ prefix });
+        for (const key of list.keys) {
+          await kv.delete(key.name);
+          deleted++;
+        }
+      }
+      console.log(`[coach] kind=ops op=bust_caches deleted=${deleted}`);
+      return c.json({ ok: true, deleted });
+    }
+    if (op === "clear_feed") {
+      await kv.put(FEED_KV_KEY, "[]");
+      console.log("[coach] kind=ops op=clear_feed");
+      return c.json({ ok: true });
+    }
+    return c.json({ error: "unknown_op" }, 400);
+  } catch (err) {
+    console.error("[coach] ops action failed:", String(err));
+    return c.json({ error: "service_error" }, 500);
   }
 });
 

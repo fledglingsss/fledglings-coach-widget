@@ -259,6 +259,20 @@ td.barcell .mbar{margin:0;}
 .abtn.ghost{background:#fff;color:var(--navy);border:1px solid var(--hair);}
 .err{background:#FFF2EE;border-left:4px solid var(--orange);border-radius:0 10px 10px 0;padding:13px 16px;
   font-size:13px;margin-bottom:18px;}
+/* ops console */
+.srow{padding:7px 0;border-bottom:1px solid #F1ECE8;font-size:13.5px;color:var(--ink);}
+.srow:last-child{border-bottom:none;}
+.srow b{margin-right:6px;}
+.opsrow{display:flex;gap:10px;flex-wrap:wrap;}
+.opsrow input{flex:1 1 180px;border:1.5px solid var(--hair);border-radius:10px;padding:11px 13px;
+  font-size:13.5px;font-family:inherit;color:var(--navy);}
+.opsrow input:focus{outline:none;border-color:var(--blue);}
+.coderow{display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;
+  padding:9px 0;border-bottom:1px solid #F1ECE8;font-size:13px;}
+.coderow:last-child{border-bottom:none;}
+.coderow code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--off);
+  border-radius:7px;padding:4px 9px;}
+.coderow span{font-weight:600;}
 .foot{border-top:1px solid var(--hair);color:var(--mut);font-size:12px;text-align:center;padding:20px;margin-top:30px;}
 .foot b{color:var(--orange);font-weight:700;}
 body:not(.loaded) .content{opacity:.45;transition:opacity .2s;}
@@ -389,6 +403,85 @@ function panel(opts: {
     (opts.footer ?? "") +
     "</section>"
   );
+}
+
+/** Founder ops console — service status, access-code management,
+ * kill switch, cache maintenance. Whole-school codes only. */
+export function renderOpsPage(label: string): string {
+  const body =
+    "<header class='mast'>" +
+    `<div class='mast-bird'>${BIRD_MARK}</div>` +
+    "<div class='mast-in'><div class='mast-top'>" +
+    `<span class='wordmark'>${WORDMARK_DARK}</span>` +
+    "<span class='portal-tag'>Ops<br>Console</span>" +
+    `<div class='mast-right'><span class='provider'>${esc(label)}</span>` +
+    "<a class='signout' href='/portal'>Portal</a>" +
+    "<a class='signout' href='/portal/logout'>Sign out</a></div></div>" +
+    "<div class='mast-meta'>Founder controls — every action here takes effect immediately and is logged.</div>" +
+    "</div></header>" +
+    "<main class='content' style='padding-top:34px'><div class='grid12'>" +
+    "<section class='panel s5'><div class='ph'><div><div class='t'>Service status</div>" +
+    "<div class='c'>live health of every moving part</div></div></div>" +
+    "<div class='pb'><div id='ops-status' class='muted'>Loading…</div></div></section>" +
+    "<section class='panel s7'><div class='ph'><div><div class='t'>Provider access codes</div>" +
+    "<div class='c'>mint a code per provider — add a cohort tag to scope it to their learners only</div></div></div>" +
+    "<div class='pb'>" +
+    "<div class='opsrow' style='margin-bottom:14px'>" +
+    "<input id='mint-label' placeholder='Provider name (e.g. Swift Training)' maxlength='60'>" +
+    "<input id='mint-tag' placeholder='Cohort tag (optional, e.g. Swift Learners)' maxlength='60'>" +
+    "<button class='abtn' id='mint-btn' type='button'>Mint code</button></div>" +
+    "<div id='mint-out' class='muted' style='margin-bottom:12px'></div>" +
+    "<div id='codes-list'></div></div></section>" +
+    "<section class='panel s5'><div class='ph'><div><div class='t'>Coach kill switch</div>" +
+    "<div class='c'>instantly pauses Fledge everywhere — learners see the 'currently unavailable' message</div></div></div>" +
+    "<div class='pb'><div id='kill-state' class='muted' style='margin-bottom:12px'>…</div>" +
+    "<button class='abtn' id='kill-btn' type='button'>…</button></div></section>" +
+    "<section class='panel s7'><div class='ph'><div><div class='t'>Maintenance</div>" +
+    "<div class='c'>safe to use any time — data rebuilds automatically on the next visit</div></div></div>" +
+    "<div class='pb'><div class='actions'>" +
+    "<button class='abtn ghost' id='bust-btn' type='button'>Rebuild all dashboards (bust caches)</button>" +
+    "<button class='abtn ghost' id='feed-btn' type='button'>Clear live-activity feed</button>" +
+    "<span class='copied' id='ops-done' hidden>Done ✓</span></div></div></section>" +
+    "</div></main>" +
+    "<script>(function(){" +
+    "var $=function(id){return document.getElementById(id)};" +
+    "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;')}" +
+    "function act(op,extra,then){fetch('/ops/action',{method:'POST',headers:{'Content-Type':'application/json'}," +
+    "body:JSON.stringify(Object.assign({op:op},extra||{}))}).then(function(r){return r.json()}).then(then||load);}" +
+    "function flash(){var d=$('ops-done');d.hidden=false;setTimeout(function(){d.hidden=true},2200)}" +
+    "function load(){fetch('/ops/status').then(function(r){return r.json()}).then(function(s){" +
+    "var ok=function(b){return b?\"<b style='color:#1B7A4B'>✓</b>\":\"<b style='color:#D9452B'>✗</b>\"};" +
+    "$('ops-status').innerHTML=" +
+    "'<div class=srow>'+ok(s.apiKeyOk)+' Anthropic key</div>'+" +
+    "'<div class=srow>'+ok(s.learnworlds)+' LearnWorlds API</div>'+" +
+    "'<div class=srow>'+ok(s.webhooks)+' Webhooks'+(s.lastWebhook?' · last event '+esc(s.lastWebhook):'')+'</div>'+" +
+    "'<div class=srow>'+ok(!s.coachKilled&&!s.envKilled)+' Coach '+(s.coachKilled||s.envKilled?'PAUSED':'live')+'</div>'+" +
+    "'<div class=srow>Risk snapshot: '+esc(s.riskBuilt||'not built')+'</div>'+" +
+    "'<div class=srow>Reflections: '+esc(s.reflectStatus)+'</div>';" +
+    "$('kill-state').innerHTML=s.coachKilled?\"Fledge is <b style='color:#D9452B'>PAUSED</b> (ops switch).\":" +
+    "s.envKilled?'Paused by deploy-time setting (needs a redeploy to change).':\"Fledge is <b style='color:#1B7A4B'>live</b>.\";" +
+    "var kb=$('kill-btn');kb.textContent=s.coachKilled?'Bring Fledge back':'Pause Fledge now';" +
+    "kb.className=s.coachKilled?'abtn sec':'abtn';kb.disabled=s.envKilled;" +
+    "kb.onclick=function(){if(!s.coachKilled&&!confirm('Pause the coach for ALL learners right now?'))return;" +
+    "act(s.coachKilled?'coach_revive':'coach_kill');};" +
+    "var rows='';(s.codes||[]).forEach(function(cd){" +
+    "rows+=\"<div class='coderow'><code>\"+esc(cd.code)+'</code><span>'+esc(cd.label)+'</span>'+" +
+    "'<span class=muted>'+(cd.tag?esc(cd.tag):'whole school')+'</span>'+" +
+    "\"<button class='abtn2' data-c='\"+esc(cd.code)+\"'>Revoke</button></div>\"});" +
+    "$('codes-list').innerHTML=rows||'<p class=muted>No codes minted yet.</p>';" +
+    "document.querySelectorAll('#codes-list .abtn2').forEach(function(b){b.onclick=function(){" +
+    "if(!confirm('Revoke '+b.dataset.c+'? The provider loses access immediately.'))return;" +
+    "act('revoke_code',{code:b.dataset.c});};});" +
+    "});}" +
+    "$('mint-btn').onclick=function(){var l=$('mint-label').value.trim();if(!l){alert('Give the code a provider name.');return;}" +
+    "act('mint_code',{label:l,tag:$('mint-tag').value.trim()},function(j){" +
+    "if(j&&j.ok){$('mint-out').innerHTML=\"New code (share securely): <code style='font-weight:700'>\"+esc(j.code)+'</code>';" +
+    "$('mint-label').value='';$('mint-tag').value='';}load();});};" +
+    "$('bust-btn').onclick=function(){act('bust_caches',null,function(){flash();load();});};" +
+    "$('feed-btn').onclick=function(){act('clear_feed',null,function(){flash();});};" +
+    "load();" +
+    "})();</script>";
+  return portalShell(`Fledglings Ops — ${label}`, body);
 }
 
 /** Read-only evidence snapshot for an inspector — server-rendered,
