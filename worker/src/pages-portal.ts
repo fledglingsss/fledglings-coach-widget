@@ -391,6 +391,86 @@ function panel(opts: {
   );
 }
 
+/** Read-only evidence snapshot for an inspector — server-rendered,
+ * aggregate-only (no names, emails, flags or nudges), reached via a
+ * signed 7-day link. */
+export function renderInspectPage(data: {
+  label: string;
+  tag: string | null;
+  expires: string;
+  kpis: Array<{ k: string; v: string; c: string }>;
+  curriculum: Array<{ area: string; enrolled: number; completed: number; pct: number }>;
+  modules: Array<{ title: string; enrolled: number; completed: number; pct: number }>;
+  narrative: string;
+  generatedAt: string;
+}): string {
+  const kpiHtml = data.kpis
+    .map(
+      (k) =>
+        `<div class='kpi'><div class='k'>${esc(k.k)}</div><div class='v'>${esc(k.v)}</div>` +
+        `<div class='c'>${esc(k.c)}</div></div>`,
+    )
+    .join("");
+  const curricHtml = data.curriculum
+    .map(
+      (r) =>
+        `<div class='cirow'><span class='cn'>${esc(r.area)}` +
+        `<em>${r.completed} completions · ${r.enrolled} enrolments</em></span>` +
+        `<span class='citrack'><i class='prog' style='width:100%'></i>` +
+        `<i class='done' style='width:${r.pct}%'></i></span>` +
+        `<span class='cp'>${r.pct}%</span></div>`,
+    )
+    .join("");
+  const modHtml = data.modules
+    .map(
+      (m) =>
+        `<tr><td>${esc(m.title)}</td><td class='num'>${m.enrolled}</td>` +
+        `<td class='num'>${m.completed}</td><td class='num'>${m.pct}%</td></tr>`,
+    )
+    .join("");
+  return portalShell(
+    `Fledglings evidence snapshot — ${data.label}`,
+    "<header class='mast'>" +
+      `<div class='mast-bird'>${BIRD_MARK}</div>` +
+      "<div class='mast-in'>" +
+      "<div class='mast-top'>" +
+      `<span class='wordmark'>${WORDMARK_DARK}</span>` +
+      "<span class='portal-tag'>Evidence<br>Snapshot</span>" +
+      `<div class='mast-right'><span class='provider'>${esc(data.label)}</span>` +
+      (data.tag ? `<span class='scopechip'>${esc(data.tag)}</span>` : "") +
+      "</div></div>" +
+      `<div class='mast-meta'>Read-only snapshot for inspection purposes · generated ${esc(data.generatedAt)} · link expires ${esc(data.expires)} · contains no learner-identifiable data</div>` +
+      "</div></header>" +
+      `<div class='shellwrap'><div class='kpiband'>${kpiHtml}</div></div>` +
+      "<main class='content'><div class='grid12'>" +
+      `<section class='panel s12'><div class='ph'><div><div class='t'>Curriculum impact</div>` +
+      `<div class='c'>completion across the Fledglings learning areas, from a recent sample of learner accounts</div></div></div>` +
+      `<div class='pb'>${curricHtml}</div></section>` +
+      `<section class='panel s12'><div class='ph'><div><div class='t'>Module engagement</div>` +
+      `<div class='c'>every module in the sample</div></div></div>` +
+      `<div class='pb'><table><thead><tr><th>Module</th><th class='num'>Enrolled</th>` +
+      `<th class='num'>Completed</th><th class='num'>%</th></tr></thead><tbody>${modHtml}</tbody></table></div></section>` +
+      `<section class='panel s12'><div class='ph'><div><div class='t'>Evidence narrative</div>` +
+      `<div class='c'>drafted from the aggregate figures — honest about what the data can and cannot claim</div></div></div>` +
+      `<div class='pb'><div class='narr'>${esc(data.narrative)}</div></div></section>` +
+      "</div>" +
+      "<p class='fineprint'>Figures describe engagement with Fledglings life-skills modules from a recent sample of learner " +
+      "accounts. They evidence provision, participation and active monitoring — not attributed outcomes. " +
+      "Individual learner records are available to the provider through their access-controlled portal.</p>" +
+      "</main>",
+  );
+}
+
+export function renderInspectExpired(): string {
+  return portalShell(
+    "Fledglings — link expired",
+    "<div class='content' style='max-width:560px'><div class='panel'><div class='pb' style='padding:30px'>" +
+      "<h2 style='font-size:20px;margin-bottom:10px'>This evidence link has expired</h2>" +
+      "<p class='muted' style='line-height:1.6'>Inspector links last 7 days. Ask the provider to generate a " +
+      "fresh one from their Fledglings portal — it takes one click.</p></div></div></div>",
+  );
+}
+
 export function renderPortalDashboard(label: string, tag: string | null): string {
   const body =
     /* slim masthead */
@@ -546,7 +626,9 @@ export function renderPortalDashboard(label: string, tag: string | null): string
         "<div class='actions' style='margin-top:20px'>" +
         "<button class='abtn' id='copy-narr'>Copy narrative</button><span class='copied' id='copied-narr' hidden>Copied ✓</span>" +
         "<a class='abtn sec' href='/portal/export.csv'>Download learner CSV</a>" +
-        "<button class='abtn ghost' onclick='window.print()'>Print / save as PDF</button></div>",
+        "<button class='abtn ghost' onclick='window.print()'>Print / save as PDF</button>" +
+        "<button class='abtn ghost' id='inspect-link' type='button'>Create inspector link (7 days)</button>" +
+        "<span class='copied' id='copied-inspect' hidden>Link copied ✓</span></div>",
     }) +
     "</div>" +
     "<p class='fineprint'>Figures describe engagement with Fledglings life-skills modules; sampled figures are labelled as such. " +

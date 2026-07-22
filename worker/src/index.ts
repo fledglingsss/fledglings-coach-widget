@@ -104,7 +104,7 @@ import {
   renderPassportPage,
   renderToolsPage,
 } from "./pages";
-import { renderPortalDashboard, renderPortalLogin } from "./pages-portal";
+import { renderInspectExpired, renderInspectPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderInterviewPage } from "./pages-interview";
 import {
@@ -1506,6 +1506,68 @@ app.post("/hooks/learnworlds", async (c) => {
   return c.json({ ok: true });
 });
 
+/* ==================================================================
+ * Continue where you left off — the widget greets a returning learner
+ * with a one-tap resume link to their furthest in-progress module.
+ * Read-only; per-learner cached 10 min.
+ * ================================================================== */
+
+app.post("/api/next-step", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  const email =
+    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!ID_PATTERN.test(learnerId) || !EMAIL_PATTERN.test(email)) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+  if (!lwConfigured(c.env)) return c.json({ ok: false });
+  try {
+    const emailHash = await hashLearnerId(email);
+    const cacheKey = `ns:${emailHash}`;
+    const cached = await c.env.RATE_LIMITS.get(cacheKey);
+    if (cached) return c.json(JSON.parse(cached));
+
+    const user = await getUserByEmail(c.env, email);
+    if (!user) return c.json({ ok: false });
+    const [enrolments, progress] = await Promise.all([
+      getEnrolments(c.env, user.id),
+      getUserProgressAll(c.env, user.id),
+    ]);
+    const byCourse = new Map(progress.map((p) => [p.courseId, p]));
+    const modules = enrolments.filter((e) => isModuleTitle(e.title));
+    /* Furthest-but-unfinished module wins; fresh enrolment is the
+     * fallback so brand-new learners still get a first step. */
+    const inProgress = modules
+      .map((e) => ({ e, p: byCourse.get(e.courseId) }))
+      .filter((x) => x.p && x.p.status === "in_progress" && x.p.progressRate < 100)
+      .sort((a, b) => (b.p!.progressRate ?? 0) - (a.p!.progressRate ?? 0));
+    const pick =
+      inProgress[0] ??
+      modules
+        .map((e) => ({ e, p: byCourse.get(e.courseId) }))
+        .find((x) => !x.p || x.p.status === "not_started");
+    if (!pick) return c.json({ ok: false });
+    const payload = {
+      ok: true,
+      title: pick.e.title,
+      percent: pick.p?.progressRate ?? 0,
+      url: `https://www.fledglings.co/path-player?courseid=${encodeURIComponent(pick.e.courseId)}`,
+    };
+    await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
+      expirationTtl: 600,
+    });
+    return c.json(payload);
+  } catch (err) {
+    console.error("[coach] next-step error:", String(err));
+    return c.json({ ok: false });
+  }
+});
+
 /* #8 — personalised instant demo (outreach landing page). Public,
  * marketing-only: no learner data is reachable from it. */
 app.get("/demo", (c) =>
@@ -1626,6 +1688,141 @@ app.get("/portal/data", async (c) => {
   } catch (err) {
     console.error("[coach] portal data error:", String(err));
     return c.json({ error: "service_error" });
+  }
+});
+
+/* ==================================================================
+ * Inspector link — a signed, 7-day, read-only, aggregate-only
+ * evidence snapshot a provider can hand to an Ofsted inspector.
+ * ================================================================== */
+
+app.post("/portal/inspect-link", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const payload = b64urlEncode(
+    JSON.stringify({
+      v: 1,
+      label: access.label,
+      tag: access.tag,
+      exp: Date.now() + 7 * 24 * 3600 * 1000,
+    }),
+  );
+  const sig = await signPayload(c.env.LEARNWORLDS_CLIENT_SECRET || "", payload);
+  return c.json({ ok: true, url: `/inspect?d=${payload}&s=${sig}` });
+});
+
+app.get("/inspect", async (c) => {
+  const d = c.req.query("d") || "";
+  const s = c.req.query("s") || "";
+  const decoded = b64urlDecode(d);
+  const valid =
+    Boolean(c.env.LEARNWORLDS_CLIENT_SECRET) &&
+    decoded !== null &&
+    (await verifyPayload(c.env.LEARNWORLDS_CLIENT_SECRET!, d, s));
+  interface InspectGrant {
+    label?: string;
+    tag?: string | null;
+    exp?: number;
+  }
+  let grant: InspectGrant | null = null;
+  try {
+    grant = valid && decoded ? (JSON.parse(decoded) as InspectGrant) : null;
+  } catch {
+    grant = null;
+  }
+  if (!grant || typeof grant.exp !== "number" || Date.now() > grant.exp) {
+    return c.html(renderInspectExpired());
+  }
+  if (!lwConfigured(c.env)) return c.html(renderInspectExpired());
+  try {
+    const tag = grant.tag ?? null;
+    const scopeKey = tag ? tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
+    /* Reuse the portal's cached aggregates when warm; build otherwise. */
+    let stats: PortalStats;
+    let summary: RiskSummary;
+    let curriculum: Array<{ area: string; enrolled: number; completed: number; pct: number }>;
+    const dataRaw = await c.env.RATE_LIMITS.get(`portal:data:v7:${scopeKey}`);
+    if (dataRaw) {
+      const cachedPayload = JSON.parse(dataRaw) as {
+        stats: PortalStats;
+        risk: { summary: RiskSummary };
+        curriculum: typeof curriculum;
+      };
+      stats = cachedPayload.stats;
+      summary = cachedPayload.risk.summary;
+      curriculum = cachedPayload.curriculum ?? [];
+    } else {
+      const { totalUsers, sample } = await portalSample(c.env, tag);
+      stats = aggregate(totalUsers, sample, new Date());
+      const riskAll = await getRiskReport(c.env);
+      const learners = riskAll.learners.filter((a) => inScope(a.tags, tag));
+      summary = tag ? summarise(learners, new Date()) : riskAll.summary;
+      const byArea = new Map<string, { enrolled: number; completed: number }>();
+      for (const cs of stats.courseStats) {
+        const area = groupForTitle(cs.title);
+        const entry = byArea.get(area) ?? { enrolled: 0, completed: 0 };
+        entry.enrolled += cs.enrolled;
+        entry.completed += cs.completed;
+        byArea.set(area, entry);
+      }
+      curriculum = [...byArea.entries()].map(([area, e]) => ({
+        area,
+        enrolled: e.enrolled,
+        completed: e.completed,
+        pct: e.enrolled ? Math.round((e.completed / e.enrolled) * 100) : 0,
+      }));
+    }
+    const narrative =
+      (await c.env.RATE_LIMITS.get(`portal:narrative:v1:${scopeKey}`)) ??
+      "The provider can generate the written narrative from their portal; the figures above are live from the platform.";
+    const activePct = summary.learners
+      ? Math.round((summary.activeLast7Days / summary.learners) * 100)
+      : 0;
+    return c.html(
+      renderInspectPage({
+        label: grant.label ?? "Fledglings provider",
+        tag,
+        expires: new Date(grant.exp).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+        generatedAt: new Date().toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+        kpis: [
+          { k: "Learners", v: String(summary.learners), c: "on the platform" },
+          {
+            k: "Active this week",
+            v: `${summary.activeLast7Days} (${activePct}%)`,
+            c: "logged in within 7 days",
+          },
+          {
+            k: "Modules per learner",
+            v: String(stats.avgModulesPerLearner),
+            c: "average enrolments",
+          },
+          {
+            k: "Monitored for attention",
+            v: String(summary.tiers.high + summary.tiers.medium),
+            c: "flagged by continuous monitoring",
+          },
+        ],
+        curriculum,
+        modules: stats.courseStats.map((m) => ({
+          title: m.title,
+          enrolled: m.enrolled,
+          completed: m.completed,
+          pct: m.completionRate,
+        })),
+        narrative,
+      }),
+    );
+  } catch (err) {
+    console.error("[coach] inspect error:", String(err));
+    return c.html(renderInspectExpired());
   }
 });
 

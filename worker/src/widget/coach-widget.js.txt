@@ -610,11 +610,34 @@
   });
 
   var open = false;
+  /* Continue where you left off — once per session, on first open. */
+  function offerNextStep() {
+    if (!learnerEmail) return;
+    try {
+      if (sessionStorage.getItem("fl_coach_nextstep_v1")) return;
+      sessionStorage.setItem("fl_coach_nextstep_v1", "1");
+    } catch (e) { /* private mode: still offer, just maybe twice */ }
+    fetch(ENDPOINT + "/api/next-step", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ learner_id: learnerId, email: learnerEmail }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok || !d.title) return;
+        var lead = d.percent > 0
+          ? "Pick up where you left off — you're " + d.percent + "% through **" + d.title + "**:"
+          : "Ready for your next step? **" + d.title + "** is waiting:";
+        addLinkMsg(lead, "Continue " + (d.percent > 0 ? "→" : "▸"), d.url);
+      })
+      .catch(function () { /* a missing nudge is never an error */ });
+  }
+
   function setOpen(next) {
     open = next;
     panel.className = open ? "fl-open" : "";
     btn.setAttribute("aria-expanded", String(open));
-    if (open) { renderHistory(); input.focus(); }
+    if (open) { renderHistory(); offerNextStep(); input.focus(); }
     else { btn.focus(); }
   }
   btn.addEventListener("click", function () { setOpen(!open); });

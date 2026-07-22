@@ -445,6 +445,23 @@
           navigator.clipboard.writeText(NARR).then(done);
         } else { window.prompt("Copy:", NARR); }
       });
+      /* Inspector link: signed, 7-day, aggregate-only snapshot URL. */
+      var insp = $("inspect-link");
+      if (insp) insp.addEventListener("click", function () {
+        insp.disabled = true;
+        fetch("/portal/inspect-link", { method: "POST" })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            insp.disabled = false;
+            if (!j || !j.ok) return;
+            var full = location.origin + j.url;
+            function done() { $("copied-inspect").hidden = false; setTimeout(function () { $("copied-inspect").hidden = true; }, 2600); }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(full).then(done, function () { window.prompt("Inspector link:", full); });
+            } else { window.prompt("Inspector link:", full); }
+          })
+          .catch(function () { insp.disabled = false; });
+      });
       renderAll();
       document.body.classList.add("loaded");
     })
