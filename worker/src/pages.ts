@@ -183,6 +183,15 @@ export function renderToolsPage(): string {
     "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
+    /* hub identity + navigation: ?e=<b64url email> ties this score to
+     * the learner's hub history; ?hub=1 shows the way back */
+    "var qs=new URLSearchParams(location.search);var hubEmail='';" +
+    "try{var ep=qs.get('e');if(ep){hubEmail=decodeURIComponent(atob(ep.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(err){}" +
+    "if(hubEmail.indexOf('@')===-1)hubEmail='';" +
+    "if(qs.get('hub')==='1'){var bk=document.createElement('a');" +
+    "bk.href='/hub'+(qs.get('e')?'?e='+qs.get('e'):'');bk.textContent='← Back to your Employability Hub';" +
+    "bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';" +
+    "var h=document.querySelector('h2.page');h.parentNode.insertBefore(bk,h);}" +
     "var tabCv=$('tab-cv'),tabLi=$('tab-li');" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
     "document.querySelectorAll('.steps .step').forEach(function(s,i){" +
@@ -195,6 +204,7 @@ export function renderToolsPage(): string {
     "'On LinkedIn: your profile → <b>More</b> → <b>Save to PDF</b> — then upload it here';" +
     "show('u-card');}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){setKind('linkedin')};" +
+    "if(qs.get('tab')==='li')setKind('linkedin');" +
     /* ---- pdf.js on demand ---- */
     "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
     "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
@@ -243,7 +253,7 @@ export function renderToolsPage(): string {
     "function band(s){return s>=70?'#1B7A4B':s>=50?'#B96A16':'#D9452B'}" +
     "function submit(text){" +
     "fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
-    "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value})})" +
+    "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value,email:hubEmail})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
     "if(d&&d.report){renderReport(d.report,d.checks);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +

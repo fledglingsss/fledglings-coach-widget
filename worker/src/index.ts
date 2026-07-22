@@ -109,6 +109,15 @@ import {
 import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderChallengePage, type ChallengeRow } from "./pages-challenge";
+import { renderHubPage } from "./pages-hub";
+import {
+  emptyScores,
+  HUB_HISTORY_MAX,
+  parseScores,
+  pushScore,
+  summariseHub,
+  type HubTool,
+} from "./lib/hub";
 import { renderInterviewPage } from "./pages-interview";
 import {
   INTERVIEW_CAPS,
@@ -223,6 +232,32 @@ async function coachDisabled(env: Env): Promise<boolean> {
     return (await env.RATE_LIMITS.get("ops:coach-disabled")) === "true";
   } catch {
     return false;
+  }
+}
+
+/** Employability Hub score memory — integers and timestamps only,
+ * never content. Stored under the email hash when known (stable
+ * across devices), else the device id hash. */
+async function recordHubScore(
+  env: Env,
+  learnerId: string,
+  email: string | undefined,
+  tool: HubTool,
+  score: number,
+): Promise<void> {
+  try {
+    const idSource =
+      email && EMAIL_PATTERN.test(email) ? email.toLowerCase() : learnerId;
+    const hash = (await hashLearnerId(idSource)).slice(0, 16);
+    const key = `hub:scores:${hash}`;
+    const scores = parseScores(await env.RATE_LIMITS.get(key));
+    await env.RATE_LIMITS.put(
+      key,
+      JSON.stringify(pushScore(scores, tool, score, Math.floor(Date.now() / 1000))),
+      { expirationTtl: 180 * 24 * 3600 },
+    );
+  } catch {
+    /* score memory is a bonus — never fails a review */
   }
 }
 
@@ -816,6 +851,13 @@ app.post("/api/review", async (c) => {
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
     await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+    await recordHubScore(
+      c.env,
+      learnerId,
+      typeof body.email === "string" ? body.email : undefined,
+      validated.kind,
+      report.overall,
+    );
     console.log(
       `[coach] kind=review tool=${validated.kind} outcome=ok overall=${report.overall} checks=${checks.passed}/${checks.total}`,
     );
@@ -1375,6 +1417,13 @@ app.post("/api/interview", async (c) => {
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
     await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+    await recordHubScore(
+      c.env,
+      learnerId,
+      typeof body.email === "string" ? body.email : undefined,
+      "interview",
+      report.overall,
+    );
     console.log(
       `[coach] kind=interview role=${validated.role} answers=${validated.answers.length} outcome=ok overall=${report.overall}`,
     );
@@ -1611,6 +1660,57 @@ app.post("/api/next-step", async (c) => {
     return c.json(payload);
   } catch (err) {
     console.error("[coach] next-step error:", String(err));
+    return c.json({ ok: false });
+  }
+});
+
+/* ==================================================================
+ * Employability Hub — Hiration-style dashboard over the three tools.
+ * Scores only, never content.
+ * ================================================================== */
+
+app.get("/hub", (c) => c.html(renderHubPage(), 200, FRAME_HEADERS));
+
+app.post("/api/hub", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  const email =
+    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  try {
+    /* Same anti-enumeration cap as next-step. */
+    const deviceHash = await hashLearnerId(learnerId);
+    const rlKey = `hub:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= 60) return c.json({ error: "rate_limited" }, 429);
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+
+    /* Merge device-keyed and email-keyed histories so scores earned
+     * before the hub knew the email still count. */
+    const hashes = [deviceHash.slice(0, 16)];
+    if (EMAIL_PATTERN.test(email)) {
+      hashes.push((await hashLearnerId(email)).slice(0, 16));
+    }
+    const merged = emptyScores();
+    for (const h of [...new Set(hashes)]) {
+      const scores = parseScores(await c.env.RATE_LIMITS.get(`hub:scores:${h}`));
+      for (const tool of ["cv", "linkedin", "interview"] as const) {
+        merged[tool] = [...merged[tool], ...scores[tool]];
+      }
+    }
+    for (const tool of ["cv", "linkedin", "interview"] as const) {
+      merged[tool] = merged[tool]
+        .sort((a, b) => a.at - b.at)
+        .slice(-HUB_HISTORY_MAX);
+    }
+    return c.json({ ok: true, summary: summariseHub(merged) });
+  } catch (err) {
+    console.error("[coach] hub error:", String(err));
     return c.json({ ok: false });
   }
 });

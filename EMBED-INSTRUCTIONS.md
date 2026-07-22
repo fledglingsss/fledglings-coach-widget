@@ -65,3 +65,15 @@ language routes to signposting.
 **Where:** any learner-facing page. Aggregate-only (cohort names and
 completion counts — never learners), safe anywhere logged-in learners
 can see. Scores update live from module completions.
+
+## Employability Hub — `hub-embed.html`
+
+**Where:** ONE page for logged-in learners — this replaces separate
+CV-review and interview pages if you prefer a single destination.
+The Liquid email ties every score to the learner so their job-ready
+score, per-tool scores and trends persist (numbers only — documents
+and answers are never stored). The hub links into the CV/LinkedIn
+review and mock interview with the identity carried through, and each
+tool shows a "Back to your Employability Hub" link.
+`allow="clipboard-write; microphone"` keeps copy buttons and the
+interview mic working when the tools are opened inside the same tab.

@@ -75,6 +75,14 @@ export function renderInterviewPage(): string {
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
     "var role=null,qs=[],idx=0,answers=[],finalText='';" +
+    /* hub identity + back link (?e=<b64url email>, ?hub=1) */
+    "var params=new URLSearchParams(location.search);var hubEmail='';" +
+    "try{var ep=params.get('e');if(ep){hubEmail=decodeURIComponent(atob(ep.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(err){}" +
+    "if(hubEmail.indexOf('@')===-1)hubEmail='';" +
+    "if(params.get('hub')==='1'){var bk=document.createElement('a');" +
+    "bk.href='/hub'+(params.get('e')?'?e='+params.get('e'):'');bk.textContent='← Back to your Employability Hub';" +
+    "bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';" +
+    "var hh=document.querySelector('h2.page');hh.parentNode.insertBefore(bk,hh);}" +
     "function show(id){['s-role','s-int','s-wait','s-msg','s-rep'].forEach(function(k){$(k).hidden=k!==id});}" +
     /* ---- speech ---- */
     "var SR=window.SpeechRecognition||window.webkitSpeechRecognition;var rec=null,listening=false;" +
@@ -118,7 +126,7 @@ export function renderInterviewPage(): string {
     "function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" +
     "function submit(){show('s-wait');" +
     "fetch('/api/interview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
-    "learner_id:lid,session_id:sid,role:role,answers:answers})})" +
+    "learner_id:lid,session_id:sid,role:role,answers:answers,email:hubEmail})})" +
     ".then(function(r){return r.json()}).then(function(d){" +
     "if(d&&d.report){renderReport(d.report);show('s-rep');window.scrollTo({top:0,behavior:'smooth'});return;}" +
     "$('msgtext').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('s-msg');" +
