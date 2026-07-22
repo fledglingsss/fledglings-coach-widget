@@ -106,7 +106,7 @@ import {
   renderPassportPage,
   renderToolsPage,
 } from "./pages";
-import { renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
+import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderChallengePage, type ChallengeRow } from "./pages-challenge";
 import { renderInterviewPage } from "./pages-interview";
@@ -1472,20 +1472,18 @@ app.post("/hooks/learnworlds", async (c) => {
     }
   }
 
-  /* Completions also score a point in the month's Learner Games. */
+  /* Completions score a point in the month's Learner Games. One
+   * idempotent key PER completion (learner+course) — no read-modify-
+   * write, so concurrent completions can't race away a point, and a
+   * redelivery overwrites rather than double-counts (QA 2026-07-22).
+   * The board counts keys at read time. */
   if (ev.type === "courseCompleted" && cohort) {
     try {
       const month = now.toISOString().slice(0, 7);
       const slug = cohort.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const key = `challenge:${month}:${slug}`;
-      const prev = JSON.parse(
-        (await c.env.RATE_LIMITS.get(key)) || "null",
-      ) as { cohort: string; count: number } | null;
-      await c.env.RATE_LIMITS.put(
-        key,
-        JSON.stringify({ cohort, count: (prev?.count ?? 0) + 1 }),
-        { expirationTtl: 90 * 24 * 3600 },
-      );
+      const learnerHash = (await hashLearnerId(ev.email)).slice(0, 12);
+      const key = `chl:${month}:${slug}:${learnerHash}:${ev.courseId ?? "x"}`;
+      await c.env.RATE_LIMITS.put(key, cohort, { expirationTtl: 90 * 24 * 3600 });
     } catch {
       /* the games are best-effort */
     }
@@ -1571,6 +1569,16 @@ app.post("/api/next-step", async (c) => {
     const cached = await c.env.RATE_LIMITS.get(cacheKey);
     if (cached) return c.json(JSON.parse(cached));
 
+    /* Rate limit BEFORE the user lookup so this can't be used to
+     * enumerate registered emails / harvest progress (QA 2026-07-22).
+     * Per-device (learner_id) daily cap — a real learner opens the
+     * widget a handful of times; a scraper burns through fast. */
+    const deviceHash = await hashLearnerId(learnerId);
+    const rlKey = `ns:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= 30) return c.json({ ok: false });
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+
     const user = await getUserByEmail(c.env, email);
     if (!user) return c.json({ ok: false });
     const [enrolments, progress] = await Promise.all([
@@ -1610,29 +1618,59 @@ app.post("/api/next-step", async (c) => {
 /* The Learner Games — monthly cohort completions race (aggregate-only,
  * embeddable). Scored live by the completion webhooks. */
 app.get("/challenge", async (c) => {
-  const now = new Date();
-  const month = now.toISOString().slice(0, 7);
-  const monthLabel = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const rows: ChallengeRow[] = [];
+  const month = new Date().toISOString().slice(0, 7); // UTC — matches the key
+  const [y, m] = month.split("-").map(Number);
+  const monthLabel = new Date(Date.UTC(y!, m! - 1, 1)).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  /* Board is cached 60s — a public, embeddable page must not fan out a
+   * KV read per completion-key on every hit (QA 2026-07-22). */
+  const cacheKey = `chl:board:${month}`;
+  let rows: ChallengeRow[] = [];
   try {
-    const list = await c.env.RATE_LIMITS.list({ prefix: `challenge:${month}:` });
-    for (const key of list.keys) {
-      const raw = await c.env.RATE_LIMITS.get(key.name);
-      if (!raw) continue;
-      try {
-        const parsed = JSON.parse(raw) as { cohort?: string; count?: number };
-        if (parsed.cohort && typeof parsed.count === "number") {
-          rows.push({ cohort: parsed.cohort, count: parsed.count });
+    const cached = await c.env.RATE_LIMITS.get(cacheKey);
+    if (cached) {
+      rows = JSON.parse(cached) as ChallengeRow[];
+    } else {
+      const bySlug = new Map<string, { cohort: string; count: number }>();
+      let cursor: string | undefined;
+      for (let page = 0; page < 5; page++) {
+        const list = await c.env.RATE_LIMITS.list({
+          prefix: `chl:${month}:`,
+          cursor,
+        });
+        for (const key of list.keys) {
+          const slug = key.name.split(":")[2] ?? "";
+          const entry = bySlug.get(slug) ?? { cohort: slug, count: 0 };
+          entry.count += 1;
+          bySlug.set(slug, entry);
         }
-      } catch {
-        /* skip malformed */
+        /* the value carries the display name — read a few to label */
+        if (page === 0) {
+          for (const key of list.keys.slice(0, 40)) {
+            const slug = key.name.split(":")[2] ?? "";
+            const name = await c.env.RATE_LIMITS.get(key.name);
+            const entry = bySlug.get(slug);
+            if (entry && name) entry.cohort = name;
+          }
+        }
+        if (list.list_complete) break;
+        cursor = list.cursor;
       }
+      rows = [...bySlug.values()]
+        .map((v) => ({ cohort: v.cohort, count: v.count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 12);
+      await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(rows), {
+        expirationTtl: 60,
+      });
     }
   } catch {
     /* empty board is fine */
   }
-  rows.sort((a, b) => b.count - a.count);
-  return c.html(renderChallengePage(monthLabel, rows.slice(0, 12)), 200, FRAME_HEADERS);
+  return c.html(renderChallengePage(monthLabel, rows), 200, FRAME_HEADERS);
 });
 
 /* #8 — personalised instant demo (outreach landing page). Public,
@@ -1792,9 +1830,17 @@ async function advanceModuleHealth(env: Env): Promise<ModuleHealthState> {
     try {
       calls++;
       const units = await getCourseContents(env, courseId);
+      const content = units.filter((u) => !/certificate/i.test(u.type));
+      /* Gate the WHOLE course against the subrequest budget before
+       * fetching any unit — a partial course would be recorded with
+       * missing units and a wrong funnel, then never re-filled thanks
+       * to the idempotency guard (QA 2026-07-22). Stop this step and
+       * resume the course cleanly next call. */
+      if (content.length > 0 && calls + content.length > MH_CALL_BUDGET) {
+        break;
+      }
       const healths: UnitHealth[] = [];
-      for (const u of units) {
-        if (/certificate/i.test(u.type)) continue;
+      for (const u of content) {
         calls++;
         const a = await getUnitAnalytics(env, courseId, u.id);
         healths.push({
@@ -1929,6 +1975,13 @@ app.post("/ops/action", async (c) => {
     if (op === "revoke_code") {
       const code = (typeof body.code === "string" ? body.code : "").trim();
       if (!/^[A-Za-z0-9-]{6,60}$/.test(code)) return c.json({ error: "bad_code" }, 400);
+      /* Lock-out guard: never revoke the code this session is signed
+       * in with — the founder would sever their own access. */
+      const cookies = c.req.header("Cookie") || "";
+      const own = cookies.match(new RegExp(`${PORTAL_COOKIE}=([^.;]+)`));
+      if (own && own[1] === code) {
+        return c.json({ error: "cannot_revoke_own_code" }, 400);
+      }
       await kv.delete(`portal:code:${code}`);
       console.log(`[coach] kind=ops op=revoke_code code=${code}`);
       return c.json({ ok: true });
@@ -1939,7 +1992,14 @@ app.post("/ops/action", async (c) => {
       return c.json({ ok: true });
     }
     if (op === "bust_caches") {
-      const prefixes = ["portal:data:", "portal:narrative:", "portal:risk:", "portal:reflect:"];
+      const prefixes = [
+        "portal:data:",
+        "portal:narrative:",
+        "portal:risk:",
+        "portal:reflect:",
+        "portal:mh:",
+        "chl:board:",
+      ];
       let deleted = 0;
       for (const prefix of prefixes) {
         const list = await kv.list({ prefix });
@@ -1966,6 +2026,7 @@ app.post("/ops/action", async (c) => {
         .map((t) => ({ title: t, id: courseIdFor(t.trim()) }))
         .filter((m): m is { title: string; id: string } => Boolean(m.id));
       const results: Array<Record<string, unknown>> = [];
+      const seenEmails = new Set<string>();
       for (const raw of rows) {
         const row = raw as Record<string, unknown>;
         const email =
@@ -1975,6 +2036,13 @@ app.post("/ops/action", async (c) => {
           results.push({ email, action: "invalid_email" });
           continue;
         }
+        /* De-dupe within the batch so the same email is never created
+         * twice (QA 2026-07-22). */
+        if (seenEmails.has(email)) {
+          results.push({ email, action: "duplicate_in_batch" });
+          continue;
+        }
+        seenEmails.add(email);
         const username =
           name.replace(/\s+/g, "").toLowerCase().slice(0, 30) ||
           email.split("@")[0]!.replace(/[^a-z0-9]/gi, "").slice(0, 30);
@@ -2028,7 +2096,14 @@ app.post("/ops/action", async (c) => {
             `[coach] kind=ops op=onboard email_hash=${(await hashLearnerId(email)).slice(0, 8)} tag=${tag || "-"} enrolled=${enrolled.length}`,
           );
         } catch (err) {
-          results.push({ email, action: "error", note: String(err).slice(0, 120) });
+          const msg = String(err);
+          results.push({
+            email,
+            action: "error",
+            note: /429/.test(msg)
+              ? "LearnWorlds is rate-limiting — wait a minute and dry-run again"
+              : msg.slice(0, 120),
+          });
         }
       }
       return c.json({ ok: true, dryRun, results });
@@ -2175,8 +2250,15 @@ app.get("/inspect", async (c) => {
       }),
     );
   } catch (err) {
-    console.error("[coach] inspect error:", String(err));
-    return c.html(renderInspectExpired());
+    /* A valid link that failed to BUILD (e.g. cold cache after a
+     * rebuild) must not say 'expired' — that reads as broken during an
+     * inspection. Ask for a refresh instead (QA 2026-07-22). */
+    console.error("[coach] inspect build error:", String(err));
+    return c.html(
+      renderInspectBuilding(),
+      503,
+      { "Retry-After": "5" },
+    );
   }
 });
 

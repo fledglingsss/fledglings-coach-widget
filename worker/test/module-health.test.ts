@@ -16,7 +16,7 @@ const u = (name: string, viewers: number, type = "scorm") => ({
 });
 
 describe("stallReport", () => {
-  it("finds the biggest drop and computes retention", () => {
+  it("finds the biggest drop and computes retention against the peak", () => {
     const course: CourseHealth = {
       courseId: "c1",
       title: "Module",
@@ -27,6 +27,19 @@ describe("stallReport", () => {
     expect(r.stallUnit).toBe("The Hard Bit"); // 16 -> 6 is the biggest loss
     expect(r.stallLossPct).toBe(63);
     expect(r.funnel).toEqual([20, 18, 16, 6, 5]);
+  });
+
+  it("uses peak (not unit 1) as the baseline so retention never exceeds 100%", () => {
+    /* Intro video viewed less than the reflection that follows it. */
+    const r = stallReport({
+      courseId: "c",
+      title: "T",
+      units: [u("Intro video", 9), u("Reflection", 12), u("Lesson", 11), u("Summary", 10)],
+    })!;
+    expect(r.starters).toBe(12); // the peak, not the 9 at unit 1
+    expect(r.finishers).toBe(10);
+    expect(r.retention).toBe(83);
+    expect(r.retention).toBeLessThanOrEqual(100);
   });
 
   it("ignores certificates and refuses to judge tiny samples", () => {

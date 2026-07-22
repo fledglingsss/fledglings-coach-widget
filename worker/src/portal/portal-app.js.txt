@@ -662,7 +662,7 @@
       }).join("");
       out +=
         "<div class='mhrow'><span class='mhname'>" + esc(r.title) +
-        "<em>" + r.starters + " started · " + r.finishers + " reached the end" +
+        "<em>" + r.starters + " reached it · " + r.finishers + " finished" +
         (r.stallUnit ? " · <b>" + r.stallLossPct + "% stop at “" + esc(r.stallUnit) + "”</b>" : "") +
         "</em></span>" +
         "<span class='funnel' title='Learners remaining at each unit'>" + bars + "</span>" +

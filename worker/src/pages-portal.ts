@@ -286,8 +286,10 @@ td.barcell .mbar{margin:0;}
   padding:9px 0;border-bottom:1px solid #F1ECE8;font-size:13px;}
 .coderow:last-child{border-bottom:none;}
 .coderow code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--off);
-  border-radius:7px;padding:4px 9px;}
+  border-radius:7px;padding:4px 9px;overflow-wrap:anywhere;}
 .coderow span{font-weight:600;}
+@media(max-width:700px){.coderow{grid-template-columns:1fr auto;}
+  .coderow code{grid-column:1/-1;}}
 .foot{border-top:1px solid var(--hair);color:var(--mut);font-size:12px;text-align:center;padding:20px;margin-top:30px;}
 .foot b{color:var(--orange);font-weight:700;}
 body:not(.loaded) .content{opacity:.45;transition:opacity .2s;}
@@ -510,9 +512,9 @@ export function renderOpsPage(label: string): string {
     "if(j&&j.ok){$('mint-out').innerHTML=\"New code (share securely): <code style='font-weight:700'>\"+esc(j.code)+'</code>';" +
     "$('mint-label').value='';$('mint-tag').value='';}load();});};" +
     /* ---- cohort onboarding ---- */
-    "function obRows(){return $('ob-rows').value.split(/\\n+/).map(function(l){" +
-    "var p=l.split(',');return {email:(p[0]||'').trim(),name:(p.slice(1).join(',')||'').trim()};" +
-    "}).filter(function(r){return r.email});}" +
+    "function obRows(){var seen={};return $('ob-rows').value.split(/\\n+/).map(function(l){" +
+    "var p=l.split(',');return {email:(p[0]||'').trim().toLowerCase(),name:(p.slice(1).join(',')||'').trim()};" +
+    "}).filter(function(r){if(!r.email||seen[r.email])return false;seen[r.email]=1;return true;});}" +
     "function obMods(){return $('ob-mods').value.split(',').map(function(m){return m.trim()}).filter(Boolean).slice(0,3);}" +
     "function obRender(all){var out='';all.forEach(function(r){" +
     "var col=r.action==='created'||r.action==='would_create'?'#1B7A4B':" +
@@ -534,7 +536,13 @@ export function renderOpsPage(label: string): string {
     ".then(function(r){return r.json()}).then(function(j){all=all.concat((j&&j.results)||[]);idx++;step();})" +
     ".catch(function(){$('ob-prog').textContent='Batch failed — results so far shown.';obRender(all);});}" +
     "step();}" +
-    "$('ob-dry').onclick=function(){obRun(true,function(){$('ob-go').disabled=false;});};" +
+    "$('ob-dry').onclick=function(){obRun(true,function(all){" +
+    "var bad=all.filter(function(r){return r.action==='error'||r.action==='create_failed'}).length;" +
+    "var good=all.filter(function(r){return r.action==='would_create'}).length;" +
+    "$('ob-go').disabled=bad>0||good===0;" +
+    "if(bad>0){$('ob-prog').textContent='Fix the errors above and dry-run again before creating.';}" +
+    "else if(good===0){$('ob-prog').textContent='Nothing new to create.';}" +
+    "else{$('ob-prog').textContent=good+' account'+(good===1?'':'s')+' ready — review, then press Create cohort.';}});};" +
     "$('ob-go').onclick=function(){var n=obRows().length;" +
     "if(!confirm('Create '+n+' learner account'+(n===1?'':'s')+' in LearnWorlds now?'+($('ob-email').checked?' Welcome emails WILL be sent.':' No emails will be sent.')))return;" +
     "obRun(false);};" +
@@ -612,6 +620,18 @@ export function renderInspectPage(data: {
       "accounts. They evidence provision, participation and active monitoring — not attributed outcomes. " +
       "Individual learner records are available to the provider through their access-controlled portal.</p>" +
       "</main>",
+  );
+}
+
+export function renderInspectBuilding(): string {
+  return portalShell(
+    "Fledglings — preparing snapshot",
+    "<div class='content' style='max-width:560px'><div class='panel'><div class='pb' style='padding:30px'>" +
+      "<h2 style='font-size:20px;margin-bottom:10px'>Preparing this evidence snapshot…</h2>" +
+      "<p class='muted' style='line-height:1.6'>The figures are being gathered from the platform — this can take " +
+      "a few seconds the first time. Please refresh the page shortly. The link itself is valid.</p>" +
+      "<div class='actions' style='margin-top:16px'><button class='abtn' onclick='location.reload()'>Refresh</button></div>" +
+      "</div></div></div>",
   );
 }
 

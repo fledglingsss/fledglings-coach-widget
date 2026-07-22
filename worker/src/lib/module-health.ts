@@ -61,7 +61,12 @@ function isContentUnit(u: UnitHealth): boolean {
 export function stallReport(course: CourseHealth): StallReport | null {
   const units = course.units.filter(isContentUnit);
   if (units.length < 2) return null;
-  const starters = units[0]!.viewers;
+  /* Learners don't always enter at unit 1 (an intro video may be
+   * viewed less than the first reflection), so a later unit can show
+   * more viewers than the first. Use the PEAK as the "reached" baseline
+   * — retention is honestly measured against the most learners the
+   * module ever held, and can never exceed 100% (QA 2026-07-22). */
+  const starters = Math.max(...units.map((u) => u.viewers));
   if (starters < 3) return null; // too few learners to say anything honest
   const finishers = units[units.length - 1]!.viewers;
 

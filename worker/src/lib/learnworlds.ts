@@ -133,15 +133,26 @@ export async function lwRequest(
 ): Promise<Response> {
   const token = await getToken(env);
   const base = await resolveBase(env, token);
-  return fetchWithTimeout(`${base}/v2${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Lw-Client": env.LEARNWORLDS_CLIENT_ID || "",
-      ...(jsonBody !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    body: jsonBody !== undefined ? JSON.stringify(jsonBody) : undefined,
-  });
+  /* LearnWorlds rate-limits at ~30 req/10s. On 429 (or a transient
+   * 503) back off and retry twice before surfacing the error — batch
+   * operations hit this in normal use (QA 2026-07-22). */
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetchWithTimeout(`${base}/v2${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Lw-Client": env.LEARNWORLDS_CLIENT_ID || "",
+        ...(jsonBody !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: jsonBody !== undefined ? JSON.stringify(jsonBody) : undefined,
+    });
+    if ((res.status !== 429 && res.status !== 503) || attempt >= 2) return res;
+    const retryAfter = Number(res.headers.get("Retry-After"));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.min(retryAfter * 1000, 5000)
+      : 1200 * (attempt + 1);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
 }
 
 /** List all courses (id + title). Used by /lw-check to verify the
