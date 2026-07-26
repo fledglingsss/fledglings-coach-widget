@@ -119,6 +119,14 @@ import {
   type HubTool,
 } from "./lib/hub";
 import { renderInterviewPage } from "./pages-interview";
+import { renderLinkedInPage } from "./pages-linkedin";
+import {
+  analyseLinkedInFacts,
+  linkedinSystemPrompt,
+  linkedinUserMessage,
+  parseLinkedInReport,
+  validateLinkedInRequest,
+} from "./lib/linkedin";
 import {
   INTERVIEW_CAPS,
   interviewSystemPrompt,
@@ -874,6 +882,100 @@ const FRAME_HEADERS = {
 };
 
 app.get("/tools", (c) => c.html(renderToolsPage(), 200, FRAME_HEADERS));
+
+/* ==================================================================
+ * LinkedIn Optimizer — Hiration-style per-section scoring. Shares the
+ * daily review budget with /api/review (they are the same class of
+ * spend); the section weights sum to 100 so the overall lands straight
+ * in the hub's LinkedIn history.
+ * ================================================================== */
+
+app.get("/linkedin", (c) => c.html(renderLinkedInPage(), 200, FRAME_HEADERS));
+
+app.post("/api/linkedin", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  const sessionId = typeof body.session_id === "string" ? body.session_id : "";
+  if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+  const validated = validateLinkedInRequest(body);
+  if ("error" in validated) {
+    return c.json({ error: "invalid_review", detail: validated.error }, 400);
+  }
+
+  if (await coachDisabled(c.env)) {
+    return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+  }
+
+  /* Safeguarding first: a profile can carry a disclosure. */
+  if (crisisHeuristic(validated.text) || crisisHeuristic(validated.target)) {
+    console.log("[coach] kind=linkedin outcome=crisis");
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
+
+  /* Shared daily review budget with /api/review. */
+  const learnerHash = await hashLearnerId(learnerId);
+  const capKey = `rv:day:${learnerHash}:${new Date().toISOString().slice(0, 10)}`;
+  const used = parseInt((await c.env.RATE_LIMITS.get(capKey)) || "0", 10) || 0;
+  if (used >= REVIEW_CAPS.perDay) {
+    return c.json({
+      reply:
+        "You've used today's reviews — nicely thorough! They top back up tomorrow. " +
+        "Work the feedback you've already got in the meantime.",
+      kind: "limit",
+    });
+  }
+
+  const facts = analyseLinkedInFacts(validated.text);
+  try {
+    const raw = await generate(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.COACH_MODEL || "claude-sonnet-4-6",
+      linkedinSystemPrompt(),
+      linkedinUserMessage(validated, facts),
+      REVIEW_MAX_TOKENS,
+    );
+    const report = parseLinkedInReport(raw, facts);
+    if (report === "crisis") {
+      console.log("[coach] kind=linkedin outcome=model_crisis");
+      return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+    }
+    if (report === null) {
+      console.error("[coach] linkedin report failed to parse");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    /* Output gate over every string the learner will see. */
+    const visible = [
+      report.verdict,
+      report.next_step,
+      ...report.sections.flatMap((s) => [...s.right, ...s.improve]),
+    ].join("\n");
+    if (guardReply(visible, 10_000) === null) {
+      console.error("[coach] linkedin report failed output gate");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+    await recordHubScore(
+      c.env,
+      learnerId,
+      typeof body.email === "string" ? body.email : undefined,
+      "linkedin",
+      report.overall,
+    );
+    console.log(
+      `[coach] kind=linkedin outcome=ok overall=${report.overall} customUrl=${facts.url.custom}`,
+    );
+    return c.json({ report, kind: "linkedin" });
+  } catch (err) {
+    return c.json(modelFailure("linkedin", err));
+  }
+});
 
 /* ==================================================================
  * #4 — Readiness Passport

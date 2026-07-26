@@ -203,8 +203,12 @@ export function renderToolsPage(): string {
     "$('d-hint').innerHTML=cv?'or click to choose a file · PDF only · max 10\\u00a0MB':" +
     "'On LinkedIn: your profile → <b>More</b> → <b>Save to PDF</b> — then upload it here';" +
     "show('u-card');}" +
-    "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){setKind('linkedin')};" +
-    "if(qs.get('tab')==='li')setKind('linkedin');" +
+    /* The LinkedIn tab now lives at the dedicated Optimizer — carry
+     * the hub identity across so scores land in one history. */
+    "function linkedinUrl(){var p=[];if(qs.get('e'))p.push('e='+qs.get('e'));" +
+    "if(qs.get('hub')==='1')p.push('hub=1');return '/linkedin'+(p.length?'?'+p.join('&'):'');}" +
+    "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){location.href=linkedinUrl()};" +
+    "if(qs.get('tab')==='li'){location.replace(linkedinUrl());}" +
     /* ---- pdf.js on demand ---- */
     "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
     "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
