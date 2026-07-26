@@ -113,11 +113,20 @@ import { renderHubPage } from "./pages-hub";
 import {
   emptyScores,
   HUB_HISTORY_MAX,
+  HUB_TOOLS,
   parseScores,
   pushScore,
   summariseHub,
   type HubTool,
 } from "./lib/hub";
+import {
+  COVER_LETTER_CAPS,
+  coverLetterSystemPrompt,
+  coverLetterUserMessage,
+  parseCoverLetterDraft,
+  validateCoverLetterRequest,
+} from "./lib/cover-letter";
+import { renderCoverLetterPage } from "./pages-cover-letter";
 import { renderInterviewPage } from "./pages-interview";
 import { renderLinkedInPage } from "./pages-linkedin";
 import {
@@ -988,6 +997,99 @@ app.post("/api/linkedin", async (c) => {
     return c.json({ report, kind: "linkedin" });
   } catch (err) {
     return c.json(modelFailure("linkedin", err));
+  }
+});
+
+/* ==================================================================
+ * Cover Letter Studio — drafts a letter WITH the learner under the
+ * no-fabrication law: only their real CV facts, [brackets] for
+ * everything they must supply themselves. Never stored.
+ * ================================================================== */
+
+app.get("/cover-letter", (c) => c.html(renderCoverLetterPage(), 200, FRAME_HEADERS));
+
+app.post("/api/cover-letter", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  const sessionId = typeof body.session_id === "string" ? body.session_id : "";
+  if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+  const validated = validateCoverLetterRequest(body);
+  if ("error" in validated) {
+    return c.json({ error: "invalid_cover_letter", detail: validated.error }, 400);
+  }
+
+  if (await coachDisabled(c.env)) {
+    return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+  }
+
+  /* Safeguarding first — a CV or advert can carry a disclosure. */
+  if (crisisHeuristic(validated.jd) || crisisHeuristic(validated.cvText)) {
+    console.log("[coach] kind=cover-letter outcome=crisis");
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
+
+  const learnerHash = await hashLearnerId(learnerId);
+  const capKey = `cl:day:${learnerHash}:${new Date().toISOString().slice(0, 10)}`;
+  const used = parseInt((await c.env.RATE_LIMITS.get(capKey)) || "0", 10) || 0;
+  if (used >= COVER_LETTER_CAPS.perDay) {
+    return c.json({
+      reply:
+        "You've drafted today's three cover letters — polish the ones you have and make them yours. " +
+        "They top back up tomorrow.",
+      kind: "limit",
+    });
+  }
+
+  try {
+    const raw = await generate(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.COACH_MODEL || "claude-sonnet-4-6",
+      coverLetterSystemPrompt(),
+      coverLetterUserMessage(validated),
+      1400,
+    );
+    const draft = parseCoverLetterDraft(raw);
+    if (draft === "crisis") {
+      console.log("[coach] kind=cover-letter outcome=model_crisis");
+      return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+    }
+    if (draft === null) {
+      console.error("[coach] cover letter failed to parse");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    const visible = [
+      draft.greeting,
+      ...draft.paragraphs,
+      draft.signoff,
+      ...draft.personalise,
+      ...draft.tips,
+    ].join("\n");
+    if (guardReply(visible, 6000) === null) {
+      console.error("[coach] cover letter failed output gate");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+    /* Journey completion marker only — the letter itself is never stored. */
+    await recordHubScore(
+      c.env,
+      learnerId,
+      typeof body.email === "string" ? body.email : undefined,
+      "cover",
+      100,
+    );
+    console.log(
+      `[coach] kind=cover-letter outcome=ok withCv=${validated.cvText.length > 0}`,
+    );
+    return c.json({ draft, kind: "cover-letter" });
+  } catch (err) {
+    return c.json(modelFailure("cover-letter", err));
   }
 });
 
@@ -1919,11 +2021,11 @@ app.post("/api/hub", async (c) => {
     const merged = emptyScores();
     for (const h of [...new Set(hashes)]) {
       const scores = parseScores(await c.env.RATE_LIMITS.get(`hub:scores:${h}`));
-      for (const tool of ["cv", "linkedin", "interview"] as const) {
+      for (const tool of HUB_TOOLS) {
         merged[tool] = [...merged[tool], ...scores[tool]];
       }
     }
-    for (const tool of ["cv", "linkedin", "interview"] as const) {
+    for (const tool of HUB_TOOLS) {
       merged[tool] = merged[tool]
         .sort((a, b) => a.at - b.at)
         .slice(-HUB_HISTORY_MAX);
