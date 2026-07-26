@@ -127,6 +127,8 @@ import {
   validateCoverLetterRequest,
 } from "./lib/cover-letter";
 import { renderCoverLetterPage } from "./pages-cover-letter";
+import { renderBuilderPage } from "./pages-builder";
+import { assembleCvText, builderScore, sanitiseBuilderCv } from "./lib/builder";
 import { renderInterviewPage } from "./pages-interview";
 import { renderLinkedInPage } from "./pages-linkedin";
 import {
@@ -905,6 +907,51 @@ const FRAME_HEADERS = {
 };
 
 app.get("/tools", (c) => c.html(renderToolsPage(), 200, FRAME_HEADERS));
+
+/* ==================================================================
+ * Resume Builder — CVs live in the learner's browser; this endpoint
+ * assembles the structured sections into the canonical text, runs the
+ * deterministic recruiter checks (no model call) and forgets it.
+ * ================================================================== */
+
+app.get("/builder", (c) => c.html(renderBuilderPage(), 200, FRAME_HEADERS));
+
+app.post("/api/builder-check", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  try {
+    /* Generous cap — deterministic and model-free, but not a free-for-all. */
+    const deviceHash = await hashLearnerId(learnerId);
+    const rlKey = `bc:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= 100) {
+      return c.json({ reply: "That's a lot of checking for one day — the checks top back up tomorrow.", kind: "limit" });
+    }
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+
+    const cv = sanitiseBuilderCv(body.cv);
+    const text = assembleCvText(cv);
+    if (text.length < 80) {
+      return c.json({
+        reply: "Add a bit more first — at least your name, one role and a few bullet points — then check again.",
+        kind: "too_short",
+      });
+    }
+    const checks = runCvChecks(text, "cv");
+    const score = builderScore(checks);
+    console.log(`[coach] kind=builder-check outcome=ok score=${score} checks=${checks.passed}/${checks.total}`);
+    return c.json({ checks, score, text, kind: "builder-check" });
+  } catch (err) {
+    console.error("[coach] builder-check error:", String(err));
+    return c.json({ reply: "Could not check just now — try again in a minute.", kind: "fallback" });
+  }
+});
 
 /* ==================================================================
  * LinkedIn Optimizer — Hiration-style per-section scoring. Shares the

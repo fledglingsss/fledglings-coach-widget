@@ -104,6 +104,10 @@ export function renderHubPage(): string {
     "<div class='btnrow' style='margin-top:14px'><a class='btn' id='next-btn' href='/tools'>Open</a></div></div>" +
     /* tool cards */
     `<div class='hubgrid'>${cards}</div>` +
+    /* resume builder cross-link */
+    "<div class='card buildlink'>🛠️ <b>No CV yet — or want a cleaner one?</b> Build it from scratch in the " +
+    "<a data-tool='builder' href='/builder'>Resume Builder</a>: it saves as you type, scores itself instantly, " +
+    "and prints straight to PDF.</div>" +
     /* tasks checklist */
     "<div class='card' id='tasks-card' hidden><h3>Your seven tasks</h3><ul class='tasklist' id='task-list'></ul></div>" +
     "<p class='sub' style='font-size:12.5px;margin-top:20px'>Scores stay for six months so you can watch them climb. " +
@@ -243,4 +247,6 @@ const HUB_CSS = `
 .nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
 .nextstep div:nth-child(2){font-size:15.5px;line-height:1.6;font-weight:500;}
 .nextstep a.btn{text-decoration:none;}
+.buildlink{font-size:14px;line-height:1.6;color:#4a5b66;margin-top:16px;}
+.buildlink a{color:var(--blue);font-weight:700;}
 `;

@@ -209,6 +209,16 @@ export function renderToolsPage(): string {
     "if(qs.get('hub')==='1')p.push('hub=1');return '/linkedin'+(p.length?'?'+p.join('&'):'');}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){location.href=linkedinUrl()};" +
     "if(qs.get('tab')==='li'){location.replace(linkedinUrl());}" +
+    /* Handoff from the Resume Builder: the built CV's text arrives via
+     * sessionStorage — offer to review it without a PDF. */
+    "if(qs.get('from')==='builder'){try{var bTxt=sessionStorage.getItem('fl_builder_cv_text')||'';" +
+    "if(bTxt.length>=120){var bb=document.createElement('div');bb.className='card';" +
+    "bb.innerHTML=\"<h3>Review the CV you just built?</h3><p class='kw-note'>Fledge has the text from your Resume Builder — \"+" +
+    "\"no PDF needed. Add a target role above first if you have one.</p>\";" +
+    "var bbtn=document.createElement('button');bbtn.type='button';bbtn.className='btn';" +
+    "bbtn.textContent='Review my built CV now';" +
+    "bbtn.onclick=function(){lastName='Your built CV';show('a-card');startMsgs();submit(bTxt);};" +
+    "bb.appendChild(bbtn);var uc=$('u-card');uc.parentNode.insertBefore(bb,uc);}}catch(e){}}" +
     /* ---- pdf.js on demand ---- */
     "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
     "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
