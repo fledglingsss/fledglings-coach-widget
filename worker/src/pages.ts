@@ -3,7 +3,7 @@
  * mobile-first, print-aware. All dynamic values are escaped by the
  * caller via esc() before reaching a template. */
 
-import { WORDMARK_DARK } from "./brand";
+import { WORDMARK_DARK, WORDMARK_LIGHT } from "./brand";
 import type { PassportData } from "./lib/passport";
 
 export function esc(t: string): string {
@@ -84,6 +84,213 @@ td.c,th.c{text-align:center;}
   body{background:#fff;}.card,.kpi{box-shadow:none;border:1px solid #ddd;}}
 `;
 
+/* Shared identity resolver, included on every tool page. The tools
+ * work identically embedded in LearnWorlds or standalone:
+ *   1. Embedded: the LearnWorlds Liquid email arrives as ?e= (b64url)
+ *      and is remembered for this browser.
+ *   2. Standalone: the learner saves their email once on /hub and it
+ *      follows them to every tool from localStorage.
+ * The email is only ever used as the key for score history — no
+ * account, no password, nothing readable by other sites. */
+export const IDENTITY_JS = String.raw`
+function flResolveEmail(){var email='';
+try{var p=new URLSearchParams(location.search).get('e');
+if(p){email=decodeURIComponent(atob(p.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(e){}
+email=String(email||'').trim().toLowerCase();
+if(email.indexOf('@')===-1)email='';
+try{if(email){localStorage.setItem('fl_hub_email_v1',email);}
+else{email=localStorage.getItem('fl_hub_email_v1')||'';email=String(email).trim().toLowerCase();
+if(email.indexOf('@')===-1)email='';}}catch(e){}
+return email;}
+function flSaveEmail(em){em=String(em||'').trim().toLowerCase();
+if(em.indexOf('@')===-1||em.length<6||em.length>80)return '';
+try{localStorage.setItem('fl_hub_email_v1',em)}catch(e){}return em;}
+function flClearEmail(){try{localStorage.removeItem('fl_hub_email_v1')}catch(e){}}
+function flEmailParam(){var em=flResolveEmail();if(!em)return '';
+try{return btoa(unescape(encodeURIComponent(em))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(e){return ''}}
+function flHubLink(){var ev=flEmailParam();return '/hub'+(ev?'?e='+ev:'');}
+function flAddHubBackLink(){var bk=document.createElement('a');bk.href=flHubLink();
+bk.textContent='← Your Employability Hub';
+bk.style.cssText='display:inline-block;margin-bottom:14px;color:#3D5CF5;font-weight:600;font-size:13.5px;text-decoration:none;';
+var hh=document.querySelector('h2.page');if(hh)hh.parentNode.insertBefore(bk,hh);}
+/* Small "who is this saving as" chip under the page title — the
+ * guard against shared-device cross-contamination: the current email
+ * is always visible and one tap away from being cleared. */
+function flIdentityChip(){var em=flResolveEmail();if(!em)return;
+var chip=document.createElement('div');
+chip.style.cssText='display:inline-flex;gap:8px;align-items:center;margin:-8px 0 16px;font-size:12.5px;color:#68788A;';
+var who=document.createElement('span');who.textContent='Saving progress as '+em;
+var not=document.createElement('button');not.type='button';not.textContent='Not you?';
+not.style.cssText='border:none;background:none;color:#3D5CF5;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;';
+not.onclick=function(){flClearEmail();var u=new URL(location.href);u.searchParams.delete('e');location.href=u.pathname+u.search;};
+chip.appendChild(who);chip.appendChild(not);
+var hh=document.querySelector('h2.page');
+if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}`;
+
+/* ------------------------------------------------------------------
+ * App shell — the Hiration-style light application chrome used by the
+ * employability suite (/hub, /tools, /linkedin, /interview,
+ * /cover-letter, /builder): white sidebar navigation, soft grey
+ * canvas, blue primary actions. The portal/passport keep the classic
+ * pageShell.
+ * ------------------------------------------------------------------ */
+
+export const NAV_ICONS: Record<string, string> = {
+  home: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/><path d='M10 21v-6h4v6'/></svg>",
+  builder: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M7 3h7l5 5v13H7z'/><path d='M14 3v5h5'/><path d='M10 13h6M10 17h6'/></svg>",
+  cv: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11l3 3 8-8'/><path d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/></svg>",
+  cover: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg>",
+  linkedin: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg>",
+  interview: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg>",
+  privacy: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z'/><path d='m9 12 2 2 4-4'/></svg>",
+  account: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg>",
+};
+
+export const APP_NAV: Array<{ id: string; icon: string; label: string; href: string }> = [
+  { id: "home", icon: "home", label: "Home", href: "/hub" },
+  { id: "builder", icon: "builder", label: "Resume Builder", href: "/builder" },
+  { id: "cv", icon: "cv", label: "CV Review", href: "/tools" },
+  { id: "cover", icon: "cover", label: "Cover Letter", href: "/cover-letter" },
+  { id: "linkedin", icon: "linkedin", label: "LinkedIn Review", href: "/linkedin" },
+  { id: "interview", icon: "interview", label: "Interview Practice", href: "/interview" },
+];
+
+const APP_CSS = `
+:root{--navy:#0E2438;--pri:#3D5CF5;--pri-dark:#2C46D6;--pri-soft:#EEF1FE;--orange:#D9452B;--mango:#ED9249;
+  --blue:#3D5CF5;--ink:#22303C;--mut:#68788A;--line:#E7EAF0;--off:#F0F2F6;--canvas:#F7F8FA;--ok:#1B9E5A;--amber:#F59E0B;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
+body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
+.snav{width:236px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;
+  padding:22px 14px;position:sticky;top:0;height:100vh;}
+.snav-logo{padding:2px 10px 20px;}
+.snav-logo svg{height:30px;width:auto;display:block;}
+.snav nav{display:flex;flex-direction:column;gap:4px;}
+.sn-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;text-decoration:none;
+  color:var(--ink);font-size:14.5px;font-weight:500;transition:background .12s;}
+.sn-link svg{width:20px;height:20px;flex:none;color:var(--mut);}
+.sn-link:hover{background:var(--off);}
+.sn-link.on{background:var(--pri-soft);color:var(--pri);font-weight:700;}
+.sn-link.on svg{color:var(--pri);}
+.snav-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:4px;}
+.smain{flex:1;min-width:0;display:flex;flex-direction:column;}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding:30px 30px 70px;flex:1;}
+h2.page{font-size:25px;margin-bottom:6px;letter-spacing:-.01em;}
+.sub{color:var(--mut);margin-bottom:22px;font-size:14.5px;line-height:1.55;max-width:52em;}
+.card{background:#fff;border-radius:16px;border:1px solid var(--line);padding:22px;margin-bottom:16px;
+  box-shadow:0 1px 3px rgba(14,36,56,.04);}
+.card h3{font-size:16px;margin-bottom:10px;}
+textarea,input[type=text],input[type=email]{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;
+  font-size:14.5px;font-family:inherit;color:var(--navy);background:#fff;}
+textarea{resize:vertical;line-height:1.55;}
+textarea:focus,input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(61,92,245,.12);}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px;}
+label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
+.counter{font-size:12px;color:var(--mut);text-align:right;margin-top:4px;}
+.btn{background:var(--pri);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:15px;
+  font-weight:600;cursor:pointer;min-height:46px;transition:background .15s ease,transform .15s ease;}
+.btn:hover{background:var(--pri-dark);transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:default;transform:none;}
+.btn:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
+.btn.quiet{background:var(--navy);}
+.btn.quiet:hover{background:#1d3a55;}
+.btn.ghost{background:#fff;color:var(--pri);border:1.5px solid #C9D3F8;}
+.btn.ghost:hover{background:var(--pri-soft);}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.tab{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:10px 18px;
+  font-weight:600;font-size:14px;cursor:pointer;min-height:42px;}
+.tab.on{background:var(--pri);border-color:var(--pri);color:#fff;}
+.tab:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+.badge{display:inline-block;background:var(--off);color:var(--mut);border-radius:99px;padding:3px 10px;
+  font-size:11.5px;font-weight:600;}
+.notice{background:#FFF6F0;border-left:4px solid var(--orange);border-radius:10px;padding:12px 14px;
+  font-size:13.5px;line-height:1.5;margin-bottom:18px;}
+.result{line-height:1.7;font-size:14.5px;}
+.result p{margin-bottom:8px;white-space:pre-wrap;}
+.footer{padding:14px 20px;text-align:center;font-size:12px;color:var(--mut);}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+@media (max-width:880px){
+  body{flex-direction:column;}
+  .snav{width:100%;height:auto;position:static;flex-direction:column;padding:12px 14px;border-right:none;
+    border-bottom:1px solid var(--line);}
+  .snav-logo{padding:2px 4px 10px;}
+  .snav-logo svg{height:24px;}
+  .snav nav{flex-direction:row;overflow-x:auto;gap:6px;-webkit-overflow-scrolling:touch;}
+  .sn-link{white-space:nowrap;padding:9px 12px;font-size:13.5px;}
+  .snav-foot{display:none;}
+  .wrap{padding:22px 16px 60px;}
+}
+@media print{.snav,.btn,.tabs,.footer,.no-print{display:none!important;}
+  body{background:#fff;}.card{box-shadow:none;border:1px solid #ddd;}}
+`;
+
+/* Retints applied AFTER page-specific CSS so the legacy warm-palette
+ * decorations pick up the app skin without editing every page. */
+const APP_OVERRIDES = `
+.drop-ico,.pulse,.mic{background:linear-gradient(135deg,#7B8CF8,var(--pri))!important;}
+.drop{border-color:#B9C6F5;background:var(--pri-soft);}
+.drop:hover,.drop.over{border-color:var(--pri);background:#E4E9FD;}
+.drop.mini{border-color:#B9C6F5;background:var(--pri-soft);color:var(--pri);}
+.drop.mini:hover,.drop.mini.over{border-color:var(--pri);background:#E4E9FD;}
+.qnum{color:var(--pri);}
+.qrole{background:var(--pri-soft);color:var(--pri);}
+.rolebtn:hover{border-color:var(--pri);}
+.tpl.on{border-color:var(--pri);box-shadow:0 0 0 2px rgba(61,92,245,.18);}
+.tpl:hover{border-color:#B9C6F5;}
+.nextstep{background:linear-gradient(120deg,var(--navy),var(--pri-dark));}
+.nextstep .ns-label{color:#9DB0FA;}
+.r-head{border-top-color:var(--pri);}
+.ready{border-top-color:var(--pri);}
+.hero{border-top-color:var(--pri);}
+.step.on{border-color:var(--pri);}
+.step.on i{background:var(--pri);}
+.addbtn{border-color:#B9C6F5;background:var(--pri-soft);color:var(--pri);}
+.addbtn:hover{border-color:var(--pri);color:var(--pri-dark);}
+.trust{background:var(--pri-soft);color:var(--pri);}
+.hc-flag{background:linear-gradient(90deg,#E23A8E,#B03AE2);}
+.passport{border-top-color:var(--pri);}
+`;
+
+export function appShell(opts: {
+  title: string;
+  active: string;
+  bodyHtml: string;
+  extraCss?: string;
+}): string {
+  const nav = APP_NAV.map(
+    (n) =>
+      `<a class='sn-link${n.id === opts.active ? " on" : ""}' data-nav href='${n.href}'>` +
+      `${NAV_ICONS[n.icon]}<span>${esc(n.label)}</span></a>`,
+  ).join("");
+  return (
+    "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+    "<meta name='robots' content='noindex'>" +
+    `<title>${esc(opts.title)}</title>` +
+    "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
+    "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'>" +
+    `<style>${APP_CSS}${opts.extraCss ?? ""}${APP_OVERRIDES}</style></head><body>` +
+    "<aside class='snav'>" +
+    `<div class='snav-logo'>${WORDMARK_LIGHT}</div>` +
+    `<nav aria-label='Employability tools'>${nav}</nav>` +
+    "<div class='snav-foot'>" +
+    `<a class='sn-link' data-nav href='/ai-privacy'>${NAV_ICONS.privacy}<span>AI &amp; Privacy</span></a>` +
+    `<a class='sn-link' data-nav href='/hub#account'>${NAV_ICONS.account}<span>Account</span></a>` +
+    "</div></aside>" +
+    "<div class='smain'>" +
+    `<script>${IDENTITY_JS}</script>` +
+    opts.bodyHtml +
+    "<div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div>" +
+    "</div>" +
+    "<script>(function(){var ev=flEmailParam();if(!ev)return;" +
+    "document.querySelectorAll('a[data-nav]').forEach(function(a){" +
+    "var href=a.getAttribute('href');if(href.indexOf('http')===0)return;" +
+    "var hash='';var hi=href.indexOf('#');if(hi>-1){hash=href.slice(hi);href=href.slice(0,hi);}" +
+    "a.href=href+(href.indexOf('?')>-1?'&':'?')+'e='+ev+hash;});})();</script>" +
+    "</body></html>"
+  );
+}
+
 export function pageShell(opts: {
   title: string;
   bodyHtml: string;
@@ -101,6 +308,7 @@ export function pageShell(opts: {
     `<header class='brandbar'><span class='bmark'>${WORDMARK_DARK}</span>` +
     "<div class='tag'>Where Growth Takes Flight</div>" +
     `<div class='right'>${opts.brandRight ?? ""}</div></header>` +
+    `<script>${IDENTITY_JS}</script>` +
     opts.bodyHtml +
     "<div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div>" +
     "</body></html>"
@@ -183,15 +391,10 @@ export function renderToolsPage(): string {
     "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
-    /* hub identity + navigation: ?e=<b64url email> ties this score to
-     * the learner's hub history; ?hub=1 shows the way back */
-    "var qs=new URLSearchParams(location.search);var hubEmail='';" +
-    "try{var ep=qs.get('e');if(ep){hubEmail=decodeURIComponent(atob(ep.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(err){}" +
-    "if(hubEmail.indexOf('@')===-1)hubEmail='';" +
-    "if(qs.get('hub')==='1'){var bk=document.createElement('a');" +
-    "bk.href='/hub'+(qs.get('e')?'?e='+qs.get('e'):'');bk.textContent='← Back to your Employability Hub';" +
-    "bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';" +
-    "var h=document.querySelector('h2.page');h.parentNode.insertBefore(bk,h);}" +
+    /* Identity via the shared resolver: works embedded (Liquid ?e=)
+     * and standalone (email saved on /hub). */
+    "var qs=new URLSearchParams(location.search);" +
+    "var hubEmail=flResolveEmail();flIdentityChip();" +
     "var tabCv=$('tab-cv'),tabLi=$('tab-li');" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
     "document.querySelectorAll('.steps .step').forEach(function(s,i){" +
@@ -205,8 +408,7 @@ export function renderToolsPage(): string {
     "show('u-card');}" +
     /* The LinkedIn tab now lives at the dedicated Optimizer — carry
      * the hub identity across so scores land in one history. */
-    "function linkedinUrl(){var p=[];if(qs.get('e'))p.push('e='+qs.get('e'));" +
-    "if(qs.get('hub')==='1')p.push('hub=1');return '/linkedin'+(p.length?'?'+p.join('&'):'');}" +
+    "function linkedinUrl(){var ev=flEmailParam();return '/linkedin'+(ev?'?e='+ev:'');}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){location.href=linkedinUrl()};" +
     "if(qs.get('tab')==='li'){location.replace(linkedinUrl());}" +
     /* Handoff from the Resume Builder: the built CV's text arrives via
@@ -224,7 +426,7 @@ export function renderToolsPage(): string {
     "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
     "var pdfReady=null;" +
     "function loadPdf(){if(pdfReady)return pdfReady;" +
-    "pdfReady=new Promise(function(res,rej){var s=document.createElement('script');s.src=PDFJS;" +
+    "pdfReady=new Promise(function(res,rej){var s=document.createElement('script');s.src=PDFJS;s.integrity='sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==';s.crossOrigin='anonymous';" +
     "s.onload=function(){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFWK;res(window.pdfjsLib)}catch(e){rej(e)}};" +
     "s.onerror=function(){pdfReady=null;rej(new Error('load failed'))};document.head.appendChild(s)});return pdfReady;}" +
     "function extractPdf(file){return loadPdf().then(function(lib){" +
@@ -394,7 +596,53 @@ export function renderToolsPage(): string {
 .nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 `;
-  return pageShell({ title: "Fledglings — CV & LinkedIn review", bodyHtml: body, extraCss });
+  return appShell({
+    title: "Fledglings — CV Review",
+    active: "cv",
+    bodyHtml: body,
+    extraCss,
+  });
+}
+
+/* ------------------------------------------------------------------
+ * /ai-privacy — how the AI works, its guardrails, and what is (and
+ * is never) stored. Linked from the sidebar; the honesty page most
+ * competitors don't have.
+ * ------------------------------------------------------------------ */
+export function renderAiPrivacyPage(): string {
+  const body =
+    "<main class='wrap' style='max-width:820px'>" +
+    "<h2 class='page'>AI &amp; your privacy</h2>" +
+    "<p class='sub'>Straight answers about what the AI in these tools does, the rules it works under, " +
+    "and what happens to your stuff. Written for you, not for lawyers.</p>" +
+    "<div class='card'><h3>What is stored — and what never is</h3><div class='result'>" +
+    "<p><b>Stored:</b> your scores (whole numbers) and when you earned them, kept for six months against " +
+    "the email you choose to save, so your progress follows you. That's the entire record.</p>" +
+    "<p><b>Never stored:</b> your CV, your LinkedIn profile, your cover letters, your interview answers, " +
+    "your video or your voice. PDFs are read inside your own browser. Interview recordings never leave " +
+    "your device — the AI only ever sees the words, and forgets them once your feedback is written.</p></div></div>" +
+    "<div class='card'><h3>The no-fabrication law</h3><div class='result'>" +
+    "<p>These tools never invent experience, qualifications or numbers for you. Praise must quote your own " +
+    "words back to you; anything a document needs that only you can supply appears in [brackets] for you to " +
+    "fill in. Employers can tell when a tool wrote someone's story — and you deserve to be hired as yourself.</p></div></div>" +
+    "<div class='card'><h3>Honest scoring</h3><div class='result'>" +
+    "<p>Scores are calibrated for someone starting out — not inflated to flatter you, not harsh to shock you. " +
+    "Delivery metrics (speaking pace, filler words, camera framing) are measured on your device, and anything " +
+    "that can't genuinely be measured says <i>not measured</i> instead of pretending.</p></div></div>" +
+    "<div class='card'><h3>If something worries us</h3><div class='result'>" +
+    "<p>If anything you write or say suggests you're not okay, the tools stop scoring and point you to real " +
+    "people who can help: your tutor, Childline (0800 1111, under 19), Samaritans (116 123, any age, any time), " +
+    "or text SHOUT to 85258. That routing works even when the AI itself is down.</p></div></div>" +
+    "<div class='card'><h3>Limits that keep it fair</h3><div class='result'>" +
+    "<p>5 document reviews, 3 mock interviews and 3 cover letter drafts a day — enough to genuinely improve, " +
+    "not enough to outsource your judgement. The instant CV checks in the Resume Builder are unlimited for " +
+    "practical purposes because no AI is involved.</p></div></div>" +
+    "</main>";
+  return appShell({
+    title: "Fledglings — AI & Privacy",
+    active: "privacy",
+    bodyHtml: body,
+  });
 }
 
 /* ------------------------------------------------------------------

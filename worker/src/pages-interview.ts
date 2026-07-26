@@ -9,7 +9,7 @@
  * recordings (re-record any) → AI report: answer evaluation + speech
  * evaluation (wpm, fillers) + camera presence, blended 80/10/10. */
 
-import { esc, pageShell } from "./pages";
+import { appShell, esc } from "./pages";
 import { INTERVIEW_ROLES, ROLE_LABELS, questionSet } from "./lib/interview";
 
 export function renderInterviewPage(): string {
@@ -170,8 +170,9 @@ export function renderInterviewPage(): string {
     "<script>var FL_QUESTIONS=" + questionsJson + ";</script>" +
     "<script>" + INTERVIEW_APP_JS + "</script>";
 
-  return pageShell({
+  return appShell({
     title: "Fledglings — Interview Studio",
+    active: "interview",
     bodyHtml: body,
     extraCss: INTERVIEW_CSS,
   });
@@ -186,14 +187,9 @@ var $=function(id){return document.getElementById(id)};
 var STAGES=['s-home','s-setup','s-int','s-review','s-wait','s-msg','s-rep'];
 function show(id){STAGES.forEach(function(k){$(k).hidden=k!==id});}
 
-/* hub identity + back link */
-var params=new URLSearchParams(location.search);var hubEmail='';
-try{var ep=params.get('e');if(ep){hubEmail=decodeURIComponent(atob(ep.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(err){}
-if(hubEmail.indexOf('@')===-1)hubEmail='';
-if(params.get('hub')==='1'){var bk=document.createElement('a');
-bk.href='/hub'+(params.get('e')?'?e='+params.get('e'):'');bk.textContent='← Back to your Employability Hub';
-bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
-var hh=document.querySelector('h2.page');hh.parentNode.insertBefore(bk,hh);}
+/* identity chip via the shared resolver (embedded or standalone) */
+var params=new URLSearchParams(location.search);
+var hubEmail=flResolveEmail();flIdentityChip();
 
 /* ---------------- state ---------------- */
 var role=null,roleLabel='',qs=[],sig='',idx=0,answers=[],mode='video';
@@ -230,13 +226,18 @@ function checkReady(){$('next').disabled=currentAnswer().length<20;}
 function detectorInit(){try{if('FaceDetector' in window){faceDet=new window.FaceDetector({fastMode:true,maxDetectedFaces:1});}}catch(e){faceDet=null}}
 function ckSet(id,ok,text){var li=$(id);li.querySelector('i').textContent=ok===true?'✓':ok===false?'✗':'…';
 li.className=ok===true?'ok':ok===false?'bad':'';li.querySelector('span').textContent=text;}
+var setupTimer=null;
 function openSetup(){show('s-setup');detectorInit();
+/* Re-entry safe: stop any previous stream so the camera indicator
+ * never stays lit on an orphaned track. */
+if(stream){try{stream.getTracks().forEach(function(t){t.stop()})}catch(e){}stream=null;}
 navigator.mediaDevices.getUserMedia({video:{width:960,height:540},audio:true}).then(function(s){
 stream=s;$('setup-video').srcObject=s;$('setup-go').disabled=false;
 var vt=s.getVideoTracks()[0],at=s.getAudioTracks()[0];
 ckSet('ck-cam',true,vt&&vt.label?vt.label:'Connected');
 ckSet('ck-mic',true,at&&at.label?at.label:'Connected');
-setTimeout(checkFrame,900);setInterval(function(){if(!$('s-setup').hidden)checkFrame()},2500);
+setTimeout(checkFrame,900);
+if(!setupTimer)setupTimer=setInterval(function(){if(!$('s-setup').hidden)checkFrame()},2500);
 }).catch(function(){
 ckSet('ck-cam',false,'Blocked or unavailable — allow camera access, or practise without it.');
 ckSet('ck-mic',false,'Blocked or unavailable.');
@@ -279,11 +280,15 @@ $('vidcard').hidden=mode!=='video';$('voicecard').hidden=mode==='video';
 checkReady();
 if(mode==='video'){$('live-video').srcObject=stream;startThink();}
 else{$('micstate').textContent='Tap to answer out loud';}}
-function startThink(){$('think-over').hidden=false;$('recbar').hidden=true;
+function clearThink(){if(thinkTimer){clearInterval(thinkTimer);thinkTimer=null}}
+function startThink(){clearThink();$('think-over').hidden=false;$('recbar').hidden=true;
 var left=THINK_SECS;$('think-n').textContent=left;
-thinkTimer=setInterval(function(){left--;$('think-n').textContent=left;
-if(left<=0){clearInterval(thinkTimer);startRecording();}},1000);}
-$('rec-now').addEventListener('click',function(){if(thinkTimer){clearInterval(thinkTimer);thinkTimer=null}startRecording();});
+/* The interval clears ITSELF via its own id — a stale tick can never
+ * kill a newer countdown or restart recording. */
+var id=setInterval(function(){left--;$('think-n').textContent=left;
+if(left<=0){clearInterval(id);if(thinkTimer===id)thinkTimer=null;startRecording();}},1000);
+thinkTimer=id;}
+$('rec-now').addEventListener('click',function(){clearThink();startRecording();});
 function pickMime(){var t=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
 for(var i=0;i<t.length;i++){if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(t[i]))return t[i];}return '';}
 function startRecording(){$('think-over').hidden=true;$('recbar').hidden=false;
@@ -305,7 +310,8 @@ answers[idx]={question:qs[idx],answer:prev.answer||'',duration_secs:Math.max(1,s
 var slot=answers[idx];
 if(recorder&&recorder.state!=='inactive'){recorder.onstop=function(){
 try{var blob=new Blob(chunks,{type:recorder.mimeType||'video/webm'});
-if(blob.size)slot.blobUrl=URL.createObjectURL(blob);}catch(e){}};recorder.stop();}
+if(blob.size){if(slot.blobUrl){try{URL.revokeObjectURL(slot.blobUrl)}catch(e){}}
+slot.blobUrl=URL.createObjectURL(blob);}}catch(e){}};recorder.stop();}
 $('recbar').hidden=true;$('redo').hidden=false;checkReady();}
 $('rec-stop').addEventListener('click',stopRecording);
 
@@ -316,13 +322,17 @@ $('mic').classList.remove('on');$('micstate').textContent='Got it — tap to add
 else{voiceStartAt=Date.now();
 startSR(function(){$('micstate').textContent='This browser cannot listen — use the typing option below.';$('typefall').open=true;});
 if(listening){$('mic').classList.add('on');$('micstate').textContent='Listening… tap again when you have finished';}}});
-$('redo').addEventListener('click',function(){finalText='';$('typed').value='';renderTranscript('');$('redo').hidden=true;voiceSecs=0;
+$('redo').addEventListener('click',function(){
+/* Kill any live listening session FIRST — its closure still holds the
+ * old transcript and would resurrect it on the next result. */
+stopSR();$('mic').classList.remove('on');
+finalText='';$('typed').value='';renderTranscript('');$('redo').hidden=true;voiceSecs=0;
 if(mode==='video'){if(answers[idx]&&answers[idx].blobUrl){try{URL.revokeObjectURL(answers[idx].blobUrl)}catch(e){}}
 answers[idx]=null;startThink();}
 else{$('micstate').textContent='Tap to answer out loud';}});
 $('typed').addEventListener('input',checkReady);
 
-$('next').addEventListener('click',function(){
+$('next').addEventListener('click',function(){clearThink();
 if(mode==='video'){if(recTimer)stopRecording();}else{if(listening){stopSR();voiceSecs+=Math.round((Date.now()-voiceStartAt)/1000);$('mic').classList.remove('on');}}
 var a=answers[idx]||(answers[idx]={question:qs[idx],answer:'',duration_secs:null,blobUrl:''});
 a.question=qs[idx];a.answer=currentAnswer().slice(0,2000);
@@ -334,9 +344,12 @@ if(idx<qs.length-1){idx++;showQuestion();return;}
 /* Small delay lets the recorder's onstop deliver the final blob
  * before the review renders its playback. */
 setTimeout(finish,250);});
-$('msgback').addEventListener('click',function(){show('s-home')});
-$('again').addEventListener('click',function(){cleanupMedia();show('s-home');window.scrollTo({top:0})});
-$('rev-restart').addEventListener('click',function(){answers.forEach(function(a){if(a&&a.blobUrl){try{URL.revokeObjectURL(a.blobUrl)}catch(e){}}});beginInterview(mode);});
+function revokeAllBlobs(){answers.forEach(function(a){if(a&&a.blobUrl){try{URL.revokeObjectURL(a.blobUrl)}catch(e){}}});}
+$('msgback').addEventListener('click',function(){cleanupMedia();show('s-home')});
+$('again').addEventListener('click',function(){cleanupMedia();revokeAllBlobs();show('s-home');window.scrollTo({top:0})});
+$('rev-restart').addEventListener('click',function(){revokeAllBlobs();
+if(mode==='video'&&!stream){openSetup();return;}
+beginInterview(mode);});
 
 /* ---------------- role selection / question sources ---------------- */
 document.querySelectorAll('.rolebtn').forEach(function(b){b.addEventListener('click',function(){
@@ -377,7 +390,8 @@ $('int-meta').textContent='This answer needs at least a sentence or two — spea
 submit();});
 
 /* ---------------- submit + report ---------------- */
-function cleanupMedia(){sampleStop();stopSR();
+function cleanupMedia(){sampleStop();stopSR();clearThink();
+if(recTimer){clearInterval(recTimer);recTimer=null}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
 function submit(){show('s-wait');
 var payload={learner_id:lid,session_id:sid,role:role,role_label:roleLabel,email:hubEmail,

@@ -169,7 +169,7 @@ export function interviewUserMessage(req: InterviewRequest): string {
     (a, i) => `<question_${i + 1}>${a.question}</question_${i + 1}>\n<answer_${i + 1}>\n${a.answer}\n</answer_${i + 1}>`,
   );
   return (
-    `Role applied for: ${req.roleLabel}\n\n` +
+    `<role_applied_for>${req.roleLabel}</role_applied_for>\n\n` +
     parts.join("\n\n") +
     "\n\nScore each answer and reply with the JSON shape exactly."
   );

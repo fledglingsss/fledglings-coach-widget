@@ -69,10 +69,11 @@ const DATE_RANGE = new RegExp(
   "g",
 );
 
-/* A default (unclaimed) LinkedIn slug ends in a run of digits or a
- * hex-ish tail, e.g. imogen-smith-ab4082396 or jane-doe-1a2b3c4d5.
- * A customised one is just the name, e.g. owaissiqbal. */
-const DEFAULT_SLUG_TAIL = /-[0-9]{4,}$|-[0-9a-f]{8,}$|-[0-9]+[a-f][0-9a-f]{5,}$/i;
+/* A default (unclaimed) LinkedIn slug ends in a LONG run of digits or
+ * a hex-ish tail, e.g. imogen-smith-ab4082396 or jane-doe-1a2b3c4d5.
+ * A short numeric suffix like jane-smith-2024 is a deliberate custom
+ * choice, not a default — only 7+ digit or 8-9 char hex tails count. */
+const DEFAULT_SLUG_TAIL = /-[0-9]{7,}$|-[0-9a-f]{8,9}$|-[0-9]+[a-f][0-9a-f]{5,}$/i;
 
 function headingIndex(text: string, names: string[]): number {
   for (const name of names) {
@@ -141,11 +142,22 @@ export function analyseLinkedInFacts(rawText: string): LinkedInFacts {
     .filter(([, re]) => (re as RegExp).test(text))
     .map(([name]) => name as string);
 
+  /* Experience ranges: count date ranges INSIDE the Experience segment
+   * when the heading exists (education/certification dates must not
+   * count as experience); fall back to a whole-text count — lenient,
+   * never strict — when the heading wasn't found. */
+  let experienceText = text;
+  if (experienceAt >= 0) {
+    const end = educationAt > experienceAt ? educationAt : text.length;
+    experienceText = text.slice(experienceAt, end);
+  }
+  const experienceRanges = (experienceText.match(DATE_RANGE) || []).length;
+
   return {
     url,
     hasAboutHeading: aboutAt >= 0,
     aboutWords,
-    experienceRanges: (text.match(DATE_RANGE) || []).length,
+    experienceRanges,
     hasEducationHeading: educationAt >= 0,
     skillsListed,
     extrasHeadings,
@@ -326,6 +338,10 @@ function absenceCap(id: LinkedInSectionId, facts: LinkedInFacts): number | null 
 export function parseLinkedInReport(
   raw: string,
   facts: LinkedInFacts,
+  /** True when the input text hit the length cap — a late section may
+   * have been cut off, so absence caps must not fire (the model saw
+   * the same truncated text; err lenient, never wrongly zero). */
+  truncated = false,
 ): LinkedInReport | "crisis" | null {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
@@ -351,7 +367,7 @@ export function parseLinkedInReport(
     const s = rawSection as Record<string, unknown>;
     if (typeof s.score !== "number" || !Number.isFinite(s.score)) return null;
     let score = Math.max(0, Math.min(def.weight, Math.round(s.score)));
-    const cap = absenceCap(def.id, facts);
+    const cap = truncated ? null : absenceCap(def.id, facts);
     if (cap !== null) score = Math.min(score, cap);
     sections.push({
       id: def.id,

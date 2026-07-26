@@ -102,6 +102,7 @@ import {
   type PassportData,
 } from "./lib/passport";
 import {
+  renderAiPrivacyPage,
   renderPassportExpired,
   renderPassportPage,
   renderToolsPage,
@@ -133,6 +134,7 @@ import { renderInterviewPage } from "./pages-interview";
 import { renderLinkedInPage } from "./pages-linkedin";
 import {
   analyseLinkedInFacts,
+  LINKEDIN_CAPS,
   linkedinSystemPrompt,
   linkedinUserMessage,
   parseLinkedInReport,
@@ -255,6 +257,72 @@ function modelFailure(where: string, err: unknown) {
   }
   console.error(`[coach] ${where} failed:`, detail.status ?? "", detail.message ?? String(err));
   return { reply: FALLBACK_REPLY, kind: "fallback" };
+}
+
+/* ------------------------------------------------------------------
+ * Cost guardrails (QA 2026-07-26): per-learner caps alone key on a
+ * client-chosen id, which bounds nothing for a scripted non-browser
+ * client. Two further rails apply to every model endpoint:
+ *   - a GLOBAL daily model-call ceiling (KV `ops:model-daily-cap`
+ *     overrides the default) — the hard backstop on spend;
+ *   - a per-IP daily cap, set high enough for a whole classroom
+ *     behind one NAT but far below scripted-abuse volume.
+ * Both fail toward the authored busy reply, never an error page.
+ * ------------------------------------------------------------------ */
+
+const GLOBAL_MODEL_CALLS_PER_DAY = 1500;
+const MODEL_CALLS_PER_IP_PER_DAY = 150;
+
+/** True when this model call may proceed; increments both counters. */
+async function modelSpendAllowed(c: { env: Env; req: { header(n: string): string | undefined } }): Promise<boolean> {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const globalKey = `spend:day:${day}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(globalKey)) || "0", 10) || 0;
+    const capRaw = parseInt((await c.env.RATE_LIMITS.get("ops:model-daily-cap")) || "", 10);
+    const cap = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : GLOBAL_MODEL_CALLS_PER_DAY;
+    if (used >= cap) {
+      console.error(`[coach] GLOBAL MODEL CEILING HIT (${used}/${cap}) — raise ops:model-daily-cap in KV if legitimate`);
+      return false;
+    }
+    const ip = c.req.header("CF-Connecting-IP") || "";
+    if (ip) {
+      const ipHash = (await hashLearnerId(ip)).slice(0, 16);
+      const ipKey = `spend:ip:${ipHash}:${day}`;
+      const ipUsed = parseInt((await c.env.RATE_LIMITS.get(ipKey)) || "0", 10) || 0;
+      if (ipUsed >= MODEL_CALLS_PER_IP_PER_DAY) {
+        console.error(`[coach] per-IP model cap hit`);
+        return false;
+      }
+      await c.env.RATE_LIMITS.put(ipKey, String(ipUsed + 1), { expirationTtl: 86_400 });
+    }
+    await c.env.RATE_LIMITS.put(globalKey, String(used + 1), { expirationTtl: 172_800 });
+    return true;
+  } catch {
+    /* KV trouble must never take the learner-facing service down. */
+    return true;
+  }
+}
+
+/** Read a JSON body with a hard size cap (mirrors /api/coach's rail —
+ * field-level sanitisation only runs AFTER JSON.parse, so the raw
+ * body must be bounded first). Returns null when oversized/invalid. */
+async function readJsonCapped(
+  c: { req: { header(n: string): string | undefined; text(): Promise<string> } },
+  maxBytes: number,
+): Promise<Record<string, unknown> | null> {
+  const declared = parseInt(c.req.header("Content-Length") || "0", 10);
+  if (declared > maxBytes) return null;
+  try {
+    const raw = await c.req.text();
+    if (raw.length > maxBytes) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Kill switch: deploy-time env var OR the live KV override the ops
@@ -649,6 +717,11 @@ app.post("/api/coach", async (c) => {
     return done("crisis_heuristic", { reply: CRISIS_REPLY, kind: "crisis" });
   }
 
+  /* -- 3b. Global + per-IP spend rails ------------------------------- */
+  if (!(await modelSpendAllowed(c))) {
+    return done("spend_cap", { reply: BUSY_REPLY, kind: "busy" });
+  }
+
   /* -- 4. Model moderation pre-pass ---------------------------------- */
   try {
     const verdict = await moderate(
@@ -803,12 +876,8 @@ app.post("/api/enrol", async (c) => {
 const REVIEW_MAX_TOKENS = 2000;
 
 app.post("/api/review", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 64_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
@@ -840,6 +909,10 @@ app.post("/api/review", async (c) => {
         "Work the feedback you've already got in the meantime.",
       kind: "limit",
     });
+  }
+
+  if (!(await modelSpendAllowed(c))) {
+    return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
 
   /* Deterministic recruiter checks — computed before the model runs so
@@ -916,13 +989,11 @@ app.get("/tools", (c) => c.html(renderToolsPage(), 200, FRAME_HEADERS));
 
 app.get("/builder", (c) => c.html(renderBuilderPage(), 200, FRAME_HEADERS));
 
+app.get("/ai-privacy", (c) => c.html(renderAiPrivacyPage(), 200, FRAME_HEADERS));
+
 app.post("/api/builder-check", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 64_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
   try {
@@ -937,6 +1008,13 @@ app.post("/api/builder-check", async (c) => {
 
     const cv = sanitiseBuilderCv(body.cv);
     const text = assembleCvText(cv);
+    /* Safeguarding: no model runs here, but the builder's free text
+     * (personal statement, caring roles) can carry a disclosure — the
+     * deterministic screen and authored signposting apply the same. */
+    if (crisisHeuristic(text)) {
+      console.log("[coach] kind=builder-check outcome=crisis");
+      return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+    }
     if (text.length < 80) {
       return c.json({
         reply: "Add a bit more first — at least your name, one role and a few bullet points — then check again.",
@@ -963,12 +1041,8 @@ app.post("/api/builder-check", async (c) => {
 app.get("/linkedin", (c) => c.html(renderLinkedInPage(), 200, FRAME_HEADERS));
 
 app.post("/api/linkedin", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 64_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
@@ -1002,6 +1076,10 @@ app.post("/api/linkedin", async (c) => {
     });
   }
 
+  if (!(await modelSpendAllowed(c))) {
+    return c.json({ reply: BUSY_REPLY, kind: "busy" });
+  }
+
   const facts = analyseLinkedInFacts(validated.text);
   try {
     const raw = await generate(
@@ -1011,7 +1089,11 @@ app.post("/api/linkedin", async (c) => {
       linkedinUserMessage(validated, facts),
       REVIEW_MAX_TOKENS,
     );
-    const report = parseLinkedInReport(raw, facts);
+    const report = parseLinkedInReport(
+      raw,
+      facts,
+      validated.text.length >= LINKEDIN_CAPS.maxTextChars,
+    );
     if (report === "crisis") {
       console.log("[coach] kind=linkedin outcome=model_crisis");
       return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
@@ -1056,12 +1138,8 @@ app.post("/api/linkedin", async (c) => {
 app.get("/cover-letter", (c) => c.html(renderCoverLetterPage(), 200, FRAME_HEADERS));
 
 app.post("/api/cover-letter", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 64_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
@@ -1092,6 +1170,10 @@ app.post("/api/cover-letter", async (c) => {
         "They top back up tomorrow.",
       kind: "limit",
     });
+  }
+
+  if (!(await modelSpendAllowed(c))) {
+    return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
 
   try {
@@ -1617,7 +1699,9 @@ const INTERVIEW_MAX_TOKENS = 2200;
 app.get("/interview", (c) => c.html(renderInterviewPage(), 200, FRAME_HEADERS));
 
 /* Secret for signing generated question sets — reuses an existing
- * server-only secret so nothing new needs provisioning. */
+ * server-only secret so nothing new needs provisioning. Callers MUST
+ * refuse to sign or verify when this is empty (fail closed, like the
+ * passport link verifier). */
 function questionSigningSecret(env: Env): string {
   return env.LEARNWORLDS_CLIENT_SECRET || env.ANTHROPIC_API_KEY || "";
 }
@@ -1625,12 +1709,8 @@ function questionSigningSecret(env: Env): string {
 /* Generate five tailored questions from a pasted job advert. The set
  * comes back HMAC-signed so /api/interview can trust it statelessly. */
 app.post("/api/interview-questions", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 16_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
   const validated = validateQuestionGenRequest(body);
@@ -1655,6 +1735,9 @@ app.post("/api/interview-questions", async (c) => {
       kind: "limit",
     });
   }
+  if (!(await modelSpendAllowed(c))) {
+    return c.json({ reply: BUSY_REPLY, kind: "busy" });
+  }
   try {
     const raw = await generate(
       c.env.ANTHROPIC_API_KEY,
@@ -1668,19 +1751,28 @@ app.post("/api/interview-questions", async (c) => {
       console.log("[coach] kind=interview-questions outcome=model_crisis");
       return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
     }
-    if (parsed === null || guardReply(parsed.questions.join("\n"), 4000) === null) {
-      console.error("[coach] question generation failed to parse");
+    /* Output-gate the questions AND the role label — the label is
+     * shown to the learner and fed back into the next prompt. */
+    const safeLabel = parsed === null ? null : guardReply(parsed.roleLabel, 60);
+    if (
+      parsed === null ||
+      safeLabel === null ||
+      guardReply(parsed.questions.join("\n"), 4000) === null
+    ) {
+      console.error("[coach] question generation failed to parse or gate");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    const secret = questionSigningSecret(c.env);
+    if (!secret) {
+      console.error("[coach] question signing secret unavailable — refusing");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
     await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
-    const sig = await signPayload(
-      questionSigningSecret(c.env),
-      questionsSigningPayload(parsed.questions),
-    );
-    console.log(`[coach] kind=interview-questions outcome=ok role="${parsed.roleLabel}"`);
+    const sig = await signPayload(secret, questionsSigningPayload(parsed.questions));
+    console.log("[coach] kind=interview-questions outcome=ok");
     return c.json({
       questions: parsed.questions,
-      role_label: parsed.roleLabel,
+      role_label: safeLabel,
       sig,
       kind: "questions",
     });
@@ -1690,12 +1782,8 @@ app.post("/api/interview-questions", async (c) => {
 });
 
 app.post("/api/interview", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 64_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
@@ -1709,13 +1797,11 @@ app.post("/api/interview", async (c) => {
       ? body.questions.filter((q): q is string => typeof q === "string")
       : [];
     const sig = typeof body.sig === "string" ? body.sig : "";
+    const verifySecret = questionSigningSecret(c.env);
     const genuine =
+      verifySecret.length > 0 &&
       questions.length === QUESTION_GEN_CAPS.questionCount &&
-      (await verifyPayload(
-        questionSigningSecret(c.env),
-        questionsSigningPayload(questions),
-        sig,
-      ));
+      (await verifyPayload(verifySecret, questionsSigningPayload(questions), sig));
     if (!genuine) return c.json({ error: "invalid_questions" }, 400);
     customQuestions = questions;
   }
@@ -1744,6 +1830,10 @@ app.post("/api/interview", async (c) => {
         "They top back up tomorrow; work the feedback you've got in the meantime.",
       kind: "limit",
     });
+  }
+
+  if (!(await modelSpendAllowed(c))) {
+    return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
 
   try {

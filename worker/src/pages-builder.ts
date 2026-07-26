@@ -5,7 +5,7 @@
  * checks it, forgets it). One tap sends the finished CV into the full
  * AI review at /tools. */
 
-import { pageShell } from "./pages";
+import { appShell } from "./pages";
 
 export function renderBuilderPage(): string {
   const body =
@@ -41,6 +41,8 @@ export function renderBuilderPage(): string {
     "<p class='kw-note' style='margin:0'>Objective, rule-based — the things screening software judges before a human " +
     "reads a word. For the full AI review, send it to the CV review when you're done.</p></div>" +
     "<button type='button' class='btn' id='sendreview'>Send to full AI review →</button></div>" +
+    "<div class='stale-note' id='stale-note' hidden>✎ You've edited since this check — run <b>Check my CV</b> again " +
+    "for a fresh score before sending it on.</div>" +
     "<div id='b-checks'></div></div>" +
     /* form + preview */
     "<div class='buildgrid'>" +
@@ -80,8 +82,9 @@ export function renderBuilderPage(): string {
     "</main>" +
     "<script>" + BUILDER_JS + "</script>";
 
-  return pageShell({
+  return appShell({
     title: "Fledglings — Resume Builder",
+    active: "builder",
     bodyHtml: body,
     extraCss: BUILDER_CSS,
   });
@@ -91,12 +94,11 @@ const BUILDER_JS = String.raw`(function(){
 function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}
 var lid=stored(localStorage,'fl_coach_learner_v1');
 var $=function(id){return document.getElementById(id)};
-function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+/* Escapes quotes too — builder values are interpolated into HTML
+ * attributes, not just text nodes. */
+function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 var params=new URLSearchParams(location.search);
-if(params.get('hub')==='1'){var bk=document.createElement('a');
-bk.href='/hub'+(params.get('e')?'?e='+params.get('e'):'');bk.textContent='← Back to your Employability Hub';
-bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
-var hh=document.querySelector('h2.page');hh.parentNode.insertBefore(bk,hh);}
+flResolveEmail();flIdentityChip();
 
 /* ---------------- storage ---------------- */
 var KEY='fl_builder_cvs_v1';
@@ -136,6 +138,9 @@ $('backbtn').onclick=function(){$('s-build').hidden=true;$('s-list').hidden=fals
 /* ---------------- form binding ---------------- */
 function markSaved(state){$('savestate').textContent=state;}
 function scheduleSave(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
+/* Any edit invalidates the last check — the score shown and the text
+ * queued for the full review must never silently go stale. */
+lastText='';if(!$('scorepanel').hidden)$('stale-note').hidden=false;
 saveTimer=setTimeout(function(){current.updated=Date.now();saveAll(cvs);markSaved('Saved')},500);}
 function bindStatics(){document.querySelectorAll('[data-f]').forEach(function(el){
 el.value=current.data[el.dataset.f]||'';
@@ -220,7 +225,7 @@ body:JSON.stringify({learner_id:lid,cv:payload()})})
 .then(function(r){return r.json()}).then(function(d){
 $('checkbtn').disabled=false;$('checkbtn').textContent='Check my CV';
 if(!d||!d.checks){alert((d&&d.reply)||'Could not check just now — try again in a minute.');return;}
-lastText=d.text||'';
+lastText=d.text||'';$('stale-note').hidden=true;
 var col=d.score>=70?'#1B7A4B':d.score>=50?'#B96A16':'#D9452B';
 $('b-score').textContent=d.score;$('b-score').style.color=col;
 $('b-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(d.score*3.6)+'deg,#ECE7E6 '+Math.round(d.score*3.6)+'deg)';
@@ -235,9 +240,9 @@ $('scorepanel').scrollIntoView({behavior:'smooth',block:'start'});})
 .catch(function(){$('checkbtn').disabled=false;$('checkbtn').textContent='Check my CV';
 alert('Could not reach the checker — try again in a minute.');});};
 $('sendreview').onclick=function(){
-if(!lastText){alert('Run a check first, then send it for the full review.');return;}
+if(!lastText){alert('Run "Check my CV" first (or again after edits) — the review reads that exact text.');return;}
 try{sessionStorage.setItem('fl_builder_cv_text',lastText)}catch(e){}
-var q=['from=builder'];if(params.get('e'))q.push('e='+params.get('e'));if(params.get('hub')==='1')q.push('hub=1');
+var q=['from=builder'];var ev=flEmailParam();if(ev)q.push('e='+ev);
 location.href='/tools?'+q.join('&');};
 
 renderList();
@@ -288,6 +293,8 @@ const BUILDER_CSS = `
 .ring2.small .pc{font-size:21px;}
 .ring2 .lb{font-size:8.5px;color:var(--blue);font-weight:700;letter-spacing:.06em;margin-top:2px;}
 .kw-note{font-size:13px;color:var(--blue);line-height:1.55;}
+.stale-note{background:#FBF0E2;border:1.5px solid #EAD3AE;border-radius:10px;padding:10px 14px;
+  font-size:13px;color:#8a5b16;margin:10px 0 4px;}
 .ck-g{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;
   margin:16px 0 8px;border-bottom:2px solid var(--off);padding-bottom:4px;}
 .ck{display:flex;gap:12px;padding:9px 0;}

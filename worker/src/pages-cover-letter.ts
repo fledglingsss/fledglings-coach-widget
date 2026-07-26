@@ -4,7 +4,7 @@
  * doesn't say, [brackets] for everything only they can write. Three
  * letter designs, editable in place, copy or print — never stored. */
 
-import { pageShell } from "./pages";
+import { appShell } from "./pages";
 
 export function renderCoverLetterPage(): string {
   const body =
@@ -81,8 +81,9 @@ export function renderCoverLetterPage(): string {
     "</main>" +
     "<script>" + COVER_LETTER_JS + "</script>";
 
-  return pageShell({
+  return appShell({
     title: "Fledglings — Cover Letter Studio",
+    active: "cover",
     bodyHtml: body,
     extraCss: COVER_LETTER_CSS,
   });
@@ -92,13 +93,8 @@ const COVER_LETTER_JS = String.raw`(function(){
 function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}
 var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');
 var $=function(id){return document.getElementById(id)};
-var params=new URLSearchParams(location.search);var hubEmail='';
-try{var ep=params.get('e');if(ep){hubEmail=decodeURIComponent(atob(ep.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(err){}
-if(hubEmail.indexOf('@')===-1)hubEmail='';
-if(params.get('hub')==='1'){var bk=document.createElement('a');
-bk.href='/hub'+(params.get('e')?'?e='+params.get('e'):'');bk.textContent='← Back to your Employability Hub';
-bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
-var hh=document.querySelector('h2.page');hh.parentNode.insertBefore(bk,hh);}
+var params=new URLSearchParams(location.search);
+var hubEmail=flResolveEmail();flIdentityChip();
 function show(id){['s-in','s-wait','s-msg','s-out'].forEach(function(k){$(k).hidden=k!==id});}
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
@@ -108,7 +104,7 @@ var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 var pdfReady=null;
 function loadPdf(){if(pdfReady)return pdfReady;
-pdfReady=new Promise(function(res,rej){var s=document.createElement('script');s.src=PDFJS;
+pdfReady=new Promise(function(res,rej){var s=document.createElement('script');s.src=PDFJS;s.integrity='sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==';s.crossOrigin='anonymous';
 s.onload=function(){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFWK;res(window.pdfjsLib)}catch(e){rej(e)}};
 s.onerror=function(){pdfReady=null;rej(new Error('load failed'))};document.head.appendChild(s)});return pdfReady;}
 function extractPdf(file){return loadPdf().then(function(lib){

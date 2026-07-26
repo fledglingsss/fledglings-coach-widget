@@ -5,7 +5,7 @@
  * (verbatim-quoted) and "what to improve". The PDF is read in the
  * browser (pdf.js) — the file itself never leaves the device. */
 
-import { esc, pageShell } from "./pages";
+import { appShell, esc } from "./pages";
 import { LINKEDIN_SECTIONS } from "./lib/linkedin";
 
 export function renderLinkedInPage(): string {
@@ -68,20 +68,15 @@ export function renderLinkedInPage(): string {
     "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
-    "var qs=new URLSearchParams(location.search);var hubEmail='';" +
-    "try{var ep=qs.get('e');if(ep){hubEmail=decodeURIComponent(atob(ep.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(err){}" +
-    "if(hubEmail.indexOf('@')===-1)hubEmail='';" +
-    "if(qs.get('hub')==='1'){var bk=document.createElement('a');" +
-    "bk.href='/hub'+(qs.get('e')?'?e='+qs.get('e'):'');bk.textContent='← Back to your Employability Hub';" +
-    "bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';" +
-    "var h=document.querySelector('h2.page');h.parentNode.insertBefore(bk,h);}" +
+    "var qs=new URLSearchParams(location.search);" +
+    "var hubEmail=flResolveEmail();flIdentityChip();" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});}" +
     /* pdf.js on demand (same rail as /tools) */
     "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
     "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
     "var pdfReady=null;" +
     "function loadPdf(){if(pdfReady)return pdfReady;" +
-    "pdfReady=new Promise(function(res,rej){var s=document.createElement('script');s.src=PDFJS;" +
+    "pdfReady=new Promise(function(res,rej){var s=document.createElement('script');s.src=PDFJS;s.integrity='sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==';s.crossOrigin='anonymous';" +
     "s.onload=function(){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFWK;res(window.pdfjsLib)}catch(e){rej(e)}};" +
     "s.onerror=function(){pdfReady=null;rej(new Error('load failed'))};document.head.appendChild(s)});return pdfReady;}" +
     "function extractPdf(file){return loadPdf().then(function(lib){" +
@@ -210,5 +205,10 @@ export function renderLinkedInPage(): string {
 .nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 `;
-  return pageShell({ title: "Fledglings — LinkedIn Optimizer", bodyHtml: body, extraCss });
+  return appShell({
+    title: "Fledglings — LinkedIn Optimizer",
+    active: "linkedin",
+    bodyHtml: body,
+    extraCss,
+  });
 }

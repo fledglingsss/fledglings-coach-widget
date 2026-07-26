@@ -62,9 +62,11 @@ Output exactly:
 }
 
 export function coverLetterUserMessage(req: CoverLetterRequest): string {
+  /* Learner-typed fields ride inside tags like every other learner
+   * input — data, not instructions. */
   const roleLine =
     req.role || req.company
-      ? `Applying for: ${req.role || "[role]"}${req.company ? ` at ${req.company}` : ""}\n`
+      ? `<target_role>${req.role || "[role]"}${req.company ? ` at ${req.company}` : ""}</target_role>\n`
       : "";
   const cv = req.cvText
     ? `<learner_cv>\n${req.cvText}\n</learner_cv>\n`
