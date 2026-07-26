@@ -1,6 +1,6 @@
 # LearnWorlds embed instructions
 
-The two `.html` snippet files in this folder are **paste-in code only** —
+The `.html` snippet files in this folder are **paste-in code only** —
 they deliberately contain no comments, because LearnWorlds's custom-code
 editor can strip HTML comment markers and render the comment text on the
 page (it also substitutes Liquid variables such as the user's name even
@@ -36,21 +36,28 @@ preview), the sample passport shows instead. The iframe auto-sizes to
 the passport's height, so the full page is always visible without an
 inner scrollbar.
 
-## Mock interview — `interview-embed.html`
+## Interview Studio — `interview-embed.html`
 
 **Where:** create a page or embed activity for logged-in learners and
 paste the file's contents into a Custom Code / HTML block.
 
-**Critical:** the iframe carries `allow="microphone"` — without it the
-browser silently blocks the mic inside LearnWorlds and learners can
-only type. Do not remove that attribute.
+**Critical:** the iframe carries `allow="camera; microphone"` — without
+it the browser silently blocks the camera/mic inside LearnWorlds and
+learners can only type. Do not remove that attribute.
 
-**How it works:** learners pick a role, answer five first-job interview
-questions out loud (speech is transcribed on their own device by the
-browser — no audio is recorded or uploaded), and get a scored
-STAR-style report. Typing fallback exists for unsupported browsers or
-denied mic permission. 3 interviews per learner per day; crisis
-language routes to signposting instead of scoring.
+**How it works:** learners practise their 60-second pitch, pick a role
+set, or paste a real job advert to generate five tailored questions
+(HMAC-signed, 5/day). A camera/mic setup check (with an accessibility
+note) leads into think-time countdowns and recorded answers with live
+captions; recordings can be reviewed and re-recorded before submitting.
+**Video and audio never leave the device** — recording and speech
+transcription are entirely in-browser; only the words, answer timings
+and face-framing tallies reach the worker. The AI review blends the
+answer evaluation (80%) with deterministic speech metrics (wpm bands +
+filler words, 10%) and camera presence (10%); unmeasured signals show
+as "not measured", never a guessed number. Typing fallback throughout.
+3 AI-reviewed interviews per learner per day; crisis language routes to
+signposting instead of scoring.
 
 ## CV & LinkedIn review — `tools-embed.html`
 
@@ -68,12 +75,44 @@ can see. Scores update live from module completions.
 
 ## Employability Hub — `hub-embed.html`
 
-**Where:** ONE page for logged-in learners — this replaces separate
-CV-review and interview pages if you prefer a single destination.
-The Liquid email ties every score to the learner so their job-ready
-score, per-tool scores and trends persist (numbers only — documents
-and answers are never stored). The hub links into the CV/LinkedIn
-review and mock interview with the identity carried through, and each
-tool shows a "Back to your Employability Hub" link.
-`allow="clipboard-write; microphone"` keeps copy buttons and the
-interview mic working when the tools are opened inside the same tab.
+**Where:** ONE page for logged-in learners — the single destination for
+the whole employability journey (CV review → LinkedIn Optimizer →
+Interview Studio → Cover Letter Studio, plus the Resume Builder).
+The dashboard shows a journey stepper, a Career Readiness ring
+(7 tasks), a job-ready quality score, and per-tool cards with scores
+and trends. The Liquid email ties every score to the learner so
+everything persists across devices (numbers only — documents, videos,
+letters and answers are never stored). Each tool shows a "Back to your
+Employability Hub" link.
+`allow="clipboard-write; camera; microphone"` keeps copy buttons and
+the Interview Studio's camera/mic working when tools open inside the
+same iframe tab — do not remove it.
+
+## LinkedIn Optimizer — `linkedin-embed.html`
+
+**Where:** a page or embed activity for logged-in learners (already
+reachable from the hub — a standalone page is optional).
+Learners upload their LinkedIn "Save to PDF" export (read in-browser,
+never uploaded) and get Hiration-style per-section scores summing to
+100: Profile URL (deterministic), Headline, Location, About,
+Experience, Education, Skills, and Certifications & extras — each with
+"things you got right" (verbatim-quoted) and "what to improve".
+Shares the 5/day review budget with the CV review.
+
+## Cover Letter Studio — `cover-letter-embed.html`
+
+**Where:** a page or embed activity for logged-in learners (also
+reachable from the hub). Learners paste a job advert plus optionally
+their real CV; the draft only claims what the CV actually says, with
+[bracket] placeholders for everything only they can write. Three letter
+designs, editable in place, copy + print-to-PDF. 3 drafts/day; nothing
+stored.
+
+## Resume Builder — `builder-embed.html`
+
+**Where:** a page or embed activity for logged-in learners. CVs are
+stored only in the learner's browser (localStorage) with autosave; the
+worker only sees the sections when the learner runs the instant
+recruiter check (deterministic, no AI) and forgets them. Live preview
+in two print-ready designs; one tap sends the finished CV into the full
+AI review.
