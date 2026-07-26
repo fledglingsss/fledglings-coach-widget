@@ -73,6 +73,25 @@ language routes to signposting.
 completion counts — never learners), safe anywhere logged-in learners
 can see. Scores update live from module completions.
 
+## Standalone use (no LearnWorlds needed)
+
+Every employability tool also works as a normal website at
+`https://fledglings-coach.fledglings.workers.dev/hub` — the suite has
+its own sidebar navigation (Home, Resume Builder, CV Review, Cover
+Letter, LinkedIn Review, Interview Practice, AI & Privacy). Learners
+who arrive outside LearnWorlds save their email once on the Home page
+and their scores follow them; inside LearnWorlds the Liquid email does
+it automatically. Every tool shows a "Saving progress as … · Not you?"
+chip so shared devices never silently mix learners up.
+
+**Privacy note on the email key:** the email is a lookup key for score
+history (whole numbers + timestamps only), not an authenticated
+account — there is no password and nothing sensitive behind it. Anyone
+who knows a learner's email could see or add to their score history;
+that is the deliberate trade-off for zero-friction access with no
+stored personal data. Documents, answers, letters and video are never
+stored at all.
+
 ## Employability Hub — `hub-embed.html`
 
 **Where:** ONE page for logged-in learners — the single destination for
