@@ -135,6 +135,20 @@ import {
   validateInterviewRequest,
 } from "./lib/interview";
 import {
+  combineInterviewScores,
+  evaluatePresence,
+  evaluateSpeech,
+  speechStats,
+} from "./lib/speech-metrics";
+import {
+  QUESTION_GEN_CAPS,
+  parseGeneratedQuestions,
+  questionGenSystemPrompt,
+  questionGenUserMessage,
+  questionsSigningPayload,
+  validateQuestionGenRequest,
+} from "./lib/interview-questions";
+import {
   emptyHealthState,
   healthSummary,
   type ModuleHealthState,
@@ -1453,6 +1467,79 @@ const INTERVIEW_MAX_TOKENS = 2200;
 
 app.get("/interview", (c) => c.html(renderInterviewPage(), 200, FRAME_HEADERS));
 
+/* Secret for signing generated question sets — reuses an existing
+ * server-only secret so nothing new needs provisioning. */
+function questionSigningSecret(env: Env): string {
+  return env.LEARNWORLDS_CLIENT_SECRET || env.ANTHROPIC_API_KEY || "";
+}
+
+/* Generate five tailored questions from a pasted job advert. The set
+ * comes back HMAC-signed so /api/interview can trust it statelessly. */
+app.post("/api/interview-questions", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  const validated = validateQuestionGenRequest(body);
+  if ("error" in validated) {
+    return c.json({ error: "invalid_jd", detail: validated.error }, 400);
+  }
+  if (await coachDisabled(c.env)) {
+    return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+  }
+  if (crisisHeuristic(validated.jd)) {
+    console.log("[coach] kind=interview-questions outcome=crisis");
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
+  const learnerHash = await hashLearnerId(learnerId);
+  const capKey = `qg:day:${learnerHash}:${new Date().toISOString().slice(0, 10)}`;
+  const used = parseInt((await c.env.RATE_LIMITS.get(capKey)) || "0", 10) || 0;
+  if (used >= QUESTION_GEN_CAPS.perDay) {
+    return c.json({
+      reply:
+        "You've generated today's five custom interviews — practise the ones you have, " +
+        "they top back up tomorrow.",
+      kind: "limit",
+    });
+  }
+  try {
+    const raw = await generate(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.COACH_MODEL || "claude-sonnet-4-6",
+      questionGenSystemPrompt(),
+      questionGenUserMessage(validated),
+      700,
+    );
+    const parsed = parseGeneratedQuestions(raw);
+    if (parsed === "crisis") {
+      console.log("[coach] kind=interview-questions outcome=model_crisis");
+      return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+    }
+    if (parsed === null || guardReply(parsed.questions.join("\n"), 4000) === null) {
+      console.error("[coach] question generation failed to parse");
+      return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+    const sig = await signPayload(
+      questionSigningSecret(c.env),
+      questionsSigningPayload(parsed.questions),
+    );
+    console.log(`[coach] kind=interview-questions outcome=ok role="${parsed.roleLabel}"`);
+    return c.json({
+      questions: parsed.questions,
+      role_label: parsed.roleLabel,
+      sig,
+      kind: "questions",
+    });
+  } catch (err) {
+    return c.json(modelFailure("interview-questions", err));
+  }
+});
+
 app.post("/api/interview", async (c) => {
   let body: Record<string, unknown>;
   try {
@@ -1465,7 +1552,25 @@ app.post("/api/interview", async (c) => {
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
     return c.json({ error: "invalid_request" }, 400);
   }
-  const validated = validateInterviewRequest(body);
+  /* Custom (job-advert-generated) runs must present the signed
+   * question set the worker issued — tampered sets are rejected. */
+  let customQuestions: string[] | undefined;
+  if (body.role === "custom") {
+    const questions = Array.isArray(body.questions)
+      ? body.questions.filter((q): q is string => typeof q === "string")
+      : [];
+    const sig = typeof body.sig === "string" ? body.sig : "";
+    const genuine =
+      questions.length === QUESTION_GEN_CAPS.questionCount &&
+      (await verifyPayload(
+        questionSigningSecret(c.env),
+        questionsSigningPayload(questions),
+        sig,
+      ));
+    if (!genuine) return c.json({ error: "invalid_questions" }, 400);
+    customQuestions = questions;
+  }
+  const validated = validateInterviewRequest(body, customQuestions);
   if ("error" in validated) {
     return c.json({ error: "invalid_interview", detail: validated.error }, 400);
   }
@@ -1518,18 +1623,31 @@ app.post("/api/interview", async (c) => {
       console.error("[coach] interview report failed output gate");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
+    /* Deterministic delivery metrics: speech from the transcripts +
+     * browser-timed durations, presence from on-device face sampling.
+     * Unmeasured signals stay null — their weight folds back into the
+     * answer evaluation, never a guessed number. */
+    const stats = speechStats(validated.answers);
+    const speech = stats ? evaluateSpeech(stats) : null;
+    const presence = evaluatePresence(body.presence);
+    const breakdown = combineInterviewScores(report.overall, speech, presence);
     await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     await recordHubScore(
       c.env,
       learnerId,
       typeof body.email === "string" ? body.email : undefined,
       "interview",
-      report.overall,
+      breakdown.final,
     );
     console.log(
-      `[coach] kind=interview role=${validated.role} answers=${validated.answers.length} outcome=ok overall=${report.overall}`,
+      `[coach] kind=interview role=${validated.role} answers=${validated.answers.length} ` +
+        `outcome=ok final=${breakdown.final} answerAvg=${report.overall} ` +
+        `speech=${speech ? speech.score : "n/a"} presence=${presence ? presence.score : "n/a"}`,
     );
-    return c.json({ report, kind: "interview" });
+    return c.json({
+      report: { ...report, overall: breakdown.final, breakdown, speech, presence },
+      kind: "interview",
+    });
   } catch (err) {
     return c.json(modelFailure("interview", err));
   }

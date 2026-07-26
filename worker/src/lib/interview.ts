@@ -66,21 +66,51 @@ export const INTERVIEW_CAPS = {
   maxAnswerChars: 2000,
   minAnswerChars: 20,
   maxQuestions: 6,
+  maxAnswerSecs: 300,
   perDay: 3,
 } as const;
 
-export interface InterviewRequest {
-  role: InterviewRole;
-  answers: Array<{ question: string; answer: string }>;
+export interface InterviewAnswer {
+  question: string;
+  answer: string;
+  /** Seconds the learner actually spoke, timed in the browser; null
+   * for typed answers — delivery metrics then skip that answer. */
+  durationSecs: number | null;
 }
 
-export function validateInterviewRequest(body: {
-  role?: unknown;
-  answers?: unknown;
-}): InterviewRequest | { error: string } {
+export interface InterviewRequest {
+  role: InterviewRole | "custom";
+  roleLabel: string;
+  answers: InterviewAnswer[];
+}
+
+/**
+ * Validate a mock-interview submission. For the built-in role sets the
+ * questions must belong to that role's authored set; for a custom
+ * (job-advert-generated) run the route verifies the HMAC signature
+ * first and passes the signed question list as `customQuestions`.
+ */
+export function validateInterviewRequest(
+  body: {
+    role?: unknown;
+    role_label?: unknown;
+    answers?: unknown;
+  },
+  customQuestions?: string[],
+): InterviewRequest | { error: string } {
   const role = body.role;
-  if (typeof role !== "string" || !INTERVIEW_ROLES.includes(role as InterviewRole)) {
-    return { error: "bad_role" };
+  let expected: Set<string>;
+  let roleLabel: string;
+  if (customQuestions) {
+    if (role !== "custom") return { error: "bad_role" };
+    expected = new Set(customQuestions);
+    roleLabel = sanitiseText(body.role_label, 60) || "Your chosen role";
+  } else {
+    if (typeof role !== "string" || !INTERVIEW_ROLES.includes(role as InterviewRole)) {
+      return { error: "bad_role" };
+    }
+    expected = new Set(questionSet(role as InterviewRole));
+    roleLabel = ROLE_LABELS[role as InterviewRole];
   }
   if (!Array.isArray(body.answers) || body.answers.length === 0) {
     return { error: "no_answers" };
@@ -88,17 +118,21 @@ export function validateInterviewRequest(body: {
   if (body.answers.length > INTERVIEW_CAPS.maxQuestions) {
     return { error: "too_many_answers" };
   }
-  const expected = new Set(questionSet(role as InterviewRole));
-  const answers: Array<{ question: string; answer: string }> = [];
+  const answers: InterviewAnswer[] = [];
   for (const raw of body.answers) {
     const a = raw as Record<string, unknown>;
     const question = typeof a.question === "string" ? a.question.trim() : "";
     const answer = sanitiseText(a.answer, INTERVIEW_CAPS.maxAnswerChars);
     if (!expected.has(question)) return { error: "unknown_question" };
     if (answer.length < INTERVIEW_CAPS.minAnswerChars) return { error: "answer_too_short" };
-    answers.push({ question, answer });
+    const rawSecs = a.duration_secs;
+    const durationSecs =
+      typeof rawSecs === "number" && Number.isFinite(rawSecs) && rawSecs >= 1
+        ? Math.min(Math.round(rawSecs), INTERVIEW_CAPS.maxAnswerSecs)
+        : null;
+    answers.push({ question, answer, durationSecs });
   }
-  return { role: role as InterviewRole, answers };
+  return { role: (role as InterviewRole) ?? "custom", roleLabel, answers };
 }
 
 /* ---------------- prompts ---------------- */
@@ -135,7 +169,7 @@ export function interviewUserMessage(req: InterviewRequest): string {
     (a, i) => `<question_${i + 1}>${a.question}</question_${i + 1}>\n<answer_${i + 1}>\n${a.answer}\n</answer_${i + 1}>`,
   );
   return (
-    `Role applied for: ${ROLE_LABELS[req.role]}\n\n` +
+    `Role applied for: ${req.roleLabel}\n\n` +
     parts.join("\n\n") +
     "\n\nScore each answer and reply with the JSON shape exactly."
   );
