@@ -873,7 +873,7 @@ app.post("/api/enrol", async (c) => {
  * #3 — AI employability tools (ATS CV review, LinkedIn review)
  * ================================================================== */
 
-const REVIEW_MAX_TOKENS = 2000;
+const REVIEW_MAX_TOKENS = 2600;
 
 app.post("/api/review", async (c) => {
   const body = await readJsonCapped(c, 64_000);
@@ -1725,7 +1725,7 @@ app.get("/portal/reflections", async (c) => {
  * text arrives here. Same guardrail stack as the CV review.
  * ================================================================== */
 
-const INTERVIEW_MAX_TOKENS = 2200;
+const INTERVIEW_MAX_TOKENS = 2800;
 
 app.get("/interview", (c) => c.html(renderInterviewPage(), 200, FRAME_HEADERS));
 

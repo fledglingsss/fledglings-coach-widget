@@ -154,7 +154,7 @@ if(s.next&&s.next.tool===t)st.classList.add('now');}});
 /* career readiness + job-ready rings */
 if(typeof s.careerReadiness==='number'){
 $('cr-pct').textContent=s.careerReadiness;
-var cc=s.careerReadiness>=70?'#1B9E5A':'#3D5CF5';
+var cc=s.careerReadiness>=70?'#1B7A4B':'#D9452B';
 $('cr-ring').style.background='conic-gradient('+cc+' 0deg '+Math.round(s.careerReadiness*3.6)+'deg,#E7EAF0 '+Math.round(s.careerReadiness*3.6)+'deg)';
 $('cr-tasks').textContent=s.tasksDone+'/'+s.tasks.length+' tasks done';}
 if(s.readiness!==null){$('jr-box').hidden=false;var jc=band(s.readiness);
@@ -216,9 +216,9 @@ const HUB_CSS = `
   display:flex;flex-direction:column;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;}
 .tcard:hover{transform:translateY(-3px);box-shadow:0 12px 26px -14px rgba(14,36,56,.28);}
 .tcard.rec{outline:2px solid var(--pri);outline-offset:-2px;}
-.tc-flag{position:absolute;top:0;left:0;background:linear-gradient(90deg,#E23A8E,#B03AE2);color:#fff;
+.tc-flag{position:absolute;top:0;left:0;background:linear-gradient(90deg,#D9452B,#ED9249);color:#fff;
   border-radius:0 0 10px 0;padding:5px 12px;font-size:10.5px;font-weight:800;letter-spacing:.03em;z-index:2;}
-.tc-head{background:linear-gradient(180deg,#F2F5FF 0%,#FDF6EF 100%);display:flex;align-items:center;justify-content:center;
+.tc-head{background:linear-gradient(180deg,#FDF3EC 0%,#FFF9F4 100%);display:flex;align-items:center;justify-content:center;
   padding:30px 0 26px;}
 .tc-icon{width:74px;height:74px;border-radius:50%;background:#fff;box-shadow:0 4px 14px rgba(14,36,56,.10);
   display:flex;align-items:center;justify-content:center;color:var(--pri);}

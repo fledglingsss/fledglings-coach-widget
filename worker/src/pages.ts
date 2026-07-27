@@ -22,6 +22,7 @@ const FEATHER =
 
 const BASE_CSS = `
 :root{--navy:#05253C;--orange:#D9452B;--mango:#ED9249;--blue:#13507F;--off:#ECE7E6;--ok:#1B7A4B;}
+[hidden]{display:none!important;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
 body{background:var(--off);color:var(--navy);min-height:100vh;display:flex;flex-direction:column;}
 .brandbar{background:linear-gradient(120deg,var(--navy) 0%,var(--blue) 100%);color:#fff;padding:14px 20px;
@@ -111,7 +112,7 @@ try{return btoa(unescape(encodeURIComponent(em))).replace(/\+/g,'-').replace(/\/
 function flHubLink(){var ev=flEmailParam();return '/hub'+(ev?'?e='+ev:'');}
 function flAddHubBackLink(){var bk=document.createElement('a');bk.href=flHubLink();
 bk.textContent='← Your Employability Hub';
-bk.style.cssText='display:inline-block;margin-bottom:14px;color:#3D5CF5;font-weight:600;font-size:13.5px;text-decoration:none;';
+bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
 var hh=document.querySelector('h2.page');if(hh)hh.parentNode.insertBefore(bk,hh);}
 /* Small "who is this saving as" chip under the page title — the
  * guard against shared-device cross-contamination: the current email
@@ -121,7 +122,7 @@ var chip=document.createElement('div');
 chip.style.cssText='display:inline-flex;gap:8px;align-items:center;margin:-8px 0 16px;font-size:12.5px;color:#68788A;';
 var who=document.createElement('span');who.textContent='Saving progress as '+em;
 var not=document.createElement('button');not.type='button';not.textContent='Not you?';
-not.style.cssText='border:none;background:none;color:#3D5CF5;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;';
+not.style.cssText='border:none;background:none;color:#13507F;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;';
 not.onclick=function(){flClearEmail();var u=new URL(location.href);u.searchParams.delete('e');location.href=u.pathname+u.search;};
 chip.appendChild(who);chip.appendChild(not);
 var hh=document.querySelector('h2.page');
@@ -156,14 +157,18 @@ export const APP_NAV: Array<{ id: string; icon: string; label: string; href: str
 ];
 
 const APP_CSS = `
-:root{--navy:#0E2438;--pri:#3D5CF5;--pri-dark:#2C46D6;--pri-soft:#EEF1FE;--orange:#D9452B;--mango:#ED9249;
-  --blue:#3D5CF5;--ink:#22303C;--mut:#68788A;--line:#E7EAF0;--off:#F0F2F6;--canvas:#F7F8FA;--ok:#1B9E5A;--amber:#F59E0B;}
+:root{--navy:#05253C;--pri:#D9452B;--pri-dark:#B93A22;--pri-soft:#FBEAE6;--orange:#D9452B;--mango:#ED9249;
+  --blue:#13507F;--ink:#25394B;--mut:#6A7A88;--line:#E3DDDA;--off:#ECE7E6;--canvas:#F4F1EF;--ok:#1B7A4B;--amber:#B96A16;}
+/* The HTML hidden attribute must ALWAYS win, even against components
+ * that set their own display (flex overlays, bars, chips). */
+[hidden]{display:none!important;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
 body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .snav{width:236px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;
   padding:22px 14px;position:sticky;top:0;height:100vh;}
-.snav-logo{padding:2px 10px 20px;}
+.snav-logo{padding:2px 10px 6px;}
 .snav-logo svg{height:30px;width:auto;display:block;}
+.snav-slogan{font-size:10.5px;color:var(--mango);font-weight:600;letter-spacing:.05em;padding:0 10px 18px;}
 .snav nav{display:flex;flex-direction:column;gap:4px;}
 .sn-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;text-decoration:none;
   color:var(--ink);font-size:14.5px;font-weight:500;transition:background .12s;}
@@ -177,12 +182,12 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 h2.page{font-size:25px;margin-bottom:6px;letter-spacing:-.01em;}
 .sub{color:var(--mut);margin-bottom:22px;font-size:14.5px;line-height:1.55;max-width:52em;}
 .card{background:#fff;border-radius:16px;border:1px solid var(--line);padding:22px;margin-bottom:16px;
-  box-shadow:0 1px 3px rgba(14,36,56,.04);}
-.card h3{font-size:16px;margin-bottom:10px;}
+  box-shadow:0 1px 3px rgba(5,37,60,.05);}
+.card h3{font-size:16px;margin-bottom:10px;font-weight:600;}
 textarea,input[type=text],input[type=email]{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;
   font-size:14.5px;font-family:inherit;color:var(--navy);background:#fff;}
 textarea{resize:vertical;line-height:1.55;}
-textarea:focus,input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(61,92,245,.12);}
+textarea:focus,input:focus{outline:none;border-color:var(--mango);box-shadow:0 0 0 3px rgba(237,146,73,.2);}
 label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px;}
 label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 .counter{font-size:12px;color:var(--mut);text-align:right;margin-top:4px;}
@@ -191,15 +196,15 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 .btn:hover{background:var(--pri-dark);transform:translateY(-1px);}
 .btn:disabled{opacity:.5;cursor:default;transform:none;}
 .btn:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
-.btn.quiet{background:var(--navy);}
-.btn.quiet:hover{background:#1d3a55;}
-.btn.ghost{background:#fff;color:var(--pri);border:1.5px solid #C9D3F8;}
-.btn.ghost:hover{background:var(--pri-soft);}
+.btn.quiet{background:var(--blue);}
+.btn.quiet:hover{background:#0e3c60;}
+.btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line);}
+.btn.ghost:hover{background:var(--off);}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
 .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
-.tab{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:10px 18px;
+.tab{border:1.5px solid var(--mango);background:#fff;color:var(--navy);border-radius:999px;padding:10px 18px;
   font-weight:600;font-size:14px;cursor:pointer;min-height:42px;}
-.tab.on{background:var(--pri);border-color:var(--pri);color:#fff;}
+.tab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 .tab:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
 .badge{display:inline-block;background:var(--off);color:var(--mut);border-radius:99px;padding:3px 10px;
   font-size:11.5px;font-weight:600;}
@@ -234,28 +239,30 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 /* Retints applied AFTER page-specific CSS so the legacy warm-palette
  * decorations pick up the app skin without editing every page. */
 const APP_OVERRIDES = `
-.drop-ico,.pulse,.mic{background:linear-gradient(135deg,#7B8CF8,var(--pri))!important;}
-.drop{border-color:#B9C6F5;background:var(--pri-soft);}
-.drop:hover,.drop.over{border-color:var(--pri);background:#E4E9FD;}
-.drop.mini{border-color:#B9C6F5;background:var(--pri-soft);color:var(--pri);}
-.drop.mini:hover,.drop.mini.over{border-color:var(--pri);background:#E4E9FD;}
-.qnum{color:var(--pri);}
-.qrole{background:var(--pri-soft);color:var(--pri);}
-.rolebtn:hover{border-color:var(--pri);}
-.tpl.on{border-color:var(--pri);box-shadow:0 0 0 2px rgba(61,92,245,.18);}
-.tpl:hover{border-color:#B9C6F5;}
-.nextstep{background:linear-gradient(120deg,var(--navy),var(--pri-dark));}
-.nextstep .ns-label{color:#9DB0FA;}
-.r-head{border-top-color:var(--pri);}
-.ready{border-top-color:var(--pri);}
-.hero{border-top-color:var(--pri);}
-.step.on{border-color:var(--pri);}
-.step.on i{background:var(--pri);}
-.addbtn{border-color:#B9C6F5;background:var(--pri-soft);color:var(--pri);}
-.addbtn:hover{border-color:var(--pri);color:var(--pri-dark);}
-.trust{background:var(--pri-soft);color:var(--pri);}
-.hc-flag{background:linear-gradient(90deg,#E23A8E,#B03AE2);}
-.passport{border-top-color:var(--pri);}
+[hidden]{display:none!important;}
+.drop-ico,.pulse,.mic{background:linear-gradient(135deg,var(--mango),var(--orange))!important;}
+.drop{border-color:var(--blue);background:rgba(19,80,127,.04);}
+.drop:hover,.drop.over{border-color:var(--orange);background:rgba(217,69,43,.06);}
+.drop.mini{border-color:var(--blue);background:rgba(19,80,127,.04);color:var(--blue);}
+.drop.mini:hover,.drop.mini.over{border-color:var(--orange);background:rgba(217,69,43,.06);}
+.qnum{color:var(--orange);}
+.qrole{background:var(--off);color:var(--blue);}
+.rolebtn:hover{border-color:var(--orange);}
+.tpl.on{border-color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.18);}
+.tpl:hover{border-color:var(--mango);}
+.nextstep{background:linear-gradient(120deg,var(--navy),var(--blue));}
+.nextstep .ns-label{color:var(--mango);}
+.r-head{border-top-color:var(--orange);}
+.ready{border-top-color:var(--orange);}
+.hero{border-top-color:var(--orange);}
+.step.on{border-color:var(--mango);}
+.step.on i{background:linear-gradient(135deg,var(--mango),var(--orange));}
+.addbtn{border-color:var(--blue);background:rgba(19,80,127,.04);color:var(--blue);}
+.addbtn:hover{border-color:var(--orange);color:var(--orange);}
+.trust{background:var(--off);color:var(--blue);}
+.hc-flag,.tc-flag{background:linear-gradient(90deg,var(--orange),var(--mango));}
+.passport{border-top-color:var(--orange);}
+.hero-tag{background:#FBEAE6;color:var(--orange);}
 `;
 
 export function appShell(opts: {
@@ -279,6 +286,7 @@ export function appShell(opts: {
     `<style>${APP_CSS}${opts.extraCss ?? ""}${APP_OVERRIDES}</style></head><body>` +
     "<aside class='snav'>" +
     `<div class='snav-logo'>${WORDMARK_LIGHT}</div>` +
+    "<div class='snav-slogan'>Where Growth Takes Flight</div>" +
     `<nav aria-label='Employability tools'>${nav}</nav>` +
     "<div class='snav-foot'>" +
     `<a class='sn-link' data-nav href='/ai-privacy'>${NAV_ICONS.privacy}<span>AI &amp; Privacy</span></a>` +
