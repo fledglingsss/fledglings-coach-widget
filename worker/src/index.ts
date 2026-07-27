@@ -1725,7 +1725,7 @@ app.get("/portal/reflections", async (c) => {
  * text arrives here. Same guardrail stack as the CV review.
  * ================================================================== */
 
-const INTERVIEW_MAX_TOKENS = 3400;
+const INTERVIEW_MAX_TOKENS = 5000;
 
 app.get("/interview", (c) => c.html(renderInterviewPage(), 200, FRAME_HEADERS));
 

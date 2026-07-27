@@ -128,6 +128,12 @@ export async function coach(
   return text;
 }
 
+/* Reports (interview reviews, CV/LinkedIn reviews, cover letters) run
+ * to several thousand output tokens — generation alone can take 40-80s.
+ * The chat coach's 30s timeout starved them into fallbacks (QA
+ * 2026-07-27: every attempt died at exactly 2×30s). */
+const GENERATE_TIMEOUT_MS = 90_000;
+
 /**
  * Generic single-turn generation with the standard rails (timeout,
  * one retry, cached system prompt). Used by the review tools and the
@@ -142,7 +148,7 @@ export async function generate(
 ): Promise<string> {
   const client = new Anthropic({
     apiKey: cleanApiKey(apiKey),
-    timeout: COACH_TIMEOUT_MS,
+    timeout: GENERATE_TIMEOUT_MS,
     maxRetries: MAX_RETRIES,
   });
   const response = await client.messages.create({
