@@ -157,6 +157,10 @@ export function renderInterviewPage(): string {
     "</div></div>" +
     "<div id='r-answers'></div>" +
     "<div class='card nextstep'><div class='ns-label'>PRACTISE THIS FIRST</div><div id='r-next'></div></div>" +
+    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
+    "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
+    "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
     "<div class='btnrow no-print'>" +
     "<button type='button' class='btn' onclick='window.print()'>Print / save feedback</button>" +
     "<button type='button' class='btn ghost' id='again'>New interview</button></div>" +
@@ -435,7 +439,13 @@ out+="<div class='qc-row good'><b>What worked</b>"+esc2(a.strength)+"</div>"+
 "<div class='qc-row'><b>Make it stronger</b>"+esc2(a.improve)+"</div>"+
 "<div class='qc-row sharper'><b>Your answer, sharpened</b>"+esc2(a.sharper)+"</div></div>";});
 $('r-answers').innerHTML=out;$('r-next').textContent=r.next_step;
+if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}
+else{$('r-cheercard').hidden=true}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
+document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
+fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,tool:'interview',helpful:b.dataset.fb==='1'})}).catch(function(){});
+$('fbrow').textContent='Thanks — that helps Fledge improve.';};});
 })();`;
 
 const INTERVIEW_CSS = `

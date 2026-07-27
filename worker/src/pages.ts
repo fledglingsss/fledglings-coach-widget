@@ -208,6 +208,13 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 .result{line-height:1.7;font-size:14.5px;}
 .result p{margin-bottom:8px;white-space:pre-wrap;}
 .footer{padding:14px 20px;text-align:center;font-size:12px;color:var(--mut);}
+.cheer{display:flex;gap:14px;align-items:flex-start;background:#F3FBF6;border:1px solid #CBE9D6;}
+.cheer-ico{font-size:22px;line-height:1;}
+.cheer-tx{font-size:15px;line-height:1.65;font-weight:500;color:#14532D;}
+.fbrow{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--mut);margin:2px 0 18px;min-height:38px;}
+.fbbtn{border:1.5px solid var(--line);background:#fff;border-radius:999px;width:38px;height:38px;font-size:16px;
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+.fbbtn:hover{border-color:var(--pri);transform:translateY(-1px);}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 @media (max-width:880px){
   body{flex-direction:column;}
@@ -380,6 +387,10 @@ export function renderToolsPage(): string {
     "<div class='rw before'><div class='rw-tag'>BEFORE</div><div id='r-rwb'></div></div>" +
     "<div class='rw after'><div class='rw-tag'>AFTER</div><div id='r-rwa'></div></div></div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
+    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
+    "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
+    "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
     "<div class='btnrow no-print'>" +
     "<button type='button' class='btn' onclick='window.print()'>Print / save feedback</button>" +
     "<button type='button' class='btn ghost' id='r-again'>Review another</button></div>" +
@@ -511,7 +522,13 @@ export function renderToolsPage(): string {
     "fixes+=\"<div class='fix'><div class='fix-n'>\"+(i+1)+\"</div><div><div class='fix-t'>\"+esc(f.title)+\"</div>\"+" +
     "\"<div class='fix-d'>\"+esc(f.detail)+'</div></div></div>'});" +
     "$('r-fixes').innerHTML=fixes;" +
-    "$('r-next').textContent=r.next_step;}" +
+    "$('r-next').textContent=r.next_step;" +
+    "if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}" +
+    "else{$('r-cheercard').hidden=true}}" +
+    "document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){" +
+    "fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'}," +
+    "body:JSON.stringify({learner_id:lid,tool:kind,helpful:b.dataset.fb==='1'})}).catch(function(){});" +
+    "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
     "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
     "})();</script>";

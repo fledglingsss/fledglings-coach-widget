@@ -69,6 +69,9 @@ export function renderCoverLetterPage(): string {
     "Everything in <span class='ph' style='padding:1px 6px'>orange brackets</span> needs your words before you send it.</p>" +
     "<div class='card no-print' id='pers-card'><h3>Make it yours before sending</h3><ul class='goods' id='pers-list'></ul></div>" +
     "<div class='card no-print' id='tips-card'><h3>Tips from Fledge</h3><ul class='goods' id='tips-list'></ul></div>" +
+    "<div class='fbrow no-print' id='fbrow'><span>Was this draft helpful?</span>" +
+    "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
+    "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
     "<div class='btnrow no-print'>" +
     "<button type='button' class='btn' id='copybtn'>Copy letter text</button>" +
     "<button type='button' class='btn quiet' onclick='window.print()'>Print / save as PDF</button>" +
@@ -179,6 +182,10 @@ var text=parts.join('\n').replace(/\n{3,}/g,'\n\n');
 .catch(function(){$('copybtn').textContent='Select and copy manually';});});
 $('againbtn').addEventListener('click',function(){show('s-in');window.scrollTo({top:0})});
 $('msgback').addEventListener('click',function(){show('s-in')});
+document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
+fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,tool:'cover',helpful:b.dataset.fb==='1'})}).catch(function(){});
+$('fbrow').textContent='Thanks — that helps Fledge improve.';};});
 })();`;
 
 const COVER_LETTER_CSS = `

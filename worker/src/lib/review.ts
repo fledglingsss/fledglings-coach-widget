@@ -62,7 +62,8 @@ Output exactly this JSON shape:
     "after": "<that same line rewritten to lead with an action verb and a result, using ONLY facts already in their text; where a number would strengthen it that they have not provided, insert a placeholder in square brackets like [how many] or [how often] for them to fill in>"
   },
   "keywords": {"matched": ["<term from the job advert their text genuinely evidences>"], "missing": ["<important term from the advert their text does not evidence>"]},
-  "next_step": "<the single highest-impact edit, 1-2 sentences>"
+  "next_step": "<the single highest-impact edit, 1-2 sentences>",
+  "encouragement": "<ONE warm, genuine closing sentence anchored in their strongest real moment (quote or reference it) — no hedging, no 'but', no advice; this is the sentence they remember>"
 }
 The "keywords" field: ONLY when a target job advert was provided, extract the 6-12 most important skills/requirements from the advert and split them into matched (their text genuinely shows it) vs missing (it does not). If no advert was provided, use {"matched":[],"missing":[]}.
 The "rewrite" field teaches the XYZ/STAR pattern — accomplished X, measured by Y, by doing Z — but the after-line must contain nothing the learner did not write, other than square-bracket placeholders they will fill themselves.`;
@@ -92,6 +93,9 @@ export interface ReviewReport {
   rewrite: { before: string; after: string } | null;
   keywords: { matched: string[]; missing: string[] };
   next_step: string;
+  /** Warm closing line anchored in their strongest real moment;
+   * optional — a report without it is still a report. */
+  encouragement: string | null;
 }
 
 function clampScore(n: unknown): number | null {
@@ -184,6 +188,7 @@ export function parseReviewReport(raw: string): ReviewReport | "crisis" | null {
     rewrite,
     keywords,
     next_step: next,
+    encouragement: asString(p.encouragement, 300),
   };
 }
 

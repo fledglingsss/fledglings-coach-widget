@@ -948,6 +948,7 @@ app.post("/api/review", async (c) => {
     const visible = [
       report.verdict,
       report.next_step,
+      report.encouragement || "",
       ...report.strengths,
       ...report.dimensions.map((d) => d.tip),
       ...report.improvements.map((i) => `${i.title} ${i.detail}`),
@@ -990,6 +991,35 @@ app.get("/tools", (c) => c.html(renderToolsPage(), 200, FRAME_HEADERS));
 app.get("/builder", (c) => c.html(renderBuilderPage(), 200, FRAME_HEADERS));
 
 app.get("/ai-privacy", (c) => c.html(renderAiPrivacyPage(), 200, FRAME_HEADERS));
+
+/* "Was this review helpful?" thumbs — the only thing recorded is an
+ * anonymous counter per tool (no learner link, no text). Visible via
+ * KV `fb:count:*` keys and the log stream. */
+const FEEDBACK_TOOLS = new Set(["cv", "linkedin", "interview", "cover", "builder"]);
+
+app.post("/api/feedback", async (c) => {
+  const body = await readJsonCapped(c, 2_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  const tool = typeof body.tool === "string" ? body.tool : "";
+  if (!ID_PATTERN.test(learnerId) || !FEEDBACK_TOOLS.has(tool) || typeof body.helpful !== "boolean") {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+  try {
+    const deviceHash = await hashLearnerId(learnerId);
+    const rlKey = `fb:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= 20) return c.json({ ok: true });
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+    const counterKey = `fb:count:${tool}:${body.helpful ? "up" : "down"}`;
+    const count = parseInt((await c.env.RATE_LIMITS.get(counterKey)) || "0", 10) || 0;
+    await c.env.RATE_LIMITS.put(counterKey, String(count + 1));
+    console.log(`[coach] kind=feedback tool=${tool} helpful=${body.helpful}`);
+  } catch {
+    /* feedback is a bonus signal — never an error the learner sees */
+  }
+  return c.json({ ok: true });
+});
 
 app.post("/api/builder-check", async (c) => {
   const body = await readJsonCapped(c, 64_000);
@@ -1106,6 +1136,7 @@ app.post("/api/linkedin", async (c) => {
     const visible = [
       report.verdict,
       report.next_step,
+      report.encouragement || "",
       ...report.sections.flatMap((s) => [...s.right, ...s.improve]),
     ].join("\n");
     if (guardReply(visible, 10_000) === null) {
@@ -1856,6 +1887,7 @@ app.post("/api/interview", async (c) => {
     const visible = [
       report.verdict,
       report.next_step,
+      report.encouragement || "",
       ...report.answers.flatMap((a) => [a.strength, a.improve, a.sharper]),
     ].join("\n");
     if (guardReply(visible, 10_000) === null) {

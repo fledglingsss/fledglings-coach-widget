@@ -56,6 +56,10 @@ export function renderLinkedInPage(): string {
     `<div class='chiprow' role='tablist' aria-label='Section scores'>${chipRow}</div>` +
     "<div id='r-sections'></div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
+    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
+    "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
+    "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
     "<div class='btnrow no-print'>" +
     "<button type='button' class='btn' onclick='window.print()'>Print / save feedback</button>" +
     "<button type='button' class='btn ghost' id='r-again'>Review another</button></div>" +
@@ -147,7 +151,13 @@ export function renderLinkedInPage(): string {
     "$('r-sections').innerHTML=panels;" +
     "document.querySelectorAll('.schip').forEach(function(ch){ch.onclick=function(){" +
     "var t=$('sec-'+ch.dataset.sec);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});};});" +
-    "$('r-next').textContent=r.next_step;}" +
+    "$('r-next').textContent=r.next_step;" +
+    "if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}" +
+    "else{$('r-cheercard').hidden=true}}" +
+    "document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){" +
+    "fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'}," +
+    "body:JSON.stringify({learner_id:lid,tool:'linkedin',helpful:b.dataset.fb==='1'})}).catch(function(){});" +
+    "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
     "})();</script>";
 

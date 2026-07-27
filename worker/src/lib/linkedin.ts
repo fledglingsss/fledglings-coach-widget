@@ -268,7 +268,8 @@ Output exactly this JSON shape:
 {
 ${sectionLines},
   "verdict": "<3-6 word honest headline>",
-  "next_step": "<the single highest-impact edit, 1-2 sentences>"
+  "next_step": "<the single highest-impact edit, 1-2 sentences>",
+  "encouragement": "<ONE warm, genuine closing sentence anchored in their strongest real moment (quote or reference it) — no hedging, no 'but', no advice>"
 }`;
 }
 
@@ -300,6 +301,7 @@ export interface LinkedInReport {
   overall: number;
   verdict: string;
   next_step: string;
+  encouragement: string | null;
   sections: SectionReview[];
 }
 
@@ -380,5 +382,11 @@ export function parseLinkedInReport(
   }
 
   const overall = sections.reduce((sum, s) => sum + s.score, 0);
-  return { overall, verdict, next_step: next, sections };
+  return {
+    overall,
+    verdict,
+    next_step: next,
+    encouragement: asString(p.encouragement, 300),
+    sections,
+  };
 }

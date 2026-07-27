@@ -160,7 +160,8 @@ Output exactly this shape:
       "sharper": "<their own answer re-framed situation->action->result, 2-3 sentences, [brackets] for missing specifics>"
     }
   , ...one per answer, in the same order],
-  "next_step": "<the one habit to practise before a real interview, 1-2 sentences>"
+  "next_step": "<the one habit to practise before a real interview, 1-2 sentences>",
+  "encouragement": "<ONE warm, genuine closing sentence anchored in their strongest answer (quote or reference it) — no hedging, no 'but', no advice; the sentence they walk into the real interview remembering>"
 }`;
 }
 
@@ -182,6 +183,8 @@ export interface InterviewReport {
   verdict: string;
   answers: Array<{ score: number; strength: string; improve: string; sharper: string }>;
   next_step: string;
+  /** Warm closing line anchored in their strongest answer; optional. */
+  encouragement: string | null;
 }
 
 function clamp(n: unknown): number | null {
@@ -228,5 +231,11 @@ export function parseInterviewReport(
     })
     .filter((a): a is InterviewReport["answers"][number] => a !== null);
   if (answers.length !== expectedAnswers) return null;
-  return { overall, verdict, answers, next_step: next };
+  return {
+    overall,
+    verdict,
+    answers,
+    next_step: next,
+    encouragement: str(p.encouragement, 300),
+  };
 }
