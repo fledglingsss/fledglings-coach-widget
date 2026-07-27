@@ -156,9 +156,10 @@ Output exactly this shape:
   "answers": [
     {
       "score": <integer 0-100>,
-      "strength": "<what worked, with a verbatim quote in quotation marks>",
-      "improve": "<the single biggest improvement for this answer, 1-2 sentences>",
-      "sharper": "<their own answer re-framed situation->action->result, 2-3 sentences, [brackets] for missing specifics>"
+      "strength": "<what went well — 1-2 sentences with a verbatim quote in quotation marks>",
+      "improve": "<what needs improvement — name what THEY said or missed in THIS answer and the one concrete move that fixes it, 2 sentences>",
+      "impress": "<what would have impressed the interviewer — the KINDS of specifics that would elevate this exact answer (a number, a named moment, a result), described concretely but never invented for them, 1-2 sentences>",
+      "sharper": "<their own answer re-framed situation->action->result, 2-4 sentences, [brackets] for missing specifics>"
     }
   , ...one per answer, in the same order],
   "next_step": "<the one habit to practise before a real interview, 1-2 sentences>",
@@ -182,7 +183,15 @@ export function interviewUserMessage(req: InterviewRequest): string {
 export interface InterviewReport {
   overall: number;
   verdict: string;
-  answers: Array<{ score: number; strength: string; improve: string; sharper: string }>;
+  answers: Array<{
+    score: number;
+    strength: string;
+    improve: string;
+    /** "What would have impressed the interviewer" — optional so
+     * older outputs still parse. */
+    impress: string | null;
+    sharper: string;
+  }>;
   next_step: string;
   /** Warm closing line anchored in their strongest answer; optional. */
   encouragement: string | null;
@@ -227,7 +236,7 @@ export function parseInterviewReport(
       const improve = str(an.improve);
       const sharper = str(an.sharper);
       return score !== null && strength && improve && sharper
-        ? { score, strength, improve, sharper }
+        ? { score, strength, improve, impress: str(an.impress), sharper }
         : null;
     })
     .filter((a): a is InterviewReport["answers"][number] => a !== null);

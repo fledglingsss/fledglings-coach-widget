@@ -29,6 +29,16 @@ export function renderInterviewPage(): string {
 
     /* ---------- stage: home ---------- */
     "<div id='s-home'>" +
+    "<div class='ivtabs' role='tablist'>" +
+    "<button type='button' class='ivtab on' id='tab-practice' role='tab'>Practice</button>" +
+    "<button type='button' class='ivtab' id='tab-recs' role='tab'>My recordings <span class='ivcount' id='rec-count' hidden></span></button></div>" +
+    "<div id='home-recs' hidden>" +
+    "<div class='card'><h3>Your practice library</h3>" +
+    "<p class='sub' style='margin-bottom:12px'>Every practice saves here the moment you finish — video, answers and " +
+    "report — stored only in this browser, never uploaded. No waiting for the AI: rewatch instantly, and the report " +
+    "attaches itself when it's ready.</p>" +
+    "<div id='recs-list'></div></div></div>" +
+    "<div id='home-practice'>" +
     "<div class='card hero'>" +
     "<span class='hero-tag'>✦ Try this first</span>" +
     "<h3 class='hero-h'>Your pitch doesn't need to be perfect. <em>It just needs to exist.</em></h3>" +
@@ -48,6 +58,7 @@ export function renderInterviewPage(): string {
     "<textarea id='jd' rows='5' maxlength='3000' placeholder='Paste the job advert here…'></textarea>" +
     "<div class='btnrow'><button type='button' class='btn quiet' id='genbtn'>Generate my interview</button>" +
     "<span class='hero-note' id='genstate'>Up to 5 custom interviews a day</span></div></div>" +
+    "</div>" +
     "</div>" +
 
     /* ---------- stage: camera setup ---------- */
@@ -146,15 +157,16 @@ export function renderInterviewPage(): string {
     "<div class='spbox'><div class='sp-h'>FILLER WORDS</div><div class='sp-big' id='sp-fill'></div><div class='sp-d' id='sp-fill-d'></div></div>" +
     "<div class='spbox'><div class='sp-h'>SPEAKING TIME</div><div class='sp-big' id='sp-time'></div><div class='sp-d'>Across your recorded answers. Aim for 45–90 seconds per answer.</div></div>" +
     "</div></div>" +
-    /* presence detail */
+    /* presence detail — five measured signals, Hiration-style */
     "<div class='card' id='pr-card' hidden><h3>Camera presence <span class='badge' id='pr-badge'></span></h3>" +
-    "<div class='note-a11y' style='margin:10px 0'>ℹ️ Feedback only, measured on your device — never used to judge you, " +
-    "and safely ignored if a disability or condition affects posture or movement.</div>" +
-    "<div class='spgrid'>" +
-    "<div class='spbox'><div class='sp-h'>FACE IN FRAME</div><div class='sp-big' id='pr-face'></div><div class='sp-d'>How often your face was visible while answering.</div></div>" +
-    "<div class='spbox'><div class='sp-h'>CENTRED</div><div class='sp-big' id='pr-centre'></div><div class='sp-d'>Roughly centred reads as engaged on a video call.</div></div>" +
-    "<div class='spbox'><div class='sp-h'>DISTANCE</div><div class='sp-big' id='pr-dist'></div><div class='sp-d'>Not too close, not too far — head and shoulders in shot.</div></div>" +
-    "</div></div>" +
+    "<div class='note-a11y' style='margin:10px 0'>ℹ️ <b>Accessibility note:</b> feedback only, measured on your device — " +
+    "never used to judge you, and safely ignored if a disability or medical condition affects your posture, movement or " +
+    "eye contact.</div>" +
+    "<div class='prgrid' id='prgrid'></div></div>" +
+    /* scoring-in-progress banner */
+    "<div class='scoringbar' id='scoringbar' hidden><span class='scoringdot' aria-hidden='true'></span>" +
+    "<div><b>Fledge is scoring your interview…</b> Your recordings are already saved in <b>My recordings</b> — " +
+    "rewatch them below, or leave and come back; the report attaches when it's ready.</div></div>" +
     "<div id='r-answers'></div>" +
     "<div class='card nextstep'><div class='ns-label'>PRACTISE THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
@@ -200,7 +212,8 @@ var role=null,roleLabel='',qs=[],sig='',idx=0,answers=[],mode='video';
 var reviewReturn=false;
 var stream=null,recorder=null,chunks=[],recStartAt=0,recTimer=null,thinkTimer=null;
 var finalText='',listening=false,rec=null,voiceStartAt=0,voiceSecs=0;
-var presence={frames:0,faceVisible:0,centred:0,goodDistance:0},faceDet=null,sampleTimer=null;
+var presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,lookingAhead:0};
+var faceDet=null,mpDetector=null,mpLoading=false,sampleTimer=null;
 var THINK_SECS=30,MAX_ANSWER_SECS=180;
 
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -226,8 +239,40 @@ checkReady();}
 function currentAnswer(){return (finalText+' '+$('typed').value.trim()).trim();}
 function checkReady(){$('next').disabled=currentAnswer().length<20;}
 
-/* ---------------- camera / setup ---------------- */
-function detectorInit(){try{if('FaceDetector' in window){faceDet=new window.FaceDetector({fastMode:true,maxDetectedFaces:1});}}catch(e){faceDet=null}}
+/* ---------------- camera / setup ----------------
+ * Face analysis runs entirely ON-DEVICE. Primary: MediaPipe BlazeFace
+ * (works in every modern browser; ~230KB model) giving a bounding box
+ * plus eye/nose keypoints — enough for framing, head tilt (roll) and
+ * an eye-contact proxy (facing the camera). Fallback: the native
+ * FaceDetector API (framing only). Nothing is ever uploaded. */
+function detectorInit(){
+try{if('FaceDetector' in window){faceDet=new window.FaceDetector({fastMode:true,maxDetectedFaces:1});}}catch(e){faceDet=null}
+if(mpDetector||mpLoading)return;mpLoading=true;
+import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs')
+.then(function(mod){return mod.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm')
+.then(function(files){return mod.FaceDetector.createFromOptions(files,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'});});})
+.then(function(det){mpDetector=det;})
+.catch(function(){mpDetector=null;});}
+/* One frame -> framing + keypoint facts, or null when no face/detector.
+ * kp:true means head/eye signals are genuinely measured. */
+function analyseFrame(v){
+if(mpDetector&&v.videoWidth){try{
+var out=mpDetector.detectForVideo(v,performance.now());
+var d=out&&out.detections&&out.detections[0];
+if(!d)return {face:false,kp:true};
+var bb=d.boundingBox;var cx=(bb.originX+bb.width/2)/v.videoWidth;var hr=bb.height/v.videoHeight;
+var k=d.keypoints||[];var res={face:true,kp:false,centred:cx>0.28&&cx<0.72,goodDistance:hr>0.16&&hr<0.8};
+if(k.length>=3){var eR=k[0],eL=k[1],nose=k[2];
+var roll=Math.atan2((eL.y-eR.y),(eL.x-eR.x))*180/Math.PI;
+var mid=(eR.x+eL.x)/2;var span=Math.abs(eL.x-eR.x)||0.001;
+res.kp=true;res.headStraight=Math.abs(roll)<=12;
+res.lookingAhead=Math.abs(nose.x-mid)/span<=0.28;}
+return res;}catch(e){return null}}
+if(faceDet&&v.videoWidth){return faceDet.detect(v).then(function(faces){
+if(!faces.length)return {face:false,kp:false};
+var b=faces[0].boundingBox,cx=(b.x+b.width/2)/v.videoWidth,hr=b.height/v.videoHeight;
+return {face:true,kp:false,centred:cx>0.28&&cx<0.72,goodDistance:hr>0.16&&hr<0.8};}).catch(function(){return null});}
+return null;}
 function ckSet(id,ok,text){var li=$(id);li.querySelector('i').textContent=ok===true?'✓':ok===false?'✗':'…';
 li.className=ok===true?'ok':ok===false?'bad':'';li.querySelector('span').textContent=text;}
 var setupTimer=null;
@@ -253,27 +298,40 @@ try{var d=ctx.getImageData(0,0,120,68).data,sum=0;
 for(var i=0;i<d.length;i+=16){sum+=(d[i]+d[i+1]+d[i+2])/3}
 var avg=sum/(d.length/16);
 ckSet('ck-light',avg>40,avg>40?'Looks fine':'Quite dark — face a window or lamp if you can.');}catch(e){}
-if(faceDet){faceDet.detect(v).then(function(faces){
-if(!faces.length){ckSet('ck-face',false,'Cannot see a face yet — sit facing the camera.');return;}
-var b=faces[0].boundingBox,cx=(b.x+b.width/2)/v.videoWidth,hr=b.height/v.videoHeight;
-var centred=cx>0.3&&cx<0.7,sized=hr>0.18&&hr<0.75;
-ckSet('ck-face',centred&&sized,centred?(sized?'Nicely framed':'Adjust your distance — head and shoulders in shot'):'Move toward the centre of the frame');
-}).catch(function(){ckSet('ck-face',null,'Line yourself up in the preview — this browser cannot auto-check.')});}
-else{ckSet('ck-face',null,'Line yourself up in the preview — this browser cannot auto-check.');}}
+var r=analyseFrame(v);
+if(r===null){ckSet('ck-face',null,'Line yourself up in the preview — face checks are still loading.');return;}
+Promise.resolve(r).then(function(f){
+if(!f){ckSet('ck-face',null,'Line yourself up in the preview — this browser cannot auto-check.');return;}
+if(!f.face){ckSet('ck-face',false,'Cannot see a face yet — sit facing the camera.');return;}
+var msg;
+if(!f.centred)msg='Move toward the centre of the frame';
+else if(!f.goodDistance)msg='Adjust your distance — head and shoulders in shot';
+else if(f.kp&&f.headStraight===false)msg='Nearly — level your head a touch';
+else if(f.kp&&f.lookingAhead===false)msg='Nicely framed — look towards the camera';
+else msg=f.kp?'Nicely framed, head level, looking at the camera':'Nicely framed';
+ckSet('ck-face',Boolean(f.centred&&f.goodDistance),msg);});}
 
-/* presence sampling while recording */
-function sampleStart(){if(!faceDet||!stream)return;
+/* presence sampling while recording — tallies framing plus, when the
+ * keypoint detector is live, head straightness + eye contact */
+var kpMeasured=false;
+function sampleStart(){if(!stream)return;
 sampleTimer=setInterval(function(){var v=$('live-video');if(!v.videoWidth)return;
-faceDet.detect(v).then(function(faces){presence.frames++;
-if(faces.length){presence.faceVisible++;
-var b=faces[0].boundingBox,cx=(b.x+b.width/2)/v.videoWidth,hr=b.height/v.videoHeight;
-if(cx>0.3&&cx<0.7)presence.centred++;
-if(hr>0.18&&hr<0.75)presence.goodDistance++;}}).catch(function(){});},1500);}
+var r=analyseFrame(v);if(r===null)return;
+Promise.resolve(r).then(function(f){if(!f)return;
+presence.frames++;
+if(f.face){presence.faceVisible++;
+if(f.centred)presence.centred++;
+if(f.goodDistance)presence.goodDistance++;
+if(f.kp){kpMeasured=true;
+if(f.headStraight)presence.headStraight++;
+if(f.lookingAhead)presence.lookingAhead++;}}
+});},1200);}
 function sampleStop(){if(sampleTimer){clearInterval(sampleTimer);sampleTimer=null}}
 
 /* ---------------- interview flow ---------------- */
 function beginInterview(chosenMode){mode=chosenMode;idx=0;answers=[];reviewReturn=false;
-presence={frames:0,faceVisible:0,centred:0,goodDistance:0};
+presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,lookingAhead:0};
+kpMeasured=false;
 $('qrole').textContent=roleLabel;showQuestion();show('s-int');}
 function showQuestion(){finalText='';$('typed').value='';$('redo').hidden=true;renderTranscript('');
 $('qnum').textContent='Question '+(idx+1)+' of '+qs.length;
@@ -315,7 +373,7 @@ var slot=answers[idx];
 if(recorder&&recorder.state!=='inactive'){recorder.onstop=function(){
 try{var blob=new Blob(chunks,{type:recorder.mimeType||'video/webm'});
 if(blob.size){if(slot.blobUrl){try{URL.revokeObjectURL(slot.blobUrl)}catch(e){}}
-slot.blobUrl=URL.createObjectURL(blob);}}catch(e){}};recorder.stop();}
+slot.blob=blob;slot.blobUrl=URL.createObjectURL(blob);}}catch(e){}};recorder.stop();}
 $('recbar').hidden=true;$('redo').hidden=false;checkReady();}
 $('rec-stop').addEventListener('click',stopRecording);
 
@@ -350,7 +408,8 @@ if(idx<qs.length-1){idx++;showQuestion();return;}
 setTimeout(finish,250);});
 function revokeAllBlobs(){answers.forEach(function(a){if(a&&a.blobUrl){try{URL.revokeObjectURL(a.blobUrl)}catch(e){}}});}
 $('msgback').addEventListener('click',function(){cleanupMedia();show('s-home')});
-$('again').addEventListener('click',function(){cleanupMedia();revokeAllBlobs();show('s-home');window.scrollTo({top:0})});
+$('again').addEventListener('click',function(){cleanupMedia();currentSession=null;
+show('s-home');refreshRecCount();window.scrollTo({top:0})});
 $('rev-restart').addEventListener('click',function(){revokeAllBlobs();
 if(mode==='video'&&!stream){openSetup();return;}
 beginInterview(mode);});
@@ -393,21 +452,104 @@ if(short!==-1){idx=short;reviewReturn=true;showQuestion();show('s-int');
 $('int-meta').textContent='This answer needs at least a sentence or two — speak it or type it, then finish.';return;}
 submit();});
 
+/* ---------------- practice library (IndexedDB, on-device only) ---------------- */
+function idb(){return new Promise(function(res,rej){var q=indexedDB.open('fl_interview_v1',1);
+q.onupgradeneeded=function(){q.result.createObjectStore('sessions',{keyPath:'id'})};
+q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)};});}
+function idbPut(s){return idb().then(function(db){return new Promise(function(res,rej){
+var t=db.transaction('sessions','readwrite');t.objectStore('sessions').put(s);
+t.oncomplete=res;t.onerror=function(){rej(t.error)};});}).catch(function(){});}
+function idbAll(){return idb().then(function(db){return new Promise(function(res){
+var g=db.transaction('sessions','readonly').objectStore('sessions').getAll();
+g.onsuccess=function(){res(g.result||[])};g.onerror=function(){res([])};});}).catch(function(){return []});}
+function idbDel(id){return idb().then(function(db){return new Promise(function(res){
+var t=db.transaction('sessions','readwrite');t.objectStore('sessions')['delete'](id);
+t.oncomplete=res;t.onerror=res;});}).catch(function(){});}
+var currentSession=null;
+function saveSession(status,report){
+var s=currentSession||{id:Math.random().toString(16).slice(2)+Date.now().toString(16)};
+s.at=Date.now();s.roleLabel=roleLabel;s.mode=mode;s.status=status;
+s.answers=answers.map(function(a){return {question:a.question,answer:a.answer,duration_secs:a.duration_secs}});
+s.videos=answers.map(function(a){return a.blob||null});
+if(report)s.report=report;
+currentSession=s;idbPut(s).then(refreshRecCount);return s;}
+function refreshRecCount(){idbAll().then(function(all){var c=$('rec-count');
+if(!c)return;c.hidden=all.length===0;c.textContent=String(all.length);});}
+function fmtDate(t){try{return new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+new Date(t).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+function renderRecordings(){idbAll().then(function(all){
+all.sort(function(a,b){return b.at-a.at});
+var out='';
+if(!all.length)out="<div class='hero-note'>Nothing here yet — finish a practice and it appears instantly.</div>";
+all.forEach(function(s){var score=s.report?s.report.overall:null;
+out+="<div class='reclib'><div class='reclib-main'><b>"+esc2(s.roleLabel||'Practice interview')+"</b>"+
+"<span>"+esc2(fmtDate(s.at))+" · "+s.answers.length+" question"+(s.answers.length===1?'':'s')+
+(s.status==='scoring'?" · <i class='rl-tag'>report pending</i>":s.status==='unscored'?" · <i class='rl-tag'>recording only</i>":"")+"</span></div>"+
+(score!==null?"<span class='reclib-score' style='color:"+band(score)+"'>"+score+"</span>":"<span class='reclib-score dim'>—</span>")+
+"<button type='button' class='rev-redo' data-open-rec='"+s.id+"'>Open</button>"+
+"<button type='button' class='rev-redo' data-del-rec='"+s.id+"'>Delete</button></div>";});
+$('recs-list').innerHTML=out;
+document.querySelectorAll('[data-open-rec]').forEach(function(b){b.onclick=function(){openRecording(b.dataset.openRec)}});
+document.querySelectorAll('[data-del-rec]').forEach(function(b){b.onclick=function(){
+if(!confirm('Delete this practice and its recordings? This cannot be undone.'))return;
+idbDel(b.dataset.delRec).then(function(){renderRecordings();refreshRecCount();});}});});}
+function openRecording(id){idbAll().then(function(all){
+var s=all.find(function(x){return x.id===id});if(!s)return;
+currentSession=s;roleLabel=s.roleLabel||'Practice interview';mode=s.mode||'video';
+answers=s.answers.map(function(a,i){var blob=s.videos&&s.videos[i];
+return {question:a.question,answer:a.answer,duration_secs:a.duration_secs,
+blob:blob||null,blobUrl:blob?URL.createObjectURL(blob):''};});
+if(s.report){renderReport(s.report);show('s-rep');}
+else{renderPendingReport(s.status==='scoring');show('s-rep');}
+window.scrollTo({top:0});});}
+
 /* ---------------- submit + report ---------------- */
 function cleanupMedia(){sampleStop();stopSR();clearThink();
 if(recTimer){clearInterval(recTimer);recTimer=null}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
-function submit(){show('s-wait');
+function repShowScoring(on){['scoringbar'].forEach(function(k){$(k).hidden=!on});}
+function renderPendingReport(scoring){
+/* Recordings-first view: watchable instantly, report joins later. */
+$('r-score').textContent='–';$('r-verdict').textContent=scoring?'Being scored…':'Your recording';
+$('r-meta').textContent=roleLabel+' · '+answers.length+' question'+(answers.length===1?'':'s');
+$('b-answer').textContent='–';$('b-speech').textContent='–';$('b-presence').textContent='–';
+$('b-answer-s').textContent=$('b-speech-s').textContent=$('b-presence-s').textContent=scoring?'On its way':'Not available for this one';
+$('sp-card').hidden=true;$('pr-card').hidden=true;$('r-cheercard').hidden=true;
+repShowScoring(Boolean(scoring));
+var out='';answers.forEach(function(a,i){
+out+="<div class='card qcard'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
+"<span class='qc-q'>"+esc2(a.question)+"</span></div>";
+if(a.blobUrl)out+="<video class='rev-vid inrep' src='"+a.blobUrl+"' controls playsinline></video>";
+out+="<div class='qc-row'><b>Your answer</b>"+esc2(a.answer||'(no words captured)')+"</div></div>";});
+$('r-answers').innerHTML=out;$('r-next').textContent='';}
+function submit(){
+/* Save FIRST (no waiting on the AI), then score in the background
+ * while the learner rewatches their answers. */
+saveSession('scoring',null);
+cleanupMedia();
+renderPendingReport(true);show('s-rep');window.scrollTo({top:0,behavior:'smooth'});
 var payload={learner_id:lid,session_id:sid,role:role,role_label:roleLabel,email:hubEmail,
 answers:answers.map(function(a){return {question:a.question,answer:a.answer,duration_secs:a.duration_secs}})};
 if(role==='custom'){payload.questions=qs;payload.sig=sig;}
-if(presence.frames>=3)payload.presence=presence;
+if(presence.frames>=3){var pr={frames:presence.frames,faceVisible:presence.faceVisible,
+centred:presence.centred,goodDistance:presence.goodDistance};
+if(kpMeasured){pr.headStraight=presence.headStraight;pr.lookingAhead=presence.lookingAhead;}
+payload.presence=pr;}
 fetch('/api/interview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
 .then(function(r){return r.json()}).then(function(d){
-if(d&&d.report){renderReport(d.report);show('s-rep');window.scrollTo({top:0,behavior:'smooth'});return;}
-$('msgtext').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('s-msg');})
-.catch(function(){$('msgtext').textContent='Could not reach Fledge — try again in a minute.';show('s-msg');});}
-function renderReport(r){var col=band(r.overall);
+if(d&&d.report){saveSession('done',d.report);repShowScoring(false);renderReport(d.report);return;}
+saveSession('unscored',null);repShowScoring(false);
+$('r-verdict').textContent='Recording saved — scoring unavailable';
+$('r-meta').textContent=(d&&d.reply)||'Fledge could not score this one — your recording is safe in My recordings.';})
+.catch(function(){saveSession('unscored',null);repShowScoring(false);
+$('r-verdict').textContent='Recording saved — scoring unavailable';
+$('r-meta').textContent='Could not reach Fledge — your recording is safe in My recordings.';});}
+function scoreLabel(s){return s>=85?'Excellent':s>=70?'Strong':s>=50?'Getting there':s>=35?'Early days':'Needs work'}
+function prStat(label,metric,unavailableNote){
+if(metric===null)return "<div class='prstat na'><div class='prring'>–</div><b>"+esc2(label)+"</b><span>"+esc2(unavailableNote)+"</span></div>";
+var cls=metric.band==='great'?'good':metric.band==='okay'?'mid':'bad';
+var word=metric.band==='great'?'Excellent':metric.band==='okay'?'Getting there':'Needs work';
+return "<div class='prstat'><div class='prring "+cls+"'>"+metric.pct+"%</div><b>"+esc2(label)+"</b><span>"+word+"</span></div>";}
+function renderReport(r){repShowScoring(false);var col=band(r.overall);
 $('r-score').textContent=r.overall;$('r-score').style.color=col;
 $('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';
 $('r-verdict').textContent=r.verdict;
@@ -417,8 +559,8 @@ $('b-answer').textContent=(bd.answer!=null?bd.answer:'–')+' / '+(bd.answerMax|
 $('b-answer-s').textContent='What you said, scored like a fair interviewer';
 if(r.speech){$('b-speech').textContent=r.speech.score+' / 10';$('b-speech-s').textContent='Pace and filler words, measured from your answers';}
 else{$('b-speech').textContent='—';$('b-speech-s').textContent='Not measured (no timed spoken answers)';}
-if(r.presence){$('b-presence').textContent=r.presence.score+' / 10';$('b-presence-s').textContent='Framing only — measured on your device';}
-else{$('b-presence').textContent='—';$('b-presence-s').textContent='Not measured (no camera, or browser cannot check)';}
+if(r.presence){$('b-presence').textContent=r.presence.score+' / 10';$('b-presence-s').textContent='Framing, head position and eye contact — measured on your device';}
+else{$('b-presence').textContent='—';$('b-presence-s').textContent='Not measured (no camera, or face checks unavailable)';}
 if(r.speech){$('sp-card').hidden=false;$('sp-badge').textContent=r.speech.score+' / 10';
 ['slow','good','fast'].forEach(function(bnd){$('band-'+bnd).className='bandc'+(r.speech.paceBand===bnd?' on '+bnd:'');});
 $('sp-wpm').textContent=r.speech.wpm+' wpm';
@@ -427,21 +569,45 @@ $('sp-fill').textContent=r.speech.fillerCount+(r.speech.fillerCount===1?' word':
 $('sp-fill-d').textContent=r.speech.fillerCount===0?'Clean answers — no crutch words caught.':'Caught in your transcript (um, basically, sort of…). A short pause beats a filler.';
 $('sp-time').textContent=fmt(r.speech.totalSecs);}else{$('sp-card').hidden=true;}
 if(r.presence){$('pr-card').hidden=false;$('pr-badge').textContent=r.presence.score+' / 10';
-$('pr-face').textContent=r.presence.faceVisiblePct+'%';
-$('pr-centre').textContent=r.presence.centredPct+'%';
-$('pr-dist').textContent=r.presence.goodDistancePct+'%';}else{$('pr-card').hidden=true;}
+var m=r.presence.metrics||{};
+var noKp='Not measured on this browser';
+$('prgrid').innerHTML=
+prStat('Face in frame',m.faceVisible||{pct:r.presence.faceVisiblePct,band:'okay'},'')+
+prStat('Centre of screen',m.centred||{pct:r.presence.centredPct,band:'okay'},'')+
+prStat('Distance',m.distance||{pct:r.presence.goodDistancePct,band:'okay'},'')+
+prStat('Straight head',m.headStraight||null,noKp)+
+prStat('Eye contact',m.eyeContact||null,noKp);}
+else{$('pr-card').hidden=true;}
+/* Per-question: Hiration-style assessment (left) + guidance (right) */
 var out='';r.answers.forEach(function(a,i){var c=band(a.score);
-out+="<div class='card qcard'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
-"<span class='qc-q'>"+esc2(answers[i].question)+"</span>"+
-"<span class='qc-s' style='color:"+c+"'>"+a.score+"</span></div>";
-if(answers[i].blobUrl){out+="<video class='rev-vid inrep' src='"+answers[i].blobUrl+"' controls playsinline></video>";}
-out+="<div class='qc-row good'><b>What worked</b>"+esc2(a.strength)+"</div>"+
-"<div class='qc-row'><b>Make it stronger</b>"+esc2(a.improve)+"</div>"+
-"<div class='qc-row sharper'><b>Your answer, sharpened</b>"+esc2(a.sharper)+"</div></div>";});
+out+="<div class='card qrep'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
+"<span class='qc-q'>"+esc2(answers[i]?answers[i].question:'')+"</span>"+
+"<span class='qchip' style='background:"+c+"'>"+a.score+" · "+scoreLabel(a.score)+"</span></div>";
+if(answers[i]&&answers[i].blobUrl){out+="<video class='rev-vid inrep' src='"+answers[i].blobUrl+"' controls playsinline></video>";}
+out+="<div class='qcols'>"+
+"<div class='qcol'><div class='qcol-t'>ANSWER ASSESSMENT</div>"+
+"<div class='meter'><i style='width:"+a.score+"%;background:"+c+"'></i></div>"+
+"<div class='meter-l' style='color:"+c+"'>"+scoreLabel(a.score)+"</div>"+
+"<div class='panel pgood'><b>What went well</b>"+esc2(a.strength)+"</div>"+
+"<div class='panel pbad'><b>What needs improvement</b>"+esc2(a.improve)+"</div></div>"+
+"<div class='qcol'><div class='qcol-t'>ANSWER GUIDANCE</div>"+
+(a.impress?"<div class='panel pinfo'><b>What would have impressed the interviewer</b>"+esc2(a.impress)+"</div>":"")+
+"<div class='panel prefined'><b>Refined answer: putting it all together</b>"+esc2(a.sharper)+"</div></div>"+
+"</div></div>";});
 $('r-answers').innerHTML=out;$('r-next').textContent=r.next_step;
 if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}
 else{$('r-cheercard').hidden=true}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
+/* ---------------- home tabs ---------------- */
+function showTab(which){
+$('tab-practice').className='ivtab'+(which==='practice'?' on':'');
+$('tab-recs').className='ivtab'+(which==='recs'?' on':'');
+$('home-practice').hidden=which!=='practice';
+$('home-recs').hidden=which!=='recs';
+if(which==='recs')renderRecordings();}
+$('tab-practice').onclick=function(){showTab('practice')};
+$('tab-recs').onclick=function(){showTab('recs')};
+refreshRecCount();
 document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
 fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,tool:'interview',helpful:b.dataset.fb==='1'})}).catch(function(){});
@@ -449,6 +615,55 @@ $('fbrow').textContent='Thanks — that helps Fledge improve.';};});
 })();`;
 
 const INTERVIEW_CSS = `
+.ivtabs{display:flex;gap:8px;margin-bottom:18px;}
+.ivtab{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:10px 20px;
+  font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;min-height:42px;display:inline-flex;align-items:center;gap:8px;}
+.ivtab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.ivcount{background:var(--orange);color:#fff;border-radius:999px;min-width:20px;height:20px;font-size:11px;
+  display:inline-flex;align-items:center;justify-content:center;padding:0 6px;}
+.ivtab.on .ivcount{background:var(--mango);}
+.reclib{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:10px;}
+.reclib-main{flex:1;min-width:0;}
+.reclib-main b{display:block;font-size:14px;}
+.reclib-main span{font-size:12px;color:var(--mut);}
+.rl-tag{font-style:normal;color:var(--mango);font-weight:700;}
+.reclib-score{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;flex:none;}
+.reclib-score.dim{color:#B9AFAB;}
+.scoringbar{display:flex;gap:12px;align-items:center;background:#FDF3EC;border:1.5px solid #F2D8BF;border-radius:14px;
+  padding:13px 16px;font-size:13.5px;line-height:1.55;margin-bottom:14px;}
+.scoringdot{width:12px;height:12px;border-radius:50%;background:var(--orange);flex:none;animation:flDot 1.1s infinite;}
+.prgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+.prstat{border:1.5px solid var(--line);border-radius:14px;padding:16px 12px;text-align:center;}
+.prstat b{display:block;font-size:12.5px;margin-top:10px;}
+.prstat span{font-size:11.5px;color:var(--mut);}
+.prring{width:64px;height:64px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;border:4px solid var(--line);color:var(--mut);}
+.prring.good{border-color:#1B7A4B;color:#1B7A4B;}
+.prring.mid{border-color:var(--mango);color:#B96A16;}
+.prring.bad{border-color:var(--orange);color:var(--orange);}
+.prstat.na{opacity:.65;}
+.qrep{padding:0;overflow:hidden;}
+.qchip{flex:none;color:#fff;border-radius:999px;padding:5px 13px;font-size:12px;font-weight:800;white-space:nowrap;}
+.qcols{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+@media(max-width:820px){.qcols{grid-template-columns:1fr;}}
+.qcol{padding:16px 18px;}
+.qcol:first-child{border-right:1px solid var(--off);}
+@media(max-width:820px){.qcol:first-child{border-right:none;border-bottom:1px solid var(--off);}}
+.qcol-t{font-size:10.5px;font-weight:800;letter-spacing:.12em;color:var(--mut);margin-bottom:10px;}
+.meter{height:9px;border-radius:999px;background:var(--off);overflow:hidden;}
+.meter i{display:block;height:100%;border-radius:999px;}
+.meter-l{font-size:15px;font-weight:800;margin:7px 0 12px;}
+.panel{border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.6;color:#3d4c59;margin-bottom:10px;}
+.panel:last-child{margin-bottom:0;}
+.panel b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;}
+.panel.pgood{background:#EFF7F1;border:1px solid #CBE3D3;}
+.panel.pgood b{color:#1B7A4B;}
+.panel.pbad{background:#FCEFEC;border:1px solid #F0CFC7;}
+.panel.pbad b{color:var(--orange);}
+.panel.pinfo{background:#EFF4F9;border:1px solid #CFDEEC;}
+.panel.pinfo b{color:var(--blue);}
+.panel.prefined{background:#FDF6EE;border:1px solid #F0DFC8;}
+.panel.prefined b{color:#B96A16;}
 .hero{border-top:6px solid var(--orange);}
 .hero-tag{display:inline-block;background:#FCE9F3;color:#B03A80;border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;margin-bottom:10px;}
 .hero-h{font-size:24px;line-height:1.25;margin-bottom:8px;}

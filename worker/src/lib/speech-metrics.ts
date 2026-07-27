@@ -128,6 +128,17 @@ export interface PresenceSamples {
   faceVisible: number; // frames where a face was detected
   centred: number; // frames where the face was roughly centred
   goodDistance: number; // frames where the face filled a sensible share
+  /* v2 signals from face keypoints (eyes + nose): optional so older
+   * clients and reduced detectors still evaluate. */
+  headStraight?: number; // frames where the eye-line was level (low roll)
+  lookingAhead?: number; // frames facing the camera (eye-contact proxy)
+}
+
+export type PresenceBand = "great" | "okay" | "work";
+
+export interface PresenceMetric {
+  pct: number;
+  band: PresenceBand;
 }
 
 export interface PresenceEvaluation {
@@ -135,6 +146,18 @@ export interface PresenceEvaluation {
   faceVisiblePct: number;
   centredPct: number;
   goodDistancePct: number;
+  metrics: {
+    faceVisible: PresenceMetric;
+    centred: PresenceMetric;
+    distance: PresenceMetric;
+    /** null = the detector could not measure this signal. */
+    headStraight: PresenceMetric | null;
+    eyeContact: PresenceMetric | null;
+  };
+}
+
+function metricOf(pct: number): PresenceMetric {
+  return { pct, band: pct >= 75 ? "great" : pct >= 45 ? "okay" : "work" };
 }
 
 /** Validate + clamp client-reported presence sampling. Returns null
@@ -159,12 +182,41 @@ export function evaluatePresence(raw: unknown): PresenceEvaluation | null {
   const faceVisiblePct = pct(face);
   const centredPct = pct(centred);
   const goodDistancePct = pct(distance);
-  /* Face in frame /4, centred /3, distance /3. */
-  const score =
-    Math.round((faceVisiblePct / 100) * 4) +
-    Math.round((centredPct / 100) * 3) +
-    Math.round((goodDistancePct / 100) * 3);
-  return { score: Math.min(10, score), faceVisiblePct, centredPct, goodDistancePct };
+  const head = int(r.headStraight);
+  const ahead = int(r.lookingAhead);
+  const headPct = head === null ? null : pct(head);
+  const aheadPct = ahead === null ? null : pct(ahead);
+
+  /* Scoring: with the full five signals — face 2, centred 2, distance
+   * 2, head 2, eye contact 2. Without the keypoint signals the classic
+   * 4/3/3 split applies, so older samples score identically. */
+  let score: number;
+  if (headPct !== null && aheadPct !== null) {
+    score =
+      Math.round((faceVisiblePct / 100) * 2) +
+      Math.round((centredPct / 100) * 2) +
+      Math.round((goodDistancePct / 100) * 2) +
+      Math.round((headPct / 100) * 2) +
+      Math.round((aheadPct / 100) * 2);
+  } else {
+    score =
+      Math.round((faceVisiblePct / 100) * 4) +
+      Math.round((centredPct / 100) * 3) +
+      Math.round((goodDistancePct / 100) * 3);
+  }
+  return {
+    score: Math.min(10, score),
+    faceVisiblePct,
+    centredPct,
+    goodDistancePct,
+    metrics: {
+      faceVisible: metricOf(faceVisiblePct),
+      centred: metricOf(centredPct),
+      distance: metricOf(goodDistancePct),
+      headStraight: headPct === null ? null : metricOf(headPct),
+      eyeContact: aheadPct === null ? null : metricOf(aheadPct),
+    },
+  };
 }
 
 /* ---------------- combined final score ---------------- */

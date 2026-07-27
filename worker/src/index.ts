@@ -1725,7 +1725,7 @@ app.get("/portal/reflections", async (c) => {
  * text arrives here. Same guardrail stack as the CV review.
  * ================================================================== */
 
-const INTERVIEW_MAX_TOKENS = 2800;
+const INTERVIEW_MAX_TOKENS = 3400;
 
 app.get("/interview", (c) => c.html(renderInterviewPage(), 200, FRAME_HEADERS));
 
@@ -1888,7 +1888,7 @@ app.post("/api/interview", async (c) => {
       report.verdict,
       report.next_step,
       report.encouragement || "",
-      ...report.answers.flatMap((a) => [a.strength, a.improve, a.sharper]),
+      ...report.answers.flatMap((a) => [a.strength, a.improve, a.impress || "", a.sharper]),
     ].join("\n");
     if (guardReply(visible, 10_000) === null) {
       console.error("[coach] interview report failed output gate");
