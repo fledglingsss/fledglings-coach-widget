@@ -129,7 +129,12 @@ import {
 } from "./lib/cover-letter";
 import { renderCoverLetterPage } from "./pages-cover-letter";
 import { renderBuilderPage } from "./pages-builder";
-import { assembleCvText, builderScore, sanitiseBuilderCv } from "./lib/builder";
+import {
+  assembleCvText,
+  buildCategoryReview,
+  builderScore,
+  sanitiseBuilderCv,
+} from "./lib/builder";
 import { renderInterviewPage } from "./pages-interview";
 import { renderLinkedInPage } from "./pages-linkedin";
 import {
@@ -1052,9 +1057,14 @@ app.post("/api/builder-check", async (c) => {
       });
     }
     const checks = runCvChecks(text, "cv");
-    const score = builderScore(checks);
-    console.log(`[coach] kind=builder-check outcome=ok score=${score} checks=${checks.passed}/${checks.total}`);
-    return c.json({ checks, score, text, kind: "builder-check" });
+    /* The weighted category review IS the score the sidebar shows —
+     * six categories summing to 100, deterministic every run. */
+    const review = buildCategoryReview(cv, checks);
+    const score = review.total;
+    console.log(
+      `[coach] kind=builder-check outcome=ok score=${score} legacy=${builderScore(checks)} checks=${checks.passed}/${checks.total}`,
+    );
+    return c.json({ checks, review, score, text, kind: "builder-check" });
   } catch (err) {
     console.error("[coach] builder-check error:", String(err));
     return c.json({ reply: "Could not check just now — try again in a minute.", kind: "fallback" });

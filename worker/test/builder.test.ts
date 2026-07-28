@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   assembleCvText,
+  buildCategoryReview,
   builderScore,
+  chronologyItem,
   containsExampleContent,
   CV_STARTERS,
   EXAMPLE_MARKER,
@@ -132,6 +134,73 @@ describe("CV starters", () => {
       expect(s.data.phone).toBe("");
       expect(s.data.email).toBe("");
     }
+  });
+});
+
+describe("buildCategoryReview", () => {
+  const fullCv = () => sanitiseBuilderCv(RAW);
+
+  it("categories weight to exactly 100 and total sums them", () => {
+    const cv = fullCv();
+    const review = buildCategoryReview(cv, runCvChecks(assembleCvText(cv), "cv"));
+    expect(review.categories.reduce((s, c) => s + c.max, 0)).toBe(100);
+    expect(review.total).toBe(review.categories.reduce((s, c) => s + c.score, 0));
+    expect(review.categories.map((c) => c.id)).toEqual([
+      "contact",
+      "chronology",
+      "structure",
+      "ats",
+      "brevity",
+      "bullets",
+    ]);
+  });
+
+  it("a complete CV earns full contact and structure marks", () => {
+    const cv = fullCv();
+    const review = buildCategoryReview(cv, runCvChecks(assembleCvText(cv), "cv"));
+    const contact = review.categories.find((c) => c.id === "contact")!;
+    expect(contact.score).toBe(5);
+    expect(contact.state).toBe("good");
+  });
+
+  it("missing contact details cost the contact category", () => {
+    const cv = fullCv();
+    cv.phone = "";
+    cv.email = "";
+    const review = buildCategoryReview(cv, runCvChecks(assembleCvText(cv), "cv"));
+    const contact = review.categories.find((c) => c.id === "contact")!;
+    expect(contact.score).toBeLessThanOrEqual(3);
+    expect(contact.items.filter((i) => i.status === "fail")).toHaveLength(2);
+  });
+
+  it("chronology passes newest-first, fails oldest-first, warns on unreadable dates", () => {
+    const newestFirst = sanitiseBuilderCv({
+      experience: [
+        { role: "A", org: "X", from: "Jun 2025", to: "Present", bullets: ["Led a team of 4"] },
+        { role: "B", org: "Y", from: "2023", to: "2024", bullets: ["Ran the tills daily"] },
+      ],
+    });
+    expect(chronologyItem(newestFirst).status).toBe("pass");
+    const oldestFirst = sanitiseBuilderCv({
+      experience: [
+        { role: "B", org: "Y", from: "2023", to: "2024", bullets: ["Ran the tills daily"] },
+        { role: "A", org: "X", from: "Jun 2025", to: "Present", bullets: ["Led a team of 4"] },
+      ],
+    });
+    expect(chronologyItem(oldestFirst).status).toBe("fail");
+    const vague = sanitiseBuilderCv({
+      experience: [
+        { role: "A", org: "X", from: "last summer", to: "", bullets: ["Led a team of 4"] },
+        { role: "B", org: "Y", from: "2023", to: "", bullets: ["Ran the tills daily"] },
+      ],
+    });
+    expect(chronologyItem(vague).status).toBe("warn");
+  });
+
+  it("is deterministic — identical input, identical review", () => {
+    const cv = fullCv();
+    const checks = runCvChecks(assembleCvText(cv), "cv");
+    expect(buildCategoryReview(cv, checks)).toEqual(buildCategoryReview(cv, checks));
   });
 });
 

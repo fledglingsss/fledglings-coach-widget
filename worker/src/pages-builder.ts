@@ -55,22 +55,21 @@ export function renderBuilderPage(): string {
     "<input type='text' id='cvtitle' class='titlein' maxlength='40' aria-label='CV name'>" +
     "<span class='savestate' id='savestate'>Saved</span>" +
     "<span style='flex:1'></span>" +
-    "<div class='tplmini'><button type='button' class='tplbtn on' data-tpl='classic'>Classic</button>" +
-    "<button type='button' class='tplbtn' data-tpl='accent'>Accent</button></div>" +
-    "<button type='button' class='btn quiet' id='checkbtn'>Check my CV</button>" +
+    "<button type='button' class='btn quiet' id='checkbtn'>Re-check score</button>" +
     "<button type='button' class='btn' onclick='window.print()'>Download PDF</button>" +
     "</div>" +
-    /* score panel */
-    "<div class='card scorepanel no-print' id='scorepanel' hidden>" +
-    "<div class='sp-head'><div class='ring2 small' id='b-ring'><div class='in'><div class='pc' id='b-score'>0</div><div class='lb'>CHECKS</div></div></div>" +
-    "<div><h3 style='margin-bottom:4px'>Recruiter checks <span class='badge' id='b-count'></span></h3>" +
-    "<p class='kw-note' style='margin:0'>Objective, rule-based — the things screening software judges before a human " +
-    "reads a word. For the full AI review, send it to the CV review when you're done.</p></div>" +
-    "<button type='button' class='btn' id='sendreview'>Send to full AI review →</button></div>" +
-    "<div class='stale-note' id='stale-note' hidden>✎ You've edited since this check — run <b>Check my CV</b> again " +
-    "for a fresh score before sending it on.</div>" +
-    "<div id='b-checks'></div></div>" +
-    /* form + preview */
+    /* design switcher — a variety of formats, switch any time */
+    "<div class='card no-print' style='padding:14px 18px'>" +
+    "<div class='tplrowhead'><b>🎨 Design</b><span>Switch any time — your content stays exactly as it is.</span></div>" +
+    "<div class='tplmini' id='tplrow'>" +
+    "<button type='button' class='tplbtn on' data-tpl='classic'><i class='sw sw-classic'></i>Classic</button>" +
+    "<button type='button' class='tplbtn' data-tpl='executive'><i class='sw sw-executive'></i>Executive</button>" +
+    "<button type='button' class='tplbtn' data-tpl='modern'><i class='sw sw-modern'></i>Modern</button>" +
+    "<button type='button' class='tplbtn' data-tpl='accent'><i class='sw sw-accent'></i>Accent</button>" +
+    "<button type='button' class='tplbtn' data-tpl='sidebar'><i class='sw sw-sidebar'></i>Sidebar</button>" +
+    "<button type='button' class='tplbtn' data-tpl='compact'><i class='sw sw-compact'></i>Compact</button>" +
+    "</div></div>" +
+    /* form + review/preview */
     "<div class='buildgrid'>" +
     "<div class='formcol no-print'>" +
     "<div class='card'><h3>About you</h3>" +
@@ -99,8 +98,19 @@ export function renderBuilderPage(): string {
     "<p class='fieldtip'>One per line: awards, certificates, positions of responsibility, languages.</p>" +
     "<textarea data-f='extras' rows='3' maxlength='1200' placeholder='e.g. Duke of Edinburgh Bronze award'></textarea></div>" +
     "</div>" +
-    /* live preview */
-    "<div class='prevcol'><div class='cvpaper classic' id='paper'></div></div>" +
+    /* review sidebar + live preview */
+    "<div class='prevcol'>" +
+    "<div class='card revpanel no-print' id='scorepanel' hidden>" +
+    "<div class='rv-head'><div class='rv-t'>Resume Review</div>" +
+    "<button type='button' class='rv-refresh' id='refreshbtn' aria-label='Re-check score' title='Re-check score'>⟳</button></div>" +
+    "<div class='rv-scorerow'><span class='rv-score' id='b-score'>0</span><span class='rv-of'>/100</span>" +
+    "<div class='rv-bar'><i id='rv-bar-i'></i></div></div>" +
+    "<div class='rv-fair'>🛡️ Fair scoring — deterministic rules, the same result every run</div>" +
+    "<div class='stale-note' id='stale-note' hidden>✎ Edited since the last check — tap ⟳ for a fresh score.</div>" +
+    "<div id='rv-cats'></div>" +
+    "<button type='button' class='btn rv-send' id='sendreview'>Send to full AI review →</button>" +
+    "</div>" +
+    "<div class='cvpaper classic' id='paper'></div></div>" +
     "</div></div>" +
 
     "<p class='sub no-print' style='font-size:12.5px;margin-top:18px'>The builder never invents anything for you — " +
@@ -178,7 +188,9 @@ cvs.unshift(c);saveAll(cvs);openCv(c.id);};});
 function openCv(id){current=cvs.find(function(c){return c.id===id});if(!current)return;
 $('cvtitle').value=current.title||'My CV';
 $('s-list').hidden=true;$('s-pick').hidden=true;$('s-build').hidden=false;
-bindStatics();renderEntries();renderPreview();$('scorepanel').hidden=true;window.scrollTo({top:0});}
+applyTpl(current.tpl||'classic');
+bindStatics();renderEntries();renderPreview();
+$('scorepanel').hidden=true;runCheck(true);window.scrollTo({top:0});}
 $('backbtn').onclick=function(){$('s-build').hidden=true;$('s-list').hidden=false;renderList();};
 
 /* ---------------- form binding ---------------- */
@@ -237,11 +249,23 @@ education:d.education.map(function(e){return {school:e.school,quals:e.quals,from
 skills:String(d.skills||'').split(',').map(function(s){return s.trim()}).filter(Boolean),
 extras:lines(d.extras)};}
 
-/* ---------------- live preview ---------------- */
+/* ---------------- live preview with per-bullet markers ---------------- */
+/* Mirrors the server's bullet rules so markers update as they type:
+ * action-verb start + a number = tick; weak opener = cross; missing
+ * number or over ~30 words = attention. */
+var MK_WEAK=/^(assisted|helped|worked on|was responsible for|responsible for|involved in|participated in|tasked with|duties included)\b/i;
+var MK_ACTION=/^(led|built|created|designed|organised|organized|delivered|improved|increased|reduced|launched|ran|managed|taught|trained|raised|won|achieved|volunteered|founded|set up|coordinated|planned|presented|resolved|handled|served|greeted|maintained|supported|picked|packed|prepared|scanned|reported)\b/i;
+function bulletMark(b){var words=b.split(/\s+/).filter(Boolean).length;
+if(MK_WEAK.test(b))return {c:'mk-bad',i:'✗',t:'Weak opener — lead with what YOU did'};
+if(words>30)return {c:'mk-warn',i:'!',t:'Long — aim under 30 words'};
+if(!MK_ACTION.test(b))return {c:'mk-warn',i:'!',t:'Start with a doing word'};
+if(!/(\d|%|£)/.test(b))return {c:'mk-warn',i:'!',t:'Add a number that proves scale'};
+return {c:'mk-ok',i:'✓',t:'Strong line'};}
 function renderPreview(){var d=payload();var h='';
 h+="<div class='cp-head'><div class='cp-name'>"+(esc2(d.name)||'Your Name')+"</div>";
 var contact=[d.town,d.phone,d.email,d.linkedin].filter(Boolean).map(esc2).join(' · ');
 h+="<div class='cp-contact'>"+(contact||'town · phone · email')+"</div></div>";
+h+="<div class='cp-cols'><div class='cp-main'>";
 if(d.summary)h+="<div class='cp-sec'><h4>Personal statement</h4><p>"+esc2(d.summary)+"</p></div>";
 if(d.experience.some(function(e){return e.role||e.org||e.bullets.length})){
 h+="<div class='cp-sec'><h4>Work &amp; volunteering</h4>";
@@ -249,44 +273,69 @@ d.experience.forEach(function(e){if(!(e.role||e.org||e.bullets.length))return;
 h+="<div class='cp-entry'><div class='cp-row'><b>"+esc2([e.role,e.org].filter(Boolean).join(' — '))+"</b>"+
 "<span>"+esc2([e.from,e.to].filter(Boolean).join(' – '))+"</span></div>";
 if(e.location)h+="<div class='cp-loc'>"+esc2(e.location)+"</div>";
-if(e.bullets.length)h+="<ul>"+e.bullets.map(function(b){return "<li>"+esc2(b)+"</li>"}).join('')+"</ul>";
+if(e.bullets.length){h+="<ul>"+e.bullets.map(function(b){var m=bulletMark(b);
+return "<li>"+esc2(b)+"<span class='mk "+m.c+"' title='"+esc2(m.t)+"'>"+m.i+"</span></li>"}).join('')+"</ul>";}
 h+="</div>";});h+="</div>";}
 if(d.education.some(function(e){return e.school||e.quals})){
 h+="<div class='cp-sec'><h4>Education</h4>";
 d.education.forEach(function(e){if(!(e.school||e.quals))return;
 h+="<div class='cp-entry'><div class='cp-row'><b>"+esc2(e.school)+"</b><span>"+esc2([e.from,e.to].filter(Boolean).join(' – '))+"</span></div>"+
 (e.quals?"<div>"+esc2(e.quals)+"</div>":"")+(e.detail?"<div class='cp-loc'>"+esc2(e.detail)+"</div>":"")+"</div>";});h+="</div>";}
-if(d.skills.length)h+="<div class='cp-sec'><h4>Skills</h4><p>"+d.skills.map(esc2).join(' · ')+"</p></div>";
-if(d.extras.length)h+="<div class='cp-sec'><h4>Achievements &amp; extras</h4><ul>"+d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";
+h+="</div><div class='cp-side'>";
+if(d.skills.length)h+="<div class='cp-sec'><h4>Skills</h4><ul class='cp-skills'>"+d.skills.map(function(s){return "<li>"+esc2(s)+"</li>"}).join('')+"</ul></div>";
+if(d.extras.length)h+="<div class='cp-sec'><h4>Achievements</h4><ul>"+d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";
+h+="</div></div>";
 $('paper').innerHTML=h;
 /* The replace-me guard: visible while any example scaffolding remains. */
 $('exguard').hidden=JSON.stringify(d).toLowerCase().indexOf('example')===-1;}
+/* Design templates: the LOOK is per-CV and remembered; content never
+ * changes when you switch. */
+function applyTpl(t){$('paper').className='cvpaper '+t;
+document.querySelectorAll('.tplbtn').forEach(function(x){
+x.className='tplbtn'+(x.dataset.tpl===t?' on':'');});}
 document.querySelectorAll('.tplbtn').forEach(function(b){b.onclick=function(){
-document.querySelectorAll('.tplbtn').forEach(function(x){x.classList.remove('on')});b.classList.add('on');
-$('paper').className='cvpaper '+b.dataset.tpl;};});
+applyTpl(b.dataset.tpl);
+if(current){current.tpl=b.dataset.tpl;scheduleSaveQuiet();}};});
+/* Save without invalidating the score — a design switch changes only
+ * the look, never the text the checks read. */
+function scheduleSaveQuiet(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
+saveTimer=setTimeout(function(){current.updated=Date.now();saveAll(cvs);markSaved('Saved')},400);}
 
-/* ---------------- checks ---------------- */
+/* ---------------- the review sidebar ---------------- */
 var lastText='';
-$('checkbtn').onclick=function(){$('checkbtn').disabled=true;$('checkbtn').textContent='Checking…';
+function stateIcon(st){return st==='good'?'✓':st==='warn'?'!':'✗'}
+function renderReview(rv){
+var col=rv.total>=70?'#1B7A4B':rv.total>=50?'#B96A16':'#D9452B';
+$('b-score').textContent=rv.total;$('b-score').style.color=col;
+$('rv-bar-i').style.width=rv.total+'%';$('rv-bar-i').style.background=col;
+var h='';rv.categories.forEach(function(c,i){
+h+="<div class='rvcat'><button type='button' class='rvcat-h' data-cat='"+i+"' aria-expanded='false'>"+
+"<span class='rvc-ic "+c.state+"'>"+stateIcon(c.state)+"</span>"+
+"<span class='rvc-l'>"+esc2(c.label)+"</span>"+
+"<span class='rvc-s'>"+c.score+"/"+c.max+"</span><span class='rvc-ch'>▾</span></button>"+
+"<div class='rvcat-b' id='rvb-"+i+"' hidden>";
+c.items.forEach(function(it){var ic=it.status==='pass'?'✓':it.status==='warn'?'!':'✗';
+h+="<div class='ck "+it.status+"'><span class='ck-i'>"+ic+"</span><div><div class='ck-l'>"+esc2(it.label)+"</div>"+
+"<div class='ck-d'>"+esc2(it.detail)+"</div>"+
+(it.evidence?"<div class='ck-e'>“"+esc2(it.evidence)+"”</div>":"")+"</div></div>";});
+h+="</div></div>";});
+$('rv-cats').innerHTML=h;
+document.querySelectorAll('.rvcat-h').forEach(function(b){b.onclick=function(){
+var body=$('rvb-'+b.dataset.cat);var open=body.hidden;
+body.hidden=!open;b.setAttribute('aria-expanded',String(open));
+b.parentElement.classList.toggle('open',open);};});}
+function runCheck(auto){var btn=$('checkbtn');btn.disabled=true;btn.textContent='Checking…';
 fetch('/api/builder-check',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,cv:payload()})})
 .then(function(r){return r.json()}).then(function(d){
-$('checkbtn').disabled=false;$('checkbtn').textContent='Check my CV';
-if(!d||!d.checks){alert((d&&d.reply)||'Could not check just now — try again in a minute.');return;}
+btn.disabled=false;btn.textContent='Re-check score';
+if(!d||!d.review){if(!auto)alert((d&&d.reply)||'Add a bit more content first, then check again.');return;}
 lastText=d.text||'';$('stale-note').hidden=true;
-var col=d.score>=70?'#1B7A4B':d.score>=50?'#B96A16':'#D9452B';
-$('b-score').textContent=d.score;$('b-score').style.color=col;
-$('b-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(d.score*3.6)+'deg,#ECE7E6 '+Math.round(d.score*3.6)+'deg)';
-$('b-count').textContent=d.checks.passed+' of '+d.checks.total+' passed';
-var ck='';d.checks.groups.forEach(function(g){ck+="<div class='ck-g'>"+esc2(g.label)+"</div>";
-g.items.forEach(function(c){var ic=c.status==='pass'?'✓':c.status==='warn'?'!':'✗';
-ck+="<div class='ck "+c.status+"'><span class='ck-i'>"+ic+"</span><div><div class='ck-l'>"+esc2(c.label)+"</div>"+
-"<div class='ck-d'>"+esc2(c.detail)+"</div>"+
-(c.evidence?"<div class='ck-e'>“"+esc2(c.evidence)+"”</div>":"")+"</div></div>"});});
-$('b-checks').innerHTML=ck;$('scorepanel').hidden=false;
-$('scorepanel').scrollIntoView({behavior:'smooth',block:'start'});})
-.catch(function(){$('checkbtn').disabled=false;$('checkbtn').textContent='Check my CV';
-alert('Could not reach the checker — try again in a minute.');});};
+renderReview(d.review);$('scorepanel').hidden=false;})
+.catch(function(){btn.disabled=false;btn.textContent='Re-check score';
+if(!auto)alert('Could not reach the checker — try again in a minute.');});}
+$('checkbtn').onclick=function(){runCheck(false)};
+$('refreshbtn').onclick=function(){runCheck(false)};
 $('sendreview').onclick=function(){
 if(!lastText){alert('Run "Check my CV" first (or again after edits) — the review reads that exact text.');return;}
 try{sessionStorage.setItem('fl_builder_cv_text',lastText)}catch(e){}
@@ -310,10 +359,50 @@ const BUILDER_CSS = `
 .titlein{max-width:200px;border:2px solid transparent;font-weight:700;font-size:15.5px;padding:8px 10px;}
 .titlein:hover{border-color:var(--off);}
 .savestate{font-size:12px;color:#8a97a1;}
-.tplmini{display:flex;gap:6px;}
-.tplbtn{border:1.5px solid var(--off);background:#fff;border-radius:999px;padding:8px 14px;font-family:inherit;
-  font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;}
-.tplbtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.tplrowhead{display:flex;gap:12px;align-items:baseline;margin-bottom:10px;font-size:14px;}
+.tplrowhead span{font-size:12px;color:var(--mut);}
+.tplmini{display:flex;gap:8px;flex-wrap:wrap;}
+.tplbtn{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px 8px 8px;font-family:inherit;
+  font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
+.tplbtn.on{border-color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.16);}
+.tplbtn .sw{width:26px;height:32px;border-radius:4px;border:1px solid var(--line);display:block;flex:none;background:#fff;position:relative;overflow:hidden;}
+.sw::before{content:'';position:absolute;left:0;right:0;}
+.sw-classic::before{top:4px;height:3px;background:#1c2b36;margin:0 4px;}
+.sw-executive::before{top:0;height:9px;background:#05253C;}
+.sw-modern::before{top:5px;left:4px;width:9px;height:3px;background:#D9452B;}
+.sw-accent::before{top:3px;bottom:3px;left:3px;width:3px;background:var(--mango);}
+.sw-sidebar::before{top:3px;bottom:3px;left:3px;width:8px;background:#ECE7E6;border-radius:2px;}
+.sw-compact::before{top:4px;height:2px;background:#8a97a1;margin:0 3px;box-shadow:0 5px 0 #8a97a1,0 10px 0 #8a97a1,0 15px 0 #8a97a1;}
+/* ---- review sidebar (reference format) ---- */
+.revpanel{padding:16px 18px;}
+.rv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.rv-t{font-size:14.5px;font-weight:700;}
+.rv-refresh{border:1.5px solid var(--line);background:#fff;border-radius:10px;width:34px;height:34px;font-size:16px;
+  cursor:pointer;color:var(--blue);}
+.rv-refresh:hover{border-color:var(--orange);color:var(--orange);}
+.rv-scorerow{display:flex;align-items:center;gap:10px;margin:4px 0 8px;}
+.rv-score{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
+.rv-of{font-size:14px;color:var(--mut);font-weight:700;}
+.rv-bar{flex:1;height:9px;border-radius:999px;background:var(--off);overflow:hidden;}
+.rv-bar i{display:block;height:100%;border-radius:999px;width:0;}
+.rv-fair{font-size:11.5px;color:var(--blue);background:rgba(19,80,127,.06);border-radius:999px;
+  padding:5px 12px;display:inline-block;margin-bottom:10px;}
+.rvcat{border:1.5px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;}
+.rvcat.open{border-color:#C9C1BD;}
+.rvcat-h{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:none;background:#fff;
+  font-family:inherit;cursor:pointer;text-align:left;}
+.rvcat-h:hover{background:#FBFAF9;}
+.rvc-ic{width:22px;height:22px;border-radius:50%;font-weight:800;font-size:12px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;}
+.rvc-ic.good{background:#E3F4EA;color:#1B7A4B;}
+.rvc-ic.warn{background:#FBF0E2;color:#B96A16;}
+.rvc-ic.bad{background:#FCE9E5;color:#D9452B;}
+.rvc-l{flex:1;font-size:13.5px;font-weight:600;}
+.rvc-s{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink);}
+.rvc-ch{color:var(--mut);font-size:11px;transition:transform .15s;}
+.rvcat.open .rvc-ch{transform:rotate(180deg);}
+.rvcat-b{padding:4px 12px 10px;border-top:1px solid var(--off);}
+.rv-send{width:100%;margin-top:6px;}
 .buildgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
 @media(max-width:900px){.buildgrid{grid-template-columns:1fr;}}
 .prevcol{position:sticky;top:86px;}
@@ -384,11 +473,40 @@ const BUILDER_CSS = `
 .cp-loc{font-size:11.5px;color:#5c6b75;}
 .cp-sec ul{margin:4px 0 0 18px;}
 .cp-sec li{margin-bottom:3px;}
-/* Classic: serif headings; Accent: mango rule + Outfit */
+.cp-cols{display:block;}
+.cp-skills{list-style:none;margin:0!important;}
+.cp-skills li{margin-bottom:3px;}
+.mk{float:right;margin-left:8px;font-weight:800;font-size:10px;width:16px;height:16px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;position:relative;top:1px;}
+.mk-ok{background:#E3F4EA;color:#1B7A4B;}
+.mk-warn{background:#FBF0E2;color:#B96A16;}
+.mk-bad{background:#FCE9E5;color:#D9452B;}
+@media print{.mk{display:none!important;}}
+/* ---- the six designs ---- */
 .cvpaper.classic{font-family:Georgia,'Times New Roman',serif;}
 .cvpaper.classic .cp-name{letter-spacing:.01em;}
+.cvpaper.classic .cp-head{text-align:center;border-bottom:1.5px solid #1c2b36;padding-bottom:12px;}
+.cvpaper.executive{padding-top:0;overflow:hidden;}
+.cvpaper.executive .cp-head{background:#05253C;color:#fff;margin:0 -42px 18px;padding:26px 42px 20px;}
+@media(max-width:900px){.cvpaper.executive .cp-head{margin:0 -22px 16px;padding:20px 22px;}}
+.cvpaper.executive .cp-contact{color:#CFE0EE;}
+.cvpaper.executive .cp-sec h4{color:#05253C;border-bottom-width:2px;letter-spacing:.12em;}
+.cvpaper.modern .cp-name{font-size:30px;letter-spacing:-.02em;}
+.cvpaper.modern .cp-sec h4{border-bottom:none;position:relative;padding-bottom:6px;color:#05253C;}
+.cvpaper.modern .cp-sec h4::after{content:'';position:absolute;left:0;bottom:0;width:34px;height:3.5px;
+  background:#D9452B;border-radius:2px;}
 .cvpaper.accent .cp-head{border-left:5px solid var(--mango);padding-left:14px;}
 .cvpaper.accent .cp-sec h4{border-bottom-color:var(--mango);color:var(--blue);}
+.cvpaper.sidebar .cp-cols{display:flex;gap:20px;align-items:flex-start;}
+.cvpaper.sidebar .cp-main{flex:1;min-width:0;}
+.cvpaper.sidebar .cp-side{width:31%;flex:none;order:-1;background:#F4F1EF;border-radius:8px;padding:14px;}
+.cvpaper.sidebar .cp-side .cp-sec h4{border-bottom-color:#D9452B;}
+@media(max-width:640px){.cvpaper.sidebar .cp-cols{display:block;}
+.cvpaper.sidebar .cp-side{width:auto;}}
+.cvpaper.compact{font-size:11.5px;padding:26px 30px;line-height:1.45;}
+.cvpaper.compact .cp-name{font-size:20px;}
+.cvpaper.compact .cp-sec{margin-bottom:9px;}
+.cvpaper.compact .cp-sec h4{font-size:10.5px;margin-bottom:5px;color:#5c6b75;border-bottom-color:#C9C1BD;}
 @media print{
   body{background:#fff!important;}
   .brandbar,.footer,h2.page,.sub,.no-print,.formcol{display:none!important;}

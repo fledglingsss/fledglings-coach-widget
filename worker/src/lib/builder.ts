@@ -156,6 +156,171 @@ export function builderScore(checks: ChecksResult): number {
 }
 
 /* ------------------------------------------------------------------
+ * Category review — the recruiter checks re-shaped into the weighted,
+ * per-category format of the reference design's review sidebar:
+ * Contact Info /5, Reverse Chronology /10, Structure /15, ATS
+ * Compatibility /20, Brevity /10, Bullet Analysis /40 — summing to
+ * 100 so the total IS the builder score. Deterministic: same CV, same
+ * numbers, every single run.
+ * ------------------------------------------------------------------ */
+
+export type CategoryState = "good" | "warn" | "bad";
+
+export interface CategoryItem {
+  label: string;
+  status: "pass" | "warn" | "fail";
+  detail: string;
+  evidence?: string;
+}
+
+export interface ReviewCategory {
+  id: string;
+  label: string;
+  score: number;
+  max: number;
+  state: CategoryState;
+  items: CategoryItem[];
+}
+
+export interface CategoryReview {
+  total: number;
+  categories: ReviewCategory[];
+}
+
+function checkById(checks: ChecksResult, id: string): CategoryItem | null {
+  for (const g of checks.groups) {
+    for (const i of g.items) {
+      if (i.id === id) return { label: i.label, status: i.status, detail: i.detail, evidence: i.evidence };
+    }
+  }
+  return null;
+}
+
+function fractionOf(items: CategoryItem[]): number {
+  if (items.length === 0) return 0;
+  const points = items.reduce(
+    (s, i) => s + (i.status === "pass" ? 1 : i.status === "warn" ? 0.5 : 0),
+    0,
+  );
+  return points / items.length;
+}
+
+function stateOf(score: number, max: number): CategoryState {
+  const pct = max > 0 ? score / max : 0;
+  return pct >= 0.75 ? "good" : pct >= 0.45 ? "warn" : "bad";
+}
+
+function firstYear(text: string): number | null {
+  const m = /(19|20)\d{2}/.exec(text);
+  return m ? parseInt(m[0], 10) : null;
+}
+
+/** Reverse chronology from the structured entries: most recent role
+ * first. Unparseable dates are a warn, never a fail. */
+export function chronologyItem(cv: BuilderCv): CategoryItem {
+  const years = cv.experience
+    .map((e) => firstYear(e.from) ?? firstYear(e.to))
+    .filter((y): y is number => y !== null);
+  if (cv.experience.length <= 1) {
+    return {
+      label: "Reverse chronology (newest first)",
+      status: "pass",
+      detail: "With a single entry there is nothing out of order — as you add roles, keep the newest at the top.",
+    };
+  }
+  if (years.length < cv.experience.length) {
+    return {
+      label: "Reverse chronology (newest first)",
+      status: "warn",
+      detail: "Some entries have no readable year, so the order can't be fully checked — use formats like 'Jun 2025'.",
+    };
+  }
+  const ordered = years.every((y, i) => i === 0 || y <= years[i - 1]!);
+  return ordered
+    ? {
+        label: "Reverse chronology (newest first)",
+        status: "pass",
+        detail: "Your most recent role leads — exactly the order recruiters expect.",
+      }
+    : {
+        label: "Reverse chronology (newest first)",
+        status: "fail",
+        detail: "Your roles are not newest-first. Recruiters read the top entry hardest — reorder so the most recent leads.",
+      };
+}
+
+/** Contact completeness from the structured fields. */
+export function contactItems(cv: BuilderCv): CategoryItem[] {
+  const field = (ok: boolean, label: string, detail: string): CategoryItem => ({
+    label,
+    status: ok ? "pass" : "fail",
+    detail,
+  });
+  return [
+    field(cv.name.length > 1, "Name", cv.name ? "Present." : "Add your full name — it is the headline of the page."),
+    field(
+      /@/.test(cv.email),
+      "Email address",
+      /@/.test(cv.email) ? "Present." : "Add an email — a sensible one, not a joke address from Year 8.",
+    ),
+    field(
+      cv.phone.replace(/\D/g, "").length >= 10,
+      "Phone number",
+      cv.phone ? "Present." : "Add a phone number — many recruiters call first.",
+    ),
+    field(cv.town.length > 1, "Town / city", cv.town ? "Present." : "Add your town — local roles filter by it."),
+  ];
+}
+
+/** Section structure from the structured fields. */
+export function structureItems(cv: BuilderCv): CategoryItem[] {
+  const has = (ok: boolean, label: string, missing: string): CategoryItem => ({
+    label,
+    status: ok ? "pass" : "fail",
+    detail: ok ? "Present." : missing,
+  });
+  return [
+    has(cv.summary.length >= 40, "Personal statement", "Two or three lines about who you are and where you're heading."),
+    has(
+      cv.experience.some((e) => e.bullets.length > 0),
+      "Work & volunteering with bullet points",
+      "At least one entry with bullets — school events and volunteering count.",
+    ),
+    has(cv.education.length > 0, "Education", "Add your school or college with your qualifications."),
+    has(cv.skills.length >= 3, "Skills (3 or more)", "List at least three specific skills."),
+  ];
+}
+
+/** The full category review over structured data + text checks. */
+export function buildCategoryReview(cv: BuilderCv, checks: ChecksResult): CategoryReview {
+  const pick = (ids: string[]): CategoryItem[] =>
+    ids.map((id) => checkById(checks, id)).filter((i): i is CategoryItem => i !== null);
+
+  const defs: Array<{ id: string; label: string; max: number; items: CategoryItem[] }> = [
+    { id: "contact", label: "Contact info", max: 5, items: contactItems(cv) },
+    { id: "chronology", label: "Reverse chronology", max: 10, items: [chronologyItem(cv)] },
+    { id: "structure", label: "Structure", max: 15, items: structureItems(cv) },
+    { id: "ats", label: "ATS compatibility", max: 20, items: pick(["sections", "dates", "no-shouting", "cliches"]) },
+    { id: "brevity", label: "Brevity", max: 10, items: pick(["length", "bullet-length"]) },
+    {
+      id: "bullets",
+      label: "Bullet analysis",
+      max: 40,
+      items: pick(["quantified", "action-verbs", "weak-openers", "passive-voice", "pronouns"]),
+    },
+  ];
+
+  const categories = defs.map((d) => {
+    const score = Math.round(fractionOf(d.items) * d.max);
+    return { id: d.id, label: d.label, score, max: d.max, state: stateOf(score, d.max), items: d.items };
+  });
+  return {
+    total: categories.reduce((s, c) => s + c.score, 0),
+    categories,
+  };
+}
+
+/* ------------------------------------------------------------------
  * ATS-ready starters — pick one, then make every line true about YOU.
  *
  * These are teaching scaffolds, not content to submit: every employer
