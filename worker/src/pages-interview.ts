@@ -142,21 +142,38 @@ export function renderInterviewPage(): string {
     "<div class='r-headtxt'><div class='r-kind'>MOCK INTERVIEW · AI REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-meta'></div></div></div>" +
-    /* breakdown */
+    /* breakdown — segmented pill bars like the reference design */
     "<div class='bgrid'>" +
-    "<div class='bcard'><div class='b-l'>💬 Answer evaluation</div><div class='b-n' id='b-answer'>–</div><div class='b-s' id='b-answer-s'></div></div>" +
-    "<div class='bcard'><div class='b-l'>🔊 Speech evaluation</div><div class='b-n' id='b-speech'>–</div><div class='b-s' id='b-speech-s'></div></div>" +
-    "<div class='bcard'><div class='b-l'>🎥 Camera presence</div><div class='b-n' id='b-presence'>–</div><div class='b-s' id='b-presence-s'></div></div>" +
+    "<div class='bcard'><div class='b-l'>💬 Answer evaluation</div>" +
+    "<div class='seg5' id='b-answer-bar' aria-hidden='true'></div>" +
+    "<div class='b-n' id='b-answer'>–</div><div class='b-v' id='b-answer-v'></div><div class='b-s' id='b-answer-s'></div></div>" +
+    "<div class='bcard'><div class='b-l'>🔊 Speech evaluation</div>" +
+    "<div class='seg5' id='b-speech-bar' aria-hidden='true'></div>" +
+    "<div class='b-n' id='b-speech'>–</div><div class='b-v' id='b-speech-v'></div><div class='b-s' id='b-speech-s'></div></div>" +
+    "<div class='bcard'><div class='b-l'>🎥 Camera presence</div>" +
+    "<div class='seg5' id='b-presence-bar' aria-hidden='true'></div>" +
+    "<div class='b-n' id='b-presence'>–</div><div class='b-v' id='b-presence-v'></div><div class='b-s' id='b-presence-s'></div></div>" +
     "</div>" +
-    /* speech detail */
+    /* answers at a glance — score bar chart */
+    "<div class='card' id='qs-card' hidden><h3>Your answers at a glance</h3>" +
+    "<div id='qs-chart'></div>" +
+    "<p class='kw-note' style='margin:8px 0 0'>Tap a bar to jump to that answer's full breakdown.</p></div>" +
+    /* speech detail — gauge, fraction bars and a per-answer time chart */
     "<div class='card' id='sp-card' hidden><h3>Speech evaluation <span class='badge' id='sp-badge'></span></h3>" +
     "<div class='spgrid'>" +
-    "<div class='spbox'><div class='sp-h'>SPEECH RATE</div>" +
+    "<div class='spbox'><div class='sp-h'>SPEECH RATE <b class='sp-frac' id='sp-rate-frac'></b></div>" +
     "<div class='bands'><span class='bandc' id='band-slow'>SLOW<i>0–109</i></span><span class='bandc' id='band-good'>GOOD<i>110–159</i></span><span class='bandc' id='band-fast'>FAST<i>160+</i></span></div>" +
-    "<div class='sp-big' id='sp-wpm'></div><div class='sp-d' id='sp-wpm-d'></div></div>" +
-    "<div class='spbox'><div class='sp-h'>FILLER WORDS</div><div class='sp-big' id='sp-fill'></div><div class='sp-d' id='sp-fill-d'></div></div>" +
-    "<div class='spbox'><div class='sp-h'>SPEAKING TIME</div><div class='sp-big' id='sp-time'></div><div class='sp-d'>Across your recorded answers. Aim for 45–90 seconds per answer.</div></div>" +
-    "</div></div>" +
+    "<div class='gauge'><div class='gauge-track'></div><div class='gauge-pin' id='sp-pin'><span id='sp-pin-l'></span></div></div>" +
+    "<div class='sp-d' id='sp-wpm-d'></div></div>" +
+    "<div class='spbox'><div class='sp-h'>FILLER WORDS <b class='sp-frac' id='sp-fill-frac'></b></div>" +
+    "<div class='sp-big' id='sp-fill'></div>" +
+    "<div class='fillbar'><i id='sp-fill-bar'></i></div>" +
+    "<div class='sp-d' id='sp-fill-d'></div></div>" +
+    "<div class='spbox'><div class='sp-h'>SPEAKING TIME</div><div class='sp-big' id='sp-time'></div>" +
+    "<div class='sp-d'>Total across your answers. The shaded zone below is the 45–90s sweet spot per answer.</div></div>" +
+    "</div>" +
+    "<div class='sp-h' style='margin:16px 0 8px'>TIME PER ANSWER</div>" +
+    "<div id='sp-times'></div></div>" +
     /* presence detail — five measured signals, Hiration-style */
     "<div class='card' id='pr-card' hidden><h3>Camera presence <span class='badge' id='pr-badge'></span></h3>" +
     "<div class='note-a11y' style='margin:10px 0'>ℹ️ <b>Accessibility note:</b> feedback only, measured on your device — " +
@@ -544,43 +561,95 @@ $('r-meta').textContent=(d&&d.reply)||'Fledge could not score this one — your 
 $('r-verdict').textContent='Recording saved — scoring unavailable';
 $('r-meta').textContent='Could not reach Fledge — your recording is safe in My recordings.';});}
 function scoreLabel(s){return s>=85?'Excellent':s>=70?'Strong':s>=50?'Getting there':s>=35?'Early days':'Needs work'}
-function prStat(label,metric,unavailableNote){
-if(metric===null)return "<div class='prstat na'><div class='prring'>–</div><b>"+esc2(label)+"</b><span>"+esc2(unavailableNote)+"</span></div>";
+function tenLabel(s){return s>=8?'Excellent':s>=6?'Good':s>=4?'Getting there':'Needs work'}
+/* Five-segment pill bar (the reference design's metric bars). */
+function seg5(filled,col){var h='';for(var i=0;i<5;i++){
+h+="<i"+(i<filled?" style='background:"+col+"'":"")+"></i>";}return h;}
+/* SVG bar chart of per-answer scores; bars link to the detail cards. */
+function qScoreChart(list){var n=list.length;if(!n)return '';
+var W=Math.max(300,n*72),H=150,base=120,maxH=100;
+var s="<svg viewBox='0 0 "+W+" "+H+"' class='qschart' role='img' aria-label='Score per answer'>";
+s+="<line x1='0' y1='"+base+"' x2='"+W+"' y2='"+base+"' stroke='#E3DDDA' stroke-width='2'/>";
+[25,50,75,100].forEach(function(g){var y=base-(g/100)*maxH;
+s+="<line x1='0' y1='"+y+"' x2='"+W+"' y2='"+y+"' stroke='#F0EBE8' stroke-width='1'/>";});
+list.forEach(function(a,i){var c=band(a.score);var bw=34;var x=i*(W/n)+(W/n-bw)/2;
+var h=Math.max(3,(a.score/100)*maxH);var y=base-h;
+s+="<a href='#qrep-"+i+"'><rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='6' fill='"+c+"'/>"+
+"<text x='"+(x+bw/2)+"' y='"+(y-7)+"' text-anchor='middle' font-size='13' font-weight='800' fill='"+c+"'>"+a.score+"</text>"+
+"<text x='"+(x+bw/2)+"' y='"+(base+18)+"' text-anchor='middle' font-size='11' font-weight='600' fill='#6A7A88'>Q"+(i+1)+"</text></a>";});
+return s+"</svg>";}
+/* Horizontal duration bars with the 45-90s sweet spot shaded. */
+function timeChart(ans){var MAXS=180;var out="<div class='tchart'>";
+out+="<div class='tc-row tc-scale'><span class='tc-l'></span><div class='tc-track'>"+
+"<div class='tc-sweet'></div><span class='tc-mark' style='left:25%'>45s</span><span class='tc-mark' style='left:50%'>90s</span><span class='tc-mark' style='left:100%'>3m</span></div><span class='tc-v'></span></div>";
+ans.forEach(function(a,i){var d=a.duration_secs;
+var pct=d?Math.min(100,(d/MAXS)*100):0;
+var col=d===null?'#C9C1BD':(d>=45&&d<=90)?'#1B7A4B':(d>=25&&d<=130)?'#ED9249':'#D9452B';
+out+="<div class='tc-row'><span class='tc-l'>Q"+(i+1)+"</span><div class='tc-track'><div class='tc-sweet'></div>"+
+(d?"<i class='tc-bar' style='width:"+pct+"%;background:"+col+"'></i>":"")+
+"</div><span class='tc-v'>"+(d?fmt(d):'typed')+"</span></div>";});
+return out+"</div>";}
+var PR_ICONS={face:'👤',centre:'🎯',dist:'↔️',head:'📐',eye:'👁️'};
+function prStat(label,icon,metric,unavailableNote){
+if(metric===null)return "<div class='prstat na'><div class='prring'><em>"+icon+"</em></div><b>"+esc2(label)+"</b><span>"+esc2(unavailableNote)+"</span></div>";
 var cls=metric.band==='great'?'good':metric.band==='okay'?'mid':'bad';
 var word=metric.band==='great'?'Excellent':metric.band==='okay'?'Getting there':'Needs work';
-return "<div class='prstat'><div class='prring "+cls+"'>"+metric.pct+"%</div><b>"+esc2(label)+"</b><span>"+word+"</span></div>";}
+return "<div class='prstat'><div class='prring "+cls+"'><em>"+icon+"</em></div>"+
+"<b>"+esc2(label)+"</b><span class='pr-word "+cls+"'>"+word+"</span>"+
+"<div class='pr-pctbar'><i style='width:"+metric.pct+"%'></i></div><span class='pr-pct'>"+metric.pct+"% of your answer time</span></div>";}
 function renderReport(r){repShowScoring(false);var col=band(r.overall);
 $('r-score').textContent=r.overall;$('r-score').style.color=col;
 $('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';
 $('r-verdict').textContent=r.verdict;
 $('r-meta').textContent=roleLabel+' · '+answers.length+' question'+(answers.length===1?'':'s')+(mode==='video'?' · on camera':'');
 var bd=r.breakdown||{};
+var apct=bd.answerMax?Math.round(bd.answer*100/bd.answerMax):0;
 $('b-answer').textContent=(bd.answer!=null?bd.answer:'–')+' / '+(bd.answerMax||80);
+$('b-answer-bar').innerHTML=seg5(Math.round(apct/20),band(apct));
+$('b-answer-v').textContent=scoreLabel(apct);$('b-answer-v').style.color=band(apct);
 $('b-answer-s').textContent='What you said, scored like a fair interviewer';
-if(r.speech){$('b-speech').textContent=r.speech.score+' / 10';$('b-speech-s').textContent='Pace and filler words, measured from your answers';}
-else{$('b-speech').textContent='—';$('b-speech-s').textContent='Not measured (no timed spoken answers)';}
-if(r.presence){$('b-presence').textContent=r.presence.score+' / 10';$('b-presence-s').textContent='Framing, head position and eye contact — measured on your device';}
-else{$('b-presence').textContent='—';$('b-presence-s').textContent='Not measured (no camera, or face checks unavailable)';}
+if(r.speech){$('b-speech').textContent=r.speech.score+' / 10';
+$('b-speech-bar').innerHTML=seg5(Math.round(r.speech.score/2),band(r.speech.score*10));
+$('b-speech-v').textContent=tenLabel(r.speech.score);$('b-speech-v').style.color=band(r.speech.score*10);
+$('b-speech-s').textContent='Pace and filler words, measured from your answers';}
+else{$('b-speech').textContent='—';$('b-speech-bar').innerHTML=seg5(0,'');$('b-speech-v').textContent='';
+$('b-speech-s').textContent='Not measured (no timed spoken answers)';}
+if(r.presence){$('b-presence').textContent=r.presence.score+' / 10';
+$('b-presence-bar').innerHTML=seg5(Math.round(r.presence.score/2),band(r.presence.score*10));
+$('b-presence-v').textContent=tenLabel(r.presence.score);$('b-presence-v').style.color=band(r.presence.score*10);
+$('b-presence-s').textContent='Framing, head position and eye contact — measured on your device';}
+else{$('b-presence').textContent='—';$('b-presence-bar').innerHTML=seg5(0,'');$('b-presence-v').textContent='';
+$('b-presence-s').textContent='Not measured (no camera, or face checks unavailable)';}
+/* scores at a glance */
+if(r.answers&&r.answers.length){$('qs-card').hidden=false;
+$('qs-chart').innerHTML=qScoreChart(r.answers);}else{$('qs-card').hidden=true;}
 if(r.speech){$('sp-card').hidden=false;$('sp-badge').textContent=r.speech.score+' / 10';
 ['slow','good','fast'].forEach(function(bnd){$('band-'+bnd).className='bandc'+(r.speech.paceBand===bnd?' on '+bnd:'');});
-$('sp-wpm').textContent=r.speech.wpm+' wpm';
+$('sp-rate-frac').textContent=r.speech.paceScore+'/5';
+/* wpm gauge: 0-250 scale */
+var gp=Math.max(2,Math.min(98,(r.speech.wpm/250)*100));
+$('sp-pin').style.left=gp+'%';$('sp-pin-l').textContent=r.speech.wpm+' wpm';
 $('sp-wpm-d').textContent=r.speech.paceBand==='good'?'A natural, confident pace.':r.speech.paceBand==='slow'?'On the slow side — practising out loud builds pace without rushing.':'Quick — a breath between points gives your answers room to land.';
+$('sp-fill-frac').textContent=r.speech.fillerScore+'/5';
 $('sp-fill').textContent=r.speech.fillerCount+(r.speech.fillerCount===1?' word':' words');
+$('sp-fill-bar').style.width=(r.speech.fillerScore*20)+'%';
+$('sp-fill-bar').style.background=band(r.speech.fillerScore*20);
 $('sp-fill-d').textContent=r.speech.fillerCount===0?'Clean answers — no crutch words caught.':'Caught in your transcript (um, basically, sort of…). A short pause beats a filler.';
-$('sp-time').textContent=fmt(r.speech.totalSecs);}else{$('sp-card').hidden=true;}
+$('sp-time').textContent=fmt(r.speech.totalSecs);
+$('sp-times').innerHTML=timeChart(answers);}else{$('sp-card').hidden=true;}
 if(r.presence){$('pr-card').hidden=false;$('pr-badge').textContent=r.presence.score+' / 10';
 var m=r.presence.metrics||{};
 var noKp='Not measured on this browser';
 $('prgrid').innerHTML=
-prStat('Face in frame',m.faceVisible||{pct:r.presence.faceVisiblePct,band:'okay'},'')+
-prStat('Centre of screen',m.centred||{pct:r.presence.centredPct,band:'okay'},'')+
-prStat('Distance',m.distance||{pct:r.presence.goodDistancePct,band:'okay'},'')+
-prStat('Straight head',m.headStraight||null,noKp)+
-prStat('Eye contact',m.eyeContact||null,noKp);}
+prStat('Face in frame',PR_ICONS.face,m.faceVisible||{pct:r.presence.faceVisiblePct,band:'okay'},'')+
+prStat('Centre of screen',PR_ICONS.centre,m.centred||{pct:r.presence.centredPct,band:'okay'},'')+
+prStat('Distance',PR_ICONS.dist,m.distance||{pct:r.presence.goodDistancePct,band:'okay'},'')+
+prStat('Straight head',PR_ICONS.head,m.headStraight||null,noKp)+
+prStat('Eye contact',PR_ICONS.eye,m.eyeContact||null,noKp);}
 else{$('pr-card').hidden=true;}
 /* Per-question: Hiration-style assessment (left) + guidance (right) */
 var out='';r.answers.forEach(function(a,i){var c=band(a.score);
-out+="<div class='card qrep'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
+out+="<div class='card qrep' id='qrep-"+i+"'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
 "<span class='qc-q'>"+esc2(answers[i]?answers[i].question:'')+"</span>"+
 "<span class='qchip' style='background:"+c+"'>"+a.score+" · "+scoreLabel(a.score)+"</span></div>";
 if(answers[i]&&answers[i].blobUrl){out+="<video class='rev-vid inrep' src='"+answers[i].blobUrl+"' controls playsinline></video>";}
@@ -608,6 +677,9 @@ if(which==='recs')renderRecordings();}
 $('tab-practice').onclick=function(){showTab('practice')};
 $('tab-recs').onclick=function(){showTab('recs')};
 refreshRecCount();
+/* QA hook: lets automated tests render a report without a model call.
+ * Operates only on this page's own DOM — no data leaves the device. */
+window.__flRenderReport=function(rep,ans){if(ans)answers=ans;renderReport(rep);show('s-rep');};
 document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
 fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,tool:'interview',helpful:b.dataset.fb==='1'})}).catch(function(){});
@@ -642,6 +714,35 @@ const INTERVIEW_CSS = `
 .prring.mid{border-color:var(--mango);color:#B96A16;}
 .prring.bad{border-color:var(--orange);color:var(--orange);}
 .prstat.na{opacity:.65;}
+.seg5{display:flex;gap:5px;margin:9px 0 7px;}
+.seg5 i{flex:1;height:8px;border-radius:999px;background:var(--off);display:block;}
+.b-v{font-size:12.5px;font-weight:800;margin:1px 0 2px;}
+.qschart{width:100%;max-width:520px;display:block;}
+.qschart a{cursor:pointer;}
+.gauge{position:relative;height:34px;margin-top:10px;}
+.gauge-track{position:absolute;left:0;right:0;top:14px;height:8px;border-radius:999px;
+  background:linear-gradient(90deg,#E9B9AF 0%,#E9B9AF 42%,#9CC9AE 44%,#9CC9AE 62%,#E9B9AF 66%,#E9B9AF 100%);}
+.gauge-pin{position:absolute;top:0;transform:translateX(-50%);text-align:center;}
+.gauge-pin::after{content:'';display:block;width:4px;height:22px;background:var(--navy);border-radius:2px;margin:2px auto 0;}
+.gauge-pin span{font-size:11px;font-weight:800;color:var(--navy);white-space:nowrap;}
+.sp-frac{float:right;font-weight:800;color:var(--navy);font-size:12px;}
+.fillbar{height:9px;border-radius:999px;background:var(--off);overflow:hidden;margin:9px 0;}
+.fillbar i{display:block;height:100%;border-radius:999px;}
+.tchart{display:flex;flex-direction:column;gap:7px;}
+.tc-row{display:flex;align-items:center;gap:10px;}
+.tc-l{width:26px;font-size:11.5px;font-weight:800;color:var(--mut);flex:none;}
+.tc-track{flex:1;position:relative;height:14px;background:var(--off);border-radius:999px;overflow:visible;}
+.tc-sweet{position:absolute;left:25%;width:25%;top:0;bottom:0;background:rgba(27,122,75,.16);border-radius:4px;}
+.tc-bar{position:absolute;left:0;top:2.5px;height:9px;border-radius:999px;display:block;}
+.tc-v{width:44px;font-size:11.5px;font-weight:700;color:var(--mut);flex:none;text-align:right;}
+.tc-scale .tc-track{background:none;height:14px;}
+.tc-mark{position:absolute;top:-2px;transform:translateX(-100%);font-size:10px;color:var(--mut);font-weight:600;}
+.pr-word{font-weight:800;font-size:12px;}
+.pr-word.good{color:#1B7A4B;}.pr-word.mid{color:#B96A16;}.pr-word.bad{color:var(--orange);}
+.pr-pctbar{height:6px;border-radius:999px;background:var(--off);overflow:hidden;margin:8px 8px 4px;}
+.pr-pctbar i{display:block;height:100%;background:var(--navy);border-radius:999px;}
+.pr-pct{font-size:10.5px;color:var(--mut);}
+.prring em{font-style:normal;font-size:22px;}
 .qrep{padding:0;overflow:hidden;}
 .qchip{flex:none;color:#fff;border-radius:999px;padding:5px 13px;font-size:12px;font-weight:800;white-space:nowrap;}
 .qcols{display:grid;grid-template-columns:1fr 1fr;gap:0;}
