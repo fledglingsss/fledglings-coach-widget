@@ -5,9 +5,23 @@
  * checks it, forgets it). One tap sends the finished CV into the full
  * AI review at /tools. */
 
-import { appShell } from "./pages";
+import { appShell, esc } from "./pages";
+import { CV_STARTERS } from "./lib/builder";
 
 export function renderBuilderPage(): string {
+  const starterCards =
+    "<button type='button' class='startcard' data-starter=''><b>Blank CV</b>" +
+    "<p>Start from nothing — just the guided sections and tips.</p>" +
+    "<span class='startgo'>Start blank →</span></button>" +
+    CV_STARTERS.map(
+      (s) =>
+        `<button type='button' class='startcard' data-starter='${s.id}'>` +
+        `<span class='tagats'>ATS-ready example</span><b>${esc(s.label)}</b>` +
+        `<p>${esc(s.blurb)}</p><span class='startgo'>Use this →</span></button>`,
+    ).join("");
+  const startersJson = JSON.stringify(
+    Object.fromEntries(CV_STARTERS.map((s) => [s.id, { label: s.label, data: s.data }])),
+  );
   const body =
     "<main class='wrap' style='max-width:1080px'>" +
     "<h2 class='page'>Resume Builder</h2>" +
@@ -22,8 +36,20 @@ export function renderBuilderPage(): string {
     "<p class='sub' style='font-size:12.5px;margin:14px 0 0'>Stored only in this browser — nothing is uploaded. " +
     "Clearing your browsing data clears your CVs, so download a PDF when you're happy.</p></div></div>" +
 
+    /* ---------- starter picker ---------- */
+    "<div id='s-pick' hidden><div class='card'>" +
+    "<div class='listhead'><h3>Start from an ATS-ready example</h3>" +
+    "<button type='button' class='btn ghost' id='pickback'>← My CVs</button></div>" +
+    "<p class='fieldtip'>Pick the track closest to you — it opens a complete example CV that already passes the " +
+    "recruiter checks, so you can see the standard. Then make every line true about <b>you</b>: the example names " +
+    "and numbers are scaffolding to replace, never content to submit.</p>" +
+    `<div class='startgrid'>${starterCards}</div></div></div>` +
+
     /* ---------- builder ---------- */
     "<div id='s-build' hidden>" +
+    "<div class='exguard no-print' id='exguard' hidden>⚠️ <b>Example content is still in this CV.</b> Everything marked " +
+    "<i>(example)</i> is scaffolding — swap it for your real experience before you download or send this anywhere. " +
+    "Employers can tell, and your real story is the one that gets you hired.</div>" +
     "<div class='card buildbar no-print'>" +
     "<button type='button' class='btn ghost' id='backbtn'>← My CVs</button>" +
     "<input type='text' id='cvtitle' class='titlein' maxlength='40' aria-label='CV name'>" +
@@ -80,6 +106,7 @@ export function renderBuilderPage(): string {
     "<p class='sub no-print' style='font-size:12.5px;margin-top:18px'>The builder never invents anything for you — " +
     "and neither should you. Real, small and specific beats impressive and vague, every time.</p>" +
     "</main>" +
+    "<script>var FL_STARTERS=" + startersJson + ";</script>" +
     "<script>" + BUILDER_JS + "</script>";
 
   return appShell({
@@ -127,11 +154,30 @@ copy.title=(src.title||'Untitled CV')+' (copy)';copy.updated=Date.now();cvs.unsh
 document.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
 if(!confirm('Delete this CV? This cannot be undone.'))return;
 cvs=cvs.filter(function(c){return c.id!==b.dataset.del});saveAll(cvs);renderList();}});}
-$('newcv').onclick=function(){var c={id:Math.random().toString(16).slice(2),title:'My CV',updated:Date.now(),data:blankCv()};
-cvs.unshift(c);saveAll(cvs);openCv(c.id);};
+/* Create flow: pick an ATS-ready starter (or blank) first. */
+$('newcv').onclick=function(){$('s-list').hidden=true;$('s-pick').hidden=false;window.scrollTo({top:0});};
+$('pickback').onclick=function(){$('s-pick').hidden=true;$('s-list').hidden=false;};
+/* A starter seed (arrays) becomes the form model (textarea strings). */
+function seedToModel(seed){var d=blankCv();
+d.summary=seed.summary||'';
+d.experience=(seed.experience||[]).map(function(e){return {role:e.role||'',org:e.org||'',location:e.location||'',
+from:e.from||'',to:e.to||'',bullets:(e.bullets||[]).join('\n')};});
+if(!d.experience.length)d.experience=[blankExp()];
+d.education=(seed.education||[]).map(function(e){return {school:e.school||'',quals:e.quals||'',
+from:e.from||'',to:e.to||'',detail:e.detail||''};});
+if(!d.education.length)d.education=[blankEdu()];
+d.skills=(seed.skills||[]).join(', ');
+d.extras=(seed.extras||[]).join('\n');
+return d;}
+document.querySelectorAll('.startcard').forEach(function(b){b.onclick=function(){
+var sid=b.dataset.starter;var title='My CV';var data;
+if(sid&&FL_STARTERS[sid]){title=FL_STARTERS[sid].label+' CV';data=seedToModel(FL_STARTERS[sid].data);}
+else{data=blankCv();}
+var c={id:Math.random().toString(16).slice(2),title:title,updated:Date.now(),data:data};
+cvs.unshift(c);saveAll(cvs);openCv(c.id);};});
 function openCv(id){current=cvs.find(function(c){return c.id===id});if(!current)return;
 $('cvtitle').value=current.title||'My CV';
-$('s-list').hidden=true;$('s-build').hidden=false;
+$('s-list').hidden=true;$('s-pick').hidden=true;$('s-build').hidden=false;
 bindStatics();renderEntries();renderPreview();$('scorepanel').hidden=true;window.scrollTo({top:0});}
 $('backbtn').onclick=function(){$('s-build').hidden=true;$('s-list').hidden=false;renderList();};
 
@@ -212,7 +258,9 @@ h+="<div class='cp-entry'><div class='cp-row'><b>"+esc2(e.school)+"</b><span>"+e
 (e.quals?"<div>"+esc2(e.quals)+"</div>":"")+(e.detail?"<div class='cp-loc'>"+esc2(e.detail)+"</div>":"")+"</div>";});h+="</div>";}
 if(d.skills.length)h+="<div class='cp-sec'><h4>Skills</h4><p>"+d.skills.map(esc2).join(' · ')+"</p></div>";
 if(d.extras.length)h+="<div class='cp-sec'><h4>Achievements &amp; extras</h4><ul>"+d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";
-$('paper').innerHTML=h;}
+$('paper').innerHTML=h;
+/* The replace-me guard: visible while any example scaffolding remains. */
+$('exguard').hidden=JSON.stringify(d).toLowerCase().indexOf('example')===-1;}
 document.querySelectorAll('.tplbtn').forEach(function(b){b.onclick=function(){
 document.querySelectorAll('.tplbtn').forEach(function(x){x.classList.remove('on')});b.classList.add('on');
 $('paper').className='cvpaper '+b.dataset.tpl;};});
@@ -295,6 +343,20 @@ const BUILDER_CSS = `
 .kw-note{font-size:13px;color:var(--blue);line-height:1.55;}
 .stale-note{background:#FBF0E2;border:1.5px solid #EAD3AE;border-radius:10px;padding:10px 14px;
   font-size:13px;color:#8a5b16;margin:10px 0 4px;}
+.startgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+.startcard{position:relative;border:1.5px solid var(--line);border-radius:14px;padding:16px;background:#fff;
+  font-family:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+  transition:transform .12s,border-color .12s,box-shadow .12s;}
+.startcard:hover{transform:translateY(-2px);border-color:var(--orange);box-shadow:0 10px 22px -12px rgba(5,37,60,.3);}
+.startcard:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
+.startcard b{font-size:14.5px;color:var(--navy);}
+.startcard p{font-size:12.5px;color:var(--mut);line-height:1.5;flex:1;margin:0;}
+.tagats{align-self:flex-start;background:#EFF7F1;color:#1B7A4B;border:1px solid #CBE3D3;border-radius:999px;
+  padding:3px 10px;font-size:10.5px;font-weight:800;letter-spacing:.03em;}
+.startgo{color:var(--orange);font-weight:700;font-size:12.5px;}
+.exguard{background:#FCEFEC;border:1.5px solid #F0CFC7;border-radius:12px;padding:12px 16px;
+  font-size:13px;line-height:1.55;color:#7a2f1f;margin-bottom:12px;}
+.exguard i{font-style:normal;font-weight:700;}
 .ck-g{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;
   margin:16px 0 8px;border-bottom:2px solid var(--off);padding-bottom:4px;}
 .ck{display:flex;gap:12px;padding:9px 0;}

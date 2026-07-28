@@ -154,3 +154,237 @@ export function builderScore(checks: ChecksResult): number {
     .filter((i) => i.status === "warn").length;
   return Math.round(((checks.passed + warns * 0.5) / checks.total) * 100);
 }
+
+/* ------------------------------------------------------------------
+ * ATS-ready starters — pick one, then make every line true about YOU.
+ *
+ * These are teaching scaffolds, not content to submit: every employer
+ * and school name carries the EXAMPLE_MARKER, and the builder shows a
+ * warning until all example content has been replaced. The bullets
+ * demonstrate the standard the recruiter checks reward — action verb
+ * first, a number that proves scale, under ~30 words — so the learner
+ * starts from a CV that scores well and learns the pattern by
+ * replacing it with their own truth. No-fabrication law upheld: the
+ * scaffold teaches the shape; the learner supplies the facts.
+ * ------------------------------------------------------------------ */
+
+export const EXAMPLE_MARKER = "(example)";
+
+export interface CvStarter {
+  id: string;
+  label: string;
+  blurb: string;
+  data: BuilderCv;
+}
+
+const EDU_EXAMPLE: BuilderEducation = {
+  school: `Your school or college ${EXAMPLE_MARKER}`,
+  quals: "GCSEs: English (6), Maths (5) — 8 subjects",
+  from: "2021",
+  to: "2026",
+  detail: "Add anything notable: prefect, sports team, attendance award",
+};
+
+export const CV_STARTERS: CvStarter[] = [
+  {
+    id: "retail",
+    label: "Retail & customer service",
+    blurb: "Tills, shop floor, weekend jobs — shows customer impact with numbers.",
+    data: {
+      name: "",
+      phone: "",
+      email: "",
+      town: "",
+      linkedin: "",
+      summary:
+        "Customer-focused [college student / school leaver] with [1 year] serving customers in a busy shop, aiming for [the role you want]. Known for staying calm at peak times and turning complaints into thank-yous.",
+      experience: [
+        {
+          role: "Sales Assistant",
+          org: `Highstreet Store ${EXAMPLE_MARKER}`,
+          location: "Your town",
+          from: "Jun 2025",
+          to: "Present",
+          bullets: [
+            "Served 60+ customers per shift on the till, keeping queue waits under 4 minutes at peak",
+            "Resolved 5-10 customer queries a day, escalating only 1 in 10 to a manager",
+            "Organised weekly deliveries of 30+ boxes, keeping the stockroom audit-ready",
+          ],
+        },
+      ],
+      education: [EDU_EXAMPLE],
+      skills: ["Till operation", "Card & cash handling", "Stock rotation", "Complaint handling"],
+      extras: ["Won employee of the month after 8 weeks (example — replace with yours)"],
+    },
+  },
+  {
+    id: "warehouse",
+    label: "Warehouse & logistics",
+    blurb: "Picking, packing, safety — the practical language adverts scan for.",
+    data: {
+      name: "",
+      phone: "",
+      email: "",
+      town: "",
+      linkedin: "",
+      summary:
+        "Reliable [school leaver / college student] aiming for a warehouse operative role. Comfortable with physical, fast-paced work and following safety procedures exactly — [add one real proof, e.g. never missed a shift].",
+      experience: [
+        {
+          role: "Picker / General Assistant",
+          org: `Local Depot ${EXAMPLE_MARKER}`,
+          location: "Your town",
+          from: "Mar 2025",
+          to: "Present",
+          bullets: [
+            "Picked and packed 150+ items per shift, scanning each against the order sheet with 99% accuracy",
+            "Maintained clear walkways and safe stacking across a 20-aisle floor, following manual handling training",
+            "Delivered every timed dispatch target for 6 months straight",
+          ],
+        },
+      ],
+      education: [EDU_EXAMPLE],
+      skills: ["Picking & packing", "Manual handling awareness", "Scanner operation", "Timed targets"],
+      extras: ["Completed a manual handling awareness course (example — replace with yours)"],
+    },
+  },
+  {
+    id: "office",
+    label: "Office & admin",
+    blurb: "Organisation, accuracy and systems — for admin apprenticeships.",
+    data: {
+      name: "",
+      phone: "",
+      email: "",
+      town: "",
+      linkedin: "",
+      summary:
+        "Organised [college student] aiming for a business administration apprenticeship. Strong on accuracy and follow-through — [add one real proof, e.g. ran the sign-up sheet for a whole term].",
+      experience: [
+        {
+          role: "Office Assistant (work experience)",
+          org: `Local Company ${EXAMPLE_MARKER}`,
+          location: "Your town",
+          from: "Jul 2025",
+          to: "Aug 2025",
+          bullets: [
+            "Organised 200+ customer records into a consistent spreadsheet format, fixing 40 duplicates",
+            "Handled 15-20 incoming calls a day, taking messages and routing them to the right person",
+            "Created a shared filing checklist adopted by the whole 6-person office",
+          ],
+        },
+      ],
+      education: [EDU_EXAMPLE],
+      skills: ["Microsoft Word & Excel", "Data entry", "Telephone manner", "Diary management"],
+      extras: ["Ran the ticketing spreadsheet for the school show (example — replace with yours)"],
+    },
+  },
+  {
+    id: "hospitality",
+    label: "Hospitality",
+    blurb: "Cafés, kitchens, front of house — pace and service under pressure.",
+    data: {
+      name: "",
+      phone: "",
+      email: "",
+      town: "",
+      linkedin: "",
+      summary:
+        "Energetic [school leaver] aiming for a hospitality role. Thrives in busy services and keeps standards up when it's slammed — [add one real proof, e.g. worked every Saturday for a year].",
+      experience: [
+        {
+          role: "Front of House / Team Member",
+          org: `Riverside Café ${EXAMPLE_MARKER}`,
+          location: "Your town",
+          from: "Sep 2025",
+          to: "Present",
+          bullets: [
+            "Served 40+ covers per service, taking orders accurately and clearing within 3 minutes of guests leaving",
+            "Prepared 25+ hot drinks an hour at peak while keeping the counter spotless",
+            "Trained 2 new starters on the till and food hygiene basics",
+          ],
+        },
+      ],
+      education: [EDU_EXAMPLE],
+      skills: ["Food hygiene basics", "Till & card payments", "Table service", "Allergen awareness"],
+      extras: ["Level 2 Food Hygiene certificate (example — replace with yours)"],
+    },
+  },
+  {
+    id: "care",
+    label: "Care & support",
+    blurb: "Patience, reliability and safeguarding awareness, evidenced properly.",
+    data: {
+      name: "",
+      phone: "",
+      email: "",
+      town: "",
+      linkedin: "",
+      summary:
+        "Patient and dependable [college student] aiming for a care assistant role. Experienced in supporting people who need extra time and attention — [add one real proof, e.g. helps care for a family member].",
+      experience: [
+        {
+          role: "Volunteer Befriender",
+          org: `Community Centre ${EXAMPLE_MARKER}`,
+          location: "Your town",
+          from: "Jan 2025",
+          to: "Present",
+          bullets: [
+            "Supported 6 older visitors each week with conversation, games and refreshments over 40+ sessions",
+            "Planned a weekly quiz that doubled regular attendance from 8 to 16 people",
+            "Reported wellbeing concerns promptly to the session leader, following safeguarding guidance",
+          ],
+        },
+      ],
+      education: [EDU_EXAMPLE],
+      skills: ["Active listening", "Safeguarding awareness", "Reliability", "Basic first aid"],
+      extras: ["St John Ambulance first aid course (example — replace with yours)"],
+    },
+  },
+  {
+    id: "first-cv",
+    label: "My first CV (no work history)",
+    blurb: "School, volunteering and projects count — proof without a payslip.",
+    data: {
+      name: "",
+      phone: "",
+      email: "",
+      town: "",
+      linkedin: "",
+      summary:
+        "[Year 11 / college] student writing a first CV, aiming for [a part-time job / an apprenticeship in …]. No paid work yet — plenty of proof: [pick your best example from below].",
+      experience: [
+        {
+          role: "Volunteer",
+          org: `School Summer Fair ${EXAMPLE_MARKER}`,
+          location: "Your school",
+          from: "Jul 2025",
+          to: "Jul 2025",
+          bullets: [
+            "Ran a stall serving 100+ visitors across the day, handling cash and keeping a float balanced to the penny",
+            "Set up and packed down the pitch with a team of 4, finishing 20 minutes ahead of schedule",
+          ],
+        },
+        {
+          role: "Team Captain",
+          org: `Local Football Club ${EXAMPLE_MARKER}`,
+          location: "Your town",
+          from: "Sep 2024",
+          to: "Present",
+          bullets: [
+            "Organised weekly training for a squad of 14, planning drills and chasing availability",
+            "Led the side to 3rd place from 9th the season before",
+          ],
+        },
+      ],
+      education: [EDU_EXAMPLE],
+      skills: ["Teamwork", "Cash handling", "Punctuality", "Organising people"],
+      extras: ["Duke of Edinburgh Bronze award (example — replace with yours)"],
+    },
+  },
+];
+
+/** True while any example-scaffold content is still in the CV. */
+export function containsExampleContent(cv: BuilderCv): boolean {
+  return JSON.stringify(cv).toLowerCase().includes("example");
+}
