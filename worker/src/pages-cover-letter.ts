@@ -6,6 +6,42 @@
 
 import { appShell } from "./pages";
 
+/* Sample letter rendered inside each design thumbnail — the miniature
+ * IS the real template, scaled, so what you pick is what you print. */
+const CL_SAMPLE_BODY =
+  "<div class='lp-head'><div class='lp-name'>Alex Morgan</div>" +
+  "<div class='lp-contact'>alex@example.com · 07000 000000 · Leeds</div></div>" +
+  "<div class='lp-date'>14 August 2026</div>" +
+  "<div class='lp-body'><p class='lp-greet'>Dear [Hiring manager's name],</p>" +
+  "<p>I'd like to be considered for the [role] at [company]. A year of weekend " +
+  "volunteering on a busy till has taught me how to stay calm, keep a queue moving " +
+  "and make every customer feel dealt with properly.</p>" +
+  "<p>At the community shop I served 50+ customers a shift and reorganised the " +
+  "donation area, halving sorting time. [One sentence on why this company.]</p>" +
+  "<p>I'd love the chance to bring that reliability to your team.</p></div>" +
+  "<div class='lp-sign'><div>Yours sincerely,</div><div class='lp-signname'>Alex Morgan</div></div>";
+
+const CL_DESIGNS: Array<{ id: string; label: string; blurb: string }> = [
+  { id: "classic", label: "Classic", blurb: "Timeless serif with a centred heading — quietly confident, suits every application." },
+  { id: "elegant", label: "Elegant", blurb: "Clean modern lines and plenty of air — leaves a considered impression." },
+  { id: "bold", label: "Bold", blurb: "A navy header that makes your name land first. For standing out on purpose." },
+];
+
+function clDesignCards(scope: string): string {
+  return (
+    `<div class='designgrid'>` +
+    CL_DESIGNS.map(
+      (d) =>
+        `<div class='dcard${d.id === "classic" ? " on" : ""}' data-clcard='${d.id}'>` +
+        `<div class='dthumb' aria-hidden='true'><div class='dscale'>` +
+        `<div class='letterpaper ${d.id}'>${CL_SAMPLE_BODY}</div></div></div>` +
+        `<b>${d.label}</b><p>${d.blurb}</p>` +
+        `<button type='button' class='btn clsel' data-tpl='${d.id}' data-scope='${scope}'>Select this design</button></div>`,
+    ).join("") +
+    "</div>"
+  );
+}
+
 export function renderCoverLetterPage(): string {
   const body =
     "<main class='wrap' style='max-width:940px'>" +
@@ -37,6 +73,10 @@ export function renderCoverLetterPage(): string {
     "<div id='cl-err' class='drop-err' hidden></div>" +
     "<div class='btnrow' style='margin-top:16px'><button type='button' class='btn' id='cl-go'>Draft my letter</button>" +
     "<span class='hero-note'>Up to 3 drafts a day — each one is a starting point, not a finished letter.</span></div>" +
+    "</div>" +
+    "<div class='card'><h3>Choose a design</h3>" +
+    "<p class='fieldtip' style='margin-bottom:12px'>Shown exactly as it prints — change it any time, before or after drafting.</p>" +
+    clDesignCards("in") +
     "</div></div>" +
 
     /* analysing */
@@ -52,12 +92,9 @@ export function renderCoverLetterPage(): string {
 
     /* result */
     "<div id='s-out' hidden>" +
-    "<div class='card no-print'><h3>Choose a design</h3>" +
-    "<div class='tplrow'>" +
-    "<button type='button' class='tpl on' data-tpl='classic'>Classic<i>Timeless serif, quietly confident</i></button>" +
-    "<button type='button' class='tpl' data-tpl='elegant'>Elegant<i>Clean modern, plenty of air</i></button>" +
-    "<button type='button' class='tpl' data-tpl='bold'>Bold<i>Navy header, makes a mark</i></button>" +
-    "</div></div>" +
+    "<details class='card no-print cl-designs'><summary><h3 style='display:inline'>🎨 Switch design</h3>" +
+    "<span class='fieldtip' style='display:inline;margin-left:10px'>your words stay exactly as edited</span></summary>" +
+    "<div style='margin-top:14px'>" + clDesignCards("out") + "</div></details>" +
     "<div class='letterpaper classic' id='paper'>" +
     "<div class='lp-head'><div class='lp-name' id='lp-name'>[Your name]</div>" +
     "<div class='lp-contact'>[your email] · [your phone] · [your town]</div></div>" +
@@ -139,10 +176,16 @@ fileIn.addEventListener('change',function(){handleFile(fileIn.files[0])});
 ['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('over')})});
 drop.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];handleFile(f)});
 
-/* templates */
-document.querySelectorAll('.tpl').forEach(function(b){b.addEventListener('click',function(){
-document.querySelectorAll('.tpl').forEach(function(x){x.classList.remove('on')});b.classList.add('on');
-$('paper').className='letterpaper '+b.dataset.tpl;});});
+/* design selection — one choice shared by both galleries, applied to
+ * the letter whenever it exists */
+var chosenTpl='classic';
+function applyClTpl(t){chosenTpl=t;
+document.querySelectorAll('[data-clcard]').forEach(function(c){
+c.classList.toggle('on',c.dataset.clcard===t);});
+if($('paper'))$('paper').className='letterpaper '+t;}
+document.querySelectorAll('.clsel').forEach(function(b){b.addEventListener('click',function(){
+applyClTpl(b.dataset.tpl);
+var det=b.closest('details');if(det)det.open=false;});});
 
 /* highlight [brackets] */
 function markPh(text){return esc2(text).replace(/\[([^\]\n]{1,80})\]/g,"<mark class='ph'>[$1]</mark>");}
@@ -207,13 +250,22 @@ const COVER_LETTER_CSS = `
 .pulse svg{width:30px;height:30px;}
 @keyframes flPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,69,43,.35)}
   50%{transform:scale(1.07);box-shadow:0 0 0 16px rgba(217,69,43,0)}}
-.tplrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-@media(max-width:700px){.tplrow{grid-template-columns:1fr;}}
-.tpl{border:1.5px solid var(--off);background:#fff;border-radius:14px;padding:14px;text-align:left;cursor:pointer;
-  font-family:inherit;font-size:14.5px;font-weight:700;color:var(--navy);transition:all .12s;}
-.tpl i{display:block;font-style:normal;font-weight:500;font-size:12px;color:#8a97a1;margin-top:3px;}
-.tpl:hover{border-color:var(--mango);}
-.tpl.on{border-color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.18);}
+.fieldtip{font-size:12.5px;color:var(--blue);line-height:1.5;}
+.designgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;}
+.dcard{display:flex;flex-direction:column;gap:7px;border:1.5px solid var(--line,#E3DDDA);border-radius:16px;padding:13px;
+  background:#fff;transition:transform .12s,border-color .12s,box-shadow .12s;}
+.dcard:hover{transform:translateY(-3px);border-color:var(--orange);box-shadow:0 14px 30px -14px rgba(5,37,60,.3);}
+.dcard.on{border-color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.18);}
+.dcard b{font-size:14.5px;}
+.dcard p{font-size:12px;color:#8a97a1;line-height:1.5;flex:1;margin:0;}
+.dthumb{width:100%;height:280px;overflow:hidden;border:1px solid var(--line,#E3DDDA);border-radius:10px;background:#fff;position:relative;}
+.dscale{width:700px;transform:scale(.31);transform-origin:top left;}
+.dthumb .letterpaper{box-shadow:none;border-radius:0;width:700px;margin:0;padding:44px 50px;pointer-events:none;}
+.dthumb .letterpaper.bold{padding-top:0;}
+.dthumb::after{content:'';position:absolute;inset:0;}
+.clsel{padding:10px 16px;min-height:40px;font-size:13px;}
+.cl-designs summary{cursor:pointer;list-style:none;}
+.cl-designs summary::-webkit-details-marker{display:none;}
 .ph{background:#FCEBD9;color:#B96A16;border-radius:4px;padding:0 3px;font-weight:600;}
 .edit-hint{font-size:13px;color:var(--blue);margin:-6px 0 16px;line-height:1.5;}
 .goods{list-style:none;line-height:1.65;font-size:14px;}

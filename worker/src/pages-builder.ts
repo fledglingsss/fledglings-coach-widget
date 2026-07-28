@@ -45,6 +45,14 @@ export function renderBuilderPage(): string {
     "and numbers are scaffolding to replace, never content to submit.</p>" +
     `<div class='startgrid'>${starterCards}</div></div></div>` +
 
+    /* ---------- design gallery (real rendered miniatures) ---------- */
+    "<div id='s-design' hidden><div class='card'>" +
+    "<div class='listhead'><div><h3 style='margin-bottom:2px'>Choose a design</h3>" +
+    "<p class='fieldtip' style='margin:0'>Every design is shown exactly as it prints. Change it any time — " +
+    "your content never changes with it.</p></div>" +
+    "<button type='button' class='btn ghost' id='designback'>← Back</button></div>" +
+    "<div class='designgrid' id='designgrid'></div></div></div>" +
+
     /* ---------- builder ---------- */
     "<div id='s-build' hidden>" +
     "<div class='exguard no-print' id='exguard' hidden>⚠️ <b>Example content is still in this CV.</b> Everything marked " +
@@ -58,17 +66,11 @@ export function renderBuilderPage(): string {
     "<button type='button' class='btn quiet' id='checkbtn'>Re-check score</button>" +
     "<button type='button' class='btn' onclick='window.print()'>Download PDF</button>" +
     "</div>" +
-    /* design switcher — a variety of formats, switch any time */
-    "<div class='card no-print' style='padding:14px 18px'>" +
-    "<div class='tplrowhead'><b>🎨 Design</b><span>Switch any time — your content stays exactly as it is.</span></div>" +
-    "<div class='tplmini' id='tplrow'>" +
-    "<button type='button' class='tplbtn on' data-tpl='classic'><i class='sw sw-classic'></i>Classic</button>" +
-    "<button type='button' class='tplbtn' data-tpl='executive'><i class='sw sw-executive'></i>Executive</button>" +
-    "<button type='button' class='tplbtn' data-tpl='modern'><i class='sw sw-modern'></i>Modern</button>" +
-    "<button type='button' class='tplbtn' data-tpl='accent'><i class='sw sw-accent'></i>Accent</button>" +
-    "<button type='button' class='tplbtn' data-tpl='sidebar'><i class='sw sw-sidebar'></i>Sidebar</button>" +
-    "<button type='button' class='tplbtn' data-tpl='compact'><i class='sw sw-compact'></i>Compact</button>" +
-    "</div></div>" +
+    /* current design + switch (opens the visual gallery) */
+    "<div class='card no-print designrow'>" +
+    "<div class='tplrowhead'><b>🎨 Design:</b><span class='cur-design' id='cur-design'>Classic</span>" +
+    "<span style='color:var(--mut);font-size:12px'>— your content never changes with the design</span></div>" +
+    "<button type='button' class='btn ghost' id='switchdesign'>Switch design</button></div>" +
     /* form + review/preview */
     "<div class='buildgrid'>" +
     "<div class='formcol no-print'>" +
@@ -164,9 +166,45 @@ copy.title=(src.title||'Untitled CV')+' (copy)';copy.updated=Date.now();cvs.unsh
 document.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
 if(!confirm('Delete this CV? This cannot be undone.'))return;
 cvs=cvs.filter(function(c){return c.id!==b.dataset.del});saveAll(cvs);renderList();}});}
-/* Create flow: pick an ATS-ready starter (or blank) first. */
-$('newcv').onclick=function(){$('s-list').hidden=true;$('s-pick').hidden=false;window.scrollTo({top:0});};
-$('pickback').onclick=function(){$('s-pick').hidden=true;$('s-list').hidden=false;};
+/* ---------------- design gallery (rendered miniatures) ---------------- */
+var DESIGNS=[
+{id:'classic',label:'Classic',blurb:'Timeless serif with a centred heading — suits every application, fully ATS-friendly.'},
+{id:'executive',label:'Executive',blurb:'A navy header band that makes your name land first. Confident and clean.'},
+{id:'modern',label:'Modern',blurb:'Bold name, orange-ruled headings — contemporary without shouting.'},
+{id:'accent',label:'Accent',blurb:'A warm side-rule and plenty of air. Quietly distinctive.'},
+{id:'sidebar',label:'Sidebar',blurb:'Two columns with a skills panel — a different format that scans fast.'},
+{id:'compact',label:'Compact',blurb:'Dense single-pager for when you have plenty to say and one page to say it.'}];
+/* Generic sample content so every miniature shows a real document. */
+var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.com',town:'Leeds',linkedin:'',
+summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
+experience:[{role:'Volunteer',org:'Community Shop',location:'Leeds',from:'Jun 2025',to:'Present',
+bullets:['Served 50+ customers per shift on the till','Organised donations, halving sorting time']}],
+education:[{school:'City College',quals:'GCSEs: English (6), Maths (5) — 8 subjects',from:'2021',to:'2026',detail:''}],
+skills:['Till operation','Teamwork','Punctuality'],extras:['First aid basics course']};
+var designMode='create',pendingTpl='classic';
+function designName(id){var d=DESIGNS.find(function(x){return x.id===id});return d?d.label:'Classic';}
+function renderDesignGallery(){var h='';
+DESIGNS.forEach(function(d){
+h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
+"<div class='cvpaper "+d.id+"'>"+previewHtml(DESIGN_SAMPLE)+"</div></div></div>"+
+"<b>"+esc2(d.label)+"</b><p>"+esc2(d.blurb)+"</p>"+
+"<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
+$('designgrid').innerHTML=h;
+document.querySelectorAll('.dselect').forEach(function(b){b.onclick=function(){
+var id=b.dataset.design;
+if(designMode==='create'){pendingTpl=id;$('s-design').hidden=true;$('s-pick').hidden=false;window.scrollTo({top:0});}
+else{applyTpl(id);if(current){current.tpl=id;scheduleSaveQuiet();}
+$('s-design').hidden=true;$('s-build').hidden=false;window.scrollTo({top:0});}};});}
+$('designback').onclick=function(){$('s-design').hidden=true;
+if(designMode==='create'){$('s-list').hidden=false;}else{$('s-build').hidden=false;}};
+$('switchdesign').onclick=function(){designMode='switch';renderDesignGallery();
+$('s-build').hidden=true;$('s-design').hidden=false;window.scrollTo({top:0});};
+
+/* Create flow: choose a DESIGN first (seen as real miniatures), then a
+ * starting point. */
+$('newcv').onclick=function(){designMode='create';renderDesignGallery();
+$('s-list').hidden=true;$('s-design').hidden=false;window.scrollTo({top:0});};
+$('pickback').onclick=function(){$('s-pick').hidden=true;$('s-design').hidden=false;};
 /* A starter seed (arrays) becomes the form model (textarea strings). */
 function seedToModel(seed){var d=blankCv();
 d.summary=seed.summary||'';
@@ -183,7 +221,7 @@ document.querySelectorAll('.startcard').forEach(function(b){b.onclick=function()
 var sid=b.dataset.starter;var title='My CV';var data;
 if(sid&&FL_STARTERS[sid]){title=FL_STARTERS[sid].label+' CV';data=seedToModel(FL_STARTERS[sid].data);}
 else{data=blankCv();}
-var c={id:Math.random().toString(16).slice(2),title:title,updated:Date.now(),data:data};
+var c={id:Math.random().toString(16).slice(2),title:title,updated:Date.now(),tpl:pendingTpl,data:data};
 cvs.unshift(c);saveAll(cvs);openCv(c.id);};});
 function openCv(id){current=cvs.find(function(c){return c.id===id});if(!current)return;
 $('cvtitle').value=current.title||'My CV';
@@ -261,7 +299,11 @@ if(words>30)return {c:'mk-warn',i:'!',t:'Long — aim under 30 words'};
 if(!MK_ACTION.test(b))return {c:'mk-warn',i:'!',t:'Start with a doing word'};
 if(!/(\d|%|£)/.test(b))return {c:'mk-warn',i:'!',t:'Add a number that proves scale'};
 return {c:'mk-ok',i:'✓',t:'Strong line'};}
-function renderPreview(){var d=payload();var h='';
+function renderPreview(){var d=payload();
+$('paper').innerHTML=previewHtml(d);
+/* The replace-me guard: visible while any example scaffolding remains. */
+$('exguard').hidden=JSON.stringify(d).toLowerCase().indexOf('example')===-1;}
+function previewHtml(d){var h='';
 h+="<div class='cp-head'><div class='cp-name'>"+(esc2(d.name)||'Your Name')+"</div>";
 var contact=[d.town,d.phone,d.email,d.linkedin].filter(Boolean).map(esc2).join(' · ');
 h+="<div class='cp-contact'>"+(contact||'town · phone · email')+"</div></div>";
@@ -285,17 +327,11 @@ h+="</div><div class='cp-side'>";
 if(d.skills.length)h+="<div class='cp-sec'><h4>Skills</h4><ul class='cp-skills'>"+d.skills.map(function(s){return "<li>"+esc2(s)+"</li>"}).join('')+"</ul></div>";
 if(d.extras.length)h+="<div class='cp-sec'><h4>Achievements</h4><ul>"+d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";
 h+="</div></div>";
-$('paper').innerHTML=h;
-/* The replace-me guard: visible while any example scaffolding remains. */
-$('exguard').hidden=JSON.stringify(d).toLowerCase().indexOf('example')===-1;}
+return h;}
 /* Design templates: the LOOK is per-CV and remembered; content never
  * changes when you switch. */
 function applyTpl(t){$('paper').className='cvpaper '+t;
-document.querySelectorAll('.tplbtn').forEach(function(x){
-x.className='tplbtn'+(x.dataset.tpl===t?' on':'');});}
-document.querySelectorAll('.tplbtn').forEach(function(b){b.onclick=function(){
-applyTpl(b.dataset.tpl);
-if(current){current.tpl=b.dataset.tpl;scheduleSaveQuiet();}};});
+$('cur-design').textContent=designName(t);}
 /* Save without invalidating the score — a design switch changes only
  * the look, never the text the checks read. */
 function scheduleSaveQuiet(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
@@ -359,20 +395,23 @@ const BUILDER_CSS = `
 .titlein{max-width:200px;border:2px solid transparent;font-weight:700;font-size:15.5px;padding:8px 10px;}
 .titlein:hover{border-color:var(--off);}
 .savestate{font-size:12px;color:#8a97a1;}
-.tplrowhead{display:flex;gap:12px;align-items:baseline;margin-bottom:10px;font-size:14px;}
-.tplrowhead span{font-size:12px;color:var(--mut);}
-.tplmini{display:flex;gap:8px;flex-wrap:wrap;}
-.tplbtn{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px 8px 8px;font-family:inherit;
-  font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
-.tplbtn.on{border-color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.16);}
-.tplbtn .sw{width:26px;height:32px;border-radius:4px;border:1px solid var(--line);display:block;flex:none;background:#fff;position:relative;overflow:hidden;}
-.sw::before{content:'';position:absolute;left:0;right:0;}
-.sw-classic::before{top:4px;height:3px;background:#1c2b36;margin:0 4px;}
-.sw-executive::before{top:0;height:9px;background:#05253C;}
-.sw-modern::before{top:5px;left:4px;width:9px;height:3px;background:#D9452B;}
-.sw-accent::before{top:3px;bottom:3px;left:3px;width:3px;background:var(--mango);}
-.sw-sidebar::before{top:3px;bottom:3px;left:3px;width:8px;background:#ECE7E6;border-radius:2px;}
-.sw-compact::before{top:4px;height:2px;background:#8a97a1;margin:0 3px;box-shadow:0 5px 0 #8a97a1,0 10px 0 #8a97a1,0 15px 0 #8a97a1;}
+.designrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:13px 18px;}
+.designrow .btn{margin-left:auto;}
+.tplrowhead{display:flex;gap:8px;align-items:baseline;font-size:14px;flex-wrap:wrap;}
+.cur-design{font-weight:800;color:var(--orange);}
+/* the gallery of real rendered miniatures */
+.designgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;}
+.dcard{display:flex;flex-direction:column;gap:7px;border:1.5px solid var(--line);border-radius:16px;padding:14px;
+  background:#fff;transition:transform .12s,border-color .12s,box-shadow .12s;}
+.dcard:hover{transform:translateY(-3px);border-color:var(--orange);box-shadow:0 14px 30px -14px rgba(5,37,60,.3);}
+.dcard b{font-size:15px;}
+.dcard p{font-size:12px;color:var(--mut);line-height:1.5;flex:1;margin:0;}
+.dthumb{width:100%;height:300px;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:#fff;position:relative;}
+.dscale{width:720px;transform:scale(.315);transform-origin:top left;}
+.dthumb .cvpaper{box-shadow:none;border:none;border-radius:0;min-height:0;width:720px;padding:38px 42px;pointer-events:none;}
+.dthumb .mk{display:none;}
+.dthumb::after{content:'';position:absolute;inset:0;}
+.dselect{padding:10px 16px;min-height:40px;font-size:13.5px;}
 /* ---- review sidebar (reference format) ---- */
 .revpanel{padding:16px 18px;}
 .rv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
