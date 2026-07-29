@@ -153,12 +153,12 @@ var st=$('jstep-'+t);if(st){if(ts.latest!==null)st.classList.add('done');
 if(s.next&&s.next.tool===t)st.classList.add('now');}});
 /* career readiness + job-ready rings */
 if(typeof s.careerReadiness==='number'){
-$('cr-pct').textContent=s.careerReadiness;
+flCountUp(,s.careerReadiness);
 var cc=s.careerReadiness>=70?'#1B7A4B':'#D9452B';
 $('cr-ring').style.background='conic-gradient('+cc+' 0deg '+Math.round(s.careerReadiness*3.6)+'deg,#E7EAF0 '+Math.round(s.careerReadiness*3.6)+'deg)';
 $('cr-tasks').textContent=s.tasksDone+'/'+s.tasks.length+' tasks done';}
 if(s.readiness!==null){$('jr-box').hidden=false;var jc=band(s.readiness);
-$('jr-pct').textContent=s.readiness;$('jr-pct').style.color=jc;
+flCountUp(,s.readiness);.style.color=jc;
 $('jr-ring').style.background='conic-gradient('+jc+' 0deg '+Math.round(s.readiness*3.6)+'deg,#E7EAF0 '+Math.round(s.readiness*3.6)+'deg)';}
 /* tasks checklist */
 if(s.tasks&&s.tasks.length){$('tasks-card').hidden=false;

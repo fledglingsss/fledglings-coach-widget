@@ -220,6 +220,11 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 .fbbtn{border:1.5px solid var(--line);background:#fff;border-radius:999px;width:38px;height:38px;font-size:16px;
   cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
 .fbbtn:hover{border-color:var(--pri);transform:translateY(-1px);}
+/* Liveness: every stage that appears rises in; every progress bar
+ * fills smoothly. Killed wholesale under prefers-reduced-motion. */
+@keyframes flIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.fl-in{animation:flIn .34s cubic-bezier(.2,.7,.3,1) both;}
+.tk-bar i,.rv-bar i,.meter i,.fillbar i,.pr-pctbar i,.dim-tk i,.bar i{transition:width .7s cubic-bezier(.2,.7,.3,1);}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 @media (max-width:880px){
   body{flex-direction:column;}
@@ -297,11 +302,26 @@ export function appShell(opts: {
     opts.bodyHtml +
     "<div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div>" +
     "</div>" +
-    "<script>(function(){var ev=flEmailParam();if(!ev)return;" +
+    "<script>(function(){var ev=flEmailParam();if(ev){" +
     "document.querySelectorAll('a[data-nav]').forEach(function(a){" +
     "var href=a.getAttribute('href');if(href.indexOf('http')===0)return;" +
     "var hash='';var hi=href.indexOf('#');if(hi>-1){hash=href.slice(hi);href=href.slice(0,hi);}" +
-    "a.href=href+(href.indexOf('?')>-1?'&':'?')+'e='+ev+hash;});})();</script>" +
+    "a.href=href+(href.indexOf('?')>-1?'&':'?')+'e='+ev+hash;});}" +
+    /* Liveness layer: animate anything that becomes visible, and give
+     * pages a count-up for their big score reveals. */
+    "var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;" +
+    "if(!reduce&&window.MutationObserver){new MutationObserver(function(muts){" +
+    "muts.forEach(function(m){var el=m.target;" +
+    "if(m.attributeName==='hidden'&&el.nodeType===1&&!el.hidden){" +
+    "el.classList.remove('fl-in');void el.offsetWidth;el.classList.add('fl-in');}});" +
+    "}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}" +
+    "window.flCountUp=function(el,to,suffix){if(!el)return;suffix=suffix||'';" +
+    "to=Math.round(to);if(reduce||!window.requestAnimationFrame){el.textContent=to+suffix;return;}" +
+    "var start=performance.now(),dur=650;" +
+    "function tick(now){var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);" +
+    "el.textContent=Math.round(to*p)+suffix;" +
+    "if(p<1)requestAnimationFrame(tick);}requestAnimationFrame(tick);};" +
+    "})();</script>" +
     "</body></html>"
   );
 }

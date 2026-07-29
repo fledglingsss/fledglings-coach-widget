@@ -50,20 +50,39 @@ export function renderCoverLetterPage(): string {
     "Fledge drafts it from the advert and your real CV, marks everything you should personalise in " +
     "<span class='ph' style='padding:1px 6px'>brackets</span>, and hands you the pen. Nothing is stored.</p>" +
 
-    /* inputs */
+    /* inputs — a guided three-step flow, one focus per screen */
     "<div id='s-in'>" +
-    "<div class='card'>" +
+    "<div class='clsteps no-print' aria-hidden='true'>" +
+    "<span class='clstep on' id='cls-1'><i>1</i>Who it's for</span><span class='clsep'></span>" +
+    "<span class='clstep' id='cls-2'><i>2</i>The advert</span><span class='clsep'></span>" +
+    "<span class='clstep' id='cls-3'><i>3</i>Your experience</span></div>" +
+    /* step 1 */
+    "<div class='card' id='st-1'>" +
+    "<h3>✉️ Who's this letter for?</h3>" +
+    "<p class='fieldtip' style='margin-bottom:6px'>Just the basics — the letter takes shape from here.</p>" +
     "<div class='ingrid'>" +
-    "<div><label for='cl-role' style='margin-top:0'>Job title</label>" +
+    "<div><label for='cl-role' style='margin-top:8px'>Job title</label>" +
     "<input type='text' id='cl-role' maxlength='80' placeholder='e.g. Retail assistant'></div>" +
-    "<div><label for='cl-company' style='margin-top:0'>Company</label>" +
+    "<div><label for='cl-company' style='margin-top:8px'>Company</label>" +
     "<input type='text' id='cl-company' maxlength='80' placeholder='e.g. Shopmart'></div>" +
-    "<div><label for='cl-name' style='margin-top:0'>Your name <span class='opt'>(for the letter heading)</span></label>" +
+    "<div><label for='cl-name' style='margin-top:8px'>Your name <span class='opt'>(for the heading)</span></label>" +
     "<input type='text' id='cl-name' maxlength='60' placeholder='e.g. Sam Taylor'></div>" +
     "</div>" +
-    "<label for='cl-jd'>The job advert <span class='opt'>(paste it — the letter answers what it actually asks for)</span></label>" +
-    "<textarea id='cl-jd' rows='6' maxlength='3000' placeholder='Paste the job advert here…'></textarea>" +
-    "<label>Your CV <span class='opt'>(optional but recommended — it's what keeps the letter honest)</span></label>" +
+    "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn' id='cl-n1'>Next: the advert →</button></div></div>" +
+    /* step 2 */
+    "<div class='card' id='st-2' hidden>" +
+    "<h3>📋 Paste the advert</h3>" +
+    "<p class='fieldtip' style='margin-bottom:10px'>The letter answers what the advert actually asks for — paste the " +
+    "whole thing, requirements and all.</p>" +
+    "<textarea id='cl-jd' rows='7' maxlength='3000' placeholder='Paste the job advert here…'></textarea>" +
+    "<div id='cl-err2' class='drop-err' hidden>A few sentences of the advert at least — it is what the letter answers.</div>" +
+    "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cl-b2'>← Back</button>" +
+    "<button type='button' class='btn' id='cl-n2'>Next: your experience →</button></div></div>" +
+    /* step 3 */
+    "<div class='card' id='st-3' hidden>" +
+    "<h3>📄 Ground it in your real experience</h3>" +
+    "<p class='fieldtip' style='margin-bottom:10px'>Your CV is what keeps the letter honest — Fledge will only claim " +
+    "what it actually says. Optional, but it makes the difference.</p>" +
     "<div class='cvrow'>" +
     "<div class='drop mini' id='cl-drop' tabindex='0' role='button' aria-label='Upload your CV PDF'>" +
     "<input type='file' id='cl-file' accept='.pdf,application/pdf' hidden>" +
@@ -71,8 +90,9 @@ export function renderCoverLetterPage(): string {
     "<details class='typefall'><summary>Or paste your CV as text</summary>" +
     "<textarea id='cl-cv' rows='5' maxlength='9000' placeholder='Paste your CV text here…'></textarea></details></div>" +
     "<div id='cl-err' class='drop-err' hidden></div>" +
-    "<div class='btnrow' style='margin-top:16px'><button type='button' class='btn' id='cl-go'>Draft my letter</button>" +
-    "<span class='hero-note'>Up to 3 drafts a day — each one is a starting point, not a finished letter.</span></div>" +
+    "<div class='btnrow' style='margin-top:16px'><button type='button' class='btn ghost' id='cl-b3'>← Back</button>" +
+    "<button type='button' class='btn' id='cl-go'>✨ Draft my letter</button>" +
+    "<span class='hero-note'>Up to 3 drafts a day — each is a starting point, not a finished letter.</span></div>" +
     "</div>" +
     "<div class='card'><h3>Choose a design</h3>" +
     "<p class='fieldtip' style='margin-bottom:12px'>Shown exactly as it prints — change it any time, before or after drafting.</p>" +
@@ -139,6 +159,17 @@ var $=function(id){return document.getElementById(id)};
 var params=new URLSearchParams(location.search);
 var hubEmail=flResolveEmail();flIdentityChip();
 function show(id){['s-in','s-wait','s-msg','s-out'].forEach(function(k){$(k).hidden=k!==id});}
+/* guided steps */
+function clGo(n){[1,2,3].forEach(function(i){
+$('st-'+i).hidden=i!==n;
+$('cls-'+i).className='clstep'+(i<n?' done':i===n?' on':'');});
+window.scrollTo({top:0,behavior:'smooth'});}
+$('cl-n1').onclick=function(){clGo(2)};
+$('cl-b2').onclick=function(){clGo(1)};
+$('cl-n2').onclick=function(){
+if($('cl-jd').value.trim().length<60){$('cl-err2').hidden=false;return;}
+$('cl-err2').hidden=true;clGo(3);};
+$('cl-b3').onclick=function(){clGo(2)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
 /* CV PDF extraction (same on-device rail as the review tools) */
@@ -195,7 +226,7 @@ function markPh(text){return esc2(text).replace(/\[([^\]\n]{1,80})\]/g,"<mark cl
 
 $('cl-go').addEventListener('click',function(){
 var jd=$('cl-jd').value.trim();
-if(jd.length<60){clErr('Paste a bit more of the job advert — a few sentences at least.');return;}
+if(jd.length<60){clErr('Paste a bit more of the job advert first — step 2 needs a few sentences at least.');clGo(2);return;}
 clErr('');show('s-wait');
 var pasted=$('cl-cv').value.trim();
 fetch('/api/cover-letter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -252,7 +283,7 @@ var text=parts.join('\n').replace(/\n{3,}/g,'\n\n');
 (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(text):Promise.reject())
 .then(function(){$('copybtn').textContent='Copied ✓';setTimeout(function(){$('copybtn').textContent='Copy letter text'},1600);})
 .catch(function(){$('copybtn').textContent='Select and copy manually';});});
-$('againbtn').addEventListener('click',function(){show('s-in');window.scrollTo({top:0})});
+$('againbtn').addEventListener('click',function(){show('s-in');clGo(1);window.scrollTo({top:0})});
 $('msgback').addEventListener('click',function(){show('s-in')});
 document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
 fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -280,6 +311,16 @@ const COVER_LETTER_CSS = `
 @keyframes flPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,69,43,.35)}
   50%{transform:scale(1.07);box-shadow:0 0 0 16px rgba(217,69,43,0)}}
 .fieldtip{font-size:12.5px;color:var(--blue);line-height:1.5;}
+.clsteps{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.clstep{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#8a97a1;
+  background:#fff;border:1.5px solid var(--line,#E3DDDA);border-radius:999px;padding:7px 14px;}
+.clstep i{width:20px;height:20px;border-radius:50%;background:var(--off,#ECE7E6);color:#8a97a1;font-style:normal;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;}
+.clstep.on{color:var(--navy);border-color:var(--mango);}
+.clstep.on i{background:linear-gradient(135deg,var(--mango),var(--orange));color:#fff;}
+.clstep.done{color:var(--navy);}
+.clstep.done i{background:#1B7A4B;color:#fff;}
+.clsep{flex:none;width:22px;border-top:2px dashed #C9C1BD;}
 .designgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;}
 .dcard{display:flex;flex-direction:column;gap:7px;border:1.5px solid var(--line,#E3DDDA);border-radius:16px;padding:13px;
   background:#fff;transition:transform .12s,border-color .12s,box-shadow .12s;}

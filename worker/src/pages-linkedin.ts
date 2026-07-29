@@ -146,7 +146,7 @@ export function renderLinkedInPage(): string {
     "}).catch(function(){stopMsgs();fileIn.value='';" +
     "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
     "function renderReport(r){var col=band(r.overall);" +
-    "$('r-score').textContent=r.overall+'%';$('r-score').style.color=col;" +
+    "flCountUp(,r.overall,'%');.style.color=col;" +
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-verdict').textContent=r.verdict;" +
     "$('r-file').textContent=lastName+($('target').value?' · aiming at: '+$('target').value:'');" +
