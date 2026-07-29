@@ -1036,7 +1036,9 @@ app.post("/api/builder-check", async (c) => {
     const deviceHash = await hashLearnerId(learnerId);
     const rlKey = `bc:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
     const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
-    if (used >= 100) {
+    /* Generous: the builder auto-rechecks as learners edit (debounced),
+     * and this endpoint is deterministic — no model, no meaningful cost. */
+    if (used >= 400) {
       return c.json({ reply: "That's a lot of checking for one day — the checks top back up tomorrow.", kind: "limit" });
     }
     await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
