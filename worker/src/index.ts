@@ -2346,6 +2346,161 @@ app.post("/api/hub", async (c) => {
   }
 });
 
+/* ==================================================================
+ * Provider Dashboard data — tag-scoped backend overview joining the
+ * LearnWorlds roster to each learner's employability score history
+ * (email → hash → hub:scores; scores/attempts/timestamps only, never
+ * documents). Auth + scope come from the same portal codes: a seat
+ * manager whose code carries tag "swift" sees only swift learners.
+ * ================================================================== */
+
+interface DashLearner {
+  name: string;
+  email: string;
+  tags: string[];
+  employability: Record<string, { latest: number | null; attempts: number; lastAt: number | null }>;
+  tasksDone: number;
+  readiness: number | null;
+}
+
+async function dashboardRows(env: Env, tag: string | null): Promise<{
+  totalUsers: number | null;
+  rows: DashLearner[];
+}> {
+  const { totalUsers, sample } = await portalSample(env, tag);
+  const rows: DashLearner[] = [];
+  for (const { user } of sample) {
+    if (!user.email) continue;
+    const hash = (await hashLearnerId(user.email.toLowerCase())).slice(0, 16);
+    const summary = summariseHub(
+      parseScores(await env.RATE_LIMITS.get(`hub:scores:${hash}`)),
+    );
+    const emp: DashLearner["employability"] = {};
+    for (const tool of HUB_TOOLS) {
+      const t = summary[tool];
+      emp[tool] = { latest: t.latest, attempts: t.attempts, lastAt: t.lastAt };
+    }
+    rows.push({
+      name:
+        [user.first_name, user.last_name].filter(Boolean).join(" ") ||
+        user.username ||
+        user.email.split("@")[0]!,
+      email: user.email,
+      tags: user.tags ?? [],
+      employability: emp,
+      tasksDone: summary.tasksDone,
+      readiness: summary.readiness,
+    });
+  }
+  return { totalUsers, rows };
+}
+
+app.get("/dashboard/data", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
+  const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
+  const cacheKey = `dash:v1:${scopeKey}`;
+  const cached = await c.env.RATE_LIMITS.get(cacheKey);
+  if (cached) return c.json(JSON.parse(cached));
+  try {
+    const { totalUsers, rows } = await dashboardRows(c.env, access.tag);
+    /* KPIs + analytics rollups, all derived from the rows. */
+    const tried = (tool: string) => rows.filter((r) => r.employability[tool]!.latest !== null);
+    const avg = (tool: string) => {
+      const t = tried(tool);
+      return t.length
+        ? Math.round(t.reduce((s, r) => s + (r.employability[tool]!.latest ?? 0), 0) / t.length)
+        : null;
+    };
+    /* Activity by ISO week from score timestamps (last 12 weeks). */
+    const weekMs = 7 * 86_400_000;
+    const now = Date.now();
+    const activity = Array.from({ length: 12 }, (_, i) => ({ weeksAgo: 11 - i, events: 0 }));
+    for (const r of rows) {
+      for (const tool of HUB_TOOLS) {
+        const at = r.employability[tool]!.lastAt;
+        if (at === null) continue;
+        const idx = Math.floor((now - at * 1000) / weekMs);
+        if (idx >= 0 && idx < 12) activity[11 - idx]!.events += 1;
+      }
+    }
+    /* Score distribution buckets for the strongest signal (CV). */
+    const buckets = [0, 0, 0, 0, 0]; // 0-19,20-39,40-59,60-79,80-100
+    for (const r of tried("cv")) {
+      buckets[Math.min(4, Math.floor((r.employability.cv!.latest ?? 0) / 20))] += 1;
+    }
+    /* Attention: journey stalled or weakest scores. */
+    const attention = rows
+      .filter((r) => r.readiness !== null && (r.readiness < 50 || r.tasksDone <= 2))
+      .sort((a, b) => (a.readiness ?? 0) - (b.readiness ?? 0))
+      .slice(0, 8)
+      .map((r) => ({ name: r.name, email: r.email, readiness: r.readiness, tasksDone: r.tasksDone }));
+    const tagCounts = new Map<string, number>();
+    for (const r of rows) for (const t of r.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+    const payload = {
+      scopedTag: access.tag,
+      totalUsers,
+      sampleSize: rows.length,
+      kpis: {
+        learners: rows.length,
+        engaged: rows.filter((r) => r.readiness !== null).length,
+        avgCv: avg("cv"),
+        avgLinkedin: avg("linkedin"),
+        avgInterview: avg("interview"),
+        lettersCreated: tried("cover").length,
+        journeyComplete: rows.filter((r) => r.tasksDone === 7).length,
+      },
+      learners: rows,
+      analytics: { activity, cvBuckets: buckets, toolTried: Object.fromEntries(HUB_TOOLS.map((t) => [t, tried(t).length])) },
+      tags: [...tagCounts.entries()].map(([t, count]) => ({ tag: t, count })).sort((a, b) => b.count - a.count),
+    };
+    await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), { expirationTtl: 600 });
+    return c.json(payload);
+  } catch (err) {
+    console.error("[coach] dashboard data error:", String(err));
+    return c.json({ error: "dashboard_failed" }, 500);
+  }
+});
+
+app.get("/dashboard/export.csv", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
+  try {
+    const { rows } = await dashboardRows(c.env, access.tag);
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [
+      "Name,Email,Tags,CV score,CV attempts,LinkedIn score,LinkedIn attempts,Interview score,Interview attempts,Letters created,Journey tasks done (of 7),Job-ready score",
+      ...rows.map((r) =>
+        [
+          esc(r.name),
+          esc(r.email),
+          esc(r.tags.join("; ")),
+          r.employability.cv!.latest ?? "",
+          r.employability.cv!.attempts,
+          r.employability.linkedin!.latest ?? "",
+          r.employability.linkedin!.attempts,
+          r.employability.interview!.latest ?? "",
+          r.employability.interview!.attempts,
+          r.employability.cover!.attempts,
+          r.tasksDone,
+          r.readiness ?? "",
+        ].join(","),
+      ),
+    ];
+    return new Response(lines.join("\r\n"), {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="fledglings-employability-${access.tag ?? "all"}.csv"`,
+      },
+    });
+  } catch (err) {
+    console.error("[coach] dashboard export error:", String(err));
+    return c.json({ error: "export_failed" }, 500);
+  }
+});
+
 /* The Learner Games — monthly cohort completions race (aggregate-only,
  * embeddable). Scored live by the completion webhooks. */
 app.get("/challenge", async (c) => {
