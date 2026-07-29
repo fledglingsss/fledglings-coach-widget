@@ -654,7 +654,7 @@ return "<div class='prstat'><div class='prring "+cls+"'><em>"+icon+"</em></div>"
 "<b>"+esc2(label)+"</b><span class='pr-word "+cls+"'>"+word+"</span>"+
 "<div class='pr-pctbar'><i style='width:"+metric.pct+"%'></i></div><span class='pr-pct'>"+metric.pct+"% of your answer time</span></div>";}
 function renderReport(r){repShowScoring(false);var col=band(r.overall);
-flCountUp(,r.overall);.style.color=col;
+flCountUp($('r-score'),r.overall);$('r-score').style.color=col;
 $('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';
 $('r-verdict').textContent=r.verdict;
 $('r-meta').textContent=roleLabel+' · '+answers.length+' question'+(answers.length===1?'':'s')+(mode==='video'?' · on camera':'');

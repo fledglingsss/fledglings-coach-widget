@@ -392,7 +392,7 @@ document.execCommand('insertText',false,t);});
 function stateIcon(st){return st==='good'?'✓':st==='warn'?'!':'✗'}
 function renderReview(rv){
 var col=rv.total>=70?'#1B7A4B':rv.total>=50?'#B96A16':'#D9452B';
-flCountUp(,rv.total);.style.color=col;
+flCountUp($('b-score'),rv.total);$('b-score').style.color=col;
 $('rv-bar-i').style.width=rv.total+'%';$('rv-bar-i').style.background=col;
 var h='';rv.categories.forEach(function(c,i){
 h+="<div class='rvcat'><button type='button' class='rvcat-h' data-cat='"+i+"' aria-expanded='false'>"+
