@@ -279,7 +279,9 @@ if(E||e.location)h+="<div class='cp-loc'>"+(E?ed('xp:'+i+':location','cpe','Loca
 h+="<ul>";
 bl.forEach(function(b,j){var m=bulletMark(b);
 h+="<li><span class='mk "+m.c+"' title='"+esc2(m.t)+"' contenteditable='false'>"+m.i+"</span>"+
-(E?ed('xb:'+i+':'+j,'bl','What you did — start with a doing word, add a number',b):"<span class='bl'>"+esc2(b)+"</span>")+"</li>";});
+(E?ed('xb:'+i+':'+j,'bl','What you did — start with a doing word, add a number',b):"<span class='bl'>"+esc2(b)+"</span>")+
+(E?"<button type='button' class='ilb' contenteditable='false' data-il='"+i+":"+j+"' title='Improve this line with AI — uses only what it already says'>✨</button>":"")+
+"</li>";});
 h+="</ul>";
 if(E)h+="<div class='ctl' contenteditable='false'><button type='button' class='ctlbtn' data-addbullet='"+i+"'>+ point</button>"+
 "<button type='button' class='ctlbtn' data-delentry='"+i+"'>remove role</button></div>";
@@ -333,6 +335,17 @@ $('paper').querySelectorAll('[data-deledu]').forEach(function(b){b.onclick=funct
 current.data.education.splice(+b.dataset.deledu,1);
 if(!current.data.education.length)current.data.education=[blankEdu()];
 renderDoc();scheduleSave();};});
+$('paper').querySelectorAll('[data-il]').forEach(function(b){b.onclick=function(){
+var p=b.dataset.il.split(':');var e=current.data.experience[+p[0]];
+var bl=String(e.bullets||'').split('\n');var line=(bl[+p[1]]||'').trim();
+if(line.length<8){alert('Write the line first — the improver sharpens your words, it never invents them.');return;}
+b.disabled=true;b.textContent='…';
+fetch('/api/improve-line',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,line:line})})
+.then(function(r){return r.json()}).then(function(d){b.disabled=false;b.textContent='✨';
+if(!d||!d.line){alert((d&&d.reply)||'Could not improve that line just now.');return;}
+bl[+p[1]]=d.line;e.bullets=bl.join('\n');renderDoc();scheduleSave();})
+.catch(function(){b.disabled=false;b.textContent='✨';});};});
 var ar=$('addrole');if(ar)ar.onclick=function(){current.data.experience.push(blankExp());renderDoc();
 focusBind('xp:'+(current.data.experience.length-1)+':role');scheduleSave();};
 var ae=$('addedu');if(ae)ae.onclick=function(){current.data.education.push(blankEdu());renderDoc();
@@ -548,6 +561,10 @@ const BUILDER_CSS = `
 .mk-warn{background:#FBF0E2;color:#B96A16;}
 .mk-bad{background:#FCE9E5;color:#D9452B;}
 .mk-off{background:#F0EBE8;color:#B9AFAB;}
+.ilb{border:none;background:none;font-size:12px;cursor:pointer;opacity:0;transition:opacity .12s;padding:0 2px;flex:none;}
+li:hover .ilb,li:focus-within .ilb{opacity:1;}
+@media(hover:none){.ilb{opacity:1;}}
+.ilb:disabled{cursor:default;}
 .ctl{display:flex;gap:8px;margin-top:2px;opacity:0;transition:opacity .12s;}
 .cp-entry:hover .ctl,.cp-entry:focus-within .ctl{opacity:1;}
 @media(hover:none){.ctl{opacity:1;}}

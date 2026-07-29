@@ -77,7 +77,10 @@ export function renderCoverLetterPage(): string {
     "<div class='card'><h3>Choose a design</h3>" +
     "<p class='fieldtip' style='margin-bottom:12px'>Shown exactly as it prints — change it any time, before or after drafting.</p>" +
     clDesignCards("in") +
-    "</div></div>" +
+    "</div>" +
+    "<div class='card' id='letters-card' hidden><h3>My letters</h3>" +
+    "<p class='fieldtip' style='margin-bottom:10px'>Saved in this browser only — reopen, tweak and reprint any of them.</p>" +
+    "<div id='letters-list'></div></div></div>" +
 
     /* analysing */
     "<div class='card centre' id='s-wait' hidden>" +
@@ -203,7 +206,32 @@ if(d&&d.draft){renderLetter(d.draft);show('s-out');window.scrollTo({top:0,behavi
 $('msgtext').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('s-msg');})
 .catch(function(){$('msgtext').textContent='Could not reach Fledge — try again in a minute.';show('s-msg');});});
 
-function renderLetter(d){
+/* ---- local letter library (browser only, never uploaded) ---- */
+var LKEY='fl_letters_v1';
+function lettersAll(){try{var d=JSON.parse(localStorage.getItem(LKEY)||'{}');return Array.isArray(d.letters)?d.letters:[]}catch(e){return []}}
+function lettersSave(list){try{localStorage.setItem(LKEY,JSON.stringify({letters:list.slice(0,20)}))}catch(e){}}
+function saveLetter(draft){var list=lettersAll();
+list.unshift({id:Math.random().toString(16).slice(2),at:Date.now(),
+role:$('cl-role').value.trim(),company:$('cl-company').value.trim(),
+name:$('cl-name').value.trim(),tpl:chosenTpl,draft:draft});
+lettersSave(list);renderLetterList();}
+function renderLetterList(){var list=lettersAll();
+$('letters-card').hidden=list.length===0;
+$('letters-list').innerHTML=list.map(function(l){
+return "<div class='letteritem'><div class='li-main'><b>"+esc2([l.role,l.company].filter(Boolean).join(' · ')||'Cover letter')+"</b>"+
+"<span>"+new Date(l.at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+"</span></div>"+
+"<button type='button' class='btn' data-openl='"+l.id+"'>Open</button>"+
+"<button type='button' class='btn ghost' data-dell='"+l.id+"'>Delete</button></div>"}).join('');
+document.querySelectorAll('[data-openl]').forEach(function(b){b.onclick=function(){
+var l=lettersAll().find(function(x){return x.id===b.dataset.openl});if(!l)return;
+$('cl-role').value=l.role||'';$('cl-company').value=l.company||'';$('cl-name').value=l.name||'';
+applyClTpl(l.tpl||'classic');renderLetter(l.draft,true);show('s-out');window.scrollTo({top:0});};});
+document.querySelectorAll('[data-dell]').forEach(function(b){b.onclick=function(){
+if(!confirm('Delete this letter?'))return;
+lettersSave(lettersAll().filter(function(x){return x.id!==b.dataset.dell}));renderLetterList();};});}
+renderLetterList();
+
+function renderLetter(d,skipSave){
 var name=$('cl-name').value.trim()||'[Your name]';
 $('lp-name').textContent=name;$('lp-signname').textContent=name;
 $('lp-date').textContent=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
@@ -214,7 +242,8 @@ $('lp-signoff').textContent=d.signoff;
 $('pers-card').hidden=d.personalise.length===0;
 $('pers-list').innerHTML=d.personalise.map(function(x){return "<li><span class='tick' style='color:#D9452B'>✎</span>"+markPh(x)+"</li>"}).join('');
 $('tips-card').hidden=d.tips.length===0;
-$('tips-list').innerHTML=d.tips.map(function(x){return "<li><span class='tick'>✓</span>"+esc2(x)+"</li>"}).join('');}
+$('tips-list').innerHTML=d.tips.map(function(x){return "<li><span class='tick'>✓</span>"+esc2(x)+"</li>"}).join('');
+if(!skipSave)saveLetter(d);}
 
 $('copybtn').addEventListener('click',function(){
 var parts=[$('lp-name').textContent,'',$('lp-date').textContent,'',$('lp-body').innerText.trim(),'',
@@ -266,6 +295,12 @@ const COVER_LETTER_CSS = `
 .clsel{padding:10px 16px;min-height:40px;font-size:13px;}
 .cl-designs summary{cursor:pointer;list-style:none;}
 .cl-designs summary::-webkit-details-marker{display:none;}
+.letteritem{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line,#E3DDDA);border-radius:14px;
+  padding:12px 16px;margin-bottom:10px;}
+.li-main{flex:1;min-width:0;}
+.li-main b{display:block;font-size:14px;}
+.li-main span{font-size:12px;color:#8a97a1;}
+.letteritem .btn{padding:8px 14px;min-height:36px;font-size:13px;}
 .ph{background:#FCEBD9;color:#B96A16;border-radius:4px;padding:0 3px;font-weight:600;}
 .edit-hint{font-size:13px;color:var(--blue);margin:-6px 0 16px;line-height:1.5;}
 .goods{list-style:none;line-height:1.65;font-size:14px;}

@@ -54,7 +54,21 @@ export function renderLinkedInPage(): string {
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
     `<div class='chiprow' role='tablist' aria-label='Section scores'>${chipRow}</div>` +
+    "<div class='secnav no-print'><button type='button' class='secarrow' id='sec-prev' aria-label='Previous section'>←</button>" +
+    "<span class='sec-pos' id='sec-pos'></span>" +
+    "<button type='button' class='secarrow' id='sec-next' aria-label='Next section'>→</button></div>" +
     "<div id='r-sections'></div>" +
+    /* profile rewrite — paste-ready wording from their real content */
+    "<div class='card no-print' id='rw-panel'><h3>✍️ Profile Rewrite</h3>" +
+    "<p class='kw-note'>Fledge drafts paste-ready wording for your headline, About section and weakest experience " +
+    "entry — built only from what your profile genuinely says, with [brackets] for anything only you can add. " +
+    "Uses one of today's reviews.</p>" +
+    "<button type='button' class='btn' id='rw-btn'>Generate my rewrite</button>" +
+    "<div id='rw-out' hidden>" +
+    "<div class='rw-block'><div class='rw-h'>HEADLINE — paste into LinkedIn</div><div class='rw-t' id='rw-headline'></div><button type='button' class='rev-copy' data-copy-rw='rw-headline'>Copy</button></div>" +
+    "<div class='rw-block'><div class='rw-h'>ABOUT — paste into LinkedIn</div><div class='rw-t' id='rw-about'></div><button type='button' class='rev-copy' data-copy-rw='rw-about'>Copy</button></div>" +
+    "<div class='rw-block'><div class='rw-h'>YOUR WEAKEST EXPERIENCE ENTRY, REWRITTEN</div><div class='rw-t' id='rw-exp'></div><button type='button' class='rev-copy' data-copy-rw='rw-exp'>Copy</button></div>" +
+    "<div class='kw-note' id='rw-next'></div></div></div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
@@ -122,7 +136,8 @@ export function renderLinkedInPage(): string {
     /* submit + report */
     "function band(pct){return pct>=70?'#1B7A4B':pct>=50?'#B96A16':'#D9452B'}" +
     "function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" +
-    "function submit(text){" +
+    "var lastLiText='';" +
+    "function submit(text){lastLiText=text;" +
     "fetch('/api/linkedin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
     "learner_id:lid,session_id:sid,text:text,target:$('target').value,email:hubEmail})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
@@ -158,6 +173,29 @@ export function renderLinkedInPage(): string {
     "fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'}," +
     "body:JSON.stringify({learner_id:lid,tool:'linkedin',helpful:b.dataset.fb==='1'})}).catch(function(){});" +
     "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
+    /* section arrows: step through the eight panels */
+    "var secIdx=0;function secGo(d){var panels=document.querySelectorAll('.secpanel');if(!panels.length)return;" +
+    "secIdx=Math.max(0,Math.min(panels.length-1,secIdx+d));" +
+    "panels[secIdx].scrollIntoView({behavior:'smooth',block:'start'});" +
+    "$('sec-pos').textContent=(secIdx+1)+' of '+panels.length;}" +
+    "$('sec-prev').onclick=function(){secGo(-1)};$('sec-next').onclick=function(){secGo(1)};" +
+    /* profile rewrite */
+    "$('rw-btn').onclick=function(){if(!lastLiText){alert('Run a review first.');return;}" +
+    "$('rw-btn').disabled=true;$('rw-btn').textContent='Writing your rewrite…';" +
+    "fetch('/api/linkedin-rewrite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
+    "learner_id:lid,text:lastLiText,target:$('target').value})})" +
+    ".then(function(r){return r.json()}).then(function(d){" +
+    "$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
+    "if(!d||!d.rewrite){alert((d&&d.reply)||'Could not rewrite just now — try again in a minute.');return;}" +
+    "$('rw-headline').textContent=d.rewrite.headline;$('rw-about').textContent=d.rewrite.about;" +
+    "$('rw-exp').textContent=d.rewrite.experience_tip||'';$('rw-next').textContent=d.rewrite.next||'';" +
+    "$('rw-out').hidden=false;" +
+    "document.querySelectorAll('[data-copy-rw]').forEach(function(b){b.onclick=function(){" +
+    "var t=$(b.dataset.copyRw).textContent;" +
+    "(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(t):Promise.reject())" +
+    ".then(function(){b.textContent='Copied ✓';setTimeout(function(){b.textContent='Copy'},1500);}).catch(function(){});};});})" +
+    ".catch(function(){$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
+    "alert('Could not reach Fledge — try again in a minute.');});};" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
     "})();</script>";
 
@@ -196,7 +234,18 @@ export function renderLinkedInPage(): string {
 .schip-score{display:block;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;color:#B9AFAB;}
 .schip-label{display:block;font-size:11.5px;font-weight:600;color:#4a5b66;margin-top:2px;}
 .schip-bar{position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--off);display:block;}
-.secpanel{scroll-margin-top:14px;}
+.secpanel{scroll-margin-top:64px;}
+.secnav{display:flex;align-items:center;gap:12px;justify-content:flex-end;margin-bottom:10px;position:sticky;top:8px;z-index:4;}
+.secarrow{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line,#E3DDDA);background:#fff;font-size:16px;
+  cursor:pointer;color:var(--blue);box-shadow:0 2px 8px rgba(5,37,60,.1);}
+.secarrow:hover{border-color:var(--orange);color:var(--orange);}
+.sec-pos{font-size:12px;font-weight:700;color:var(--mut,#6A7A88);min-width:52px;text-align:center;}
+.rw-block{border:1.5px solid var(--line,#E3DDDA);border-radius:12px;padding:12px 14px;margin-bottom:10px;position:relative;}
+.rw-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--blue);margin-bottom:6px;}
+.rw-t{font-size:13.5px;line-height:1.6;color:#2A3F52;white-space:pre-wrap;}
+.rev-copy{position:absolute;top:10px;right:10px;border:1.5px solid var(--line,#E3DDDA);background:#fff;border-radius:999px;
+  padding:4px 12px;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--blue);cursor:pointer;}
+.rev-copy:hover{border-color:var(--orange);color:var(--orange);}
 .sec-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:4px;}
 .sec-head h3{margin-bottom:0;}
 .sec-score{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;}
