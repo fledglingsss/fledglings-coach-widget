@@ -360,19 +360,28 @@ export function renderToolsPage(): string {
     "<p class='sub'>Upload your PDF and Fledge scores it like a recruiter would — honestly, and grounded only in what " +
     "you've genuinely done. It never invents experience for you, because employers can tell. Your PDF is read in your " +
     "browser, reviewed, then forgotten — nothing is stored.</p>" +
-    /* step indicator */
-    "<div class='steps' aria-hidden='true'>" +
-    "<span class='step on'><i>1</i>Upload your PDF</span><span class='step-arr'>→</span>" +
-    "<span class='step'><i>2</i>Fledge reads it</span><span class='step-arr'>→</span>" +
-    "<span class='step'><i>3</i>Get your score</span></div>" +
     /* tabs */
     "<div class='tabs' role='tablist'>" +
     "<button type='button' role='tab' class='tab on' id='tab-cv' aria-selected='true'>📄 My CV</button>" +
     "<button type='button' role='tab' class='tab' id='tab-li' aria-selected='false'>💼 My LinkedIn</button></div>" +
-    /* upload card */
-    "<div class='card' id='u-card'>" +
-    "<label for='target' style='margin-top:0'>Target role or job advert <span class='opt'>(optional — makes the scoring much sharper)</span></label>" +
+    /* guided upload flow: aim first, then the PDF */
+    "<div id='u-card'>" +
+    "<div class='clsteps' aria-hidden='true'>" +
+    "<span class='clstep on' id='cvs-1'><i>1</i>What you're aiming at</span><span class='clsep'></span>" +
+    "<span class='clstep' id='cvs-2'><i>2</i>Your CV</span><span class='clsep'></span>" +
+    "<span class='clstep' id='cvs-3'><i>3</i>Your score</span></div>" +
+    /* step 1: target */
+    "<div class='card' id='cvst-1'>" +
+    "<h3>🎯 What are you aiming at?</h3>" +
+    "<p class='kw-note' style='margin-bottom:4px'>Name the role — or paste the whole advert — and the scoring gets " +
+    "much sharper: keyword matching, tailoring, the lot. You can also skip this.</p>" +
     "<input type='text' id='target' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
+    "<div class='btnrow' style='margin-top:14px'>" +
+    "<button type='button' class='btn' id='cv-n1'>Next: your CV →</button>" +
+    "<button type='button' class='btn ghost' id='cv-skip'>Skip — just score it</button></div></div>" +
+    /* step 2: upload */
+    "<div class='card' id='cvst-2' hidden>" +
+    "<h3 id='u-step-title'>📄 Upload your CV</h3>" +
     "<div class='drop' id='drop' tabindex='0' role='button' aria-label='Upload a PDF to review'>" +
     "<input type='file' id='file' accept='.pdf,application/pdf' hidden>" +
     "<div id='d-idle'><div class='drop-ico' aria-hidden='true'>" +
@@ -381,7 +390,9 @@ export function renderToolsPage(): string {
     "<div class='drop-big' id='d-title'>Drop your CV here</div>" +
     "<div class='drop-hint' id='d-hint'>or click to choose a file · PDF only · max 10&nbsp;MB</div></div>" +
     "<div id='d-err' class='drop-err' hidden></div>" +
-    "</div></div>" +
+    "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cv-b2'>← Back</button>" +
+    "<span class='hero-note' id='aim-note'></span></div></div>" +
+    "</div>" +
     /* analysing card */
     "<div class='card centre' id='a-card' hidden>" +
     "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
@@ -435,9 +446,21 @@ export function renderToolsPage(): string {
     "var qs=new URLSearchParams(location.search);" +
     "var hubEmail=flResolveEmail();flIdentityChip();" +
     "var tabCv=$('tab-cv'),tabLi=$('tab-li');" +
+    "function dots(a,b,c){[['cvs-1',a],['cvs-2',b],['cvs-3',c]].forEach(function(p){" +
+    "$(p[0]).className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');});}" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
-    "document.querySelectorAll('.steps .step').forEach(function(s,i){" +
-    "s.className='step'+((card==='u-card'&&i===0)||(card==='a-card'&&i===1)||(card==='r-card'&&i===2)?' on':'')});}" +
+    "if(card==='a-card')dots('done','done','on');" +
+    "else if(card==='r-card')dots('done','done','done');" +
+    "else if(card==='u-card')dots($('cvst-2').hidden?'on':'done',$('cvst-2').hidden?'':'on','');}" +
+    /* guided steps: aim -> upload */
+    "function cvGo(n){$('cvst-1').hidden=n!==1;$('cvst-2').hidden=n!==2;" +
+    "dots(n===1?'on':'done',n===2?'on':'','');" +
+    "if(n===2){var t=$('target').value.trim();" +
+    "$('aim-note').textContent=t?'Scoring against: '+(t.length>60?t.slice(0,57)+'…':t):'No target set — scoring for overall readiness.';}" +
+    "window.scrollTo({top:0,behavior:'smooth'});}" +
+    "$('cv-n1').onclick=function(){cvGo(2)};" +
+    "$('cv-skip').onclick=function(){$('target').value='';cvGo(2)};" +
+    "$('cv-b2').onclick=function(){cvGo(1)};" +
     "function setKind(k){kind=k;var cv=k==='cv';" +
     "tabCv.className='tab'+(cv?' on':'');tabCv.setAttribute('aria-selected',String(cv));" +
     "tabLi.className='tab'+(cv?'':' on');tabLi.setAttribute('aria-selected',String(!cv));" +
@@ -562,14 +585,17 @@ export function renderToolsPage(): string {
     "})();</script>";
 
   const extraCss = `
-.steps{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
-.step{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#8a97a1;
-  background:#fff;border-radius:999px;padding:7px 14px;border:1.5px solid var(--off);}
-.step i{width:20px;height:20px;border-radius:50%;background:var(--off);color:#8a97a1;font-style:normal;
-  display:inline-flex;align-items:center;justify-content:center;font-size:11px;}
-.step.on{color:var(--navy);border-color:var(--mango);}
-.step.on i{background:linear-gradient(135deg,var(--mango),var(--orange));color:#fff;}
-.step-arr{color:#b9c2c9;font-weight:700;}
+.clsteps{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.clstep{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#8a97a1;
+  background:#fff;border:1.5px solid var(--line,#E3DDDA);border-radius:999px;padding:7px 14px;}
+.clstep i{width:20px;height:20px;border-radius:50%;background:var(--off);color:#8a97a1;font-style:normal;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;}
+.clstep.on{color:var(--navy);border-color:var(--mango);}
+.clstep.on i{background:linear-gradient(135deg,var(--mango),var(--orange));color:#fff;}
+.clstep.done{color:var(--navy);}
+.clstep.done i{background:#1B7A4B;color:#fff;}
+.clsep{flex:none;width:22px;border-top:2px dashed #C9C1BD;}
+.hero-note{font-size:12.5px;color:#8a97a1;align-self:center;}
 .drop{border:2.5px dashed var(--blue);border-radius:18px;padding:34px 20px;text-align:center;cursor:pointer;
   background:rgba(19,80,127,.04);margin-top:16px;transition:border-color .15s,background .15s;}
 .drop:hover,.drop.over{border-color:var(--orange);background:rgba(217,69,43,.06);}

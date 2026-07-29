@@ -22,12 +22,26 @@ export function renderLinkedInPage(): string {
     "<p class='sub'>Recruiters look you up — make what they find work for you. Save your profile as a PDF, " +
     "upload it here, and Fledge scores every section like a recruiter would: honestly, and grounded only in " +
     "what you've genuinely done. Your PDF is read in your browser, reviewed, then forgotten.</p>" +
-    /* upload */
-    "<div class='card' id='u-card'>" +
-    "<div class='howto'><b>How to get your profile PDF:</b> on LinkedIn open your profile → tap " +
-    "<b>More</b> (or <b>Resources</b>) → <b>Save to PDF</b>. Then drop the file below.</div>" +
-    "<label for='target'>Target role or job advert <span class='opt'>(optional — makes the scoring much sharper)</span></label>" +
+    /* guided upload flow: aim -> get the PDF -> drop it */
+    "<div id='u-card'>" +
+    "<div class='clsteps' aria-hidden='true'>" +
+    "<span class='clstep on' id='lis-1'><i>1</i>What you're aiming at</span><span class='clsep'></span>" +
+    "<span class='clstep' id='lis-2'><i>2</i>Your profile PDF</span><span class='clsep'></span>" +
+    "<span class='clstep' id='lis-3'><i>3</i>Your score</span></div>" +
+    /* step 1: target */
+    "<div class='card' id='list-1'>" +
+    "<h3>🎯 What are you aiming at?</h3>" +
+    "<p class='kw-note' style='margin-bottom:4px'>Name the role — or paste an advert — and every section gets scored " +
+    "against it. You can also skip this.</p>" +
     "<input type='text' id='target' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
+    "<div class='btnrow' style='margin-top:14px'>" +
+    "<button type='button' class='btn' id='li-n1'>Next: your profile →</button>" +
+    "<button type='button' class='btn ghost' id='li-skip'>Skip — just score it</button></div></div>" +
+    /* step 2: get + drop the PDF */
+    "<div class='card' id='list-2' hidden>" +
+    "<h3>💼 Get your profile as a PDF</h3>" +
+    "<div class='howto'><b>On LinkedIn:</b> open your profile → tap <b>More</b> (or <b>Resources</b>) → " +
+    "<b>Save to PDF</b>. Then drop the file below — it is read on your device and never uploaded.</div>" +
     "<div class='drop' id='drop' tabindex='0' role='button' aria-label='Upload your LinkedIn PDF'>" +
     "<input type='file' id='file' accept='.pdf,application/pdf' hidden>" +
     "<div id='d-idle'><div class='drop-ico' aria-hidden='true'>" +
@@ -36,7 +50,9 @@ export function renderLinkedInPage(): string {
     "<div class='drop-big'>Drop your LinkedIn PDF here</div>" +
     "<div class='drop-hint'>or click to choose a file · PDF only · max 10&nbsp;MB</div></div>" +
     "<div id='d-err' class='drop-err' hidden></div>" +
-    "</div></div>" +
+    "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='li-b2'>← Back</button>" +
+    "<span class='hero-note' id='li-aim-note'></span></div></div>" +
+    "</div>" +
     /* analysing */
     "<div class='card centre' id='a-card' hidden>" +
     "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
@@ -88,7 +104,20 @@ export function renderLinkedInPage(): string {
     "var $=function(id){return document.getElementById(id)};" +
     "var qs=new URLSearchParams(location.search);" +
     "var hubEmail=flResolveEmail();flIdentityChip();" +
-    "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});}" +
+    "function dots(a,b,c){[['lis-1',a],['lis-2',b],['lis-3',c]].forEach(function(p){" +
+    "$(p[0]).className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');});}" +
+    "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
+    "if(card==='a-card')dots('done','done','on');" +
+    "else if(card==='r-card')dots('done','done','done');" +
+    "else if(card==='u-card')dots($('list-2').hidden?'on':'done',$('list-2').hidden?'':'on','');}" +
+    "function liGo(n){$('list-1').hidden=n!==1;$('list-2').hidden=n!==2;" +
+    "dots(n===1?'on':'done',n===2?'on':'','');" +
+    "if(n===2){var t=$('target').value.trim();" +
+    "$('li-aim-note').textContent=t?'Scoring against: '+(t.length>60?t.slice(0,57)+'…':t):'No target set — scoring for overall readiness.';}" +
+    "window.scrollTo({top:0,behavior:'smooth'});}" +
+    "$('li-n1').onclick=function(){liGo(2)};" +
+    "$('li-skip').onclick=function(){$('target').value='';liGo(2)};" +
+    "$('li-b2').onclick=function(){liGo(1)};" +
     /* pdf.js on demand (same rail as /tools) */
     "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
     "var PDFWK='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';" +
@@ -200,7 +229,18 @@ export function renderLinkedInPage(): string {
     "})();</script>";
 
   const extraCss = `
-.howto{background:rgba(19,80,127,.06);border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.55;margin-bottom:6px;}
+.clsteps{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.clstep{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#8a97a1;
+  background:#fff;border:1.5px solid var(--line,#E3DDDA);border-radius:999px;padding:7px 14px;}
+.clstep i{width:20px;height:20px;border-radius:50%;background:var(--off);color:#8a97a1;font-style:normal;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;}
+.clstep.on{color:var(--navy);border-color:var(--mango);}
+.clstep.on i{background:linear-gradient(135deg,var(--mango),var(--orange));color:#fff;}
+.clstep.done{color:var(--navy);}
+.clstep.done i{background:#1B7A4B;color:#fff;}
+.clsep{flex:none;width:22px;border-top:2px dashed #C9C1BD;}
+.hero-note{font-size:12.5px;color:#8a97a1;align-self:center;}
+.howto{background:rgba(19,80,127,.06);border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.55;margin-bottom:14px;}
 .drop{border:2.5px dashed var(--blue);border-radius:18px;padding:34px 20px;text-align:center;cursor:pointer;
   background:rgba(19,80,127,.04);margin-top:16px;transition:border-color .15s,background .15s;}
 .drop:hover,.drop.over{border-color:var(--orange);background:rgba(217,69,43,.06);}
