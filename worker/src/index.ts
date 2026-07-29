@@ -2450,7 +2450,7 @@ app.get("/portal/data", async (c) => {
   /* Cache is per scope — a tag-scoped code must never be served the
    * whole-school payload. */
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `portal:data:v7:${scopeKey}`;
+  const cacheKey = `portal:data:v8:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
 
@@ -2474,6 +2474,20 @@ app.get("/portal/data", async (c) => {
         for (const t of a.tags) cohortCounts.set(t, (cohortCounts.get(t) ?? 0) + 1);
       }
     }
+
+    /* Full tag inventory from the sampled ACCOUNTS (not just learners
+     * with reflections) — the backbone for the provider dashboard's
+     * tag/cohort views. Scoped codes see only tags co-occurring on
+     * learners inside their scope. */
+    const tagCounts = new Map<string, number>();
+    for (const { user } of sample) {
+      for (const t of user.tags ?? []) {
+        tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+      }
+    }
+    const tagInventory = [...tagCounts.entries()]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count);
 
     /* The narrative is generated lazily by /portal/narrative — keeping
      * a Sonnet call off this endpoint's critical path (QA 2026-07-22:
@@ -2516,6 +2530,14 @@ app.get("/portal/data", async (c) => {
       cohorts: [...cohortCounts.entries()]
         .map(([tag, count]) => ({ tag, count }))
         .sort((a, b) => b.count - a.count),
+      /* Learner tags for the dashboard: every tag seen across the
+       * sampled accounts with how many learners carry it, plus the
+       * sample context needed to read the numbers honestly. */
+      tags: {
+        inventory: tagInventory,
+        sampleSize: sample.length,
+        totalUsers,
+      },
     };
     await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
       expirationTtl: PORTAL_CACHE_TTL,

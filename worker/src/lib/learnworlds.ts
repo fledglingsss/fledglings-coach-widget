@@ -438,7 +438,15 @@ export async function listUsersPage(
     };
   };
   return {
-    users: payload.data ?? [],
+    /* Decode listed users' names and tags the same way the single-user
+     * lookup does — tag inventories must match what admins typed. */
+    users: (payload.data ?? []).map((u) => ({
+      ...u,
+      first_name: u.first_name ? decodeHtml(u.first_name) : u.first_name,
+      last_name: u.last_name ? decodeHtml(u.last_name) : u.last_name,
+      username: u.username ? decodeHtml(u.username) : u.username,
+      tags: u.tags?.map(decodeHtml),
+    })),
     totalPages: payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1,
     totalItems: payload.meta?.totalItems ?? payload.meta?.total_items ?? null,
   };
