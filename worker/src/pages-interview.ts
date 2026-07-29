@@ -33,13 +33,18 @@ export function renderInterviewPage(): string {
     "<button type='button' class='ivtab on' id='tab-practice' role='tab'>Practice</button>" +
     "<button type='button' class='ivtab' id='tab-recs' role='tab'>My recordings <span class='ivcount' id='rec-count' hidden></span></button>" +
     "<button type='button' class='ivtab' id='tab-learn' role='tab'>Learning</button></div>" +
-    /* learning: prep tracks + question bank */
+    /* learning: prep tracks, module cards, question bank by role */
     "<div id='home-learn' hidden>" +
+    "<h3 class='learn-sec'>Preparation tracks</h3>" +
     "<div class='trackrow' id='trackrow'></div>" +
-    "<div class='card'><h3>Modules</h3><div id='learn-list'></div></div>" +
-    "<div class='card'><h3>Question bank</h3>" +
-    "<p class='sub' style='margin-bottom:12px'>Every question from every role set — practise any single one on camera, " +
-    "with the same AI review.</p><div id='qbank'></div></div></div>" +
+    "<h3 class='learn-sec'>Modules</h3>" +
+    "<div class='modgrid' id='learn-list'></div>" +
+    "<div id='learn-reader' hidden></div>" +
+    "<h3 class='learn-sec'>Practise by role</h3>" +
+    "<p class='sub' style='margin-bottom:12px'>Pick a role to see its questions — practise any single one on camera " +
+    "with the full AI review.</p>" +
+    "<div class='rolegrid' id='qbank-roles'></div>" +
+    "<div id='qbank' hidden></div></div>" +
     "<div id='home-recs' hidden>" +
     "<div class='card'><h3>Your practice library</h3>" +
     "<p class='sub' style='margin-bottom:12px'>Every practice saves here the moment you finish — video, answers and " +
@@ -60,20 +65,28 @@ export function renderInterviewPage(): string {
     "<div class='card'><h3>Pick your interview</h3>" +
     "<p class='sub' style='margin-bottom:14px'>Five questions a real interviewer for that kind of role would ask.</p>" +
     `<div class='roles'>${roleButtons}</div></div>` +
-    "<div class='card'><h3>Or generate your own</h3>" +
-    "<p class='sub' style='margin-bottom:12px'>Fledge writes the five questions that interviewer would actually ask — " +
-    "from a real advert, from your own CV, or for a course place.</p>" +
-    "<div class='srcrow' role='tablist'>" +
-    "<button type='button' class='srcbtn on' data-src='jd'>📋 From a job advert</button>" +
-    "<button type='button' class='srcbtn' data-src='cv'>📄 From your CV</button>" +
-    "<button type='button' class='srcbtn' data-src='admission'>🎓 Admission interview</button></div>" +
-    "<div id='src-jd'><textarea id='jd' rows='5' maxlength='3000' placeholder='Paste the job advert here…'></textarea></div>" +
-    "<div id='src-cv' hidden><textarea id='gen-cv' rows='5' maxlength='9000' placeholder='Paste your CV text here — the questions will dig into your real experience…'></textarea></div>" +
-    "<div id='src-admission' hidden>" +
+    "<div class='card'><h3>🚀 Generate your own interview</h3>" +
+    "<p class='sub' style='margin-bottom:14px'>Choose how to build your five personalised questions — Fledge writes " +
+    "what that interviewer would actually ask.</p>" +
+    "<div class='srccard' data-src='jd'>" +
+    "<button type='button' class='srchead' aria-expanded='true'><span class='srcico' style='background:#EAF2FA'>📋</span>" +
+    "<span class='srctxt'><b>From a job description</b><i>Paste an advert to get questions tailored to that exact role</i></span>" +
+    "<span class='srcchev'>▾</span></button>" +
+    "<div class='srcbody' id='src-jd'><textarea id='jd' rows='4' maxlength='3000' placeholder='Paste the job advert here…'></textarea></div></div>" +
+    "<div class='srccard closed' data-src='cv'>" +
+    "<button type='button' class='srchead' aria-expanded='false'><span class='srcico' style='background:#FDF3EC'>📄</span>" +
+    "<span class='srctxt'><b>From your CV</b><i>Questions that dig into your genuine experience — great for “walk me through your CV”</i></span>" +
+    "<span class='srcchev'>▾</span></button>" +
+    "<div class='srcbody' id='src-cv' hidden><textarea id='gen-cv' rows='4' maxlength='9000' placeholder='Paste your CV text here…'></textarea></div></div>" +
+    "<div class='srccard closed' data-src='admission'>" +
+    "<button type='button' class='srchead' aria-expanded='false'><span class='srcico' style='background:#F0EFFB'>🎓</span>" +
+    "<span class='srctxt'><b>Admission interview</b><i>For a course, college or university place — tailored to your programme</i></span>" +
+    "<span class='srcchev'>▾</span></button>" +
+    "<div class='srcbody' id='src-admission' hidden>" +
     "<input type='text' id='gen-degree' maxlength='120' placeholder='The course or degree, e.g. Business BTEC, Psychology BSc'>" +
-    "<textarea id='gen-course' rows='3' maxlength='3000' style='margin-top:10px' placeholder='Paste the course description (optional — sharpens the questions)'></textarea>" +
-    "<textarea id='gen-adm-cv' rows='3' maxlength='9000' style='margin-top:10px' placeholder='Paste your CV or personal statement (optional)'></textarea></div>" +
-    "<div class='btnrow' style='margin-top:12px'><button type='button' class='btn quiet' id='genbtn'>Generate my interview</button>" +
+    "<textarea id='gen-course' rows='2' maxlength='3000' style='margin-top:10px' placeholder='Course description (optional — sharpens the questions)'></textarea>" +
+    "<textarea id='gen-adm-cv' rows='2' maxlength='9000' style='margin-top:10px' placeholder='Your CV or personal statement (optional)'></textarea></div></div>" +
+    "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn' id='genbtn'>Generate AI interview</button>" +
     "<span class='hero-note' id='genstate'>Up to 5 custom interviews a day</span></div></div>" +
     "</div>" +
     "</div>" +
@@ -463,12 +476,16 @@ document.querySelectorAll('.rolebtn').forEach(function(b){b.addEventListener('cl
 role=b.dataset.role;roleLabel=b.textContent;qs=FL_QUESTIONS[role];sig='';toSetup();});});
 $('pitchbtn').addEventListener('click',function(){
 role='general';roleLabel='Your 60-second pitch';qs=[FL_QUESTIONS['general'][0]];sig='';toSetup();});
-/* three generation sources, like the reference design's chooser */
+/* three generation sources as expandable icon cards */
 var genSrc='jd';
-document.querySelectorAll('.srcbtn').forEach(function(b){b.onclick=function(){
-genSrc=b.dataset.src;
-document.querySelectorAll('.srcbtn').forEach(function(x){x.className='srcbtn'+(x.dataset.src===genSrc?' on':'')});
-['jd','cv','admission'].forEach(function(s){$('src-'+s).hidden=s!==genSrc});};});
+document.querySelectorAll('.srccard').forEach(function(card){
+card.querySelector('.srchead').onclick=function(){
+genSrc=card.dataset.src;
+document.querySelectorAll('.srccard').forEach(function(x){
+var on=x.dataset.src===genSrc;
+x.classList.toggle('closed',!on);
+x.querySelector('.srchead').setAttribute('aria-expanded',String(on));
+x.querySelector('.srcbody').hidden=!on;});};});
 $('genbtn').addEventListener('click',function(){
 var payload={learner_id:lid,mode:genSrc};
 if(genSrc==='jd'){payload.jd=$('jd').value.trim();
@@ -736,34 +753,72 @@ var LEARN_KEY='fl_iv_learn_v1';
 function learnRead(){try{return JSON.parse(localStorage.getItem(LEARN_KEY)||'[]')}catch(e){return []}}
 function learnMark(id){var r=learnRead();if(r.indexOf(id)===-1){r.push(id);
 try{localStorage.setItem(LEARN_KEY,JSON.stringify(r))}catch(e){}}renderTracks();}
-function renderTracks(){var r=learnRead();
-function pct(list){var done=list.filter(function(m){return r.indexOf(m.id)>-1}).length;
-return Math.round(done*100/list.length);}
-var fast=LEARN.filter(function(m){return m.track==='fast'});
-var h="<div class='trackcard'><span class='tk-ico'>🚀</span><div><b>Fast Track</b>"+
-"<span>"+fast.length+" modules · "+pct(fast)+"% read</span></div><div class='tk-bar'><i style='width:"+pct(fast)+"%'></i></div></div>"+
-"<div class='trackcard'><span class='tk-ico'>📚</span><div><b>Comprehensive</b>"+
-"<span>"+LEARN.length+" modules · "+pct(LEARN)+"% read</span></div><div class='tk-bar'><i style='width:"+pct(LEARN)+"%'></i></div></div>";
-$('trackrow').innerHTML=h;}
-function renderLearn(){renderTracks();var r=learnRead();
-$('learn-list').innerHTML=LEARN.map(function(m){
-return "<details class='lmod' data-mod='"+m.id+"'><summary><span class='lm-ic'>"+(r.indexOf(m.id)>-1?'✓':'▸')+"</span>"+
-"<b>"+esc2(m.title)+"</b><span class='lm-min'>"+m.mins+" min · "+(m.track==='fast'?'Fast Track':'Comprehensive')+"</span></summary>"+
-"<div class='lm-body'><p>"+esc2(m.body)+"</p><ul>"+
-m.moves.map(function(v){return "<li>"+esc2(v)+"</li>"}).join('')+"</ul></div></details>"}).join('');
-document.querySelectorAll('.lmod').forEach(function(d){d.addEventListener('toggle',function(){
-if(d.open)learnMark(d.dataset.mod);});});
-/* question bank: every authored question, practisable alone */
-var qb='';Object.keys(FL_QUESTIONS).forEach(function(rk){
-qb+="<div class='qb-role'>"+esc2(ROLE_LABELS_JS[rk]||rk)+" <i>("+FL_QUESTIONS[rk].length+" questions)</i></div>";
-FL_QUESTIONS[rk].forEach(function(q,qi){
-qb+="<div class='qb-q'><span>"+esc2(q)+"</span><button type='button' class='rev-redo' data-pr-role='"+rk+"' data-pr-idx='"+qi+"'>Practise this</button></div>";});});
-$('qbank').innerHTML=qb;
-document.querySelectorAll('[data-pr-role]').forEach(function(b){b.onclick=function(){
-var rk=b.dataset.prRole;var q=FL_QUESTIONS[rk][+b.dataset.prIdx];if(!q)return;
-role=rk;roleLabel='Single question · '+(ROLE_LABELS_JS[rk]||rk);qs=[q];sig='';toSetup();};});}
+var MOD_ICONS={rounds:'🎬',star:'⭐',prep:'🗺️',ask:'💬',unknown:'🧭',video:'🎥',logistics:'📅',after:'📮'};
+var ROLE_ICONS={'customer-service':'🎧',retail:'🛍️',trades:'🛠️','office-admin':'🗂️',care:'🤝',hospitality:'☕',general:'🐣'};
 var ROLE_LABELS_JS={'customer-service':'Customer service',retail:'Retail','office-admin':'Office & admin',
 trades:'Trades & construction',care:'Care',hospitality:'Hospitality',general:'Any first job'};
+function readPct(list){var r=learnRead();
+var done=list.filter(function(m){return r.indexOf(m.id)>-1}).length;
+return Math.round(done*100/list.length);}
+function firstUnread(list){var r=learnRead();
+var m=list.find(function(x){return r.indexOf(x.id)===-1});return m?m.id:list[0].id;}
+function renderTracks(){
+var fast=LEARN.filter(function(m){return m.track==='fast'});
+function tk(icon,name,list){var p=readPct(list);
+return "<div class='trackcard'><span class='tk-ico'>"+icon+"</span>"+
+"<div class='tk-main'><b>"+name+" · "+p+"%</b>"+
+"<span>"+list.length+" modules · "+list.reduce(function(s,m){return s+m.mins},0)+" min total</span>"+
+"<div class='tk-bar'><i style='width:"+p+"%'></i></div></div>"+
+"<button type='button' class='btn tk-go' data-track-start='"+firstUnread(list)+"'>"+(p===0?'Start →':p===100?'Revisit →':'Continue →')+"</button></div>";}
+$('trackrow').innerHTML=tk('🚀','Fast Track',fast)+tk('📚','Comprehensive',LEARN);
+document.querySelectorAll('[data-track-start]').forEach(function(b){b.onclick=function(){openModule(b.dataset.trackStart)};});}
+function openModule(id){var m=LEARN.find(function(x){return x.id===id});if(!m)return;
+learnMark(m.id);
+var idx=LEARN.indexOf(m);
+$('learn-list').hidden=true;$('learn-reader').hidden=false;
+$('learn-reader').innerHTML="<div class='card reader'>"+
+"<div class='reader-top'><span class='mod-ico big'>"+(MOD_ICONS[m.id]||'📘')+"</span>"+
+"<div><span class='modtag'>"+(m.track==='fast'?'Fast Track':'Comprehensive')+" · "+m.mins+" min</span>"+
+"<h3 style='margin:4px 0 0'>"+esc2(m.title)+"</h3></div></div>"+
+"<p class='reader-body'>"+esc2(m.body)+"</p>"+
+"<div class='reader-h'>THE MOVES</div><ul class='reader-moves'>"+
+m.moves.map(function(v){return "<li><span class='tick'>✓</span>"+esc2(v)+"</li>"}).join('')+"</ul>"+
+"<div class='btnrow' style='margin-top:16px'>"+
+"<button type='button' class='btn ghost' id='reader-back'>← All modules</button>"+
+(idx<LEARN.length-1?"<button type='button' class='btn' id='reader-next'>Next: "+esc2(LEARN[idx+1].title)+" →</button>":"")+
+"</div></div>";
+$('reader-back').onclick=function(){$('learn-reader').hidden=true;$('learn-list').hidden=false;renderLearn();};
+var nx=$('reader-next');if(nx)nx.onclick=function(){openModule(LEARN[idx+1].id)};
+window.scrollTo({top:0,behavior:'smooth'});}
+function renderLearn(){renderTracks();var r=learnRead();
+$('learn-list').innerHTML=LEARN.map(function(m){
+var read=r.indexOf(m.id)>-1;
+return "<button type='button' class='modcard' data-mod='"+m.id+"'>"+
+"<span class='mod-ico'>"+(MOD_ICONS[m.id]||'📘')+"</span>"+
+"<span class='modtag'>"+(m.track==='fast'?'Fast Track':'Comprehensive')+"</span>"+
+"<b>"+esc2(m.title)+"</b><p>"+esc2(m.body.split('.')[0])+".</p>"+
+"<span class='mod-foot'>"+(read?"<i class='mod-done'>✓ Read</i>":"▶ "+m.mins+" min read")+"<i class='mod-arr'>›</i></span></button>";}).join('');
+document.querySelectorAll('.modcard').forEach(function(b){b.onclick=function(){openModule(b.dataset.mod)};});
+/* question bank: role cards first, drill into questions */
+$('qbank-roles').innerHTML=Object.keys(FL_QUESTIONS).map(function(rk){
+return "<button type='button' class='rolecard' data-qbrole='"+rk+"'>"+
+"<span class='mod-ico'>"+(ROLE_ICONS[rk]||'💼')+"</span>"+
+"<b>"+esc2(ROLE_LABELS_JS[rk]||rk)+"</b>"+
+"<span class='rolecount'>❓ "+FL_QUESTIONS[rk].length+" questions</span></button>";}).join('');
+document.querySelectorAll('[data-qbrole]').forEach(function(b){b.onclick=function(){
+var rk=b.dataset.qbrole;
+$('qbank').hidden=false;
+$('qbank').innerHTML="<div class='card'><div class='listhead2'><h3>"+
+(ROLE_ICONS[rk]||'')+" "+esc2(ROLE_LABELS_JS[rk]||rk)+" questions</h3>"+
+"<button type='button' class='rev-redo' id='qb-close'>Close</button></div>"+
+FL_QUESTIONS[rk].map(function(q,qi){
+return "<div class='qb-q'><span class='qb-n'>Q"+(qi+1)+"</span><span>"+esc2(q)+"</span>"+
+"<button type='button' class='btn qb-go' data-pr-role='"+rk+"' data-pr-idx='"+qi+"'>Practise</button></div>";}).join('')+"</div>";
+$('qbank').scrollIntoView({behavior:'smooth',block:'start'});
+$('qb-close').onclick=function(){$('qbank').hidden=true};
+document.querySelectorAll('[data-pr-role]').forEach(function(pb){pb.onclick=function(){
+var rk2=pb.dataset.prRole;var q=FL_QUESTIONS[rk2][+pb.dataset.prIdx];if(!q)return;
+role=rk2;roleLabel='Single question · '+(ROLE_LABELS_JS[rk2]||rk2);qs=[q];sig='';toSetup();};});};});}
 
 /* ---------------- self review ---------------- */
 var SELF_ITEMS=['I actually answered the question that was asked','I used a real example, not a vague claim',
@@ -812,40 +867,79 @@ const INTERVIEW_CSS = `
 .ivcount{background:var(--orange);color:#fff;border-radius:999px;min-width:20px;height:20px;font-size:11px;
   display:inline-flex;align-items:center;justify-content:center;padding:0 6px;}
 .ivtab.on .ivcount{background:var(--mango);}
-.srcrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
-.srcbtn{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:10px 16px;font-family:inherit;
-  font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;}
-.srcbtn.on{border-color:var(--orange);color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.14);}
-.trackrow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
-@media(max-width:640px){.trackrow{grid-template-columns:1fr;}}
+/* generate chooser — expandable icon cards */
+.srccard{border:1.5px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:#fff;
+  transition:border-color .12s,box-shadow .12s;}
+.srccard:not(.closed){border-color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.12);}
+.srchead{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;background:#fff;
+  font-family:inherit;cursor:pointer;text-align:left;}
+.srcico{width:44px;height:44px;border-radius:12px;font-size:20px;flex:none;display:inline-flex;align-items:center;justify-content:center;}
+.srctxt{flex:1;min-width:0;}
+.srctxt b{display:block;font-size:14.5px;color:var(--navy);}
+.srctxt i{font-style:normal;font-size:12px;color:var(--mut);line-height:1.4;}
+.srcchev{color:var(--mut);font-size:13px;transition:transform .15s;}
+.srccard:not(.closed) .srcchev{transform:rotate(180deg);}
+.srcbody{padding:0 16px 14px;}
+/* learning */
+.learn-sec{font-size:17px;margin:4px 0 12px;}
+.learn-sec:not(:first-child){margin-top:22px;}
+.trackrow{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:680px){.trackrow{grid-template-columns:1fr;}}
 .trackcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:flex;
-  align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(5,37,60,.05);}
-.tk-ico{font-size:24px;}
-.trackcard b{display:block;font-size:15px;}
-.trackcard span{font-size:12px;color:var(--mut);}
-.tk-bar{flex-basis:100%;height:8px;border-radius:999px;background:var(--off);overflow:hidden;}
+  align-items:center;gap:14px;box-shadow:0 1px 3px rgba(5,37,60,.05);}
+.tk-ico{width:48px;height:48px;border-radius:50%;background:#FDF3EC;font-size:22px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;}
+.tk-main{flex:1;min-width:0;}
+.tk-main b{display:block;font-size:14.5px;}
+.tk-main span{font-size:11.5px;color:var(--mut);}
+.tk-bar{height:7px;border-radius:999px;background:var(--off);overflow:hidden;margin-top:7px;}
 .tk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--mango),var(--orange));border-radius:999px;}
-.lmod{border:1.5px solid var(--line);border-radius:12px;margin-bottom:8px;padding:0 14px;}
-.lmod summary{display:flex;align-items:center;gap:10px;padding:12px 0;cursor:pointer;list-style:none;}
-.lmod summary::-webkit-details-marker{display:none;}
-.lm-ic{width:22px;height:22px;border-radius:50%;background:var(--off);color:var(--mut);font-weight:800;font-size:11px;
-  display:inline-flex;align-items:center;justify-content:center;flex:none;}
-.lmod[open] .lm-ic,.lmod summary .lm-ic{}
-.lmod b{flex:1;font-size:14px;}
-.lm-min{font-size:11.5px;color:var(--mut);white-space:nowrap;}
-.lm-body{padding:0 0 14px 32px;font-size:13.5px;color:#3d4c59;line-height:1.6;}
-.lm-body ul{margin:8px 0 0 16px;}
-.lm-body li{margin-bottom:5px;}
-.qb-role{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);
-  margin:14px 0 8px;border-bottom:1px solid var(--off);padding-bottom:4px;}
-.qb-role:first-child{margin-top:0;}
-.qb-role i{font-style:normal;font-weight:600;color:var(--mut);text-transform:none;letter-spacing:0;}
-.qb-q{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:13.5px;color:#3d4c59;}
+.tk-go{padding:10px 16px;min-height:40px;font-size:13px;flex:none;}
+.modgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.modcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;text-align:left;
+  font-family:inherit;cursor:pointer;display:flex;flex-direction:column;gap:8px;
+  box-shadow:0 1px 3px rgba(5,37,60,.05);transition:transform .12s,box-shadow .12s,border-color .12s;}
+.modcard:hover{transform:translateY(-3px);border-color:var(--mango);box-shadow:0 12px 26px -14px rgba(5,37,60,.28);}
+.mod-ico{width:46px;height:46px;border-radius:50%;background:#EAF2FA;font-size:20px;
+  display:inline-flex;align-items:center;justify-content:center;}
+.mod-ico.big{width:56px;height:56px;font-size:24px;flex:none;}
+.modtag{align-self:flex-start;background:var(--off);color:var(--blue);border-radius:999px;padding:3px 10px;
+  font-size:10.5px;font-weight:700;}
+.modcard b{font-size:14.5px;color:var(--navy);line-height:1.35;}
+.modcard p{font-size:12px;color:var(--mut);line-height:1.5;flex:1;margin:0;}
+.mod-foot{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:var(--blue);}
+.mod-done{font-style:normal;color:#1B7A4B;}
+.mod-arr{font-style:normal;font-size:16px;color:var(--mut);}
+.reader-top{display:flex;gap:14px;align-items:center;margin-bottom:12px;}
+.reader-body{font-size:14.5px;line-height:1.7;color:#3d4c59;max-width:60ch;}
+.reader-h{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--blue);margin:16px 0 8px;}
+.reader-moves{list-style:none;}
+.reader-moves li{display:flex;gap:10px;padding:8px 12px;background:#F7F4F2;border-radius:10px;margin-bottom:7px;
+  font-size:13.5px;line-height:1.55;color:#3d4c59;}
+.reader-moves .tick{color:#1B7A4B;font-weight:800;}
+.rolegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+.rolecard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;text-align:left;
+  font-family:inherit;cursor:pointer;display:flex;flex-direction:column;gap:8px;
+  box-shadow:0 1px 3px rgba(5,37,60,.05);transition:transform .12s,border-color .12s;}
+.rolecard:hover{transform:translateY(-2px);border-color:var(--orange);}
+.rolecard b{font-size:13.5px;color:var(--navy);}
+.rolecount{font-size:11.5px;color:var(--mut);}
+.listhead2{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.listhead2 h3{margin:0;}
+.qb-q{display:flex;align-items:center;gap:12px;padding:10px 0;font-size:13.5px;color:#3d4c59;border-bottom:1px solid var(--off);}
+.qb-q:last-child{border-bottom:none;}
+.qb-n{font-size:11px;font-weight:800;color:var(--orange);flex:none;}
 .qb-q span{flex:1;line-height:1.5;}
+.qb-go{padding:8px 16px;min-height:36px;font-size:12.5px;flex:none;}
+/* self review — toggle cards */
 .selflist{list-style:none;}
-.selflist li{padding:9px 0;border-bottom:1px solid var(--off);font-size:14px;}
-.selflist li:last-child{border-bottom:none;}
-.selflist input{width:17px;height:17px;accent-color:var(--orange);margin-right:10px;}
+.selflist li{margin-bottom:8px;}
+.selflist label{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:12px;
+  padding:13px 16px;font-size:14px;cursor:pointer;background:#fff;transition:border-color .12s,background .12s;}
+.selflist label:hover{border-color:var(--mango);}
+.selflist input{width:19px;height:19px;accent-color:#1B7A4B;flex:none;}
+.selflist input:checked+span{}
+.selflist li:has(input:checked) label{border-color:#CBE3D3;background:#F5FBF7;}
 .reclib{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:10px;}
 .reclib-main{flex:1;min-width:0;}
 .reclib-main b{display:block;font-size:14px;}
