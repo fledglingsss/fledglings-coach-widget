@@ -32,7 +32,8 @@ export function renderDashboardPage(): string {
     nav("analytics", "analytics", "Analytics") +
     "<div class='dsec'>Administration</div>" +
     `<a class='dn' href='/dashboard/export.csv'>${ICONS.csv}<span>Download CSV</span></a>` +
-    `<a class='dn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub}<span>View as student</span></a>` +
+    `<a class='dn' href='/portal' target='_blank' rel='noopener'>${ICONS.analytics}<span>Engagement portal</span></a>` +
+    `<a class='dn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub}<span>Student view</span></a>` +
     "<div class='dfoot'><span class='dscope' id='dscope'>…</span>" +
     "<a href='/portal/logout' class='dout'>Sign out</a></div>" +
     "</aside>" +
@@ -40,7 +41,8 @@ export function renderDashboardPage(): string {
     "<div class='dmain'>" +
     "<header class='dhead'><div><h1 id='dh-title'>Home</h1>" +
     "<p id='dh-sub'>Outcomes, progress and attention — at a glance</p></div>" +
-    "<span class='dperiod' id='dperiod'>Recent sample</span></header>" +
+    "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span>" +
+    `<a class='dbtn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub} View as Student</a></div></header>` +
 
     /* ---------- login (shown on 401) ---------- */
     "<section class='dview' id='v-login' hidden><div class='dcard dlogin'>" +
@@ -54,9 +56,9 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-home'>" +
     "<div class='kpigrid'>" +
     kpi("k-learners", "👥", "Learners", "in your scope") +
-    kpi("k-engaged", "⚡", "Engaged", "tried at least one tool") +
+    kpi("k-modules", "🎓", "Modules completed", "across your learners") +
+    kpi("k-engaged", "⚡", "Using career tools", "tried at least one") +
     kpi("k-avgcv", "📄", "Avg CV score", "latest per learner") +
-    kpi("k-journey", "🏁", "Journey complete", "all 7 tasks done") +
     "</div>" +
     "<div class='dsplit'>" +
     "<div class='dcard'><h3>Quick actions</h3><div class='qacts'>" +
@@ -77,7 +79,7 @@ export function renderDashboardPage(): string {
     "<div class='chips' id='s-chips'></div>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
     "<div class='dcard'><div class='dtablewrap'><table class='dtable'>" +
-    "<thead><tr><th>Student</th><th>Cohort</th><th>CV</th><th>LinkedIn</th><th>Interview</th><th>Letters</th><th>Journey</th><th>Job-ready</th></tr></thead>" +
+    "<thead><tr><th>Student</th><th>Cohort</th><th>Modules</th><th>CV</th><th>LinkedIn</th><th>Interview</th><th>Letters</th><th>Journey</th><th>Job-ready</th></tr></thead>" +
     "<tbody id='s-body'></tbody></table>" +
     "<div class='dempty' id='s-empty' hidden>No learners match.</div></div></div>" +
     "<div class='dcard' id='drill' hidden></div>" +
@@ -89,12 +91,16 @@ export function renderDashboardPage(): string {
 
     /* ---------- analytics ---------- */
     "<section class='dview' id='v-analytics' hidden>" +
-    "<div class='dbar'><div class='chips' id='a-chips'></div></div>" +
+    "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='a-chips'></div></div>" +
     "<div class='dsplit'>" +
-    "<div class='dcard'><h3>Tool adoption</h3><div id='ch-adopt'></div></div>" +
+    "<div class='dcard'><h3>Learning — module completion <span class='dtag' id='lc-note' hidden>all cohorts</span></h3><div id='ch-courses'></div></div>" +
+    "<div class='dcard'><h3>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h3><div id='ch-curriculum'></div></div>" +
+    "</div>" +
+    "<div class='dsplit'>" +
+    "<div class='dcard'><h3>Career tool adoption</h3><div id='ch-adopt'></div></div>" +
     "<div class='dcard'><h3>CV score distribution</h3><div id='ch-dist'></div></div>" +
     "</div>" +
-    "<div class='dcard'><h3>Activity — last 12 weeks</h3><div id='ch-activity'></div></div>" +
+    "<div class='dcard'><h3>Career tool activity — last 12 weeks</h3><div id='ch-activity'></div></div>" +
     "<div class='dcard'><h3>Average job-ready score by cohort</h3><div id='ch-cohorts'></div></div>" +
     "</section>" +
 
@@ -154,9 +160,9 @@ document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener(
 /* ---------- charts (inline SVG) ---------- */
 function hbar(rows,max){var out="<div class='hbars'>";
 rows.forEach(function(r){var pct=max?Math.round(r.v*100/max):0;
-out+="<div class='hb'><span class='hb-l'>"+esc2(r.l)+"</span>"+
+out+="<div class='hb'><span class='hb-l' title='"+esc2(r.l)+"'>"+esc2(r.l)+"</span>"+
 "<div class='hb-t'><i style='width:"+pct+"%;background:"+(r.c||'#13507F')+"'></i></div>"+
-"<span class='hb-v'>"+r.v+"</span></div>";});
+"<span class='hb-v'>"+esc2(r.r!==undefined?r.r:r.v)+"</span></div>";});
 return out+"</div>";}
 function colChart(vals,labels,color){var n=vals.length;if(!n)return '';
 var W=Math.max(300,n*34),H=140,base=112,maxH=92;var max=Math.max.apply(null,vals.concat([1]));
@@ -178,12 +184,14 @@ rows=rows.filter(function(r){return (r.name+' '+r.email).toLowerCase().indexOf(q
 return rows;}
 function renderHome(){var k=DATA.kpis;
 countUp($('k-learners'),k.learners);$('k-learners-bar').style.width='100%';
+var enrolled=DATA.learners.reduce(function(s,r){return s+r.learning.enrolled},0);
+countUp($('k-modules'),k.modulesCompleted);
+$('k-modules-bar').style.width=(enrolled?Math.round(k.modulesCompleted*100/enrolled):0)+'%';
+$('k-modules-bar').style.background='#1B7A4B';
 countUp($('k-engaged'),k.engaged);
 $('k-engaged-bar').style.width=(k.learners?Math.round(k.engaged*100/k.learners):0)+'%';
 if(k.avgCv!==null){countUp($('k-avgcv'),k.avgCv);$('k-avgcv-bar').style.width=k.avgCv+'%';
 $('k-avgcv-bar').style.background=band(k.avgCv);}else{$('k-avgcv').textContent='—';}
-countUp($('k-journey'),k.journeyComplete);
-$('k-journey-bar').style.width=(k.learners?Math.round(k.journeyComplete*100/k.learners):0)+'%';
 var att=DATA.attention||[];$('att-count').textContent=att.length+' flagged';
 $('att-empty').hidden=att.length>0;
 $('att-body').innerHTML=att.map(function(a){
@@ -200,9 +208,11 @@ el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.chip||null;onPick();};});}
 function renderStudents(){chips($('s-chips'),renderStudents);
 var rows=scoped();$('s-empty').hidden=rows.length>0;
-$('s-body').innerHTML=rows.map(function(r){var e=r.employability;
+$('s-body').innerHTML=rows.map(function(r){var e=r.employability;var lg=r.learning;
+var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
 "<td>"+r.tags.slice(0,2).map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+"</td>"+
+"<td><span class='ms'>"+lg.completed+"/"+lg.enrolled+"</span><i class='msb'><b style='width:"+modPct+"%;background:#1B7A4B'></b></i></td>"+
 "<td>"+miniScore(e.cv.latest)+"</td><td>"+miniScore(e.linkedin.latest)+"</td><td>"+miniScore(e.interview.latest)+"</td>"+
 "<td>"+e.cover.attempts+"</td><td>"+r.tasksDone+"/7</td>"+
 "<td>"+miniScore(r.readiness)+"</td></tr>";}).join('');
@@ -210,18 +220,33 @@ wireDrills();}
 function wireDrills(){document.querySelectorAll('[data-drill]').forEach(function(el){
 el.onclick=function(){var r=DATA.learners.find(function(x){return x.email===el.dataset.drill});
 if(!r)return;go('students');drill(r);};});}
-function drill(r){var e=r.employability;var d=$('drill');
+function drill(r){var e=r.employability;var d=$('drill');var lg=r.learning;var en=r.engagement;
 function toolRow(label,t,isCount){return "<div class='dr-tool'><span class='dr-l'>"+label+"</span>"+
 (isCount?"<span class='ms'>"+t.attempts+" created</span>":miniScore(t.latest))+
 "<span class='dmut'>"+t.attempts+" attempt"+(t.attempts===1?'':'s')+(t.lastAt?" · last "+new Date(t.lastAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span></div>";}
+var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
+var tierChip=en.tier?("<span class='dtag "+(en.tier==='high'?'warn':'')+"'>"+
+({high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier)+"</span>"):'';
+var loginNote=en.daysSinceLogin===null?(en.tier?'Never logged in':''):
+en.daysSinceLogin===0?'Active today':en.daysSinceLogin+' days since login';
+var mailHref="mailto:"+encodeURIComponent(r.email)+"?subject="+encodeURIComponent('Your Fledglings journey')+
+(en.nudge?"&body="+encodeURIComponent(en.nudge):"");
 d.innerHTML="<div class='dr-head'><div><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
-r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+"</div>"+
+r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
 "<span class='dr-ready' style='color:"+band(r.readiness||0)+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span>"+
 "<button type='button' class='dlink' id='drill-close'>✕</button></div>"+
+"<div class='dr-learn'><span class='dr-l'>LearnWorlds modules</span>"+
+"<span class='ms'>"+lg.completed+"/"+lg.enrolled+" completed</span>"+
+"<i class='msb wide'><b style='width:"+modPct+"%;background:#1B7A4B'></b></i>"+
+"<span class='dmut'>"+lg.inProgress+" in progress"+(loginNote?' · '+esc2(loginNote):'')+"</span></div>"+
 "<div class='dr-tools'>"+toolRow('CV review',e.cv)+toolRow('LinkedIn',e.linkedin)+
 toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
-"<div class='dr-journey'>Journey: <b>"+r.tasksDone+"/7</b> tasks"+
-"<i class='msb wide'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></div>";
+"<div class='dr-journey'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
+"<i class='msb wide'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></div>"+
+"<div class='dr-acts'>"+
+"<a class='dbtn ghost sm' href='/hub?e="+encodeURIComponent(r.email)+"' target='_blank' rel='noopener'>Open their hub view</a>"+
+"<a class='dbtn ghost sm' href='"+mailHref+"'>✉ Email"+(en.nudge?' (nudge prefilled)':'')+"</a>"+
+"</div>";
 d.hidden=false;$('drill-close').onclick=function(){d.hidden=true};
 d.scrollIntoView({behavior:'smooth',block:'nearest'});}
 function renderCohorts(){var tags=DATA.tags||[];
@@ -231,15 +256,31 @@ var members=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
 var scored=members.filter(function(r){return r.readiness!==null});
 var avg=scored.length?Math.round(scored.reduce(function(s,r){return s+r.readiness},0)/scored.length):null;
 var done=members.filter(function(r){return r.tasksDone===7}).length;
+var mc=members.reduce(function(s,r){return s+r.learning.completed},0);
+var me=members.reduce(function(s,r){return s+r.learning.enrolled},0);
+var mp=me?Math.round(mc*100/me):0;
 return "<div class='dcard cocard'><div class='co-t'>"+esc2(t.tag)+"</div>"+
 "<div class='co-n'>"+members.length+"</div><div class='kpi-s'>learners</div>"+
+"<div class='co-row'><span>Modules completed</span><b>"+mc+"/"+me+"</b></div>"+
+"<i class='msb wide'><b style='width:"+mp+"%;background:#1B7A4B'></b></i>"+
 "<div class='co-row'><span>Avg job-ready</span><b style='color:"+(avg===null?'#8a97a1':band(avg))+"'>"+(avg===null?'—':avg)+"</b></div>"+
-"<div class='co-row'><span>Journey complete</span><b>"+done+"</b></div>"+
+"<div class='co-row'><span>Career journey done</span><b>"+done+"</b></div>"+
 "<button type='button' class='dbtn ghost co-view' data-cohort='"+esc2(t.tag)+"'>View students →</button></div>";}).join('');
 document.querySelectorAll('[data-cohort]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.cohort;go('students');};});}
 function renderAnalytics(){chips($('a-chips'),renderAnalytics);
 var rows=scoped();
+/* Learning charts come from the server rollup over the whole scope —
+ * flag that honestly when a cohort chip narrows the other charts. */
+$('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
+var courses=(DATA.analytics&&DATA.analytics.courses)||[];
+$('ch-courses').innerHTML=courses.length?hbar(courses.map(function(cs){
+return {l:cs.title,v:cs.pct,r:cs.completed+'/'+cs.enrolled,c:'#1B7A4B'};}),100)
+:"<div class='dempty'>No module enrolments in this scope yet.</div>";
+var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
+$('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
+return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
+:"<div class='dempty'>No curriculum data yet.</div>";
 function tried(t){return rows.filter(function(r){return r.employability[t].latest!==null||( t==='cover'&&r.employability[t].attempts>0)})}
 $('ch-adopt').innerHTML=hbar([
 {l:'CV review',v:tried('cv').length,c:'#D9452B'},
@@ -302,6 +343,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dhead p{font-size:13.5px;color:var(--mut);margin-top:3px;}
 .dperiod{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:12.5px;
   font-weight:700;color:var(--blue);}
+.dheadr{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.dheadr .dbtn svg{width:17px;height:17px;}
+.dbarlabel{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);}
 @keyframes din{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .din{animation:din .3s cubic-bezier(.2,.7,.3,1) both;}
 .dcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;
@@ -362,15 +406,20 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .co-view{width:100%;margin-top:12px;padding:9px;font-size:12.5px;}
 .hbars{display:flex;flex-direction:column;gap:9px;}
 .hb{display:flex;align-items:center;gap:10px;}
-.hb-l{width:92px;font-size:12px;font-weight:600;color:var(--ink);flex:none;}
+.hb-l{width:130px;font-size:12px;font-weight:600;color:var(--ink);flex:none;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;}
 .hb-t{flex:1;height:12px;border-radius:999px;background:var(--off);overflow:hidden;}
 .hb-t i{display:block;height:100%;border-radius:999px;transition:width .7s cubic-bezier(.2,.7,.3,1);}
-.hb-v{width:30px;font-size:12px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+.hb-v{min-width:44px;font-size:12px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;flex:none;}
 .colchart{width:100%;max-width:560px;display:block;}
 .dr-head{display:flex;gap:14px;align-items:flex-start;}
 .dr-head>div:first-child{flex:1;}
 .dr-ready{font-size:26px;font-weight:800;text-align:right;}
 .dr-ready i{display:block;font-style:normal;font-size:10px;color:var(--mut);font-weight:700;}
+.dr-learn{border:1.5px solid #CBE3D4;background:#F3FAF6;border-radius:12px;padding:12px;margin-top:14px;}
+.dr-learn .dmut{display:block;margin-top:5px;}
+.dr-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;}
+.dbtn.sm{padding:8px 13px;font-size:12.5px;}
 .dr-tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0 12px;}
 .dr-tool{border:1.5px solid var(--line);border-radius:12px;padding:12px;}
 .dr-l{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin-bottom:6px;}

@@ -10,8 +10,9 @@ vi.mock("../src/lib/learnworlds", async (importOriginal) => {
   return {
     ...actual,
     listUsersPage: vi.fn(),
+    listAllUsers: vi.fn(),
     courseTitleMap: vi.fn().mockResolvedValue(new Map()),
-    accurateUserCourses: vi.fn().mockResolvedValue([]),
+    accurateUserCourses: vi.fn(),
     getUserByEmail: vi.fn(),
   };
 });
@@ -19,10 +20,12 @@ vi.mock("../src/lib/learnworlds", async (importOriginal) => {
 import { app, type Env } from "../src/index";
 import { hashLearnerId } from "../src/lib/rate-limit";
 import { signPayload } from "../src/lib/sign";
-import { getUserByEmail, listUsersPage } from "../src/lib/learnworlds";
+import { accurateUserCourses, getUserByEmail, listAllUsers, listUsersPage } from "../src/lib/learnworlds";
 
 const listUsersMock = vi.mocked(listUsersPage);
+const listAllMock = vi.mocked(listAllUsers);
 const getUserMock = vi.mocked(getUserByEmail);
+const coursesMock = vi.mocked(accurateUserCourses);
 
 const SECRET = "lw-secret";
 const NOW_SECS = Math.floor(Date.now() / 1000);
@@ -63,6 +66,7 @@ async function seedScores(env: Env, email: string, scores: Record<string, number
   await env.RATE_LIMITS.put(`hub:scores:${hash}`, JSON.stringify(value));
 }
 
+const NOW = Date.now() / 1000;
 const USERS = [
   {
     id: "u1",
@@ -70,10 +74,25 @@ const USERS = [
     first_name: "Amy",
     last_name: "Ash",
     tags: ["Swift Learners"],
+    created: NOW - 60 * 86_400,
+    last_login: NOW - 2 * 86_400,
   },
+  /* Ben has never logged in — the risk engine tiers him "high". */
   { id: "u2", email: "ben@swift.test", username: "ben.b", tags: ["Swift Learners"] },
-  { id: "u3", email: "cal@other.test", tags: ["Other College"] },
+  {
+    id: "u3",
+    email: "cal@other.test",
+    tags: ["Other College"],
+    created: NOW - 60 * 86_400,
+    last_login: NOW - 2 * 86_400,
+  },
   { id: "u4", email: "staff@fledglings.co", is_admin: true, tags: [] },
+];
+
+const AMY_COURSES = [
+  { title: "Budgeting That Actually Works", progressRate: 100, completed: true },
+  { title: "Cybersecurity Fundamentals", progressRate: 40, completed: false },
+  { title: "Financial Literacy", progressRate: null, completed: false }, // container — excluded
 ];
 
 function get(path: string, cookie?: string) {
@@ -85,7 +104,13 @@ function get(path: string, cookie?: string) {
 beforeEach(() => {
   listUsersMock.mockReset();
   listUsersMock.mockResolvedValue({ users: USERS, totalItems: 4 } as never);
+  listAllMock.mockReset();
+  listAllMock.mockResolvedValue(USERS as never);
   getUserMock.mockReset();
+  coursesMock.mockReset();
+  coursesMock.mockImplementation(async (_env, userId) =>
+    (userId === "u1" ? AMY_COURSES : []) as never,
+  );
 });
 
 describe("GET /dashboard", () => {
@@ -116,9 +141,19 @@ describe("GET /dashboard/data", () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as {
       scopedTag: string;
-      learners: Array<{ name: string; email: string; employability: Record<string, { latest: number | null; attempts: number }> }>;
+      learners: Array<{
+        name: string;
+        email: string;
+        employability: Record<string, { latest: number | null; attempts: number }>;
+        learning: { enrolled: number; completed: number; inProgress: number };
+        engagement: { tier: string | null; daysSinceLogin: number | null };
+      }>;
       attention: Array<{ email: string; issue: string; readiness: number | null }>;
-      kpis: { learners: number; avgCv: number | null };
+      kpis: { learners: number; avgCv: number | null; modulesCompleted: number };
+      analytics: {
+        courses: Array<{ title: string; enrolled: number; completed: number; pct: number }>;
+        curriculum: Array<{ area: string; pct: number }>;
+      };
     };
     expect(data.scopedTag).toBe("Swift Learners");
     /* Out-of-scope learner and staff never appear. */
@@ -128,14 +163,24 @@ describe("GET /dashboard/data", () => {
     expect(amy.name).toBe("Amy Ash");
     expect(amy.employability.cv).toMatchObject({ latest: 72, attempts: 2 });
     expect(amy.employability.interview!.latest).toBe(81);
+    /* LearnWorlds learning join: 2 real modules (container excluded),
+     * 1 completed, 1 in progress; engagement tier from the risk engine. */
+    expect(amy.learning).toEqual({ enrolled: 2, completed: 1, inProgress: 1 });
+    expect(amy.engagement.tier).toBe("ok");
+    expect(amy.engagement.daysSinceLogin).toBe(2);
     expect(data.kpis.learners).toBe(2);
     expect(data.kpis.avgCv).toBe(72);
-    /* Amy is healthy (readiness 76, 4 tasks) — never flagged. Ben has
-     * never engaged, which is exactly what a provider must see. */
+    expect(data.kpis.modulesCompleted).toBe(1);
+    /* Learning rollups for the analytics charts. */
+    const budgeting = data.analytics.courses.find((cs) => cs.title === "Budgeting That Actually Works");
+    expect(budgeting).toMatchObject({ enrolled: 1, completed: 1, pct: 100 });
+    expect(data.analytics.curriculum.length).toBeGreaterThan(0);
+    /* Amy is healthy (scores + recent login) — never flagged. Ben has
+     * never even logged in: the risk engine leads his issue. */
     expect(data.attention.some((a) => a.email === "amy@swift.test")).toBe(false);
     const ben = data.attention.find((a) => a.email === "ben@swift.test");
     expect(ben).toBeDefined();
-    expect(ben!.issue).toBe("Not started any tool");
+    expect(ben!.issue).toBe("Never logged in");
     expect(ben!.readiness).toBeNull();
   });
 
@@ -188,9 +233,12 @@ describe("GET /dashboard/export.csv", () => {
     expect(res.headers.get("Content-Type")).toContain("text/csv");
     const lines = (await res.text()).split("\r\n");
     expect(lines[0]).toContain("CV score");
+    expect(lines[0]).toContain("Modules completed");
     expect(lines).toHaveLength(3); // header + 2 in-scope learners
     expect(lines[1]).toContain('"amy@swift.test"');
     expect(lines[1]).toContain("72");
+    /* Modules enrolled=2, completed=1 straight after the tags column. */
+    expect(lines[1]).toMatch(/"Swift Learners",2,1,1,2,/);
     expect(lines.join("\n")).not.toContain("cal@other.test");
   });
 

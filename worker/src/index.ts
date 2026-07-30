@@ -2439,15 +2439,34 @@ interface DashLearner {
   employability: Record<string, { latest: number | null; attempts: number; lastAt: number | null }>;
   tasksDone: number;
   readiness: number | null;
+  /** LearnWorlds learning modules — the other half of the picture. */
+  learning: { enrolled: number; completed: number; inProgress: number };
+  /** Early-warning engine join: engagement tier + copy-ready nudge. */
+  engagement: { tier: string | null; daysSinceLogin: number | null; nudge: string | null };
 }
 
 async function dashboardRows(env: Env, tag: string | null): Promise<{
   totalUsers: number | null;
   rows: DashLearner[];
+  sample: Awaited<ReturnType<typeof portalSample>>["sample"];
 }> {
   const { totalUsers, sample } = await portalSample(env, tag);
+  /* Engagement tiers come from the nightly risk report (6h cache) —
+   * an empty join must never sink the dashboard. */
+  const riskByEmail = new Map<string, { tier: string; daysSinceLogin: number | null; nudge: string }>();
+  try {
+    for (const a of (await getRiskReport(env)).learners) {
+      riskByEmail.set(a.email.toLowerCase(), {
+        tier: a.tier,
+        daysSinceLogin: a.daysSinceLogin,
+        nudge: a.nudge,
+      });
+    }
+  } catch (err) {
+    console.error("[coach] dashboard risk join failed:", String(err));
+  }
   const rows: DashLearner[] = [];
-  for (const { user } of sample) {
+  for (const { user, courses } of sample) {
     if (!user.email) continue;
     const hash = (await hashLearnerId(user.email.toLowerCase())).slice(0, 16);
     const summary = summariseHub(
@@ -2458,6 +2477,9 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
       const t = summary[tool];
       emp[tool] = { latest: t.latest, attempts: t.attempts, lastAt: t.lastAt };
     }
+    const modules = courses.filter((c) => isModuleTitle(c.title));
+    const completed = modules.filter((m) => m.completed).length;
+    const risk = riskByEmail.get(user.email.toLowerCase());
     rows.push({
       name: displayName({
         email: user.email,
@@ -2470,9 +2492,19 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
       employability: emp,
       tasksDone: summary.tasksDone,
       readiness: summary.readiness,
+      learning: {
+        enrolled: modules.length,
+        completed,
+        inProgress: modules.filter((m) => !m.completed && (m.progressRate ?? 0) > 0).length,
+      },
+      engagement: {
+        tier: risk?.tier ?? null,
+        daysSinceLogin: risk?.daysSinceLogin ?? null,
+        nudge: risk?.nudge ?? null,
+      },
     });
   }
-  return { totalUsers, rows };
+  return { totalUsers, rows, sample };
 }
 
 app.get("/dashboard/data", async (c) => {
@@ -2480,11 +2512,11 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v4:${scopeKey}`;
+  const cacheKey = `dash:v5:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
-    const { totalUsers, rows } = await dashboardRows(c.env, access.tag);
+    const { totalUsers, rows, sample } = await dashboardRows(c.env, access.tag);
     /* KPIs + analytics rollups, all derived from the rows. */
     const tried = (tool: string) => rows.filter((r) => r.employability[tool]!.latest !== null);
     const avg = (tool: string) => {
@@ -2510,9 +2542,15 @@ app.get("/dashboard/data", async (c) => {
     for (const r of tried("cv")) {
       buckets[Math.min(4, Math.floor((r.employability.cv!.latest ?? 0) / 20))] += 1;
     }
-    /* Attention: never started, weak scores, or a stalled journey —
+    /* Attention: disengaged from the platform first (the risk engine's
+     * signal), then never-started / weak / stalled tool journeys —
      * weakest first, never-engaged weakest of all. */
     const issueFor = (r: DashLearner): string | null => {
+      if (r.engagement.tier === "high") {
+        return r.engagement.daysSinceLogin === null
+          ? "Never logged in"
+          : `${r.engagement.daysSinceLogin} days since login`;
+      }
       if (r.readiness === null) return "Not started any tool";
       if (r.readiness < 50) return "Low job-ready score";
       if (r.tasksDone <= 2) return "Journey stalled early";
@@ -2531,6 +2569,27 @@ app.get("/dashboard/data", async (c) => {
       }));
     const tagCounts = new Map<string, number>();
     for (const r of rows) for (const t of r.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+
+    /* LearnWorlds learning rollups — per-module completion rates and
+     * the curriculum-area bars, from the same sample (no extra calls). */
+    const courseStats = aggregate(totalUsers, sample, new Date()).courseStats;
+    const byArea = new Map<string, { enrolled: number; completed: number }>();
+    for (const cs of courseStats) {
+      const area = groupForTitle(cs.title);
+      const entry = byArea.get(area) ?? { enrolled: 0, completed: 0 };
+      entry.enrolled += cs.enrolled;
+      entry.completed += cs.completed;
+      byArea.set(area, entry);
+    }
+    const curriculum = [...byArea.entries()]
+      .map(([area, e]) => ({
+        area,
+        enrolled: e.enrolled,
+        completed: e.completed,
+        pct: e.enrolled ? Math.round((e.completed / e.enrolled) * 100) : 0,
+      }))
+      .sort((a, b) => b.enrolled - a.enrolled);
+
     const payload = {
       scopedTag: access.tag,
       totalUsers,
@@ -2543,10 +2602,20 @@ app.get("/dashboard/data", async (c) => {
         avgInterview: avg("interview"),
         lettersCreated: tried("cover").length,
         journeyComplete: rows.filter((r) => r.tasksDone === 7).length,
+        modulesCompleted: rows.reduce((s, r) => s + r.learning.completed, 0),
       },
       learners: rows,
       attention,
-      analytics: { activity, cvBuckets: buckets, toolTried: Object.fromEntries(HUB_TOOLS.map((t) => [t, tried(t).length])) },
+      analytics: {
+        activity,
+        cvBuckets: buckets,
+        toolTried: Object.fromEntries(HUB_TOOLS.map((t) => [t, tried(t).length])),
+        courses: courseStats
+          .sort((a, b) => b.enrolled - a.enrolled)
+          .slice(0, 10)
+          .map((cs) => ({ title: cs.title, enrolled: cs.enrolled, completed: cs.completed, pct: cs.completionRate })),
+        curriculum,
+      },
       tags: [...tagCounts.entries()].map(([t, count]) => ({ tag: t, count })).sort((a, b) => b.count - a.count),
     };
     await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), { expirationTtl: 600 });
@@ -2565,12 +2634,16 @@ app.get("/dashboard/export.csv", async (c) => {
     const { rows } = await dashboardRows(c.env, access.tag);
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = [
-      "Name,Email,Tags,CV score,CV attempts,LinkedIn score,LinkedIn attempts,Interview score,Interview attempts,Letters created,Journey tasks done (of 7),Job-ready score",
+      "Name,Email,Tags,Modules enrolled,Modules completed,Modules in progress,Days since login,CV score,CV attempts,LinkedIn score,LinkedIn attempts,Interview score,Interview attempts,Letters created,Journey tasks done (of 7),Job-ready score",
       ...rows.map((r) =>
         [
           esc(r.name),
           esc(r.email),
           esc(r.tags.join("; ")),
+          r.learning.enrolled,
+          r.learning.completed,
+          r.learning.inProgress,
+          r.engagement.daysSinceLogin ?? "",
           r.employability.cv!.latest ?? "",
           r.employability.cv!.attempts,
           r.employability.linkedin!.latest ?? "",
