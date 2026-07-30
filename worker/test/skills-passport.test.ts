@@ -88,6 +88,12 @@ describe("displayName", () => {
     expect(displayName({ email: "elladaly20@icloud.com", username: "EllaDaly" })).toBe("Ella Daly");
     expect(displayName({ email: "nf@gmail.com", username: "NatashaFearnhead" })).toBe("Natasha Fearnhead");
   });
+  it("splits a camelCase first_name holding the whole name", () => {
+    expect(displayName({ email: "elladaly20@icloud.com", firstName: "EllaDaly", username: "EllaDaly" })).toBe("Ella Daly");
+  });
+  it("never splits internal capitals in already-spaced names", () => {
+    expect(displayName({ email: "x@example.com", firstName: "Sarah", lastName: "McDonald" })).toBe("Sarah Mcdonald");
+  });
   it("falls back gracefully", () => {
     expect(displayName({ email: "sakawan@example.com" })).toBe("Sakawan");
     expect(displayName({})).toBe("Fledglings Learner");

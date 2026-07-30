@@ -35,10 +35,17 @@ export function displayName(input: {
   lastName?: string;
   username?: string;
 }): string {
-  const fromFields = [input.firstName, input.lastName]
+  /* CamelCase carries the word break in its capitals ("EllaDaly") —
+   * split there before titleCase lowercases it away. LearnWorlds
+   * accounts often hold the full run-together name in first_name. */
+  const camelSplit = (s: string) => s.replace(/([a-z])([A-Z])/g, "$1 $2");
+  let fromFields = [input.firstName, input.lastName]
     .map((s) => (s ?? "").trim())
     .filter(Boolean)
     .join(" ");
+  /* Only a single run-together word gets split — "Sarah McDonald"
+   * must never become "Sarah Mc Donald". */
+  if (!fromFields.includes(" ")) fromFields = camelSplit(fromFields);
   if (fromFields.includes(" ")) return titleCase(fromFields);
 
   const local = (input.email ?? "").split("@")[0] ?? "";
@@ -55,9 +62,7 @@ export function displayName(input: {
   }
 
   if (fromFields) return titleCase(fromFields);
-  /* CamelCase usernames ("EllaDaly") carry the word break in their
-   * capitals — split there before titleCase lowercases it away. */
-  const camel = username.replace(/([a-z])([A-Z])/g, "$1 $2");
+  const camel = camelSplit(username);
   if (camel.includes(" ")) return titleCase(camel);
   if (username) return titleCase(username);
   if (parts.length === 1) return titleCase(parts[0]!);

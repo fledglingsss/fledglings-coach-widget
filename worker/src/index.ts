@@ -31,7 +31,7 @@ import { cors } from "hono/cors";
 
 import { isOriginAllowed } from "./lib/origin";
 import { checkAndIncrement, hashLearnerId, limits } from "./lib/rate-limit";
-import { crisisHeuristic, guardReply, neutraliseAngles } from "./lib/safety";
+import { crisisHeuristic, guardReply, neutraliseAngles, sanitiseText } from "./lib/safety";
 import {
   CAPS,
   EMAIL_PATTERN,
@@ -463,7 +463,7 @@ app.get("/lw-check", async (c) => {
 const SP_CACHE_TTL = 600; // 10 min per learner
 /* Bump whenever the rendered passport changes so learners see fixes
  * immediately instead of waiting out a stale cached page. */
-const SP_CACHE_VERSION = "v6";
+const SP_CACHE_VERSION = "v7";
 const SP_MAX_PROGRESS_CALLS = 36;
 
 function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
@@ -921,6 +921,11 @@ app.post("/api/review", async (c) => {
     return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
 
+  /* Spend the learner's daily slot BEFORE the model call — otherwise
+   * deliberately-unparseable inputs burn unlimited model calls without
+   * ever advancing the cap. */
+  await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
+
   /* Deterministic recruiter checks — computed before the model runs so
    * the AI can complement rather than repeat them. */
   const checks = runCvChecks(validated.text, validated.kind);
@@ -950,20 +955,24 @@ app.post("/api/review", async (c) => {
       console.error("[coach] review report failed to parse");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
-    /* Output gate over every string the learner will see. */
+    /* Output gate over every string the learner will see — including
+     * the rewrite pair (the field the no-fabrication law is about),
+     * keywords and dimension labels. */
     const visible = [
       report.verdict,
       report.next_step,
       report.encouragement || "",
       ...report.strengths,
-      ...report.dimensions.map((d) => d.tip),
+      ...report.dimensions.map((d) => `${d.label} ${d.tip}`),
       ...report.improvements.map((i) => `${i.title} ${i.detail}`),
+      report.rewrite ? `${report.rewrite.before}\n${report.rewrite.after}` : "",
+      ...report.keywords.matched,
+      ...report.keywords.missing,
     ].join("\n");
-    if (guardReply(visible, 8000) === null) {
+    if (guardReply(visible, 10_000) === null) {
       console.error("[coach] review report failed output gate");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     await recordHubScore(
       c.env,
       learnerId,
@@ -1006,7 +1015,9 @@ app.post("/api/improve-line", async (c) => {
   const body = await readJsonCapped(c, 4_000);
   if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
-  const line = typeof body.line === "string" ? body.line.trim().slice(0, 260) : "";
+  /* sanitiseText BEFORE the crisis screen — zero-width characters
+   * would otherwise smuggle distress phrasing past the keyword rail. */
+  const line = sanitiseText(body.line, 260);
   if (!ID_PATTERN.test(learnerId) || line.length < 8) {
     return c.json({ error: "invalid_request" }, 400);
   }
@@ -1022,6 +1033,7 @@ app.post("/api/improve-line", async (c) => {
     return c.json({ reply: "That's today's line improvements used — apply what you've learnt to the rest by hand.", kind: "limit" });
   }
   if (!(await modelSpendAllowed(c))) return c.json({ reply: BUSY_REPLY, kind: "busy" });
+  await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
   try {
     const raw = await generate(
       c.env.ANTHROPIC_API_KEY,
@@ -1042,7 +1054,6 @@ app.post("/api/improve-line", async (c) => {
     if (!improved || guardReply(improved, 300) === null) {
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     console.log("[coach] kind=improve-line outcome=ok");
     return c.json({ line: improved, kind: "improve-line" });
   } catch (err) {
@@ -1073,6 +1084,7 @@ app.post("/api/linkedin-rewrite", async (c) => {
     return c.json({ reply: "You've used today's reviews — they top back up tomorrow.", kind: "limit" });
   }
   if (!(await modelSpendAllowed(c))) return c.json({ reply: BUSY_REPLY, kind: "busy" });
+  await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
   try {
     const raw = await generate(
       c.env.ANTHROPIC_API_KEY,
@@ -1114,7 +1126,6 @@ Output exactly:
     if (guardReply([rewrite.headline, rewrite.about, rewrite.experience_tip, rewrite.next].join("\n"), 5000) === null) {
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     console.log("[coach] kind=linkedin-rewrite outcome=ok");
     return c.json({ rewrite, kind: "linkedin-rewrite" });
   } catch (err) {
@@ -1246,6 +1257,7 @@ app.post("/api/linkedin", async (c) => {
   if (!(await modelSpendAllowed(c))) {
     return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
+  await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
 
   const facts = analyseLinkedInFacts(validated.text);
   try {
@@ -1280,7 +1292,6 @@ app.post("/api/linkedin", async (c) => {
       console.error("[coach] linkedin report failed output gate");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     await recordHubScore(
       c.env,
       learnerId,
@@ -1322,8 +1333,14 @@ app.post("/api/cover-letter", async (c) => {
     return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
   }
 
-  /* Safeguarding first — a CV or advert can carry a disclosure. */
-  if (crisisHeuristic(validated.jd) || crisisHeuristic(validated.cvText)) {
+  /* Safeguarding first — a CV or advert can carry a disclosure, and so
+   * can the free-text role/company fields. */
+  if (
+    crisisHeuristic(validated.jd) ||
+    crisisHeuristic(validated.cvText) ||
+    crisisHeuristic(validated.role) ||
+    crisisHeuristic(validated.company)
+  ) {
     console.log("[coach] kind=cover-letter outcome=crisis");
     return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
   }
@@ -1343,6 +1360,7 @@ app.post("/api/cover-letter", async (c) => {
   if (!(await modelSpendAllowed(c))) {
     return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
+  await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
 
   try {
     const raw = await generate(
@@ -1372,7 +1390,6 @@ app.post("/api/cover-letter", async (c) => {
       console.error("[coach] cover letter failed output gate");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     /* Journey completion marker only — the letter itself is never stored. */
     await recordHubScore(
       c.env,
@@ -1397,12 +1414,8 @@ app.post("/api/cover-letter", async (c) => {
 const PASSPORTS_PER_DAY = 10;
 
 app.post("/api/passport", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
@@ -2231,12 +2244,8 @@ app.post("/hooks/learnworlds", async (c) => {
  * ================================================================== */
 
 app.post("/api/next-step", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const email =
     typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -2245,20 +2254,28 @@ app.post("/api/next-step", async (c) => {
   }
   if (!lwConfigured(c.env)) return c.json({ ok: false });
   try {
+    /* Rate limit BEFORE the cache read AND the user lookup — a cached
+     * hit that skipped the limiter was a free enumeration window (QA
+     * 2026-07-30). Device cap is rotatable by a scraper, so an IP cap
+     * backs it up. */
+    const deviceHash = await hashLearnerId(learnerId);
+    const day = new Date().toISOString().slice(0, 10);
+    const rlKey = `ns:rl:${deviceHash}:${day}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= 30) return c.json({ ok: false });
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+    const ip = c.req.header("CF-Connecting-IP") || "";
+    if (ip) {
+      const ipKey = `ns:ip:${(await hashLearnerId(ip)).slice(0, 16)}:${day}`;
+      const ipUsed = parseInt((await c.env.RATE_LIMITS.get(ipKey)) || "0", 10) || 0;
+      if (ipUsed >= 120) return c.json({ ok: false });
+      await c.env.RATE_LIMITS.put(ipKey, String(ipUsed + 1), { expirationTtl: 86_400 });
+    }
+
     const emailHash = await hashLearnerId(email);
     const cacheKey = `ns:${emailHash}`;
     const cached = await c.env.RATE_LIMITS.get(cacheKey);
     if (cached) return c.json(JSON.parse(cached));
-
-    /* Rate limit BEFORE the user lookup so this can't be used to
-     * enumerate registered emails / harvest progress (QA 2026-07-22).
-     * Per-device (learner_id) daily cap — a real learner opens the
-     * widget a handful of times; a scraper burns through fast. */
-    const deviceHash = await hashLearnerId(learnerId);
-    const rlKey = `ns:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
-    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
-    if (used >= 30) return c.json({ ok: false });
-    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
 
     const user = await getUserByEmail(c.env, email);
     if (!user) return c.json({ ok: false });
@@ -2304,23 +2321,28 @@ app.post("/api/next-step", async (c) => {
 app.get("/hub", (c) => c.html(renderHubPage(), 200, FRAME_HEADERS));
 
 app.post("/api/hub", async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const email =
     typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
   try {
-    /* Same anti-enumeration cap as next-step. */
+    /* Same anti-enumeration cap as next-step; the device cap is
+     * rotatable by a scraper, so an IP cap backs it up. */
     const deviceHash = await hashLearnerId(learnerId);
-    const rlKey = `hub:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
+    const day = new Date().toISOString().slice(0, 10);
+    const rlKey = `hub:rl:${deviceHash}:${day}`;
     const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
     if (used >= 60) return c.json({ error: "rate_limited" }, 429);
     await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+    const ip = c.req.header("CF-Connecting-IP") || "";
+    if (ip) {
+      const ipKey = `hub:ip:${(await hashLearnerId(ip)).slice(0, 16)}:${day}`;
+      const ipUsed = parseInt((await c.env.RATE_LIMITS.get(ipKey)) || "0", 10) || 0;
+      if (ipUsed >= 240) return c.json({ error: "rate_limited" }, 429);
+      await c.env.RATE_LIMITS.put(ipKey, String(ipUsed + 1), { expirationTtl: 86_400 });
+    }
 
     /* Merge device-keyed and email-keyed histories so scores earned
      * before the hub knew the email still count. */
@@ -2346,7 +2368,7 @@ app.post("/api/hub", async (c) => {
     let name = "";
     if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
       try {
-        const nameKey = `hub:name:${(await hashLearnerId(email)).slice(0, 16)}`;
+        const nameKey = `hub:name:v2:${(await hashLearnerId(email)).slice(0, 16)}`;
         const cachedName = await c.env.RATE_LIMITS.get(nameKey);
         if (cachedName !== null) {
           name = cachedName;
@@ -2430,7 +2452,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v3:${scopeKey}`;
+  const cacheKey = `dash:v4:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
