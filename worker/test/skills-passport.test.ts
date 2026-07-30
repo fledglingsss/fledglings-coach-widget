@@ -84,6 +84,10 @@ describe("displayName", () => {
   it("prefers first+last fields when both are present", () => {
     expect(displayName({ email: "x@example.com", firstName: "sak", lastName: "awan" })).toBe("Sak Awan");
   });
+  it("splits camelCase usernames at their capitals", () => {
+    expect(displayName({ email: "elladaly20@icloud.com", username: "EllaDaly" })).toBe("Ella Daly");
+    expect(displayName({ email: "nf@gmail.com", username: "NatashaFearnhead" })).toBe("Natasha Fearnhead");
+  });
   it("falls back gracefully", () => {
     expect(displayName({ email: "sakawan@example.com" })).toBe("Sakawan");
     expect(displayName({})).toBe("Fledglings Learner");

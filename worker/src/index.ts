@@ -463,7 +463,7 @@ app.get("/lw-check", async (c) => {
 const SP_CACHE_TTL = 600; // 10 min per learner
 /* Bump whenever the rendered passport changes so learners see fixes
  * immediately instead of waiting out a stale cached page. */
-const SP_CACHE_VERSION = "v5";
+const SP_CACHE_VERSION = "v6";
 const SP_MAX_PROGRESS_CALLS = 36;
 
 function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
@@ -2340,7 +2340,34 @@ app.post("/api/hub", async (c) => {
         .sort((a, b) => a.at - b.at)
         .slice(-HUB_HISTORY_MAX);
     }
-    return c.json({ ok: true, summary: summariseHub(merged) });
+    /* First name for the greeting — cached 6h per email (misses too,
+     * so an unknown email costs one LearnWorlds call a day, not one
+     * per visit). Never allowed to break the hub. */
+    let name = "";
+    if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
+      try {
+        const nameKey = `hub:name:${(await hashLearnerId(email)).slice(0, 16)}`;
+        const cachedName = await c.env.RATE_LIMITS.get(nameKey);
+        if (cachedName !== null) {
+          name = cachedName;
+        } else {
+          const user = await getUserByEmail(c.env, email);
+          name = user
+            ? displayName({
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                username: user.username,
+              }).split(" ")[0] ?? ""
+            : "";
+          if (name === "Fledglings") name = "";
+          await c.env.RATE_LIMITS.put(nameKey, name, { expirationTtl: 6 * 3600 });
+        }
+      } catch {
+        /* greeting is decoration — the summary still ships */
+      }
+    }
+    return c.json({ ok: true, summary: summariseHub(merged), ...(name ? { name } : {}) });
   } catch (err) {
     console.error("[coach] hub error:", String(err));
     return c.json({ ok: false });

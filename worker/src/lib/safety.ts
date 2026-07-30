@@ -26,6 +26,18 @@ export function sanitiseText(value: unknown, max: number): string {
   return value.replace(CONTROL_CHARS, "").trim().slice(0, max);
 }
 
+/** Neutralise angle brackets in learner text that will be interpolated
+ * between prompt delimiter tags (<learner_cv>…</learner_cv>). Without
+ * this, text containing "</learner_cv>" can close its delimiter and
+ * masquerade as worker-authored scaffolding (fake <automated_facts>,
+ * fake system notes). Angle brackets are swapped for visually similar
+ * single guillemets so quotes echoed back to the learner still read
+ * naturally. Input side only — never applied to model output, where
+ * guardReply's leak markers need real tags to match. */
+export function neutraliseAngles(text: string): string {
+  return text.replace(/</g, "‹").replace(/>/g, "›");
+}
+
 /** Single-line variant for names / page titles. */
 export function sanitiseLine(value: unknown, max: number): string {
   return sanitiseText(value, max).replace(/\s+/g, " ");

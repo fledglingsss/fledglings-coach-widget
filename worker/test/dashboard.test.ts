@@ -12,15 +12,17 @@ vi.mock("../src/lib/learnworlds", async (importOriginal) => {
     listUsersPage: vi.fn(),
     courseTitleMap: vi.fn().mockResolvedValue(new Map()),
     accurateUserCourses: vi.fn().mockResolvedValue([]),
+    getUserByEmail: vi.fn(),
   };
 });
 
 import { app, type Env } from "../src/index";
 import { hashLearnerId } from "../src/lib/rate-limit";
 import { signPayload } from "../src/lib/sign";
-import { listUsersPage } from "../src/lib/learnworlds";
+import { getUserByEmail, listUsersPage } from "../src/lib/learnworlds";
 
 const listUsersMock = vi.mocked(listUsersPage);
+const getUserMock = vi.mocked(getUserByEmail);
 
 const SECRET = "lw-secret";
 const NOW_SECS = Math.floor(Date.now() / 1000);
@@ -83,6 +85,7 @@ function get(path: string, cookie?: string) {
 beforeEach(() => {
   listUsersMock.mockReset();
   listUsersMock.mockResolvedValue({ users: USERS, totalItems: 4 } as never);
+  getUserMock.mockReset();
 });
 
 describe("GET /dashboard", () => {
@@ -194,6 +197,56 @@ describe("GET /dashboard/export.csv", () => {
   it("rejects without a session", async () => {
     const res = await app.request(get("/dashboard/export.csv"), undefined, makeEnv());
     expect(res.status).toBe(401);
+  });
+});
+
+describe("POST /api/hub greeting", () => {
+  const DEVICE = "d".repeat(32);
+
+  function hubReq(email?: string) {
+    return new Request("http://coach.test/api/hub", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://www.fledglings.co" },
+      body: JSON.stringify({ learner_id: DEVICE, email }),
+    });
+  }
+
+  it("returns the learner's first name and caches it", async () => {
+    const env = makeEnv();
+    getUserMock.mockResolvedValue({
+      id: "u1",
+      email: "amy@swift.test",
+      username: "AmyAsh",
+    } as never);
+    const res = await app.request(hubReq("amy@swift.test"), undefined, env);
+    const data = (await res.json()) as { ok: boolean; name?: string };
+    expect(data.ok).toBe(true);
+    expect(data.name).toBe("Amy");
+    /* Second call hits the cache — LearnWorlds asked exactly once. */
+    await app.request(hubReq("amy@swift.test"), undefined, env);
+    expect(getUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits the name for unknown emails and survives LW failures", async () => {
+    const env = makeEnv();
+    getUserMock.mockResolvedValue(null as never);
+    const res = await app.request(hubReq("nobody@x.test"), undefined, env);
+    const data = (await res.json()) as { ok: boolean; name?: string };
+    expect(data.ok).toBe(true);
+    expect(data.name).toBeUndefined();
+
+    getUserMock.mockRejectedValue(new Error("lw down"));
+    const res2 = await app.request(hubReq("other@x.test"), undefined, env);
+    const data2 = (await res2.json()) as { ok: boolean; name?: string };
+    expect(data2.ok).toBe(true);
+    expect(data2.name).toBeUndefined();
+  });
+
+  it("skips the lookup entirely without an email", async () => {
+    const res = await app.request(hubReq(), undefined, makeEnv());
+    const data = (await res.json()) as { ok: boolean; name?: string };
+    expect(data.ok).toBe(true);
+    expect(getUserMock).not.toHaveBeenCalled();
   });
 });
 

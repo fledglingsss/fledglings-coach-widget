@@ -55,6 +55,10 @@ export function displayName(input: {
   }
 
   if (fromFields) return titleCase(fromFields);
+  /* CamelCase usernames ("EllaDaly") carry the word break in their
+   * capitals — split there before titleCase lowercases it away. */
+  const camel = username.replace(/([a-z])([A-Z])/g, "$1 $2");
+  if (camel.includes(" ")) return titleCase(camel);
   if (username) return titleCase(username);
   if (parts.length === 1) return titleCase(parts[0]!);
   return "Fledglings Learner";

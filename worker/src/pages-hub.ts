@@ -57,7 +57,7 @@ export function renderHubPage(): string {
     "<main class='wrap'>" +
     /* header row */
     "<div class='hubhead'>" +
-    "<div><h2 class='page'>Let's kickstart your career journey</h2>" +
+    "<div><h2 class='page' id='hub-hi'>Let's kickstart your career journey</h2>" +
     "<p class='sub' style='margin-bottom:0'>We've got your back — with tools to help you build a strong CV, " +
     "prep for interviews, and stand out confidently.</p></div>" +
     "<div class='statrow'>" +
@@ -135,6 +135,7 @@ fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,email:email})})
 .then(function(r){return r.json()}).then(function(d){
 if(!d||!d.ok||!d.summary)return;var s=d.summary;
+if(d.name)$('hub-hi').textContent="Let's kickstart your career journey, "+d.name;
 var taskState={};(s.tasks||[]).forEach(function(t){taskState[t.id]=t.done});
 /* tool cards: status band + meta + stepper state */
 ['cv','linkedin','interview','cover'].forEach(function(t){var ts=s[t];
