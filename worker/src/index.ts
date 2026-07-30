@@ -2382,10 +2382,12 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
       emp[tool] = { latest: t.latest, attempts: t.attempts, lastAt: t.lastAt };
     }
     rows.push({
-      name:
-        [user.first_name, user.last_name].filter(Boolean).join(" ") ||
-        user.username ||
-        user.email.split("@")[0]!,
+      name: displayName({
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        username: user.username,
+      }),
       email: user.email,
       tags: user.tags ?? [],
       employability: emp,
@@ -2401,7 +2403,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v2:${scopeKey}`;
+  const cacheKey = `dash:v3:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
