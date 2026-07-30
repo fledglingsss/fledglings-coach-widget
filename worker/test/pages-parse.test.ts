@@ -11,8 +11,10 @@ import { renderLinkedInPage } from "../src/pages-linkedin";
 import { renderCoverLetterPage } from "../src/pages-cover-letter";
 import { renderBuilderPage } from "../src/pages-builder";
 import { renderAiPrivacyPage, renderToolsPage } from "../src/pages";
+import { renderDashboardPage } from "../src/pages-dashboard";
 
 const PAGES: Array<[string, () => string]> = [
+  ["dashboard", renderDashboardPage],
   ["hub", renderHubPage],
   ["interview", renderInterviewPage],
   ["linkedin", renderLinkedInPage],

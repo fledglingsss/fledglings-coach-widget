@@ -109,6 +109,7 @@ import {
 } from "./pages";
 import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
+import { renderDashboardPage } from "./pages-dashboard";
 import { renderChallengePage, type ChallengeRow } from "./pages-challenge";
 import { renderHubPage } from "./pages-hub";
 import {
@@ -2400,7 +2401,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v1:${scopeKey}`;
+  const cacheKey = `dash:v2:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
@@ -2430,12 +2431,25 @@ app.get("/dashboard/data", async (c) => {
     for (const r of tried("cv")) {
       buckets[Math.min(4, Math.floor((r.employability.cv!.latest ?? 0) / 20))] += 1;
     }
-    /* Attention: journey stalled or weakest scores. */
+    /* Attention: never started, weak scores, or a stalled journey —
+     * weakest first, never-engaged weakest of all. */
+    const issueFor = (r: DashLearner): string | null => {
+      if (r.readiness === null) return "Not started any tool";
+      if (r.readiness < 50) return "Low job-ready score";
+      if (r.tasksDone <= 2) return "Journey stalled early";
+      return null;
+    };
     const attention = rows
-      .filter((r) => r.readiness !== null && (r.readiness < 50 || r.tasksDone <= 2))
-      .sort((a, b) => (a.readiness ?? 0) - (b.readiness ?? 0))
+      .filter((r) => issueFor(r) !== null)
+      .sort((a, b) => (a.readiness ?? -1) - (b.readiness ?? -1))
       .slice(0, 8)
-      .map((r) => ({ name: r.name, email: r.email, readiness: r.readiness, tasksDone: r.tasksDone }));
+      .map((r) => ({
+        name: r.name,
+        email: r.email,
+        readiness: r.readiness,
+        tasksDone: r.tasksDone,
+        issue: issueFor(r),
+      }));
     const tagCounts = new Map<string, number>();
     for (const r of rows) for (const t of r.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
     const payload = {
@@ -2452,6 +2466,7 @@ app.get("/dashboard/data", async (c) => {
         journeyComplete: rows.filter((r) => r.tasksDone === 7).length,
       },
       learners: rows,
+      attention,
       analytics: { activity, cvBuckets: buckets, toolTried: Object.fromEntries(HUB_TOOLS.map((t) => [t, tried(t).length])) },
       tags: [...tagCounts.entries()].map(([t, count]) => ({ tag: t, count })).sort((a, b) => b.count - a.count),
     };
@@ -2565,6 +2580,11 @@ app.get("/demo", (c) =>
   c.html(renderDemoPage(demoProviderName(c.req.query("p")))),
 );
 
+/* Provider backend dashboard — one static page; the client fetches
+ * /dashboard/data and shows the login view on a 401, so no session
+ * check is needed to serve the shell. */
+app.get("/dashboard", (c) => c.html(renderDashboardPage()));
+
 app.get("/portal", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.html(renderPortalLogin());
@@ -2582,8 +2602,11 @@ app.get("/portal/logout", (c) => {
 app.post("/portal/login", async (c) => {
   const form = await c.req.parseBody();
   const code = typeof form.code === "string" ? form.code.trim() : "";
+  /* `next` is an allowlist, never a free redirect. */
+  const next = form.next === "/dashboard" ? "/dashboard" : "/portal";
   const meta = await portalCodeMeta(c, code);
   if (!meta) {
+    if (next === "/dashboard") return c.redirect("/dashboard?login=failed");
     return c.html(
       renderPortalLogin("That code didn't work — check it and try again, or contact Fledglings for access."),
       401,
@@ -2594,7 +2617,7 @@ app.post("/portal/login", async (c) => {
     "Set-Cookie",
     `${PORTAL_COOKIE}=${code}.${sig}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=28800`,
   );
-  return c.redirect("/portal");
+  return c.redirect(next);
 });
 
 app.get("/portal/data", async (c) => {
