@@ -265,7 +265,7 @@ var params=new URLSearchParams(location.search);
 var hubEmail=flResolveEmail();flIdentityChip();
 
 /* ---------------- state ---------------- */
-var role=null,roleLabel='',qs=[],sig='',idx=0,answers=[],mode='video';
+var role=null,roleLabel='',qs=[],sig='',sigIat=0,idx=0,answers=[],mode='video';
 var reviewReturn=false;
 var stream=null,recorder=null,chunks=[],recStartAt=0,recTimer=null,thinkTimer=null;
 var finalText='',listening=false,rec=null,voiceStartAt=0,voiceSecs=0;
@@ -465,7 +465,7 @@ if(idx<qs.length-1){idx++;showQuestion();return;}
 setTimeout(finish,250);});
 function revokeAllBlobs(){answers.forEach(function(a){if(a&&a.blobUrl){try{URL.revokeObjectURL(a.blobUrl)}catch(e){}}});}
 $('msgback').addEventListener('click',function(){cleanupMedia();show('s-home')});
-$('again').addEventListener('click',function(){cleanupMedia();currentSession=null;
+$('again').addEventListener('click',function(){cleanupMedia();revokeAllBlobs();currentSession=null;
 show('s-home');refreshRecCount();window.scrollTo({top:0})});
 $('rev-restart').addEventListener('click',function(){revokeAllBlobs();
 if(mode==='video'&&!stream){openSetup();return;}
@@ -498,7 +498,7 @@ $('genbtn').disabled=true;$('genstate').textContent='Writing your five questions
 fetch('/api/interview-questions',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify(payload)})
 .then(function(r){return r.json()}).then(function(d){$('genbtn').disabled=false;
-if(d&&d.questions){role='custom';roleLabel=d.role_label||'Your chosen role';qs=d.questions;sig=d.sig||'';
+if(d&&d.questions){role='custom';roleLabel=d.role_label||'Your chosen role';qs=d.questions;sig=d.sig||'';sigIat=d.iat||0;
 $('genstate').textContent='Ready — '+roleLabel;toSetup();return;}
 $('genstate').textContent=(d&&d.reply)||'Could not generate — try again in a minute.';})
 .catch(function(){$('genbtn').disabled=false;$('genstate').textContent='Could not reach Fledge — try again in a minute.';});});
@@ -506,7 +506,9 @@ function toSetup(){if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedi
 else{beginInterview('voice');}}
 $('setup-go').addEventListener('click',function(){beginInterview('video')});
 $('setup-novid').addEventListener('click',function(){
-if(stream){stream.getVideoTracks().forEach(function(t){t.stop()});}
+/* Release the WHOLE stream — leaving the audio track open keeps the
+ * browser's mic-in-use light on for the entire voice practice. */
+if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}
 beginInterview('voice');});
 
 /* ---------------- review ---------------- */
@@ -517,7 +519,10 @@ answers.forEach(function(a,i){out+="<div class='card revcard'><div class='qc-hea
 if(a.blobUrl){out+="<video class='rev-vid' src='"+a.blobUrl+"' controls playsinline></video>";}
 out+="<div class='rev-tx'>"+(a.answer?esc2(a.answer):"<i>No words captured — re-record or type this answer.</i>")+"</div></div>";});
 $('rev-list').innerHTML=out;
-document.querySelectorAll('.rev-redo').forEach(function(b){b.addEventListener('click',function(){
+/* Scope to the review list — .rev-redo is reused as a button style by
+ * the library and question bank, and a document-wide bind would hijack
+ * those buttons with stale re-record handlers. */
+$('rev-list').querySelectorAll('.rev-redo').forEach(function(b){b.addEventListener('click',function(){
 idx=parseInt(b.dataset.i,10);reviewReturn=true;showQuestion();show('s-int');window.scrollTo({top:0});});});}
 $('rev-submit').addEventListener('click',function(){
 var short=answers.findIndex(function(a){return !a||a.answer.length<20});
@@ -567,6 +572,9 @@ if(!confirm('Delete this practice and its recordings? This cannot be undone.'))r
 idbDel(b.dataset.delRec).then(function(){renderRecordings();refreshRecCount();});}});});}
 function openRecording(id){idbAll().then(function(all){
 var s=all.find(function(x){return x.id===id});if(!s)return;
+/* Release the previous session's object URLs before minting new ones
+ * — repeatedly opening recordings must not pin blobs in memory. */
+revokeAllBlobs();
 currentSession=s;roleLabel=s.roleLabel||'Practice interview';mode=s.mode||'video';
 answers=s.answers.map(function(a,i){var blob=s.videos&&s.videos[i];
 return {question:a.question,answer:a.answer,duration_secs:a.duration_secs,
@@ -581,11 +589,18 @@ if(recTimer){clearInterval(recTimer);recTimer=null}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
 function repShowScoring(on){['scoringbar'].forEach(function(k){$(k).hidden=!on});}
 function renderPendingReport(scoring){
-/* Recordings-first view: watchable instantly, report joins later. */
-$('r-score').textContent='–';$('r-verdict').textContent=scoring?'Being scored…':'Your recording';
+/* Recordings-first view: watchable instantly, report joins later.
+ * Reset EVERY piece of report chrome a previously viewed scored
+ * recording may have painted — ring, bars, verdict words, chart. */
+$('r-score').textContent='–';$('r-score').style.color='';
+$('r-ring').style.background='#ECE7E6';
+$('r-verdict').textContent=scoring?'Being scored…':'Your recording';
 $('r-meta').textContent=roleLabel+' · '+answers.length+' question'+(answers.length===1?'':'s');
 $('b-answer').textContent='–';$('b-speech').textContent='–';$('b-presence').textContent='–';
 $('b-answer-s').textContent=$('b-speech-s').textContent=$('b-presence-s').textContent=scoring?'On its way':'Not available for this one';
+['b-answer-bar','b-speech-bar','b-presence-bar'].forEach(function(id){var el=$(id);if(el)el.innerHTML='';});
+['b-answer-v','b-speech-v','b-presence-v'].forEach(function(id){var el=$(id);if(el)el.textContent='';});
+var qsCard=$('qs-card');if(qsCard)qsCard.hidden=true;
 $('sp-card').hidden=true;$('pr-card').hidden=true;$('r-cheercard').hidden=true;
 repShowScoring(Boolean(scoring));
 var out='';answers.forEach(function(a,i){
@@ -602,7 +617,7 @@ cleanupMedia();
 renderPendingReport(true);show('s-rep');window.scrollTo({top:0,behavior:'smooth'});
 var payload={learner_id:lid,session_id:sid,role:role,role_label:roleLabel,email:hubEmail,
 answers:answers.map(function(a){return {question:a.question,answer:a.answer,duration_secs:a.duration_secs}})};
-if(role==='custom'){payload.questions=qs;payload.sig=sig;}
+if(role==='custom'){payload.questions=qs;payload.sig=sig;payload.iat=sigIat;}
 if(presence.frames>=3){var pr={frames:presence.frames,faceVisible:presence.faceVisible,
 centred:presence.centred,goodDistance:presence.goodDistance};
 if(kpMeasured){pr.headStraight=presence.headStraight;pr.lookingAhead=presence.lookingAhead;}

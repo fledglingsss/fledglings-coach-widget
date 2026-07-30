@@ -120,7 +120,7 @@ flResolveEmail();flIdentityChip();
 /* ---------------- storage ---------------- */
 var KEY='fl_builder_cvs_v1';
 function loadAll(){try{var d=JSON.parse(localStorage.getItem(KEY)||'{}');return Array.isArray(d.cvs)?d.cvs:[]}catch(e){return []}}
-function saveAll(cvs){try{localStorage.setItem(KEY,JSON.stringify({cvs:cvs}))}catch(e){}}
+function saveAll(cvs){try{localStorage.setItem(KEY,JSON.stringify({cvs:cvs}));return true}catch(e){return false}}
 function blankCv(){return {name:'',phone:'',email:'',town:'',linkedin:'',summary:'',
 experience:[blankExp()],education:[blankEdu()],skills:'',extras:''}}
 function blankExp(){return {role:'',org:'',location:'',from:'',to:'',bullets:''}}
@@ -213,13 +213,15 @@ function markSaved(state){$('savestate').textContent=state;}
 var checkTimer=null;
 function scheduleSave(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
 lastText='';if(!$('scorepanel').hidden)$('stale-note').hidden=false;
-saveTimer=setTimeout(function(){current.updated=Date.now();saveAll(cvs);markSaved('Saved')},500);
+saveTimer=setTimeout(function(){current.updated=Date.now();
+markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser — download a PDF so you don’t lose it')},500);
 /* Hiration-style: the review re-scores itself shortly after you stop
  * typing — deterministic and free, so no button-hunting needed. */
 if(checkTimer)clearTimeout(checkTimer);
 checkTimer=setTimeout(function(){runCheck(true)},2500);}
 function scheduleSaveQuiet(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
-saveTimer=setTimeout(function(){current.updated=Date.now();saveAll(cvs);markSaved('Saved')},400);}
+saveTimer=setTimeout(function(){current.updated=Date.now();
+markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser — download a PDF so you don’t lose it')},400);}
 
 /* ---------------- structured payload ---------------- */
 function lines(t){return String(t||'').split('\n').map(function(l){return l.trim()}).filter(Boolean)}
@@ -344,7 +346,11 @@ fetch('/api/improve-line',{method:'POST',headers:{'Content-Type':'application/js
 body:JSON.stringify({learner_id:lid,line:line})})
 .then(function(r){return r.json()}).then(function(d){b.disabled=false;b.textContent='✨';
 if(!d||!d.line){alert((d&&d.reply)||'Could not improve that line just now.');return;}
-bl[+p[1]]=d.line;e.bullets=bl.join('\n');renderDoc();scheduleSave();})
+/* Only apply if the bullet is untouched since the request went out —
+ * never clobber keystrokes typed while the improver was thinking. */
+var freshBl=String(e.bullets||'').split('\n');
+if((freshBl[+p[1]]||'').trim()!==line){return;}
+freshBl[+p[1]]=d.line;e.bullets=freshBl.join('\n');renderDoc();scheduleSave();})
 .catch(function(){b.disabled=false;b.textContent='✨';});};});
 var ar=$('addrole');if(ar)ar.onclick=function(){current.data.experience.push(blankExp());renderDoc();
 focusBind('xp:'+(current.data.experience.length-1)+':role');scheduleSave();};

@@ -164,6 +164,7 @@ import {
   parseGeneratedQuestions,
   questionGenSystemPrompt,
   questionGenUserMessage,
+  questionsSigFresh,
   questionsSigningPayload,
   validateQuestionGenRequest,
 } from "./lib/interview-questions";
@@ -718,8 +719,13 @@ app.post("/api/coach", async (c) => {
     });
   }
 
-  /* -- 3. Deterministic crisis screen (no model needed) -------------- */
-  if (crisisHeuristic(latest)) {
+  /* -- 3. Deterministic crisis screen (no model needed). History is
+   * client-supplied and replayed each turn, so EVERY user turn is
+   * screened — not just the latest — or a fabricated earlier turn
+   * could carry a disclosure past the rail unscreened. ---------------- */
+  if (
+    req.history.some((t) => t.role === "user" && crisisHeuristic(t.content))
+  ) {
     return done("crisis_heuristic", { reply: CRISIS_REPLY, kind: "crisis" });
   }
 
@@ -1923,6 +1929,7 @@ app.post("/api/interview-questions", async (c) => {
   if (!(await modelSpendAllowed(c))) {
     return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
+  await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
   try {
     const raw = await generate(
       c.env.ANTHROPIC_API_KEY,
@@ -1952,13 +1959,17 @@ app.post("/api/interview-questions", async (c) => {
       console.error("[coach] question signing secret unavailable — refusing");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
-    const sig = await signPayload(secret, questionsSigningPayload(parsed.questions));
+    const iat = Math.floor(Date.now() / 1000);
+    const sig = await signPayload(
+      secret,
+      questionsSigningPayload(parsed.questions, learnerHash.slice(0, 16), iat),
+    );
     console.log("[coach] kind=interview-questions outcome=ok");
     return c.json({
       questions: parsed.questions,
       role_label: safeLabel,
       sig,
+      iat,
       kind: "questions",
     });
   } catch (err) {
@@ -1975,18 +1986,27 @@ app.post("/api/interview", async (c) => {
     return c.json({ error: "invalid_request" }, 400);
   }
   /* Custom (job-advert-generated) runs must present the signed
-   * question set the worker issued — tampered sets are rejected. */
+   * question set the worker issued — tampered sets are rejected, and
+   * the signature is bound to this learner id + an issued-at, so a set
+   * cannot be replayed by others or kept beyond its window. */
   let customQuestions: string[] | undefined;
   if (body.role === "custom") {
     const questions = Array.isArray(body.questions)
       ? body.questions.filter((q): q is string => typeof q === "string")
       : [];
     const sig = typeof body.sig === "string" ? body.sig : "";
+    const iat = typeof body.iat === "number" ? Math.round(body.iat) : 0;
     const verifySecret = questionSigningSecret(c.env);
+    const requesterHash = (await hashLearnerId(learnerId)).slice(0, 16);
     const genuine =
       verifySecret.length > 0 &&
       questions.length === QUESTION_GEN_CAPS.questionCount &&
-      (await verifyPayload(verifySecret, questionsSigningPayload(questions), sig));
+      questionsSigFresh(iat, Math.floor(Date.now() / 1000)) &&
+      (await verifyPayload(
+        verifySecret,
+        questionsSigningPayload(questions, requesterHash, iat),
+        sig,
+      ));
     if (!genuine) return c.json({ error: "invalid_questions" }, 400);
     customQuestions = questions;
   }
@@ -1999,8 +2019,12 @@ app.post("/api/interview", async (c) => {
     return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
   }
 
-  /* Safeguarding first — a spoken answer can carry a disclosure. */
-  if (validated.answers.some((a) => crisisHeuristic(a.answer))) {
+  /* Safeguarding first — a spoken answer can carry a disclosure, and
+   * the free-text role label rides into the prompt too. */
+  if (
+    validated.answers.some((a) => crisisHeuristic(a.answer)) ||
+    crisisHeuristic(validated.roleLabel)
+  ) {
     console.log("[coach] kind=interview outcome=crisis");
     return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
   }
@@ -2020,6 +2044,7 @@ app.post("/api/interview", async (c) => {
   if (!(await modelSpendAllowed(c))) {
     return c.json({ reply: BUSY_REPLY, kind: "busy" });
   }
+  await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
 
   try {
     const raw = await generate(
@@ -2054,9 +2079,12 @@ app.post("/api/interview", async (c) => {
      * answer evaluation, never a guessed number. */
     const stats = speechStats(validated.answers);
     const speech = stats ? evaluateSpeech(stats) : null;
-    const presence = evaluatePresence(body.presence);
+    /* Presence sampling runs at ~1.5s intervals during recording, so
+     * the claimed frame count must fit inside the timed answer window
+     * — a forged tally on an untimed (typed) run scores nothing. */
+    const maxPresenceFrames = stats ? Math.ceil(stats.totalSecs / 1.5) + 5 : 0;
+    const presence = evaluatePresence(body.presence, maxPresenceFrames);
     const breakdown = combineInterviewScores(report.overall, speech, presence);
-    await c.env.RATE_LIMITS.put(capKey, String(used + 1), { expirationTtl: 86_400 });
     await recordHubScore(
       c.env,
       learnerId,

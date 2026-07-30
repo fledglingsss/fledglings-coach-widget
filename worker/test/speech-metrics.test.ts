@@ -139,3 +139,15 @@ describe("combineInterviewScores", () => {
     expect(combineInterviewScores(-50, null, null).final).toBe(0);
   });
 });
+
+describe("anti-forgery rails (QA 2026-07-30)", () => {
+  it("evaluatePresence rejects frame tallies beyond the plausible sampling window", () => {
+    const forged = { frames: 100, faceVisible: 100, centred: 100, goodDistance: 100 };
+    /* 60s of timed answers at ~1.5s sampling -> max ~45 frames. */
+    expect(evaluatePresence(forged, 45)).toBeNull();
+    /* A plausible tally still scores. */
+    expect(evaluatePresence({ frames: 30, faceVisible: 30, centred: 30, goodDistance: 30 }, 45)).not.toBeNull();
+    /* Typed-only run (no timed answers) -> maxFrames 0 -> never scored. */
+    expect(evaluatePresence({ frames: 5, faceVisible: 5, centred: 5, goodDistance: 5 }, 0)).toBeNull();
+  });
+});

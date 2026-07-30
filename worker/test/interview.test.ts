@@ -122,3 +122,28 @@ describe("parseInterviewReport", () => {
     expect(parseInterviewReport('{"overall":50}', 5)).toBeNull();
   });
 });
+
+describe("duration plausibility rail (QA 2026-07-30)", () => {
+  const q = questionSet("general")[0]!;
+  const submit = (answer: string, secs: number) =>
+    validateInterviewRequest({
+      role: "general",
+      answers: [{ question: q, answer, duration_secs: secs }],
+    });
+
+  it("nulls a duration implying an impossible speaking rate", () => {
+    /* ~24 words claimed spoken in 2s => 720 wpm: forged. */
+    const fast = submit(
+      "I organised the school fair with three friends and we raised money for charity by planning stalls together carefully over several weeks of preparation time",
+      2,
+    );
+    expect("error" in fast).toBe(false);
+    if (!("error" in fast)) expect(fast.answers[0]!.durationSecs).toBeNull();
+    /* Same words in 12s => ~120 wpm: kept. */
+    const real = submit(
+      "I organised the school fair with three friends and we raised money for charity by planning stalls together carefully over several weeks of preparation time",
+      12,
+    );
+    if (!("error" in real)) expect(real.answers[0]!.durationSecs).toBe(12);
+  });
+});

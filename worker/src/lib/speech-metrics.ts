@@ -162,8 +162,15 @@ function metricOf(pct: number): PresenceMetric {
 
 /** Validate + clamp client-reported presence sampling. Returns null
  * when there was no usable sampling (no camera, or the browser cannot
- * detect faces) — "not measured", never a guess. */
-export function evaluatePresence(raw: unknown): PresenceEvaluation | null {
+ * detect faces) — "not measured", never a guess. `maxFrames`, when
+ * provided, is the largest frame tally the timed answer durations
+ * could plausibly have produced (sampling runs every ~1.5s): a claimed
+ * tally beyond it is treated as unmeasured, so a forged presence
+ * object cannot buy points on an untimed run. */
+export function evaluatePresence(
+  raw: unknown,
+  maxFrames?: number,
+): PresenceEvaluation | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
   const int = (v: unknown): number | null =>
@@ -178,6 +185,7 @@ export function evaluatePresence(raw: unknown): PresenceEvaluation | null {
     return null;
   }
   if (frames < 3) return null; // too little sampling to be meaningful
+  if (maxFrames !== undefined && frames > maxFrames) return null;
   const pct = (n: number) => Math.round(Math.min(n, frames) * 100 / frames);
   const faceVisiblePct = pct(face);
   const centredPct = pct(centred);

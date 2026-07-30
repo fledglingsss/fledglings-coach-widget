@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseGeneratedQuestions,
+  questionsSigFresh,
   questionsSigningPayload,
   validateQuestionGenRequest,
 } from "../src/lib/interview-questions";
@@ -63,11 +64,39 @@ describe("parseGeneratedQuestions", () => {
   });
 });
 
-describe("questionsSigningPayload", () => {
+describe("questionsSigningPayload (v2: learner-bound + issued-at)", () => {
+  const HASH = "a1b2c3d4e5f6a7b8";
+  const IAT = 1_753_900_000;
+
   it("is stable and order-sensitive", () => {
-    expect(questionsSigningPayload(FIVE)).toBe(questionsSigningPayload([...FIVE]));
-    expect(questionsSigningPayload(FIVE)).not.toBe(
-      questionsSigningPayload([...FIVE].reverse()),
+    expect(questionsSigningPayload(FIVE, HASH, IAT)).toBe(
+      questionsSigningPayload([...FIVE], HASH, IAT),
     );
+    expect(questionsSigningPayload(FIVE, HASH, IAT)).not.toBe(
+      questionsSigningPayload([...FIVE].reverse(), HASH, IAT),
+    );
+  });
+
+  it("binds to the learner and the issue time — different learner or time, different payload", () => {
+    expect(questionsSigningPayload(FIVE, HASH, IAT)).not.toBe(
+      questionsSigningPayload(FIVE, "ffffffffffffffff", IAT),
+    );
+    expect(questionsSigningPayload(FIVE, HASH, IAT)).not.toBe(
+      questionsSigningPayload(FIVE, HASH, IAT + 1),
+    );
+  });
+});
+
+describe("questionsSigFresh", () => {
+  const NOW = 1_753_900_000;
+  it("accepts a set inside the 24h window", () => {
+    expect(questionsSigFresh(NOW - 3600, NOW)).toBe(true);
+    expect(questionsSigFresh(NOW, NOW)).toBe(true);
+  });
+  it("rejects expired, far-future and junk timestamps", () => {
+    expect(questionsSigFresh(NOW - 25 * 3600, NOW)).toBe(false);
+    expect(questionsSigFresh(NOW + 600, NOW)).toBe(false);
+    expect(questionsSigFresh(0, NOW)).toBe(false);
+    expect(questionsSigFresh(Number.NaN, NOW)).toBe(false);
   });
 });

@@ -126,7 +126,7 @@ $('id-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('id-sa
 $('id-change').onclick=function(){flClearEmail();location.reload();};
 function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#D9452B'}
 function ago(at){if(!at)return '';var d=Math.floor((Date.now()/1000-at)/86400);
-return d===0?'today':d===1?'yesterday':d+' days ago';}
+return d<=0?'today':d===1?'yesterday':d+' days ago';}
 var LABELS={cv:'CV review',linkedin:'LinkedIn review',interview:'Mock interview',cover:'Cover letter'};
 var HREFS={cv:'/tools',linkedin:'/linkedin',interview:'/interview',cover:'/cover-letter'};
 /* Tasks per tool (mirrors the server's seven-task model). */

@@ -174,7 +174,10 @@ export function renderLinkedInPage(): string {
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
     "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
+    /* A fresh review must never show the PREVIOUS profile's rewrite —
+     * hide the rewrite panel and reset its button every render. */
     "function renderReport(r){var col=band(r.overall);" +
+    "$('rw-out').hidden=true;$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
     "flCountUp($('r-score'),r.overall,'%');$('r-score').style.color=col;" +
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-verdict').textContent=r.verdict;" +

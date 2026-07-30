@@ -123,8 +123,26 @@ export function parseGeneratedQuestions(
   return { roleLabel, questions };
 }
 
+/** How long a signed question set stays usable. Generous enough for a
+ * learner to practise the same set all day; short enough that a signed
+ * set is not a forever-replayable bearer token. */
+export const QUESTIONS_SIG_TTL_SECS = 24 * 3600;
+
 /** Canonical string that gets HMAC-signed so /api/interview can verify
- * a custom question set came from this worker unmodified. */
-export function questionsSigningPayload(questions: string[]): string {
-  return `interview-questions:v1:${JSON.stringify(questions)}`;
+ * a custom question set came from this worker unmodified. v2 binds the
+ * set to the learner id it was issued to and an issued-at timestamp so
+ * a signed set cannot be replayed by others or kept forever. */
+export function questionsSigningPayload(
+  questions: string[],
+  learnerHash: string,
+  issuedAt: number,
+): string {
+  return `interview-questions:v2:${learnerHash}:${issuedAt}:${JSON.stringify(questions)}`;
+}
+
+/** True when an issued-at timestamp is within the acceptance window
+ * (not older than the TTL, not more than 5 minutes in the future). */
+export function questionsSigFresh(issuedAt: number, nowSecs: number): boolean {
+  if (!Number.isFinite(issuedAt) || issuedAt <= 0) return false;
+  return nowSecs - issuedAt <= QUESTIONS_SIG_TTL_SECS && issuedAt - nowSecs <= 300;
 }
