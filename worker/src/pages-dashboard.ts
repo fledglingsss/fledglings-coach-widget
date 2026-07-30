@@ -92,11 +92,11 @@ export function renderDashboardPage(): string {
     /* ---------- analytics ---------- */
     "<section class='dview' id='v-analytics' hidden>" +
     "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='a-chips'></div></div>" +
-    "<div class='dsplit'>" +
+    "<div class='dsplit even'>" +
     "<div class='dcard'><h3>Learning — module completion <span class='dtag' id='lc-note' hidden>all cohorts</span></h3><div id='ch-courses'></div></div>" +
     "<div class='dcard'><h3>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h3><div id='ch-curriculum'></div></div>" +
     "</div>" +
-    "<div class='dsplit'>" +
+    "<div class='dsplit even'>" +
     "<div class='dcard'><h3>Career tool adoption</h3><div id='ch-adopt'></div></div>" +
     "<div class='dcard'><h3>CV score distribution</h3><div id='ch-dist'></div></div>" +
     "</div>" +
@@ -354,14 +354,18 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .kpigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px;}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;position:relative;
   box-shadow:0 1px 3px rgba(5,37,60,.05);}
-.kpi-ico{font-size:20px;}
+.kpi-ico{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;
+  border-radius:11px;background:#FBEAE6;font-size:18px;}
 .kpi-n{font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:6px;line-height:1;}
 .kpi-l{font-size:13.5px;font-weight:700;margin-top:6px;}
 .kpi-s{font-size:11.5px;color:var(--mut);}
 .kpi-bar{height:6px;border-radius:999px;background:var(--off);overflow:hidden;margin-top:10px;}
 .kpi-bar i{display:block;height:100%;border-radius:999px;background:var(--blue);width:0;transition:width .7s cubic-bezier(.2,.7,.3,1);}
 .dsplit{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;}
-@media(max-width:900px){.dsplit{grid-template-columns:1fr;}}
+.dsplit.even{grid-template-columns:1fr 1fr;}
+@media(max-width:900px){.dsplit,.dsplit.even{grid-template-columns:1fr;}}
+#ch-courses .hb-l,#ch-curriculum .hb-l{width:200px;}
+@media(max-width:700px){#ch-courses .hb-l,#ch-curriculum .hb-l{width:120px;}}
 .qacts{display:flex;flex-direction:column;gap:9px;}
 .dbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--orange);color:#fff;
   border:none;border-radius:11px;padding:11px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;
