@@ -282,17 +282,23 @@ $('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
 return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
 :"<div class='dempty'>No curriculum data yet.</div>";
 function tried(t){return rows.filter(function(r){return r.employability[t].latest!==null||( t==='cover'&&r.employability[t].attempts>0)})}
-$('ch-adopt').innerHTML=hbar([
+var anyTool=['cv','linkedin','interview','cover'].some(function(t){return tried(t).length>0});
+var SHARE_HINT="<div class='dempty'>No career-tool use in this cohort yet — learners reach the tools from "+
+"<b>fledglings.co</b> or you can send them the hub link directly: <b>fledglings-coach.fledglings.workers.dev/hub</b></div>";
+$('ch-adopt').innerHTML=anyTool?hbar([
 {l:'CV review',v:tried('cv').length,c:'#D9452B'},
 {l:'LinkedIn',v:tried('linkedin').length,c:'#13507F'},
 {l:'Interview',v:tried('interview').length,c:'#ED9249'},
-{l:'Cover letter',v:tried('cover').length,c:'#05253C'}],rows.length||1);
+{l:'Cover letter',v:tried('cover').length,c:'#05253C'}],rows.length||1):SHARE_HINT;
 var buckets=[0,0,0,0,0];
 tried('cv').forEach(function(r){buckets[Math.min(4,Math.floor((r.employability.cv.latest||0)/20))]++});
-$('ch-dist').innerHTML=colChart(buckets,['0-19','20-39','40-59','60-79','80+'],'#D9452B');
+$('ch-dist').innerHTML=tried('cv').length?colChart(buckets,['0-19','20-39','40-59','60-79','80+'],'#D9452B')
+:"<div class='dempty'>Scores appear here after the first CV reviews.</div>";
 var act=(DATA.analytics&&DATA.analytics.activity)||[];
-$('ch-activity').innerHTML=colChart(act.map(function(a){return a.events}),
-act.map(function(a){return a.weeksAgo===0?'now':a.weeksAgo+'w'}),'#13507F');
+var anyAct=act.some(function(a){return a.events>0});
+$('ch-activity').innerHTML=anyAct?colChart(act.map(function(a){return a.events}),
+act.map(function(a){return a.weeksAgo===0?'now':a.weeksAgo+'w'}),'#13507F')
+:"<div class='dempty'>Activity shows here once learners start using the career tools.</div>";
 var perTag=(DATA.tags||[]).map(function(t){
 var m=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1&&r.readiness!==null});
 return {l:t.tag,v:m.length?Math.round(m.reduce(function(s,r){return s+r.readiness},0)/m.length):0,c:'#ED9249'};})
