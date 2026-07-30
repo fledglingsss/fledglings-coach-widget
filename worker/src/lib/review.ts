@@ -6,7 +6,7 @@
  * may only praise what it can quote VERBATIM from the learner's own
  * text, and must never invent experience, metrics, or employers. */
 
-import { sanitiseText } from "./safety";
+import { neutraliseAngles, sanitiseText } from "./safety";
 
 export type ReviewKind = "cv" | "linkedin";
 
@@ -29,9 +29,11 @@ export function validateReviewRequest(body: {
 }): ReviewRequest | { error: string } {
   const kind = body.kind;
   if (kind !== "cv" && kind !== "linkedin") return { error: "bad_kind" };
-  const text = sanitiseText(body.text, REVIEW_CAPS.maxTextChars);
+  const text = neutraliseAngles(sanitiseText(body.text, REVIEW_CAPS.maxTextChars));
   if (text.length < 120) return { error: "text_too_short" };
-  const target = sanitiseText(body.target, REVIEW_CAPS.maxTargetChars);
+  const target = neutraliseAngles(
+    sanitiseText(body.target, REVIEW_CAPS.maxTargetChars),
+  );
   return { kind, text, target };
 }
 
@@ -196,10 +198,10 @@ export function parseReviewReport(raw: string): ReviewReport | "crisis" | null {
 export function reviewUserMessage(req: ReviewRequest): string {
   const label = req.kind === "cv" ? "CV" : "LinkedIn profile";
   const target = req.target
-    ? `<target_role_or_advert>\n${req.target}\n</target_role_or_advert>\n`
+    ? `<target_role_or_advert>\n${neutraliseAngles(req.target)}\n</target_role_or_advert>\n`
     : "No target role was provided.\n";
   return (
-    `${target}<learner_${req.kind}>\n${req.text}\n</learner_${req.kind}>\n` +
+    `${target}<learner_${req.kind}>\n${neutraliseAngles(req.text)}\n</learner_${req.kind}>\n` +
     `Review the ${label} above, following your structure and hard rules exactly.`
   );
 }

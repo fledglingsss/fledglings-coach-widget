@@ -5,7 +5,7 @@
  * everything else: the advert is data not instructions, distress
  * routes to support, strict JSON out. */
 
-import { sanitiseText } from "./safety";
+import { neutraliseAngles, sanitiseText } from "./safety";
 
 export const QUESTION_GEN_CAPS = {
   minJdChars: 60,
@@ -36,9 +36,11 @@ export function validateQuestionGenRequest(body: {
 }): QuestionGenRequest | { error: string } {
   const mode: QuestionGenMode =
     body.mode === "cv" ? "cv" : body.mode === "admission" ? "admission" : "jd";
-  const jd = sanitiseText(body.jd, QUESTION_GEN_CAPS.maxJdChars);
-  const cvText = sanitiseText(body.cv_text, QUESTION_GEN_CAPS.maxCvChars);
-  const degree = sanitiseText(body.degree, 120);
+  const jd = neutraliseAngles(sanitiseText(body.jd, QUESTION_GEN_CAPS.maxJdChars));
+  const cvText = neutraliseAngles(
+    sanitiseText(body.cv_text, QUESTION_GEN_CAPS.maxCvChars),
+  );
+  const degree = neutraliseAngles(sanitiseText(body.degree, 120));
   if (mode === "jd" && jd.length < QUESTION_GEN_CAPS.minJdChars) {
     return { error: "jd_too_short" };
   }
@@ -78,17 +80,17 @@ Exactly five: one opener about them and their interest in the role, two grounded
 
 export function questionGenUserMessage(req: QuestionGenRequest): string {
   if (req.mode === "cv") {
-    return `<learner_cv>\n${req.cvText}\n</learner_cv>\nWrite the five questions this CV would earn, following your rules exactly.`;
+    return `<learner_cv>\n${neutraliseAngles(req.cvText)}\n</learner_cv>\nWrite the five questions this CV would earn, following your rules exactly.`;
   }
   if (req.mode === "admission") {
     return (
-      `<course_applied_for>${req.degree}</course_applied_for>\n` +
-      (req.jd ? `<course_description>\n${req.jd}\n</course_description>\n` : "") +
-      (req.cvText ? `<learner_cv>\n${req.cvText}\n</learner_cv>\n` : "") +
+      `<course_applied_for>${neutraliseAngles(req.degree)}</course_applied_for>\n` +
+      (req.jd ? `<course_description>\n${neutraliseAngles(req.jd)}\n</course_description>\n` : "") +
+      (req.cvText ? `<learner_cv>\n${neutraliseAngles(req.cvText)}\n</learner_cv>\n` : "") +
       "Write the five admission questions, following your rules exactly."
     );
   }
-  return `<job_advert>\n${req.jd}\n</job_advert>\nWrite the five questions for this role following your rules exactly.`;
+  return `<job_advert>\n${neutraliseAngles(req.jd)}\n</job_advert>\nWrite the five questions for this role following your rules exactly.`;
 }
 
 export interface GeneratedQuestions {

@@ -6,7 +6,7 @@
  * deliberate opposite of tools that invent experience for young
  * people. Nothing is stored; the letter exists only in their browser. */
 
-import { sanitiseLine, sanitiseText } from "./safety";
+import { neutraliseAngles, sanitiseLine, sanitiseText } from "./safety";
 
 export const COVER_LETTER_CAPS = {
   minJdChars: 60,
@@ -29,13 +29,15 @@ export function validateCoverLetterRequest(body: {
   role?: unknown;
   company?: unknown;
 }): CoverLetterRequest | { error: string } {
-  const jd = sanitiseText(body.jd, COVER_LETTER_CAPS.maxJdChars);
+  const jd = neutraliseAngles(sanitiseText(body.jd, COVER_LETTER_CAPS.maxJdChars));
   if (jd.length < COVER_LETTER_CAPS.minJdChars) return { error: "jd_too_short" };
   return {
     jd,
-    cvText: sanitiseText(body.cv_text, COVER_LETTER_CAPS.maxCvChars),
-    role: sanitiseLine(body.role, 80),
-    company: sanitiseLine(body.company, 80),
+    cvText: neutraliseAngles(
+      sanitiseText(body.cv_text, COVER_LETTER_CAPS.maxCvChars),
+    ),
+    role: neutraliseAngles(sanitiseLine(body.role, 80)),
+    company: neutraliseAngles(sanitiseLine(body.company, 80)),
   };
 }
 
@@ -66,14 +68,14 @@ export function coverLetterUserMessage(req: CoverLetterRequest): string {
    * input — data, not instructions. */
   const roleLine =
     req.role || req.company
-      ? `<target_role>${req.role || "[role]"}${req.company ? ` at ${req.company}` : ""}</target_role>\n`
+      ? `<target_role>${neutraliseAngles(req.role || "[role]")}${req.company ? ` at ${neutraliseAngles(req.company)}` : ""}</target_role>\n`
       : "";
   const cv = req.cvText
-    ? `<learner_cv>\n${req.cvText}\n</learner_cv>\n`
+    ? `<learner_cv>\n${neutraliseAngles(req.cvText)}\n</learner_cv>\n`
     : "No CV text was provided — the letter must use [placeholders] instead of any specific claims.\n";
   return (
     roleLine +
-    `<job_advert>\n${req.jd}\n</job_advert>\n` +
+    `<job_advert>\n${neutraliseAngles(req.jd)}\n</job_advert>\n` +
     cv +
     "Draft the cover letter following your rules exactly."
   );

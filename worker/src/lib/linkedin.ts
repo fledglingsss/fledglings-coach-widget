@@ -7,7 +7,7 @@
  * not have. The same no-fabrication law as the CV review applies:
  * praise must quote the learner's own text verbatim. */
 
-import { sanitiseText } from "./safety";
+import { neutraliseAngles, sanitiseText } from "./safety";
 
 export interface LinkedInSectionDef {
   id: LinkedInSectionId;
@@ -229,9 +229,13 @@ export function validateLinkedInRequest(body: {
   text?: unknown;
   target?: unknown;
 }): LinkedInRequest | { error: string } {
-  const text = sanitiseText(body.text, LINKEDIN_CAPS.maxTextChars);
+  const text = neutraliseAngles(
+    sanitiseText(body.text, LINKEDIN_CAPS.maxTextChars),
+  );
   if (text.length < 120) return { error: "text_too_short" };
-  const target = sanitiseText(body.target, LINKEDIN_CAPS.maxTargetChars);
+  const target = neutraliseAngles(
+    sanitiseText(body.target, LINKEDIN_CAPS.maxTargetChars),
+  );
   return { text, target };
 }
 
@@ -287,11 +291,11 @@ export function linkedinUserMessage(
     `extra sections present: ${facts.extrasHeadings.join(", ") || "none"}`,
   ].join("\n");
   const target = req.target
-    ? `<target_role_or_advert>\n${req.target}\n</target_role_or_advert>\n`
+    ? `<target_role_or_advert>\n${neutraliseAngles(req.target)}\n</target_role_or_advert>\n`
     : "No target role was provided.\n";
   return (
     `${target}<automated_facts>\n${factLines}\n</automated_facts>\n` +
-    `<learner_linkedin>\n${req.text}\n</learner_linkedin>\n` +
+    `<learner_linkedin>\n${neutraliseAngles(req.text)}\n</learner_linkedin>\n` +
     "Review each section following your rules, scoring within each section's maximum."
   );
 }

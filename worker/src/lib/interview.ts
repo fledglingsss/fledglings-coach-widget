@@ -6,7 +6,7 @@
  * their words, sharper answers may only re-frame what they actually
  * said, with [brackets] for anything they'd need to add themselves. */
 
-import { sanitiseText } from "./safety";
+import { neutraliseAngles, sanitiseText } from "./safety";
 
 export const INTERVIEW_ROLES = [
   "customer-service",
@@ -104,7 +104,7 @@ export function validateInterviewRequest(
   if (customQuestions) {
     if (role !== "custom") return { error: "bad_role" };
     expected = new Set(customQuestions);
-    roleLabel = sanitiseText(body.role_label, 60) || "Your chosen role";
+    roleLabel = neutraliseAngles(sanitiseText(body.role_label, 60)) || "Your chosen role";
   } else {
     if (typeof role !== "string" || !INTERVIEW_ROLES.includes(role as InterviewRole)) {
       return { error: "bad_role" };
@@ -122,14 +122,26 @@ export function validateInterviewRequest(
   for (const raw of body.answers) {
     const a = raw as Record<string, unknown>;
     const question = typeof a.question === "string" ? a.question.trim() : "";
-    const answer = sanitiseText(a.answer, INTERVIEW_CAPS.maxAnswerChars);
+    const answer = neutraliseAngles(
+      sanitiseText(a.answer, INTERVIEW_CAPS.maxAnswerChars),
+    );
     if (!expected.has(question)) return { error: "unknown_question" };
     if (answer.length < INTERVIEW_CAPS.minAnswerChars) return { error: "answer_too_short" };
     const rawSecs = a.duration_secs;
-    const durationSecs =
+    let durationSecs =
       typeof rawSecs === "number" && Number.isFinite(rawSecs) && rawSecs >= 1
         ? Math.min(Math.round(rawSecs), INTERVIEW_CAPS.maxAnswerSecs)
         : null;
+    /* Plausibility rail: the duration is browser-timed and client-
+     * supplied, so a forged value could park any typed answer in the
+     * "good pace" band. A claimed duration implying an impossible
+     * speaking rate (under 40 or over 300 wpm) is treated as untimed —
+     * the answer still scores, delivery just isn't claimed. */
+    if (durationSecs !== null) {
+      const words = answer.split(/\s+/).filter((w) => w.length > 0).length;
+      const wpm = (words / durationSecs) * 60;
+      if (wpm < 40 || wpm > 300) durationSecs = null;
+    }
     answers.push({ question, answer, durationSecs });
   }
   return { role: (role as InterviewRole) ?? "custom", roleLabel, answers };
@@ -169,10 +181,10 @@ Output exactly this shape:
 
 export function interviewUserMessage(req: InterviewRequest): string {
   const parts = req.answers.map(
-    (a, i) => `<question_${i + 1}>${a.question}</question_${i + 1}>\n<answer_${i + 1}>\n${a.answer}\n</answer_${i + 1}>`,
+    (a, i) => `<question_${i + 1}>${neutraliseAngles(a.question)}</question_${i + 1}>\n<answer_${i + 1}>\n${neutraliseAngles(a.answer)}\n</answer_${i + 1}>`,
   );
   return (
-    `<role_applied_for>${req.roleLabel}</role_applied_for>\n\n` +
+    `<role_applied_for>${neutraliseAngles(req.roleLabel)}</role_applied_for>\n\n` +
     parts.join("\n\n") +
     "\n\nScore each answer and reply with the JSON shape exactly."
   );
