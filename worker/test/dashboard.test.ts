@@ -166,7 +166,14 @@ describe("GET /dashboard/data", () => {
     expect(amy.employability.interview!.latest).toBe(81);
     /* LearnWorlds learning join: 2 real modules (container excluded),
      * 1 completed, 1 in progress; engagement tier from the risk engine. */
-    expect(amy.learning).toEqual({ enrolled: 2, completed: 1, inProgress: 1 });
+    expect(amy.learning).toMatchObject({ enrolled: 2, completed: 1, inProgress: 1 });
+    /* Per-module detail, in-progress first, completed last. */
+    expect(
+      (amy.learning as unknown as { modules: Array<{ t: string; p: number; done: boolean }> }).modules,
+    ).toEqual([
+      { t: "Cybersecurity Fundamentals", p: 40, done: false },
+      { t: "Budgeting That Actually Works", p: 100, done: true },
+    ]);
     expect(amy.engagement.tier).toBe("ok");
     expect(amy.engagement.daysSinceLogin).toBe(2);
     expect(data.kpis.learners).toBe(2);
@@ -479,6 +486,21 @@ describe("POST /api/hub greeting", () => {
     const data = (await res.json()) as { ok: boolean; name?: string };
     expect(data.ok).toBe(true);
     expect(getUserMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the learner's own module progress, cached", async () => {
+    const env = makeEnv();
+    getUserMock.mockResolvedValue({ id: "u1", email: "amy@swift.test" } as never);
+    const res = await app.request(hubReq("amy@swift.test"), undefined, env);
+    const data = (await res.json()) as {
+      ok: boolean;
+      learning?: { enrolled: number; completed: number; inProgress: number };
+    };
+    expect(data.ok).toBe(true);
+    expect(data.learning).toEqual({ enrolled: 2, completed: 1, inProgress: 1 });
+    /* Second call rides the 10-minute cache — no second progress fetch. */
+    await app.request(hubReq("amy@swift.test"), undefined, env);
+    expect(coursesMock).toHaveBeenCalledTimes(1);
   });
 });
 

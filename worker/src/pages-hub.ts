@@ -65,9 +65,16 @@ export function renderHubPage(): string {
     "<div class='cr-ring' id='cr-ring'><div class='in'><div class='pc' id='cr-pct'>0</div></div></div></div>" +
     "<div class='crbox' id='jr-box' hidden><div class='cr-t'><b>Job-ready score</b><span>quality of your latest scores</span></div>" +
     "<div class='cr-ring' id='jr-ring'><div class='in'><div class='pc' id='jr-pct'>–</div></div></div></div>" +
+    "<div class='crbox' id='lr-box' hidden><div class='cr-t'><b>Your learning</b><span id='lr-sub'>modules completed</span></div>" +
+    "<div class='cr-ring' id='lr-ring'><div class='in'><div class='pc' id='lr-pct'>0</div></div></div></div>" +
     "</div></div>" +
     /* journey stepper */
     `<div class='journey'>${stepper}</div>` +
+    /* continue-learning band — the learning side of the same journey */
+    "<div class='card learnband' id='learn-card' hidden>" +
+    "<div class='lb-body'><span class='lb-label'>CONTINUE YOUR LEARNING</span>" +
+    "<b id='learn-title'></b><div class='lb-bar'><i id='learn-bar'></i></div></div>" +
+    "<a class='btn' id='learn-btn' href='#' target='_top'>Continue →</a></div>" +
     /* tool cards */
     `<div class='hubgrid'>${cards}</div>` +
     /* guided next step */
@@ -136,6 +143,21 @@ body:JSON.stringify({learner_id:lid,email:email})})
 .then(function(r){return r.json()}).then(function(d){
 if(!d||!d.ok||!d.summary)return;var s=d.summary;
 if(d.name)$('hub-hi').textContent="Let's kickstart your career journey, "+d.name;
+/* learning ring + continue-learning band (only when the account is known) */
+if(d.learning&&d.learning.enrolled>0){var L=d.learning;
+var lp=Math.round(L.completed*100/L.enrolled);
+$('lr-box').hidden=false;$('lr-sub').textContent=L.completed+'/'+L.enrolled+' modules completed';
+flCountUp($('lr-pct'),lp);
+var lc=lp>=70?'#1B7A4B':'#13507F';$('lr-pct').style.color=lc;
+$('lr-ring').style.background='conic-gradient('+lc+' 0deg '+Math.round(lp*3.6)+'deg,#E7EAF0 '+Math.round(lp*3.6)+'deg)';
+if(email&&L.completed<L.enrolled){
+fetch('/api/next-step',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,email:email})})
+.then(function(r){return r.json()}).then(function(ns){
+if(!ns||!ns.ok||!ns.url)return;
+$('learn-card').hidden=false;$('learn-title').textContent=ns.title;
+$('learn-bar').style.width=(ns.percent||0)+'%';
+$('learn-btn').href=ns.url;}).catch(function(){});}}
 var taskState={};(s.tasks||[]).forEach(function(t){taskState[t.id]=t.done});
 /* tool cards: status band + meta + stepper state */
 ['cv','linkedin','interview','cover'].forEach(function(t){var ts=s[t];
@@ -185,6 +207,14 @@ var btn=$('hc-btn-'+s.next.tool);if(btn)btn.className='btn tc-btn';
 })();`;
 
 const HUB_CSS = `
+.learnband{display:flex;align-items:center;gap:18px;border-left:4px solid #13507F;margin-bottom:18px;}
+.lb-body{flex:1;min-width:0;}
+.lb-label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#13507F;margin-bottom:3px;}
+.learnband b{font-size:15px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lb-bar{height:7px;border-radius:999px;background:#ECE7E6;overflow:hidden;margin-top:8px;}
+.lb-bar i{display:block;height:100%;border-radius:999px;background:#13507F;width:0;transition:width .7s cubic-bezier(.2,.7,.3,1);}
+.learnband .btn{flex:none;}
+@media(max-width:560px){.learnband{flex-direction:column;align-items:stretch;}}
 .hubhead{display:flex;gap:22px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:24px;}
 .hubhead>div:first-child{flex:1;min-width:260px;}
 .statrow{display:flex;gap:12px;flex-wrap:wrap;}

@@ -2442,6 +2442,13 @@ app.post("/api/hub", async (c) => {
     /* First name for the greeting — cached 6h per email (misses too,
      * so an unknown email costs one LearnWorlds call a day, not one
      * per visit). Never allowed to break the hub. */
+    /* One account lookup shared by the name and learning blocks —
+     * undefined = not fetched yet, null = fetched and absent. */
+    let lookedUp: Awaited<ReturnType<typeof getUserByEmail>> | undefined;
+    const lookupUser = async () => {
+      if (lookedUp === undefined) lookedUp = await getUserByEmail(c.env, email);
+      return lookedUp;
+    };
     let name = "";
     if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
       try {
@@ -2450,7 +2457,7 @@ app.post("/api/hub", async (c) => {
         if (cachedName !== null) {
           name = cachedName;
         } else {
-          const user = await getUserByEmail(c.env, email);
+          const user = await lookupUser();
           name = user
             ? displayName({
                 email: user.email,
@@ -2466,7 +2473,43 @@ app.post("/api/hub", async (c) => {
         /* greeting is decoration — the summary still ships */
       }
     }
-    return c.json({ ok: true, summary: summariseHub(merged), ...(name ? { name } : {}) });
+    /* The learner's own module progress — the learning half of the
+     * picture, cached 10 min per email. Decoration-only failure mode:
+     * the career summary still ships if the platform is down. */
+    let learning: { enrolled: number; completed: number; inProgress: number } | null = null;
+    if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
+      try {
+        const learnKey = `hub:learn:v1:${(await hashLearnerId(email)).slice(0, 16)}`;
+        const cachedLearn = await c.env.RATE_LIMITS.get(learnKey);
+        if (cachedLearn !== null) {
+          learning = JSON.parse(cachedLearn) as typeof learning;
+        } else {
+          const user = await lookupUser();
+          if (user) {
+            const titles = await courseTitleMap(c.env);
+            const modules = (await accurateUserCourses(c.env, user.id, titles)).filter((m) =>
+              isModuleTitle(m.title),
+            );
+            learning = {
+              enrolled: modules.length,
+              completed: modules.filter((m) => m.completed).length,
+              inProgress: modules.filter((m) => !m.completed && (m.progressRate ?? 0) > 0).length,
+            };
+          }
+          await c.env.RATE_LIMITS.put(learnKey, JSON.stringify(learning), {
+            expirationTtl: 600,
+          });
+        }
+      } catch {
+        /* learning strip is optional — never sink the hub */
+      }
+    }
+    return c.json({
+      ok: true,
+      summary: summariseHub(merged),
+      ...(name ? { name } : {}),
+      ...(learning ? { learning } : {}),
+    });
   } catch (err) {
     console.error("[coach] hub error:", String(err));
     return c.json({ ok: false });
@@ -2488,8 +2531,14 @@ interface DashLearner {
   employability: Record<string, { latest: number | null; attempts: number; lastAt: number | null }>;
   tasksDone: number;
   readiness: number | null;
-  /** LearnWorlds learning modules — the other half of the picture. */
-  learning: { enrolled: number; completed: number; inProgress: number };
+  /** Learning modules — the other half of the picture, with the
+   * per-module detail the drill panel shows (cap 12). */
+  learning: {
+    enrolled: number;
+    completed: number;
+    inProgress: number;
+    modules: Array<{ t: string; p: number; done: boolean }>;
+  };
   /** Early-warning engine join: engagement tier + copy-ready nudge. */
   engagement: { tier: string | null; daysSinceLogin: number | null; nudge: string | null };
 }
@@ -2545,6 +2594,18 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
         enrolled: modules.length,
         completed,
         inProgress: modules.filter((m) => !m.completed && (m.progressRate ?? 0) > 0).length,
+        /* In-progress first (most actionable), untouched next,
+         * completed last. */
+        modules: modules
+          .map((m) => ({
+            t: m.title,
+            p: m.completed ? 100 : Math.round(m.progressRate ?? 0),
+            done: m.completed,
+          }))
+          .sort((a, b) =>
+            (a.done ? 2 : a.p > 0 ? 0 : 1) - (b.done ? 2 : b.p > 0 ? 0 : 1) || b.p - a.p,
+          )
+          .slice(0, 12),
       },
       engagement: {
         tier: risk?.tier ?? null,
@@ -2561,7 +2622,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v7:${scopeKey}`;
+  const cacheKey = `dash:v8:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {

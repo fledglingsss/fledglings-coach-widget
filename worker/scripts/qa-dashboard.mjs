@@ -30,7 +30,14 @@ const STUB = {
   ],
   learners: [
     learner("Amy Ash", "amy@swift.test", ["Swift Learners"], { cv: tool(82, 3, 1), linkedin: tool(74, 2, 2), interview: tool(88, 2, 1), cover: tool(100, 2, 3) }, 7, 82,
-      { enrolled: 8, completed: 6, inProgress: 1 }, { tier: "ok", daysSinceLogin: 1, nudge: null }),
+      { enrolled: 8, completed: 6, inProgress: 1, modules: [
+        { t: "Handling Change & Uncertainty", p: 62, done: false },
+        { t: "AI in the Workplace", p: 0, done: false },
+        { t: "Budgeting That Actually Works", p: 100, done: true },
+        { t: "Building Real Confidence", p: 100, done: true },
+        { t: "Cybersecurity Fundamentals", p: 100, done: true },
+        { t: "Interview Confidence", p: 100, done: true },
+      ] }, { tier: "ok", daysSinceLogin: 1, nudge: null }),
     learner("Ben Brook", "ben@swift.test", ["Swift Learners"], { cv: tool(58, 1, 4), linkedin: tool(null, 0, 0), interview: tool(62, 1, 6), cover: tool(null, 0, 0) }, 3, 60,
       { enrolled: 8, completed: 3, inProgress: 2 }, { tier: "watch", daysSinceLogin: 6, nudge: "Hi Ben — you were flying through Budgeting last week; ten minutes finishes it." }),
     learner("Cara Cole", "cara@swift.test", ["Swift Learners", "Evening"], { cv: tool(41, 2, 9), linkedin: tool(38, 1, 9), interview: tool(null, 0, 0), cover: tool(null, 0, 0) }, 2, 40,

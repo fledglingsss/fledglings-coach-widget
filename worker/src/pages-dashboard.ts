@@ -295,7 +295,7 @@ var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 var tierChip=en.tier?("<span class='dtag "+(en.tier==='high'?'warn':'')+"'>"+
 ({high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier)+"</span>"):'';
 var loginNote=en.daysSinceLogin===null?(en.tier?'Never logged in':''):
-en.daysSinceLogin===0?'Active today':en.daysSinceLogin+' days since login';
+en.daysSinceLogin===0?'Active today':en.daysSinceLogin+' day'+(en.daysSinceLogin===1?'':'s')+' since login';
 var mailHref="mailto:"+encodeURIComponent(r.email)+"?subject="+encodeURIComponent('Your Fledglings journey')+
 (en.nudge?"&body="+encodeURIComponent(en.nudge):"");
 d.innerHTML="<div class='dr-head'><div><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
@@ -305,7 +305,13 @@ r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' '
 "<div class='dr-learn'><span class='dr-l'>Learning modules</span>"+
 "<span class='ms'>"+lg.completed+"/"+lg.enrolled+" completed</span>"+
 "<i class='msb wide'><b style='width:"+modPct+"%;background:#1B7A4B'></b></i>"+
-"<span class='dmut'>"+lg.inProgress+" in progress"+(loginNote?' · '+esc2(loginNote):'')+"</span></div>"+
+"<span class='dmut'>"+lg.inProgress+" in progress"+(loginNote?' · '+esc2(loginNote):'')+"</span>"+
+((lg.modules&&lg.modules.length)?"<div class='dr-mods'>"+lg.modules.map(function(m){
+return "<div class='dr-mod'><span class='dr-mt"+(m.done?' done':'')+"' title='"+esc2(m.t)+"'>"+
+(m.done?'✓ ':'')+esc2(m.t)+"</span>"+
+"<i class='msb'><b style='width:"+m.p+"%;background:"+(m.done?'#1B7A4B':m.p>0?'#13507F':'#D8D2CE')+"'></b></i>"+
+"<span class='dr-mp'>"+m.p+"%</span></div>";}).join('')+"</div>":'')+
+"</div>"+
 "<div class='dr-tools'>"+toolRow('CV review',e.cv)+toolRow('LinkedIn',e.linkedin)+
 toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
 "<div class='dr-journey'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
@@ -597,6 +603,11 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dr-ready i{display:block;font-style:normal;font-size:10px;color:var(--mut);font-weight:700;}
 .dr-learn{border:1.5px solid #CBE3D4;background:#F3FAF6;border-radius:12px;padding:12px;margin-top:14px;}
 .dr-learn .dmut{display:block;margin-top:5px;}
+.dr-mods{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:7px 18px;}
+.dr-mod{display:grid;grid-template-columns:1fr 56px 34px;gap:8px;align-items:center;}
+.dr-mt{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dr-mt.done{color:#1B7A4B;}
+.dr-mp{font-size:11px;font-weight:700;color:var(--mut);text-align:right;font-variant-numeric:tabular-nums;}
 .dr-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;}
 .dbtn.sm{padding:8px 13px;font-size:12.5px;}
 .dr-tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0 12px;}
