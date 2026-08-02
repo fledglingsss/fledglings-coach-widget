@@ -74,7 +74,8 @@ const RSTUB_READY = {
     { courseId: "c4", courseTitle: "AI in the Workplace", preCount: 2, postCount: 0, preAvgPct: 48, postAvgPct: null, shift: null },
   ],
   flags: [
-    { email: "cara@swift.test", courseTitle: "Building Real Confidence", unitTitle: "Post Completion Feedback", question: "How are you feeling after this module?", answer: "honestly some days I do not want to be here any more", submittedAt: NOW - 2 * 86400, matched: "crisis-language", cohort: "Swift Learners" },
+    { email: "cara@swift.test", courseTitle: "Building Real Confidence", unitTitle: "Post Completion Feedback", question: "How are you feeling after this module?", answer: "honestly some days I do not want to be here any more", submittedAt: NOW - 2 * 86400, matched: "crisis-language", cohort: "Swift Learners", key: "cara@swift.test|Post Completion Feedback|" + (NOW - 2 * 86400), acked: false },
+    { email: "dev@swift.test", courseTitle: "Handling Change", unitTitle: "Post Completion Feedback", question: "Anything else?", answer: "was struggling a lot but talked to my tutor, feeling better", submittedAt: NOW - 9 * 86400, matched: "crisis-language", cohort: "Swift Learners", key: "dev@swift.test|Post Completion Feedback|" + (NOW - 9 * 86400), acked: true },
   ],
   preCount: 14,
   postCount: 9,

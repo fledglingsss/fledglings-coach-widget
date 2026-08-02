@@ -264,7 +264,17 @@ describe("GET /dashboard/reflections.csv", () => {
         totalCourses: REAL_COURSES,
         coverage: [],
         shifts: [],
-        flags: [],
+        flags: [
+          {
+            email: "amy@swift.test",
+            courseTitle: "Money Confidence",
+            unitTitle: "Post Completion Feedback",
+            question: "How are you feeling?",
+            answer: "not great to be honest",
+            submittedAt: 1_753_100_000,
+            matched: "crisis-language",
+          },
+        ],
         responses: [
           {
             email: "amy@swift.test",
@@ -319,6 +329,61 @@ describe("GET /dashboard/reflections.csv", () => {
   it("rejects without a session", async () => {
     const res = await app.request(get("/dashboard/reflections.csv"), undefined, makeEnv());
     expect(res.status).toBe(401);
+  });
+
+  it("wellbeing flags carry a key and acknowledge persistently", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedReflections(env);
+    const cookie = await cookieFor("swift-code-1");
+    const before = (await (
+      await app.request(get("/portal/reflections", cookie), undefined, env)
+    ).json()) as { flags: Array<{ key: string; acked: boolean }> };
+    expect(before.flags).toHaveLength(1);
+    expect(before.flags[0]!.acked).toBe(false);
+    const key = before.flags[0]!.key;
+    expect(key).toContain("amy@swift.test");
+
+    const ack = await app.request(
+      new Request("http://coach.test/portal/reflections/ack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: cookie },
+        body: JSON.stringify({ key }),
+      }),
+      undefined,
+      env,
+    );
+    expect(((await ack.json()) as { ok: boolean }).ok).toBe(true);
+
+    const after = (await (
+      await app.request(get("/portal/reflections", cookie), undefined, env)
+    ).json()) as { flags: Array<{ acked: boolean }> };
+    expect(after.flags[0]!.acked).toBe(true);
+  });
+
+  it("ack refuses unauthenticated and malformed requests", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const noAuth = await app.request(
+      new Request("http://coach.test/portal/reflections/ack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "a|b|1" }),
+      }),
+      undefined,
+      env,
+    );
+    expect(noAuth.status).toBe(401);
+    const bad = await app.request(
+      new Request("http://coach.test/portal/reflections/ack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: await cookieFor("swift-code-1") },
+        body: JSON.stringify({ key: "no-pipes-here" }),
+      }),
+      undefined,
+      env,
+    );
+    expect(bad.status).toBe(400);
   });
 });
 

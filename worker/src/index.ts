@@ -1838,6 +1838,36 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
   return state;
 }
 
+/* A wellbeing flag must never be a dead end: providers mark a flag
+ * "checked in" once they have acted, school-wide, persisted. */
+const REFLECT_ACK_KEY = "portal:reflect:ack:v1";
+
+function flagKey(f: { email: string; unitTitle: string; submittedAt: number | null }): string {
+  return [f.email, f.unitTitle, f.submittedAt ?? ""].join("|");
+}
+
+app.post("/portal/reflections/ack", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const body = await readJsonCapped(c, 2_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const key = typeof body.key === "string" ? body.key.slice(0, 300) : "";
+  if (!key.includes("|")) return c.json({ error: "invalid_request" }, 400);
+  try {
+    const acked = JSON.parse(
+      (await c.env.RATE_LIMITS.get(REFLECT_ACK_KEY)) || "[]",
+    ) as string[];
+    if (!acked.includes(key)) {
+      acked.push(key);
+      await c.env.RATE_LIMITS.put(REFLECT_ACK_KEY, JSON.stringify(acked.slice(-500)));
+    }
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error("[coach] reflections ack error:", String(err));
+    return c.json({ error: "ack_failed" }, 500);
+  }
+});
+
 app.get("/portal/reflections", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
@@ -1851,9 +1881,14 @@ app.get("/portal/reflections", async (c) => {
     ) as Record<string, string[]>;
     const tagsOf = (email: string): string[] =>
       tagPatch[email.toLowerCase()] ?? state.userTags[email.toLowerCase()] ?? [];
+    const ackedKeys = new Set(
+      JSON.parse((await c.env.RATE_LIMITS.get(REFLECT_ACK_KEY)) || "[]") as string[],
+    );
     let flags = state.flags.map((f) => ({
       ...f,
       cohort: cohortTag(tagsOf(f.email)),
+      key: flagKey(f),
+      acked: ackedKeys.has(flagKey(f)),
     }));
     let preCount = state.preRespondents.length;
     let postCount = state.postRespondents.length;

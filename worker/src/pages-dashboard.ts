@@ -64,7 +64,7 @@ export function renderDashboardPage(): string {
     "</div>" +
     "<div class='dsplit'>" +
     "<div class='dcard'><h3>Quick actions</h3><div class='qacts'>" +
-    "<button type='button' class='dbtn' data-view='students'>👥 Students</button>" +
+    "<button type='button' class='dbtn ghost' data-view='students'>👥 Students</button>" +
     "<button type='button' class='dbtn ghost' data-view='analytics'>📊 Analytics</button>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ Download CSV</a>" +
     "</div></div>" +
@@ -116,10 +116,10 @@ export function renderDashboardPage(): string {
     "<div class='dcard rf-flags' id='rf-flags-card' hidden><h3>⚠ Wellbeing flags <span class='dtag warn' id='rf-flags-count'></span></h3>" +
     "<p class='rf-p'>Answers whose wording matched the same crisis patterns that guard the coach. Read them yourself — this is a prompt to check in, not a verdict.</p>" +
     "<div id='rf-flags'></div></div>" +
-    "<div class='dcard'><h3>Confidence shift by module <span class='dmut' style='font-weight:500'>before → after, % of self-rating scale</span></h3>" +
+    "<div class='dcard'><h3>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h3>" +
     "<div id='rf-shifts'></div></div>" +
     "<div class='dcard'><h3>Latest answers, verbatim</h3>" +
-    "<div class='dbar'><a class='dbtn' href='/dashboard/reflections.csv'>⬇ Download ALL raw reflections (CSV)</a></div>" +
+    "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download raw reflections (CSV)</a></div>" +
     "<div class='dtablewrap'><table class='dtable'><thead><tr><th>Student</th><th>Module</th><th>When</th><th>Question</th><th>Answer</th></tr></thead>" +
     "<tbody id='rf-recent'></tbody></table>" +
     "<div class='dempty' id='rf-recent-empty' hidden>No answers read yet.</div></div></div>" +
@@ -208,9 +208,12 @@ var W=Math.max(300,n*34),H=140,base=112,maxH=92;var max=Math.max.apply(null,vals
 var s="<svg viewBox='0 0 "+W+" "+H+"' class='colchart' role='img'>";
 s+="<line x1='0' y1='"+base+"' x2='"+W+"' y2='"+base+"' stroke='#E3DDDA' stroke-width='2'/>";
 vals.forEach(function(v,i){var bw=20;var x=i*(W/n)+(W/n-bw)/2;
-var h=Math.max(2,(v/max)*maxH);var y=base-h;
-s+="<rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='4' fill='"+(color||'#13507F')+"'/>";
-if(v>0)s+="<text x='"+(x+bw/2)+"' y='"+(y-5)+"' text-anchor='middle' font-size='10' font-weight='700' fill='#68788A'>"+v+"</text>";
+var c=Array.isArray(color)?(color[i]||'#13507F'):(color||'#13507F');
+/* zero draws no bar — a phantom sliver implies data that is not there */
+if(v>0){var h=Math.max(3,(v/max)*maxH);var y=base-h;
+s+="<rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='4' fill='"+c+"'/>";
+s+="<text x='"+(x+bw/2)+"' y='"+(y-5)+"' text-anchor='middle' font-size='10' font-weight='700' fill='#68788A'>"+v+"</text>";}
+else{s+="<text x='"+(x+bw/2)+"' y='"+(base-6)+"' text-anchor='middle' font-size='10' fill='#B9AFAB'>0</text>";}
 s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#8a97a1'>"+esc2(labels[i]||'')+"</text>";});
 return s+"</svg>";}
 function miniScore(v){if(v===null||v===undefined)return "<span class='ms none'>—</span>";
@@ -222,7 +225,7 @@ if(search){var q=search.toLowerCase();
 rows=rows.filter(function(r){return (r.name+' '+r.email).toLowerCase().indexOf(q)>-1});}
 return rows;}
 function renderHome(){var k=DATA.kpis;
-countUp($('k-learners'),k.learners);$('k-learners-bar').style.width='100%';
+countUp($('k-learners'),k.learners);$('k-learners-bar').parentElement.style.display='none';
 var enrolled=DATA.learners.reduce(function(s,r){return s+r.learning.enrolled},0);
 countUp($('k-modules'),k.modulesCompleted);
 $('k-modules-bar').style.width=(enrolled?Math.round(k.modulesCompleted*100/enrolled):0)+'%';
@@ -230,7 +233,10 @@ $('k-modules-bar').style.background='#1B7A4B';
 countUp($('k-engaged'),k.engaged);
 $('k-engaged-bar').style.width=(k.learners?Math.round(k.engaged*100/k.learners):0)+'%';
 if(k.avgCv!==null){countUp($('k-avgcv'),k.avgCv);$('k-avgcv-bar').style.width=k.avgCv+'%';
-$('k-avgcv-bar').style.background=band(k.avgCv);}else{$('k-avgcv').textContent='—';}
+$('k-avgcv-bar').style.background=band(k.avgCv);}
+else{$('k-avgcv').textContent='—';
+$('k-avgcv').nextElementSibling.nextElementSibling.textContent='no CV reviews yet';
+$('k-avgcv-bar').parentElement.style.display='none';}
 var att=DATA.attention||[];$('att-count').textContent=att.length+' flagged';
 $('att-empty').hidden=att.length>0;
 $('att-body').innerHTML=att.map(function(a){
@@ -241,7 +247,7 @@ return "<tr><td><b>"+esc2(a.name)+"</b><br><span class='dmut'>"+esc2(a.email)+"<
 "<td><button type='button' class='dlink' data-drill='"+esc2(a.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
 function chips(el,onPick){var tags=DATA.tags||[];
-el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' data-chip=''>All</button>"+
+el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' data-chip=''>All in scope</button>"+
 tags.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('');
 el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.chip||null;onPick();};});}
@@ -341,22 +347,41 @@ return;}
 if(d.status==='building'){var p=d.progress||{done:0,total:1};
 $('rf-progress').textContent='Swept '+p.done+' of '+p.total+' modules so far — this page updates itself.';
 $('rf-progress-bar').style.width=Math.round(p.done*100/Math.max(1,p.total))+'%';return;}
-countUp($('rf-pre'),d.preCount||0);$('rf-pre-bar').style.width='100%';
+/* Bars only where a real ratio exists — a full bar under a raw count
+ * fakes a target. */
+countUp($('rf-pre'),d.preCount||0);$('rf-pre-bar').parentElement.style.display='none';
 countUp($('rf-post'),d.postCount||0);
 $('rf-post-bar').style.width=(d.preCount?Math.round((d.postCount||0)*100/d.preCount):0)+'%';
-countUp($('rf-raw'),d.rawCount||0);$('rf-raw-bar').style.width='100%';
-var flags=d.flags||[];
+countUp($('rf-raw'),d.rawCount||0);$('rf-raw-bar').parentElement.style.display='none';
+var flags=(d.flags||[]).slice().sort(function(a,b){return (a.acked?1:0)-(b.acked?1:0)});
+var open=flags.filter(function(f){return !f.acked}).length;
 $('rf-flags-card').hidden=flags.length===0;
-$('rf-flags-count').textContent=flags.length+' to review';
-$('rf-flags').innerHTML=flags.map(function(f){
-return "<div class='rf-flag'><b>"+esc2(f.email)+"</b> · "+esc2(f.courseTitle)+
-"<div class='rf-q'>"+esc2(f.question)+"</div><div class='rf-a'>“"+esc2(f.answer)+"”</div></div>";}).join('');
+$('rf-flags-count').textContent=open?open+' to review':'all checked in';
+$('rf-flags').innerHTML=flags.map(function(f,i){
+var inRows=DATA&&DATA.learners.some(function(r){return r.email===f.email});
+return "<div class='rf-flag"+(f.acked?' acked':'')+"' id='rff-"+i+"'><b>"+esc2(f.email)+"</b> · "+esc2(f.courseTitle)+
+"<div class='rf-q'>"+esc2(f.question)+"</div><div class='rf-a'>“"+esc2(f.answer)+"”</div>"+
+"<div class='rf-acts'>"+
+(inRows?"<button type='button' class='dlink' data-drill='"+esc2(f.email)+"'>View student →</button>":
+"<a class='dlink' href='mailto:"+encodeURIComponent(f.email)+"'>Email student</a>")+
+(f.acked?"<span class='rf-done'>✓ Checked in</span>":
+"<button type='button' class='dlink' data-ack='"+esc2(f.key||'')+"' data-i='"+i+"'>Mark checked-in</button>")+
+"</div></div>";}).join('');
+document.querySelectorAll('[data-ack]').forEach(function(b){b.onclick=function(){
+b.disabled=true;
+fetch('/portal/reflections/ack',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({key:b.dataset.ack})}).then(function(r){return r.json()}).then(function(res){
+if(res&&res.ok){var f=(REF.flags||[]).filter(function(x){return x.key===b.dataset.ack})[0];
+if(f)f.acked=true;renderReflections();}else{b.disabled=false;}})
+.catch(function(){b.disabled=false;});};});
+wireDrills();
 var shifts=(d.shifts||[]).filter(function(s){return s.preAvgPct!==null||s.postAvgPct!==null});
 $('rf-shifts').innerHTML=shifts.length?shifts.map(function(s){
 var pre=s.preAvgPct===null?0:s.preAvgPct,post=s.postAvgPct===null?0:s.postAvgPct;
 var up=s.shift!==null&&s.shift>=0;
 return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"+esc2(s.courseTitle)+"</span>"+
-"<div class='sh-t'><i class='sh-pre' style='width:"+pre+"%'></i><i class='sh-post' style='width:"+post+"%'></i>"+
+"<div class='sh-t'><i class='sh-pre' style='width:"+pre+"%'></i>"+
+"<i class='sh-post' style='width:"+post+"%"+(s.shift!==null&&s.shift<0?";background:#B96A16":"")+"'></i>"+
 (s.preAvgPct===null?'':"<b class='sh-mark' style='left:"+pre+"%'></b>")+"</div>"+
 "<span class='sh-v'>"+(s.preAvgPct===null?'—':s.preAvgPct+'%')+" → "+(s.postAvgPct===null?'—':s.postAvgPct+'%')+
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
@@ -392,14 +417,19 @@ function tried(t){return rows.filter(function(r){return r.employability[t].lates
 var anyTool=['cv','linkedin','interview','cover'].some(function(t){return tried(t).length>0});
 var SHARE_HINT="<div class='dempty'>No career-tool use in this cohort yet — learners reach the tools from "+
 "<b>fledglings.co</b> or you can send them the hub link directly: <b>fledglings-coach.fledglings.workers.dev/hub</b></div>";
+/* Categorical bars stay one neutral hue — red is reserved for bad
+ * states so it always means the same thing. */
 $('ch-adopt').innerHTML=anyTool?hbar([
-{l:'CV review',v:tried('cv').length,c:'#D9452B'},
-{l:'LinkedIn',v:tried('linkedin').length,c:'#13507F'},
-{l:'Interview',v:tried('interview').length,c:'#ED9249'},
-{l:'Cover letter',v:tried('cover').length,c:'#05253C'}],rows.length||1):SHARE_HINT;
+{l:'CV review',v:tried('cv').length},
+{l:'LinkedIn',v:tried('linkedin').length},
+{l:'Interview',v:tried('interview').length},
+{l:'Cover letter',v:tried('cover').length}],rows.length||1):SHARE_HINT;
 var buckets=[0,0,0,0,0];
 tried('cv').forEach(function(r){buckets[Math.min(4,Math.floor((r.employability.cv.latest||0)/20))]++});
-$('ch-dist').innerHTML=tried('cv').length?colChart(buckets,['0-19','20-39','40-59','60-79','80+'],'#D9452B')
+/* Score buckets ARE quality bands — colour them so red only ever
+ * appears under genuinely low scores. */
+$('ch-dist').innerHTML=tried('cv').length?colChart(buckets,['0-19','20-39','40-59','60-79','80+'],
+['#D9452B','#B96A16','#ED9249','#13507F','#1B7A4B'])
 :"<div class='dempty'>Scores appear here after the first CV reviews.</div>";
 var act=(DATA.analytics&&DATA.analytics.activity)||[];
 var anyAct=act.some(function(a){return a.events>0});
@@ -496,7 +526,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dmut{color:var(--mut);font-size:11.5px;}
 .dtag{display:inline-block;background:var(--off);color:var(--blue);border-radius:999px;padding:2px 9px;
   font-size:10.5px;font-weight:700;}
-.dtag.warn{background:#FBEAE6;color:var(--orange);}
+.dtag.warn{background:#FBEAE6;color:var(--orange);white-space:nowrap;}
 .dlink{border:none;background:none;color:var(--blue);font-family:inherit;font-size:12.5px;font-weight:700;
   cursor:pointer;text-decoration:underline;}
 .dempty{color:var(--mut);font-size:13.5px;padding:16px 4px;}
@@ -551,6 +581,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   font-size:12.5px;color:var(--ink);background:#FBFAF9;resize:vertical;margin-bottom:10px;}
 .rf-flags{border-left:4px solid var(--orange);}
 .rf-flag{border:1.5px solid #F3C9C0;background:#FDF6F4;border-radius:12px;padding:12px;margin-bottom:9px;font-size:13px;}
+.rf-flag.acked{border-color:var(--line);background:#FBFAF9;opacity:.75;}
+.rf-acts{display:flex;gap:16px;align-items:center;margin-top:9px;}
+.rf-done{font-size:12px;font-weight:700;color:var(--ok);}
 .rf-q{font-size:12px;color:var(--mut);margin-top:5px;}
 .rf-a{font-size:13px;margin-top:3px;line-height:1.5;}
 .sh-row{display:grid;grid-template-columns:170px 1fr 150px 110px;gap:12px;align-items:center;padding:8px 0;
@@ -573,7 +606,12 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 #v-reflections thead{display:none;}
 #rf-recent tr{display:block;border-bottom:1px solid var(--off);padding:10px 0;}
 #rf-recent td{display:block;padding:2px 0;border:none;}
-#rf-recent td.rf-q{margin-top:4px;}}
+#rf-recent td.rf-q{margin-top:4px;}
+/* Attention table stacks as cards too — five columns cannot share
+ * 390px without crushing the issue chips. */
+#att-table thead{display:none;}
+#att-body tr{display:block;border-bottom:1px solid var(--off);padding:10px 0;}
+#att-body td{display:block;padding:2px 0;border:none;}}
 .dlogin{max-width:420px;}
 .dlogin p{font-size:13.5px;color:var(--mut);margin:6px 0 14px;}
 .derr{color:var(--orange)!important;font-weight:700;}
