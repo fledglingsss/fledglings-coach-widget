@@ -62,6 +62,8 @@ export function renderDashboardPage(): string {
     kpi("k-engaged", "⚡", "Using career tools", "tried at least one") +
     kpi("k-avgcv", "📄", "Avg CV score", "latest per learner") +
     "</div>" +
+    "<div class='dcard'><h3>Learner pipeline <span class='dmut' style='font-weight:500'>from LearnWorlds enrolment to job-ready — both systems in one picture</span></h3>" +
+    "<div id='funnel'></div></div>" +
     "<div class='dsplit'>" +
     "<div class='dcard'><h3>Quick actions</h3><div class='qacts'>" +
     "<button type='button' class='dbtn ghost' data-view='students'>👥 Students</button>" +
@@ -89,7 +91,9 @@ export function renderDashboardPage(): string {
     "</section>" +
 
     /* ---------- cohorts ---------- */
-    "<section class='dview' id='v-cohorts' hidden><div class='cogrid' id='co-grid'></div>" +
+    "<section class='dview' id='v-cohorts' hidden>" +
+    "<div class='dbar'><a class='dbtn ghost' href='/dashboard/cohorts.csv'>⬇ Cohort rollup CSV</a></div>" +
+    "<div class='cogrid' id='co-grid'></div>" +
     "<div class='dempty' id='co-empty' hidden>No cohort tags found on these learners yet — tag learners in LearnWorlds and they appear here.</div></section>" +
 
     /* ---------- reflections ---------- */
@@ -128,10 +132,10 @@ export function renderDashboardPage(): string {
     /* ---------- analytics ---------- */
     "<section class='dview' id='v-analytics' hidden>" +
     "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='a-chips'></div></div>" +
-    "<div class='dsplit even'>" +
-    "<div class='dcard'><h3>Learning — module completion <span class='dtag' id='lc-note' hidden>all cohorts</span></h3><div id='ch-courses'></div></div>" +
+    "<div class='dcard'><div class='cardhead'><h3>Learning — every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h3>" +
+    "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
+    "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
     "<div class='dcard'><h3>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h3><div id='ch-curriculum'></div></div>" +
-    "</div>" +
     "<div class='dsplit even'>" +
     "<div class='dcard'><h3>Engagement mix</h3><div id='ch-tiers'></div></div>" +
     "<div class='dcard'><h3>Career tool adoption</h3><div id='ch-adopt'></div></div>" +
@@ -237,6 +241,14 @@ $('k-avgcv-bar').style.background=band(k.avgCv);}
 else{$('k-avgcv').textContent='—';
 $('k-avgcv').nextElementSibling.nextElementSibling.textContent='no CV reviews yet';
 $('k-avgcv-bar').parentElement.style.display='none';}
+/* The pipeline: both systems, one picture. Width = share of scope. */
+var fu=DATA.funnel||[];var scopeN=(fu[0]&&fu[0].n)||1;
+$('funnel').innerHTML=fu.map(function(st,i){
+var pct=Math.round(st.n*100/Math.max(1,scopeN));
+var c=i===0?'#05253C':i<4?'#13507F':i===4?'#ED9249':'#1B7A4B';
+return "<div class='fu-row'><span class='fu-l'>"+esc2(st.stage)+"</span>"+
+"<div class='fu-t'><i style='width:"+pct+"%;background:"+c+"'></i></div>"+
+"<span class='fu-v'>"+st.n+"<i>"+pct+"%</i></span></div>";}).join('');
 var att=DATA.attention||[];$('att-count').textContent=att.length+' flagged';
 $('att-empty').hidden=att.length>0;
 $('att-body').innerHTML=att.map(function(a){
@@ -530,6 +542,16 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dlink{border:none;background:none;color:var(--blue);font-family:inherit;font-size:12.5px;font-weight:700;
   cursor:pointer;text-decoration:underline;}
 .dempty{color:var(--mut);font-size:13.5px;padding:16px 4px;}
+.cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+.modscroll{max-height:330px;overflow-y:auto;padding-right:6px;}
+.fu-row{display:grid;grid-template-columns:200px 1fr 92px;gap:12px;align-items:center;padding:7px 0;}
+.fu-l{font-size:12.5px;font-weight:600;}
+.fu-t{height:16px;border-radius:999px;background:var(--off);overflow:hidden;}
+.fu-t i{display:block;height:100%;border-radius:999px;transition:width .7s cubic-bezier(.2,.7,.3,1);}
+.fu-v{font-size:13px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+.fu-v i{font-style:normal;color:var(--mut);font-weight:600;font-size:11px;margin-left:5px;}
+@media(max-width:760px){.fu-row{grid-template-columns:1fr 80px;}
+.fu-t{grid-column:1/-1;}}
 .dstats{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin-bottom:14px;
   padding-bottom:12px;border-bottom:1px solid var(--line);}
 .dstats b{color:var(--navy);font-weight:800;font-variant-numeric:tabular-nums;}

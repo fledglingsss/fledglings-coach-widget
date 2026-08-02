@@ -2561,7 +2561,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v5:${scopeKey}`;
+  const cacheKey = `dash:v6:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
@@ -2639,10 +2639,24 @@ app.get("/dashboard/data", async (c) => {
       }))
       .sort((a, b) => b.enrolled - a.enrolled);
 
+    /* The intertwine centrepiece: one funnel spanning both systems —
+     * LearnWorlds presence and learning on the left, career-tool
+     * progress and job-readiness on the right. Stage counts, not
+     * forced-monotonic: a learner can use the tools standalone. */
+    const funnel = [
+      { stage: "In your scope", n: rows.length },
+      { stage: "Logged in to LearnWorlds", n: rows.filter((r) => r.engagement.daysSinceLogin !== null).length },
+      { stage: "Learning modules", n: rows.filter((r) => r.learning.completed + r.learning.inProgress > 0).length },
+      { stage: "Completed a module", n: rows.filter((r) => r.learning.completed > 0).length },
+      { stage: "Using career tools", n: rows.filter((r) => r.readiness !== null || HUB_TOOLS.some((t) => r.employability[t]!.attempts > 0)).length },
+      { stage: "Job-ready (70+)", n: rows.filter((r) => (r.readiness ?? 0) >= 70).length },
+    ];
+
     const payload = {
       scopedTag: access.tag,
       totalUsers,
       sampleSize: rows.length,
+      funnel,
       kpis: {
         learners: rows.length,
         engaged: rows.filter((r) => r.readiness !== null).length,
@@ -2659,9 +2673,10 @@ app.get("/dashboard/data", async (c) => {
         activity,
         cvBuckets: buckets,
         toolTried: Object.fromEntries(HUB_TOOLS.map((t) => [t, tried(t).length])),
+        /* Full list — the breakdown table owns the depth; nothing is
+         * silently truncated. */
         courses: courseStats
           .sort((a, b) => b.enrolled - a.enrolled)
-          .slice(0, 10)
           .map((cs) => ({ title: cs.title, enrolled: cs.enrolled, completed: cs.completed, pct: cs.completionRate })),
         curriculum,
       },
@@ -2672,6 +2687,83 @@ app.get("/dashboard/data", async (c) => {
   } catch (err) {
     console.error("[coach] dashboard data error:", String(err));
     return c.json({ error: "dashboard_failed" }, 500);
+  }
+});
+
+/* Module breakdown export — per-module enrolment/completion for the
+ * provider's scope, the numbers behind the Learning table. */
+app.get("/dashboard/modules.csv", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
+  try {
+    const { sample } = await dashboardRows(c.env, access.tag);
+    const stats = aggregate(null, sample, new Date()).courseStats
+      .sort((a, b) => b.enrolled - a.enrolled);
+    const lines = [
+      "Module,Curriculum area,Enrolled,Completed,Completion %",
+      ...stats.map((cs) =>
+        [
+          csvField(cs.title),
+          csvField(groupForTitle(cs.title)),
+          cs.enrolled,
+          cs.completed,
+          cs.completionRate,
+        ].join(","),
+      ),
+    ];
+    return new Response(lines.join("\r\n"), {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="fledglings-modules-${access.tag ?? "all"}.csv"`,
+      },
+    });
+  } catch (err) {
+    console.error("[coach] modules export error:", String(err));
+    return c.json({ error: "export_failed" }, 500);
+  }
+});
+
+/* Cohort rollup export — one row per LearnWorlds tag with both sides
+ * of the picture: learning completion AND career-tool readiness. */
+app.get("/dashboard/cohorts.csv", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
+  try {
+    const { rows } = await dashboardRows(c.env, access.tag);
+    const tags = [...new Set(rows.flatMap((r) => r.tags))].sort();
+    const lines = [
+      "Cohort,Learners,Modules enrolled,Modules completed,Completion %,Using career tools,Avg job-ready,Career journey complete,Never logged in",
+      ...tags.map((tag) => {
+        const m = rows.filter((r) => r.tags.includes(tag));
+        const enrolled = m.reduce((s, r) => s + r.learning.enrolled, 0);
+        const completed = m.reduce((s, r) => s + r.learning.completed, 0);
+        const scored = m.filter((r) => r.readiness !== null);
+        return [
+          csvField(tag),
+          m.length,
+          enrolled,
+          completed,
+          enrolled ? Math.round((completed / enrolled) * 100) : 0,
+          scored.length,
+          scored.length
+            ? Math.round(scored.reduce((s, r) => s + (r.readiness ?? 0), 0) / scored.length)
+            : "",
+          m.filter((r) => r.tasksDone === 7).length,
+          m.filter((r) => r.engagement.tier === "high" && r.engagement.daysSinceLogin === null).length,
+        ].join(",");
+      }),
+    ];
+    return new Response(lines.join("\r\n"), {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="fledglings-cohorts-${access.tag ?? "all"}.csv"`,
+      },
+    });
+  } catch (err) {
+    console.error("[coach] cohorts export error:", String(err));
+    return c.json({ error: "export_failed" }, 500);
   }
 });
 

@@ -20,6 +20,14 @@ const STUB = {
   totalUsers: 50,
   sampleSize: 6,
   kpis: { learners: 6, engaged: 4, avgCv: 64, avgLinkedin: 58, avgInterview: 71, lettersCreated: 2, journeyComplete: 1, modulesCompleted: 14 },
+  funnel: [
+    { stage: "In your scope", n: 6 },
+    { stage: "Logged in to LearnWorlds", n: 5 },
+    { stage: "Learning modules", n: 5 },
+    { stage: "Completed a module", n: 4 },
+    { stage: "Using career tools", n: 4 },
+    { stage: "Job-ready (70+)", n: 1 },
+  ],
   learners: [
     learner("Amy Ash", "amy@swift.test", ["Swift Learners"], { cv: tool(82, 3, 1), linkedin: tool(74, 2, 2), interview: tool(88, 2, 1), cover: tool(100, 2, 3) }, 7, 82,
       { enrolled: 8, completed: 6, inProgress: 1 }, { tier: "ok", daysSinceLogin: 1, nudge: null }),
