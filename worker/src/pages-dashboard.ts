@@ -348,7 +348,8 @@ $('rf-shifts').innerHTML=shifts.length?shifts.map(function(s){
 var pre=s.preAvgPct===null?0:s.preAvgPct,post=s.postAvgPct===null?0:s.postAvgPct;
 var up=s.shift!==null&&s.shift>=0;
 return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"+esc2(s.courseTitle)+"</span>"+
-"<div class='sh-t'><i class='sh-pre' style='width:"+pre+"%'></i><i class='sh-post' style='width:"+post+"%'></i></div>"+
+"<div class='sh-t'><i class='sh-pre' style='width:"+pre+"%'></i><i class='sh-post' style='width:"+post+"%'></i>"+
+(s.preAvgPct===null?'':"<b class='sh-mark' style='left:"+pre+"%'></b>")+"</div>"+
 "<span class='sh-v'>"+(s.preAvgPct===null?'—':s.preAvgPct+'%')+" → "+(s.postAvgPct===null?'—':s.postAvgPct+'%')+
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
 "<span class='dmut'>"+s.preCount+" before · "+s.postCount+" after</span></div>";}).join('')
@@ -549,6 +550,8 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .sh-t i{position:absolute;left:0;top:0;height:100%;border-radius:999px;display:block;transition:width .7s cubic-bezier(.2,.7,.3,1);}
 .sh-pre{background:#B9C8D6;}
 .sh-post{background:#1B7A4B;opacity:.85;}
+.sh-mark{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1px;border-radius:2px;
+  background:var(--navy);display:block;}
 .sh-v{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .sh-v b.up{color:#1B7A4B;}
 .sh-v b.down{color:var(--orange);}
