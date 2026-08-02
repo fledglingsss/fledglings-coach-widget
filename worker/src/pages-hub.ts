@@ -118,11 +118,16 @@ var lid=stored(localStorage,'fl_coach_learner_v1');
 var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 var email=flResolveEmail();
-function toolHref(base){var ev=flEmailParam();
+var viewOnly=flViewOnly();
+function toolHref(base){if(viewOnly)return base;
+var ev=flEmailParam();
 return base+(base.indexOf('?')>-1?'&':'?')+(ev?'e='+ev+'&':'')+'hub=1';}
 document.querySelectorAll('a[data-tool]').forEach(function(a){a.href=toolHref(a.getAttribute('href'));});
 /* identity card */
-function renderIdentity(){var known=email.length>0;
+function renderIdentity(){if(viewOnly){
+$('account').innerHTML="<b>👁 Provider view</b><span class='id-sub'>You are looking at the journey for "+esc2(email)+" — nothing here saves to your device.</span>";
+return;}
+var known=email.length>0;
 $('id-known').hidden=!known;$('id-anon').hidden=known;
 if(known)$('id-email').textContent=email;}
 renderIdentity();

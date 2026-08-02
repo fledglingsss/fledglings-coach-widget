@@ -94,12 +94,15 @@ td.c,th.c{text-align:center;}
  * The email is only ever used as the key for score history — no
  * account, no password, nothing readable by other sites. */
 export const IDENTITY_JS = String.raw`
+function flViewOnly(){try{return new URLSearchParams(location.search).get('view')==='1'}catch(e){return false}}
 function flResolveEmail(){var email='';
 try{var p=new URLSearchParams(location.search).get('e');
 if(p){email=decodeURIComponent(atob(p.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(e){}
 email=String(email||'').trim().toLowerCase();
 if(email.indexOf('@')===-1)email='';
-try{if(email){localStorage.setItem('fl_hub_email_v1',email);}
+/* view=1 is a provider looking in — never adopt that identity on
+ * this device. */
+try{if(email){if(!flViewOnly())localStorage.setItem('fl_hub_email_v1',email);}
 else{email=localStorage.getItem('fl_hub_email_v1')||'';email=String(email).trim().toLowerCase();
 if(email.indexOf('@')===-1)email='';}}catch(e){}
 return email;}

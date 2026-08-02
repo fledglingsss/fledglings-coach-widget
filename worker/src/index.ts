@@ -3735,6 +3735,21 @@ async function scheduled(
       )
       .catch((err) => console.error("[coach] risk cron failed:", String(err))),
   );
+  /* Keep the reflections sweep warm overnight: a stale snapshot gets
+   * rebuilt (re-probing the plan-gated endpoints, so a supplier-side
+   * enablement is picked up within a day even if nobody visits), and
+   * an in-progress build advances a few budget steps. */
+  ctx.waitUntil(
+    (async () => {
+      for (let i = 0; i < 4; i++) {
+        const state = await advanceReflections(env);
+        console.log(
+          `[coach] kind=reflect-cron status=${state.status} enabled=${state.responsesEnabled} cursor=${state.cursor}/${state.totalCourses}`,
+        );
+        if (state.status === "ready") break;
+      }
+    })().catch((err) => console.error("[coach] reflect cron failed:", String(err))),
+  );
 }
 
 export default {

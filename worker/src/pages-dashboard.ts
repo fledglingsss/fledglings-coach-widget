@@ -177,6 +177,7 @@ function kpi(id: string, ico: string, label: string, sub: string): string {
 const DASH_JS = String.raw`(function(){
 var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function b64u(s){try{return btoa(unescape(encodeURIComponent(s))).replace(/[+]/g,'-').replace(/[/]/g,'_').replace(/=+$/,'')}catch(e){return ''}}
 /* liveness: rise-in on view swaps + count-up numbers */
 var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 function countUp(el,to,suffix){suffix=suffix||'';to=Math.round(to);
@@ -317,7 +318,7 @@ toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
 "<div class='dr-journey'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
 "<i class='msb wide'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></div>"+
 "<div class='dr-acts'>"+
-"<a class='dbtn ghost sm' href='/hub?e="+encodeURIComponent(r.email)+"' target='_blank' rel='noopener'>Open their hub view</a>"+
+"<a class='dbtn ghost sm' href='/hub?e="+b64u(r.email)+"&view=1' target='_blank' rel='noopener'>Open their hub view</a>"+
 "<a class='dbtn ghost sm' href='"+mailHref+"'>✉ Email"+(en.nudge?' (nudge prefilled)':'')+"</a>"+
 "</div>";
 d.hidden=false;$('drill-close').onclick=function(){d.hidden=true};
