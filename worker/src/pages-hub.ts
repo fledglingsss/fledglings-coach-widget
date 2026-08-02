@@ -125,7 +125,11 @@ return base+(base.indexOf('?')>-1?'&':'?')+(ev?'e='+ev+'&':'')+'hub=1';}
 document.querySelectorAll('a[data-tool]').forEach(function(a){a.href=toolHref(a.getAttribute('href'));});
 /* identity card */
 function renderIdentity(){if(viewOnly){
-$('account').innerHTML="<b>👁 Provider view</b><span class='id-sub'>You are looking at the journey for "+esc2(email)+" — nothing here saves to your device.</span>";
+/* Hide, never destroy — later code binds handlers to these nodes. */
+$('id-known').hidden=true;$('id-anon').hidden=true;
+var b=document.createElement('div');
+b.innerHTML="<b>👁 Provider view</b><span class='id-sub'>You are looking at the journey for "+esc2(email)+" — nothing here saves to your device.</span>";
+$('account').appendChild(b);
 return;}
 var known=email.length>0;
 $('id-known').hidden=!known;$('id-anon').hidden=known;
