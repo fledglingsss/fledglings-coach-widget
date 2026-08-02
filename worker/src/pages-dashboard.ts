@@ -16,6 +16,7 @@ const ICONS: Record<string, string> = {
   analytics: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V10M10 20V4M16 20v-7M21 20H3'/></svg>",
   csv: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12m0 0 4-4m-4 4-4-4'/><path d='M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/></svg>",
   hub: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14 5h5v5M19 5l-8 8'/><path d='M19 14v5H5V5h5'/></svg>",
+  reflect: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.5-2.7A8 8 0 1 1 21 12z'/><path d='M9 10h6M9 13.5h4'/></svg>",
 };
 
 export function renderDashboardPage(): string {
@@ -29,6 +30,7 @@ export function renderDashboardPage(): string {
     nav("home", "home", "Home") +
     nav("students", "students", "Students") +
     nav("cohorts", "cohorts", "Cohorts") +
+    nav("reflections", "reflect", "Reflections") +
     nav("analytics", "analytics", "Analytics") +
     "<div class='dsec'>Administration</div>" +
     `<a class='dn' href='/dashboard/export.csv'>${ICONS.csv}<span>Download CSV</span></a>` +
@@ -89,6 +91,39 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-cohorts' hidden><div class='cogrid' id='co-grid'></div>" +
     "<div class='dempty' id='co-empty' hidden>No cohort tags found on these learners yet — tag learners in LearnWorlds and they appear here.</div></section>" +
 
+    /* ---------- reflections ---------- */
+    "<section class='dview' id='v-reflections' hidden>" +
+    "<div class='dcard' id='rf-loading'><div class='dempty'>Loading reflections…</div></div>" +
+    /* plan-gated state */
+    "<div class='dcard rf-gate' id='rf-gate' hidden><h3>One switch left to flip</h3>" +
+    "<p class='rf-p'>Every module already collects a written self-reflection before and after. " +
+    "LearnWorlds currently has the API that reads those answers switched off for this school — " +
+    "send them the message below and this page fills itself in, nothing to rebuild.</p>" +
+    "<textarea class='rf-ask' id='rf-ask' readonly rows='4'></textarea>" +
+    "<button type='button' class='dbtn sm' id='rf-copy'>Copy message for LearnWorlds support</button>" +
+    "<p class='dmut' id='rf-coverage-note'></p></div>" +
+    /* building state */
+    "<div class='dcard' id='rf-building' hidden><h3>Reading reflections…</h3>" +
+    "<p class='rf-p' id='rf-progress'></p><div class='msb wide'><b id='rf-progress-bar' style='background:#13507F'></b></div></div>" +
+    /* ready: stats + charts + raw */
+    "<div id='rf-ready' hidden>" +
+    "<div class='kpigrid'>" +
+    kpi("rf-pre", "📝", "Reflected before", "learners who answered a pre-module reflection") +
+    kpi("rf-post", "🏁", "Reflected after", "learners who answered a post-module reflection") +
+    kpi("rf-raw", "💬", "Answers on record", "raw question-and-answer pairs") +
+    "</div>" +
+    "<div class='dcard rf-flags' id='rf-flags-card' hidden><h3>⚠ Wellbeing flags <span class='dtag warn' id='rf-flags-count'></span></h3>" +
+    "<p class='rf-p'>Answers whose wording matched the same crisis patterns that guard the coach. Read them yourself — this is a prompt to check in, not a verdict.</p>" +
+    "<div id='rf-flags'></div></div>" +
+    "<div class='dcard'><h3>Confidence shift by module <span class='dmut' style='font-weight:500'>before → after, % of self-rating scale</span></h3>" +
+    "<div id='rf-shifts'></div></div>" +
+    "<div class='dcard'><h3>Latest answers, verbatim</h3>" +
+    "<div class='dbar'><a class='dbtn' href='/dashboard/reflections.csv'>⬇ Download ALL raw reflections (CSV)</a></div>" +
+    "<div class='dtablewrap'><table class='dtable'><thead><tr><th>Student</th><th>Module</th><th>When</th><th>Question</th><th>Answer</th></tr></thead>" +
+    "<tbody id='rf-recent'></tbody></table>" +
+    "<div class='dempty' id='rf-recent-empty' hidden>No answers read yet.</div></div></div>" +
+    "</div></section>" +
+
     /* ---------- analytics ---------- */
     "<section class='dview' id='v-analytics' hidden>" +
     "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='a-chips'></div></div>" +
@@ -97,15 +132,16 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h3>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h3><div id='ch-curriculum'></div></div>" +
     "</div>" +
     "<div class='dsplit even'>" +
+    "<div class='dcard'><h3>Engagement mix</h3><div id='ch-tiers'></div></div>" +
     "<div class='dcard'><h3>Career tool adoption</h3><div id='ch-adopt'></div></div>" +
-    "<div class='dcard'><h3>CV score distribution</h3><div id='ch-dist'></div></div>" +
     "</div>" +
+    "<div class='dcard'><h3>CV score distribution</h3><div id='ch-dist'></div></div>" +
     "<div class='dcard'><h3>Career tool activity — last 12 weeks</h3><div id='ch-activity'></div></div>" +
     "<div class='dcard'><h3>Average job-ready score by cohort</h3><div id='ch-cohorts'></div></div>" +
     "</section>" +
 
     "<p class='dnote'>Scores, attempts and timestamps only — learner documents, letters and recordings are never stored. " +
-    "Sample-based: <span id='dsample'></span>.</p>" +
+    "Self-reflections are LearnWorlds&#39; own course records, read in place. Sample-based: <span id='dsample'></span>.</p>" +
     "</div>" +
     "<script>" + DASH_JS + "</script>";
 
@@ -146,6 +182,7 @@ var DATA=null,view='home',cohortFilter=null,search='';
 var TITLES={home:['Home','Outcomes, progress and attention — at a glance'],
 students:['Students','Every learner in your scope with their employability record'],
 cohorts:['Cohorts','Groups by LearnWorlds tag'],
+reflections:['Self-Reflections','What learners say before and after each module — in their own words'],
 analytics:['Analytics','Adoption, scores and activity — visual first']};
 function go(v){view=v;
 document.querySelectorAll('.dn[data-view]').forEach(function(b){b.classList.toggle('on',b.dataset.view===v)});
@@ -155,6 +192,7 @@ if(!reduce){sec.classList.remove('din');void sec.offsetWidth;sec.classList.add('
 $('dh-title').textContent=TITLES[v][0];$('dh-sub').textContent=TITLES[v][1];
 if(v==='students')renderStudents();
 if(v==='cohorts')renderCohorts();
+if(v==='reflections')loadReflections();
 if(v==='analytics')renderAnalytics();}
 document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){go(b.dataset.view)})});
 /* ---------- charts (inline SVG) ---------- */
@@ -268,8 +306,68 @@ return "<div class='dcard cocard'><div class='co-t'>"+esc2(t.tag)+"</div>"+
 "<button type='button' class='dbtn ghost co-view' data-cohort='"+esc2(t.tag)+"'>View students →</button></div>";}).join('');
 document.querySelectorAll('[data-cohort]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.cohort;go('students');};});}
+/* ---------- reflections (lazy) ---------- */
+var REF=null,refLoading=false;
+function loadReflections(){if(REF){renderReflections();return;}
+if(refLoading)return;refLoading=true;
+fetch('/portal/reflections').then(function(r){return r.json()}).then(function(d){
+refLoading=false;if(d&&!d.error){REF=d;renderReflections();
+/* the sweep builds incrementally — poll while building */
+if(d.status==='building'&&d.responsesEnabled!==false){setTimeout(function(){REF=null;loadReflections()},4000);}}
+else{$('rf-loading').innerHTML="<div class='dempty'>Could not load reflections — refresh to retry.</div>";}})
+.catch(function(){refLoading=false;
+$('rf-loading').innerHTML="<div class='dempty'>Could not reach the reflections service.</div>";});}
+function renderReflections(){var d=REF;if(!d)return;
+$('rf-loading').hidden=true;
+var gated=d.responsesEnabled===false;
+$('rf-gate').hidden=!gated;
+$('rf-building').hidden=gated||d.status!=='building';
+$('rf-ready').hidden=gated||d.status==='building';
+if(gated){$('rf-ask').value=d.reason||'';
+var cov=(d.coverage||[]).filter(function(cv){return cv.preTitle||cv.postTitle}).length;
+$('rf-coverage-note').textContent=cov?cov+' modules already have their reflection questions matched and waiting.':'';
+$('rf-copy').onclick=function(){var ta=$('rf-ask');ta.select();
+try{navigator.clipboard.writeText(ta.value);}catch(e){document.execCommand('copy');}
+$('rf-copy').textContent='Copied ✓';setTimeout(function(){$('rf-copy').textContent='Copy message for LearnWorlds support'},1600);};
+return;}
+if(d.status==='building'){var p=d.progress||{done:0,total:1};
+$('rf-progress').textContent='Swept '+p.done+' of '+p.total+' modules so far — this page updates itself.';
+$('rf-progress-bar').style.width=Math.round(p.done*100/Math.max(1,p.total))+'%';return;}
+countUp($('rf-pre'),d.preCount||0);$('rf-pre-bar').style.width='100%';
+countUp($('rf-post'),d.postCount||0);
+$('rf-post-bar').style.width=(d.preCount?Math.round((d.postCount||0)*100/d.preCount):0)+'%';
+countUp($('rf-raw'),d.rawCount||0);$('rf-raw-bar').style.width='100%';
+var flags=d.flags||[];
+$('rf-flags-card').hidden=flags.length===0;
+$('rf-flags-count').textContent=flags.length+' to review';
+$('rf-flags').innerHTML=flags.map(function(f){
+return "<div class='rf-flag'><b>"+esc2(f.email)+"</b> · "+esc2(f.courseTitle)+
+"<div class='rf-q'>"+esc2(f.question)+"</div><div class='rf-a'>“"+esc2(f.answer)+"”</div></div>";}).join('');
+var shifts=(d.shifts||[]).filter(function(s){return s.preAvgPct!==null||s.postAvgPct!==null});
+$('rf-shifts').innerHTML=shifts.length?shifts.map(function(s){
+var pre=s.preAvgPct===null?0:s.preAvgPct,post=s.postAvgPct===null?0:s.postAvgPct;
+var up=s.shift!==null&&s.shift>=0;
+return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"+esc2(s.courseTitle)+"</span>"+
+"<div class='sh-t'><i class='sh-pre' style='width:"+pre+"%'></i><i class='sh-post' style='width:"+post+"%'></i></div>"+
+"<span class='sh-v'>"+(s.preAvgPct===null?'—':s.preAvgPct+'%')+" → "+(s.postAvgPct===null?'—':s.postAvgPct+'%')+
+(s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
+"<span class='dmut'>"+s.preCount+" before · "+s.postCount+" after</span></div>";}).join('')
+:"<div class='dempty'>No scored reflections read yet.</div>";
+var recent=d.recent||[];
+$('rf-recent-empty').hidden=recent.length>0;
+$('rf-recent').innerHTML=recent.map(function(r){
+return "<tr><td class='dmut'>"+esc2(r.email)+"</td><td>"+esc2(r.courseTitle)+"</td>"+
+"<td class='dmut'>"+(r.submittedAt?new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—')+"</td>"+
+"<td class='rf-q'>"+esc2(r.question)+"</td><td class='rf-a'>"+esc2(r.answer)+"</td></tr>";}).join('');}
 function renderAnalytics(){chips($('a-chips'),renderAnalytics);
 var rows=scoped();
+var TIER_ORDER=[['ok','Engaged','#1B7A4B'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#B96A16'],['high','Needs contact','#D9452B']];
+var tiers=TIER_ORDER.map(function(t){
+return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).length,c:t[2]};})
+.filter(function(x){return x.v>0});
+var untiered=rows.filter(function(r){return !r.engagement.tier}).length;
+if(untiered)tiers.push({l:'Not assessed',v:untiered,c:'#B9AFAB'});
+$('ch-tiers').innerHTML=tiers.length?hbar(tiers,rows.length||1):"<div class='dempty'>No learners in this filter.</div>";
 /* Learning charts come from the server rollup over the whole scope —
  * flag that honestly when a cohort chip narrows the other charts. */
 $('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
@@ -435,6 +533,27 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dr-l{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin-bottom:6px;}
 .dr-tool .dmut{display:block;margin-top:5px;}
 .dr-journey{font-size:13px;color:var(--ink);}
+.rf-gate{max-width:560px;border-left:4px solid var(--mango);}
+.rf-p{font-size:13.5px;color:var(--ink);line-height:1.55;margin-bottom:12px;}
+.rf-ask{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px;font-family:inherit;
+  font-size:12.5px;color:var(--ink);background:#FBFAF9;resize:vertical;margin-bottom:10px;}
+.rf-flags{border-left:4px solid var(--orange);}
+.rf-flag{border:1.5px solid #F3C9C0;background:#FDF6F4;border-radius:12px;padding:12px;margin-bottom:9px;font-size:13px;}
+.rf-q{font-size:12px;color:var(--mut);margin-top:5px;}
+.rf-a{font-size:13px;margin-top:3px;line-height:1.5;}
+.sh-row{display:grid;grid-template-columns:170px 1fr 150px 110px;gap:12px;align-items:center;padding:8px 0;
+  border-bottom:1px solid var(--off);}
+.sh-row:last-child{border-bottom:none;}
+.sh-l{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sh-t{position:relative;height:14px;border-radius:999px;background:var(--off);overflow:hidden;}
+.sh-t i{position:absolute;left:0;top:0;height:100%;border-radius:999px;display:block;transition:width .7s cubic-bezier(.2,.7,.3,1);}
+.sh-pre{background:#B9C8D6;}
+.sh-post{background:#1B7A4B;opacity:.85;}
+.sh-v{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.sh-v b.up{color:#1B7A4B;}
+.sh-v b.down{color:var(--orange);}
+@media(max-width:760px){.sh-row{grid-template-columns:1fr 90px;grid-auto-flow:dense;}
+.sh-t{grid-column:1/-1;}}
 .dlogin{max-width:420px;}
 .dlogin p{font-size:13.5px;color:var(--mut);margin:6px 0 14px;}
 .derr{color:var(--orange)!important;font-weight:700;}

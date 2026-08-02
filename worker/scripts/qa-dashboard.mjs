@@ -61,9 +61,50 @@ const STUB = {
   ],
 };
 
+const RSTUB_READY = {
+  status: "ready",
+  responsesEnabled: true,
+  reason: null,
+  progress: { done: 33, total: 33 },
+  coverage: [],
+  shifts: [
+    { courseId: "c1", courseTitle: "Budgeting That Actually Works", preCount: 5, postCount: 4, preAvgPct: 42, postAvgPct: 74, shift: 32 },
+    { courseId: "c2", courseTitle: "Interview Confidence", preCount: 4, postCount: 3, preAvgPct: 55, postAvgPct: 81, shift: 26 },
+    { courseId: "c3", courseTitle: "Cybersecurity Fundamentals", preCount: 3, postCount: 2, preAvgPct: 60, postAvgPct: 58, shift: -2 },
+    { courseId: "c4", courseTitle: "AI in the Workplace", preCount: 2, postCount: 0, preAvgPct: 48, postAvgPct: null, shift: null },
+  ],
+  flags: [
+    { email: "cara@swift.test", courseTitle: "Building Real Confidence", unitTitle: "Post Completion Feedback", question: "How are you feeling after this module?", answer: "honestly some days I do not want to be here any more", submittedAt: NOW - 2 * 86400, matched: "crisis-language", cohort: "Swift Learners" },
+  ],
+  preCount: 14,
+  postCount: 9,
+  recent: [
+    { email: "amy@swift.test", courseTitle: "Budgeting That Actually Works", unitTitle: "Post Completion Feedback", kind: "post", submittedAt: NOW - 86400, question: "What is one thing you will do differently?", answer: "Actually check my balance before the weekend instead of after." },
+    { email: "ben@swift.test", courseTitle: "Interview Confidence", unitTitle: "Initial Self - Reflection", kind: "pre", submittedAt: NOW - 2 * 86400, question: "How confident do you feel about interviews?", answer: "3" },
+    { email: "dev@swift.test", courseTitle: "Budgeting That Actually Works", unitTitle: "Initial Self - Reflection", kind: "pre", submittedAt: NOW - 3 * 86400, question: "What worries you most about money?", answer: "Running out before the end of the month and having to ask my mum." },
+  ],
+  rawCount: 87,
+  scoped: "Swift Learners",
+  builtAt: new Date(NOW * 1000).toISOString(),
+};
+
+const RSTUB_GATED = {
+  status: "ready",
+  responsesEnabled: false,
+  reason: "Hi LearnWorlds — please enable the Assessments & Forms API endpoints for our school so we can read learner assessment responses. Thanks!",
+  progress: { done: 33, total: 33 },
+  coverage: Array.from({ length: 28 }, (_, i) => ({ courseId: "c" + i, courseTitle: "Module " + i, preTitle: "Initial Self - Reflection", postTitle: "Post Completion Feedback", otherTitles: [] })),
+  shifts: [], flags: [], preCount: 0, postCount: 0, recent: [], rawCount: 0,
+  scoped: "Swift Learners", builtAt: new Date(NOW * 1000).toISOString(),
+};
+
 const stubScript =
   "<script>var __STUB=" + JSON.stringify(STUB) +
-  ";window.fetch=function(){return Promise.resolve({status:200,json:function(){return Promise.resolve(__STUB)}})};</script>";
+  ";var __RREADY=" + JSON.stringify(RSTUB_READY) +
+  ";var __RGATED=" + JSON.stringify(RSTUB_GATED) +
+  ";window.fetch=function(url){var u=String(url);" +
+  "var body=u.indexOf('/portal/reflections')>-1?(location.search.indexOf('gated=1')>-1?__RGATED:__RREADY):__STUB;" +
+  "return Promise.resolve({status:200,json:function(){return Promise.resolve(body)}})};</script>";
 
 const html = renderDashboardPage().replace("<body>", "<body>" + stubScript);
 writeFileSync(process.argv[2] || "qa-dashboard.html", html);

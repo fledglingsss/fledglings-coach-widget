@@ -225,6 +225,41 @@ export function buildCoverage(
   return entry;
 }
 
+/* ---------------- raw response retention ---------------- */
+
+/** One question/answer pair, flattened for the raw-data export the
+ * providers asked for. Stored verbatim (the whole point is the
+ * learner's own words) but bounded so the KV snapshot stays sane. */
+export interface RawReflectionRow {
+  email: string;
+  courseTitle: string;
+  unitTitle: string;
+  kind: ReflectionKind;
+  submittedAt: number | null;
+  question: string;
+  answer: string;
+}
+
+export const RAW_ANSWER_MAX_CHARS = 600;
+export const RAW_ROWS_MAX = 5000;
+
+export function rawRows(
+  unit: AssessmentUnit,
+  response: ReflectionResponse,
+): RawReflectionRow[] {
+  return response.answers
+    .filter((a) => a.answer !== "")
+    .map((a) => ({
+      email: response.email,
+      courseTitle: unit.courseTitle,
+      unitTitle: unit.unitTitle,
+      kind: unit.kind,
+      submittedAt: response.submittedAt,
+      question: a.question,
+      answer: a.answer.slice(0, RAW_ANSWER_MAX_CHARS),
+    }));
+}
+
 /* ---------------- build-state (incremental sweep) ---------------- */
 
 /** The reflections snapshot is built incrementally across requests to
@@ -244,6 +279,9 @@ export interface ReflectionsState {
   coverage: CoverageEntry[];
   shifts: ModuleShift[];
   flags: SafeguardingFlag[];
+  /** Every question/answer pair, verbatim, capped at RAW_ROWS_MAX —
+   * the raw-data layer under the aggregate charts. */
+  responses: RawReflectionRow[];
   /** email (lowercased) -> LearnWorlds tags, captured in the same
    * sweep so cohort scoping never depends on another cache. */
   userTags: Record<string, string[]>;
@@ -262,6 +300,7 @@ export function emptyState(totalCourses: number, now: Date): ReflectionsState {
     coverage: [],
     shifts: [],
     flags: [],
+    responses: [],
     userTags: {},
     preRespondents: [],
     postRespondents: [],

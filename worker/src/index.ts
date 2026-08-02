@@ -68,6 +68,8 @@ import {
   emptyState,
   moduleShift,
   parseResponse,
+  RAW_ROWS_MAX,
+  rawRows,
   scanForSafeguarding,
   type ReflectionResponse,
   type ReflectionsState,
@@ -1717,7 +1719,7 @@ async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport
  * snapshot is whole-school, filtered per scope at read time.
  * ================================================================== */
 
-const REFLECT_KV_KEY = "portal:reflect:v3";
+const REFLECT_KV_KEY = "portal:reflect:v4"; // v4: raw responses retained
 const REFLECT_TAGS_PATCH_KEY = "portal:reflect:tags-patch";
 const REFLECT_MAX_AGE_MS = 6 * 3600 * 1000;
 const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
@@ -1742,7 +1744,8 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
     state === null ||
     stale ||
     state.totalCourses !== courseEntries.length ||
-    state.userTags === undefined // pre-v2 cached shape
+    state.userTags === undefined || // pre-v2 cached shape
+    state.responses === undefined // pre-v4 cached shape
   ) {
     state = emptyState(courseEntries.length, now);
   }
@@ -1807,6 +1810,9 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
             const parsed = parseResponse(raw);
             if (!parsed) continue;
             (kind === "pre" ? pre : post).push(parsed);
+            if (state.responses.length < RAW_ROWS_MAX) {
+              state.responses.push(...rawRows(assessmentUnit, parsed));
+            }
             state.flags.push(...scanForSafeguarding(assessmentUnit, parsed));
             const bucket =
               kind === "pre" ? state.preRespondents : state.postRespondents;
@@ -1851,11 +1857,13 @@ app.get("/portal/reflections", async (c) => {
     }));
     let preCount = state.preRespondents.length;
     let postCount = state.postRespondents.length;
+    let recent = state.responses;
     if (access.tag) {
       const tag = access.tag;
       flags = flags.filter((f) => inScope(tagsOf(f.email), tag));
       preCount = state.preRespondents.filter((e) => inScope(tagsOf(e), tag)).length;
       postCount = state.postRespondents.filter((e) => inScope(tagsOf(e), tag)).length;
+      recent = recent.filter((r) => inScope(tagsOf(r.email), tag));
     }
     return c.json({
       status: state.status,
@@ -1867,6 +1875,12 @@ app.get("/portal/reflections", async (c) => {
       flags,
       preCount,
       postCount,
+      /* Newest raw answers inline; the full set ships as CSV. */
+      recent: recent
+        .slice()
+        .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
+        .slice(0, 40),
+      rawCount: recent.length,
       scoped: access.tag,
       builtAt: state.builtAt,
     });
@@ -2626,13 +2640,66 @@ app.get("/dashboard/data", async (c) => {
   }
 });
 
+/* Raw self-reflection export — every question/answer pair the sweep
+ * has read, verbatim, tag-scoped by the provider's code. This is the
+ * raw-data layer under the reflections charts. */
+app.get("/dashboard/reflections.csv", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
+  try {
+    const state = await advanceReflections(c.env);
+    const tagPatch = JSON.parse(
+      (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+    ) as Record<string, string[]>;
+    const tagsOf = (email: string): string[] =>
+      tagPatch[email.toLowerCase()] ?? state.userTags[email.toLowerCase()] ?? [];
+    const rows = access.tag
+      ? state.responses.filter((r) => inScope(tagsOf(r.email), access.tag))
+      : state.responses;
+    const lines = [
+      "Email,Cohort,Module,Reflection,Kind,Submitted,Question,Answer",
+      ...rows.map((r) =>
+        [
+          csvField(r.email),
+          csvField(tagsOf(r.email).join("; ")),
+          csvField(r.courseTitle),
+          csvField(r.unitTitle),
+          csvField(r.kind === "pre" ? "Before module" : r.kind === "post" ? "After module" : "Other"),
+          csvField(r.submittedAt ? new Date(r.submittedAt * 1000).toISOString().slice(0, 10) : ""),
+          csvField(r.question),
+          csvField(r.answer),
+        ].join(","),
+      ),
+    ];
+    return new Response(lines.join("\r\n"), {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="fledglings-reflections-${access.tag ?? "all"}.csv"`,
+      },
+    });
+  } catch (err) {
+    console.error("[coach] reflections export error:", String(err));
+    return c.json({ error: "export_failed" }, 500);
+  }
+});
+
+/** Quote a CSV field AND neutralise spreadsheet formula injection —
+ * learner-authored text starting with = + - or @ must never execute
+ * when the provider opens the export in Excel. */
+function csvField(v: unknown): string {
+  const s = String(v ?? "");
+  const guarded = /^[=+\-@\t]/.test(s) ? `'${s}` : s;
+  return `"${guarded.replace(/"/g, '""')}"`;
+}
+
 app.get("/dashboard/export.csv", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const { rows } = await dashboardRows(c.env, access.tag);
-    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const esc = csvField;
     const lines = [
       "Name,Email,Tags,Modules enrolled,Modules completed,Modules in progress,Days since login,CV score,CV attempts,LinkedIn score,LinkedIn attempts,Interview score,Interview attempts,Letters created,Journey tasks done (of 7),Job-ready score",
       ...rows.map((r) =>

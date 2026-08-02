@@ -6,6 +6,8 @@ import {
   emptyState,
   moduleShift,
   parseResponse,
+  RAW_ANSWER_MAX_CHARS,
+  rawRows,
   scanForSafeguarding,
   type AssessmentUnit,
   type ReflectionResponse,
@@ -176,5 +178,40 @@ describe("buildCoverage", () => {
     const cv = buildCoverage("x", "Module", [{ title: "A Quiz", type: "assessmentV2" }]);
     expect(cv.preTitle).toBeNull();
     expect(cv.postTitle).toBeNull();
+  });
+});
+
+describe("rawRows", () => {
+  it("flattens a response into one verbatim row per answered question", () => {
+    const response: ReflectionResponse = {
+      userId: "u9",
+      email: "amy@swift.test",
+      submittedAt: 1_753_000_000,
+      answers: [
+        { question: "How confident do you feel about budgeting?", answer: "3", points: 3, maxPoints: 10 },
+        { question: "What worries you most about money?", answer: "Running out before payday.", points: null, maxPoints: null },
+        { question: "Skipped", answer: "", points: null, maxPoints: null },
+      ],
+    };
+    const rows = rawRows(UNIT, response);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      email: "amy@swift.test",
+      courseTitle: UNIT.courseTitle,
+      unitTitle: UNIT.unitTitle,
+      kind: "pre",
+      answer: "3",
+    });
+    expect(rows[1]!.answer).toBe("Running out before payday.");
+  });
+
+  it("caps runaway answers at the storage bound", () => {
+    const response: ReflectionResponse = {
+      userId: "u9",
+      email: "amy@swift.test",
+      submittedAt: null,
+      answers: [{ question: "Q", answer: "x".repeat(2000), points: null, maxPoints: null }],
+    };
+    expect(rawRows(UNIT, response)[0]!.answer).toHaveLength(RAW_ANSWER_MAX_CHARS);
   });
 });

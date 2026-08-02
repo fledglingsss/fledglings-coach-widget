@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeKvMock } from "./helpers/kv-mock";
+import { COURSE_MAP } from "../src/lib/course-map";
 
 vi.mock("../src/lib/learnworlds", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/lib/learnworlds")>();
@@ -244,6 +245,79 @@ describe("GET /dashboard/export.csv", () => {
 
   it("rejects without a session", async () => {
     const res = await app.request(get("/dashboard/export.csv"), undefined, makeEnv());
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("GET /dashboard/reflections.csv", () => {
+  /** A completed sweep snapshot, as advanceReflections stores it —
+   * totalCourses must match the live COURSE_MAP or the state is
+   * treated as stale and rebuilt. */
+  const REAL_COURSES = Object.values(COURSE_MAP).filter((v) => v !== null).length;
+  async function seedReflections(env: Env) {
+    await env.RATE_LIMITS.put(
+      "portal:reflect:v4",
+      JSON.stringify({
+        status: "ready",
+        responsesEnabled: true,
+        cursor: REAL_COURSES,
+        totalCourses: REAL_COURSES,
+        coverage: [],
+        shifts: [],
+        flags: [],
+        responses: [
+          {
+            email: "amy@swift.test",
+            courseTitle: "Money Confidence",
+            unitTitle: "Initial Self - Reflection",
+            kind: "pre",
+            submittedAt: 1_753_000_000,
+            question: "How confident are you?",
+            answer: "=2+3 not very, money stresses me out",
+          },
+          {
+            email: "cal@other.test",
+            courseTitle: "Money Confidence",
+            unitTitle: "Initial Self - Reflection",
+            kind: "pre",
+            submittedAt: 1_753_000_000,
+            question: "How confident are you?",
+            answer: "Fine thanks",
+          },
+        ],
+        userTags: {
+          "amy@swift.test": ["Swift Learners"],
+          "cal@other.test": ["Other College"],
+        },
+        preRespondents: ["amy@swift.test", "cal@other.test"],
+        postRespondents: [],
+        builtAt: new Date().toISOString(),
+      }),
+    );
+  }
+
+  it("exports only in-scope raw answers, formula-injection hardened", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedReflections(env);
+    const res = await app.request(
+      get("/dashboard/reflections.csv", await cookieFor("swift-code-1")),
+      undefined,
+      env,
+    );
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    const lines = text.split("\r\n");
+    expect(lines[0]).toContain("Question,Answer");
+    expect(lines).toHaveLength(2); // header + Amy only
+    expect(text).toContain("amy@swift.test");
+    expect(text).not.toContain("cal@other.test");
+    /* The =2+3 answer must arrive neutralised, never as a live formula. */
+    expect(text).toContain(`"'=2+3 not very, money stresses me out"`);
+  });
+
+  it("rejects without a session", async () => {
+    const res = await app.request(get("/dashboard/reflections.csv"), undefined, makeEnv());
     expect(res.status).toBe(401);
   });
 });
