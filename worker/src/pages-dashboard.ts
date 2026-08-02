@@ -77,6 +77,7 @@ export function renderDashboardPage(): string {
 
     /* ---------- students ---------- */
     "<section class='dview' id='v-students' hidden>" +
+    "<div class='dstats' id='s-stats'></div>" +
     "<div class='dbar'><input type='text' id='s-search' placeholder='🔍 Search students…'>" +
     "<div class='chips' id='s-chips'></div>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
@@ -246,6 +247,13 @@ el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.chip||null;onPick();};});}
 function renderStudents(){chips($('s-chips'),renderStudents);
 var rows=scoped();$('s-empty').hidden=rows.length>0;
+var usingTools=rows.filter(function(r){return r.readiness!==null}).length;
+var neverIn=rows.filter(function(r){return r.engagement.tier==='high'&&r.engagement.daysSinceLogin===null}).length;
+var modsDone=rows.reduce(function(s,r){return s+r.learning.completed},0);
+$('s-stats').innerHTML="<span>👥 Students <b>"+rows.length+"</b></span>"+
+"<span>🎓 Modules completed <b>"+modsDone+"</b></span>"+
+"<span>⚡ Using career tools <b>"+usingTools+"</b></span>"+
+"<span>🕐 Never logged in <b>"+neverIn+"</b></span>";
 $('s-body').innerHTML=rows.map(function(r){var e=r.employability;var lg=r.learning;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
@@ -492,6 +500,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dlink{border:none;background:none;color:var(--blue);font-family:inherit;font-size:12.5px;font-weight:700;
   cursor:pointer;text-decoration:underline;}
 .dempty{color:var(--mut);font-size:13.5px;padding:16px 4px;}
+.dstats{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin-bottom:14px;
+  padding-bottom:12px;border-bottom:1px solid var(--line);}
+.dstats b{color:var(--navy);font-weight:800;font-variant-numeric:tabular-nums;}
 .dbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
 .dbar input{flex:1;min-width:200px;border:1.5px solid var(--line);border-radius:11px;padding:10px 14px;
   font-family:inherit;font-size:13.5px;background:#fff;}
@@ -556,7 +567,13 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .sh-v b.up{color:#1B7A4B;}
 .sh-v b.down{color:var(--orange);}
 @media(max-width:760px){.sh-row{grid-template-columns:1fr 90px;grid-auto-flow:dense;}
-.sh-t{grid-column:1/-1;}}
+.sh-t{grid-column:1/-1;}
+/* On a phone the answers ARE the content — stack each response as a
+ * card instead of pushing Question/Answer off-screen. */
+#v-reflections thead{display:none;}
+#rf-recent tr{display:block;border-bottom:1px solid var(--off);padding:10px 0;}
+#rf-recent td{display:block;padding:2px 0;border:none;}
+#rf-recent td.rf-q{margin-top:4px;}}
 .dlogin{max-width:420px;}
 .dlogin p{font-size:13.5px;color:var(--mut);margin:6px 0 14px;}
 .derr{color:var(--orange)!important;font-weight:700;}
