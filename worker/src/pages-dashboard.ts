@@ -236,7 +236,7 @@ $('att-empty').hidden=att.length>0;
 $('att-body').innerHTML=att.map(function(a){
 return "<tr><td><b>"+esc2(a.name)+"</b><br><span class='dmut'>"+esc2(a.email)+"</span></td>"+
 "<td><span class='dtag warn'>"+esc2(a.issue||'')+"</span></td>"+
-"<td><span style='color:"+band(a.readiness||0)+";font-weight:800'>"+(a.readiness===null?'—':a.readiness)+"</span></td>"+
+"<td><span style='color:"+(a.readiness===null?'#B9AFAB':band(a.readiness))+";font-weight:800'>"+(a.readiness===null?'—':a.readiness)+"</span></td>"+
 "<td>"+a.tasksDone+"/7</td>"+
 "<td><button type='button' class='dlink' data-drill='"+esc2(a.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
@@ -279,7 +279,7 @@ var mailHref="mailto:"+encodeURIComponent(r.email)+"?subject="+encodeURIComponen
 (en.nudge?"&body="+encodeURIComponent(en.nudge):"");
 d.innerHTML="<div class='dr-head'><div><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
 r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
-"<span class='dr-ready' style='color:"+band(r.readiness||0)+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span>"+
+"<span class='dr-ready' style='color:"+(r.readiness===null?'#B9AFAB':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span>"+
 "<button type='button' class='dlink' id='drill-close'>✕</button></div>"+
 "<div class='dr-learn'><span class='dr-l'>LearnWorlds modules</span>"+
 "<span class='ms'>"+lg.completed+"/"+lg.enrolled+" completed</span>"+
