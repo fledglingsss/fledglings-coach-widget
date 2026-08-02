@@ -466,7 +466,7 @@ app.get("/lw-check", async (c) => {
 const SP_CACHE_TTL = 600; // 10 min per learner
 /* Bump whenever the rendered passport changes so learners see fixes
  * immediately instead of waiting out a stale cached page. */
-const SP_CACHE_VERSION = "v7";
+const SP_CACHE_VERSION = "v8";
 const SP_MAX_PROGRESS_CALLS = 36;
 
 function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
@@ -494,7 +494,7 @@ function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
     ],
     builtAt: stamp,
   };
-  return computeSkillsPassport({
+  const model = computeSkillsPassport({
     firstName: "Maya",
     fullName: "Maya Thompson",
     cohort: "Cohort 24B",
@@ -506,6 +506,8 @@ function demoSkillsModel(): Parameters<typeof renderSkillsPassport>[0] {
     myHash: "demo-maya",
     now,
   });
+  model.career = { readiness: 72, tasksDone: 5, hubUrl: "/hub" };
+  return model;
 }
 
 app.get("/skills-passport", async (c) => {
@@ -639,6 +641,20 @@ app.get("/skills-passport", async (c) => {
       myHash,
       now: new Date(),
     });
+
+    /* Career journey strip — one KV read joins the hub's half of the
+     * story onto the passport. */
+    const hubSummary = summariseHub(
+      parseScores(await c.env.RATE_LIMITS.get(`hub:scores:${emailHash.slice(0, 16)}`)),
+    );
+    model.career = {
+      readiness: hubSummary.readiness,
+      tasksDone: hubSummary.tasksDone,
+      hubUrl: `/hub?e=${btoa(unescape(encodeURIComponent(email)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "")}`,
+    };
 
     const html = renderSkillsPassport(model, { demo: false, shareEmail: email });
     await c.env.RATE_LIMITS.put(cacheKey, html, { expirationTtl: SP_CACHE_TTL });

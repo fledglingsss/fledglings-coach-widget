@@ -116,6 +116,15 @@ body{font-family:'Outfit',sans-serif;background:#ECE7E6;color:#05253C;-webkit-fo
 .grade .sp:nth-child(1){top:7px;left:12px}
 .grade .sp:nth-child(2){bottom:8px;right:14px;animation-delay:1.1s}
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:34px}
+.career{display:flex;align-items:center;gap:18px;background:#fff;border:1.5px solid #E3DDDA;border-left:4px solid #D9452B;
+  border-radius:14px;padding:15px 20px;margin:-16px 0 34px;text-decoration:none;color:#05253C;transition:box-shadow .2s}
+.career:hover{box-shadow:0 4px 14px rgba(5,37,60,.1)}
+.career .cl{flex:1;min-width:0}
+.career .ct{font-weight:800;font-size:14.5px}
+.career .cs{font-size:12.5px;color:#6A7A88;margin-top:2px}
+.career .cs b{color:#1B7A4B}
+.career .cb{flex:none;background:#D9452B;color:#fff;border-radius:10px;padding:9px 16px;font-weight:700;font-size:13px}
+@media(max-width:640px){.career{flex-direction:column;align-items:stretch;text-align:center}}
 .stat{background:#ECE7E6;border-radius:20px;padding:24px}
 .stat.st1{background:#E8F1F8}.stat.st1 .v{color:#13507F}
 .stat.st2{background:#FCEBE4}.stat.st2 .v{color:#D9452B}.stat.st2 .h{color:#D9452B}
@@ -321,6 +330,19 @@ export function renderSkillsPassport(
       : "") +
     `<div class='track'><i style='width:${modulesPct}%'></i></div></div>` +
     "</div>" +
+    /* career journey strip — the other half of the story */
+    (model.career
+      ? `<a class='career' href='${esc(model.career.hubUrl)}' target='_top'>` +
+        "<div class='cl'><div class='ct'>💼 Career journey</div>" +
+        (model.career.tasksDone > 0 || model.career.readiness !== null
+          ? `<div class='cs'>${model.career.tasksDone}/7 tasks done` +
+            (model.career.readiness !== null
+              ? ` · job-ready score <b>${model.career.readiness}</b>`
+              : "") +
+            "</div>"
+          : "<div class='cs'>Build your CV, practise interviews, get job-ready — your scores land here too.</div>") +
+        `</div><span class='cb'>${model.career.tasksDone > 0 ? "Continue →" : "Start →"}</span></a>`
+      : "") +
     /* overview view */
     "<div class='view on' id='v-overview'><div class='cols'>" +
     "<div><div class='sect-h'><div class='t'>Badge collection</div>" +

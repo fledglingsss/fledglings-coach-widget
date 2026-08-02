@@ -117,6 +117,9 @@ export interface SkillsPassportModel {
     status: CourseRecord["status"];
     minutes: number;
   }>;
+  /** Career journey strip — the employability half of the learner's
+   * story, joined from the hub score history. Absent = don't show. */
+  career?: { readiness: number | null; tasksDone: number; hubUrl: string } | null;
 }
 
 /* Container/showcase courses that are not learner modules. */
