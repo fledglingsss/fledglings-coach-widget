@@ -2561,7 +2561,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v6:${scopeKey}`;
+  const cacheKey = `dash:v7:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
@@ -2645,7 +2645,7 @@ app.get("/dashboard/data", async (c) => {
      * forced-monotonic: a learner can use the tools standalone. */
     const funnel = [
       { stage: "In your scope", n: rows.length },
-      { stage: "Logged in to LearnWorlds", n: rows.filter((r) => r.engagement.daysSinceLogin !== null).length },
+      { stage: "Logged in to Fledglings", n: rows.filter((r) => r.engagement.daysSinceLogin !== null).length },
       { stage: "Learning modules", n: rows.filter((r) => r.learning.completed + r.learning.inProgress > 0).length },
       { stage: "Completed a module", n: rows.filter((r) => r.learning.completed > 0).length },
       { stage: "Using career tools", n: rows.filter((r) => r.readiness !== null || HUB_TOOLS.some((t) => r.employability[t]!.attempts > 0)).length },

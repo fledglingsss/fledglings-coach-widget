@@ -62,7 +62,7 @@ export function renderDashboardPage(): string {
     kpi("k-engaged", "⚡", "Using career tools", "tried at least one") +
     kpi("k-avgcv", "📄", "Avg CV score", "latest per learner") +
     "</div>" +
-    "<div class='dcard'><h3>Learner pipeline <span class='dmut' style='font-weight:500'>from LearnWorlds enrolment to job-ready — both systems in one picture</span></h3>" +
+    "<div class='dcard'><h3>Learner pipeline <span class='dmut' style='font-weight:500'>from enrolment to job-ready — learning and career progress in one picture</span></h3>" +
     "<div id='funnel'></div></div>" +
     "<div class='dsplit'>" +
     "<div class='dcard'><h3>Quick actions</h3><div class='qacts'>" +
@@ -94,18 +94,21 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-cohorts' hidden>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/cohorts.csv'>⬇ Cohort rollup CSV</a></div>" +
     "<div class='cogrid' id='co-grid'></div>" +
-    "<div class='dempty' id='co-empty' hidden>No cohort tags found on these learners yet — tag learners in LearnWorlds and they appear here.</div></section>" +
+    "<div class='dempty' id='co-empty' hidden>No cohort tags found on these learners yet — add a cohort tag to learners and they appear here.</div></section>" +
 
     /* ---------- reflections ---------- */
     "<section class='dview' id='v-reflections' hidden>" +
     "<div class='dcard' id='rf-loading'><div class='dempty'>Loading reflections…</div></div>" +
     /* plan-gated state */
-    "<div class='dcard rf-gate' id='rf-gate' hidden><h3>One switch left to flip</h3>" +
-    "<p class='rf-p'>Every module already collects a written self-reflection before and after. " +
-    "LearnWorlds currently has the API that reads those answers switched off for this school — " +
-    "send them the message below and this page fills itself in, nothing to rebuild.</p>" +
+    "<div class='dcard rf-gate' id='rf-gate' hidden><h3 id='rf-gate-title'>Reflection insights are on their way</h3>" +
+    "<p class='rf-p' id='rf-gate-body'>Learners already answer a written self-reflection before and after every module. " +
+    "Reading those answers into this dashboard is being switched on — check back soon.</p>" +
+    /* Whole-school codes see the actionable supplier ask; scoped
+     * provider codes never see vendor plumbing. */
+    "<div id='rf-gate-hq' hidden>" +
     "<textarea class='rf-ask' id='rf-ask' readonly rows='4'></textarea>" +
-    "<button type='button' class='dbtn sm' id='rf-copy'>Copy message for LearnWorlds support</button>" +
+    "<button type='button' class='dbtn sm' id='rf-copy'>Copy message for platform support</button>" +
+    "</div>" +
     "<p class='dmut' id='rf-coverage-note'></p></div>" +
     /* building state */
     "<div class='dcard' id='rf-building' hidden><h3>Reading reflections…</h3>" +
@@ -146,7 +149,7 @@ export function renderDashboardPage(): string {
     "</section>" +
 
     "<p class='dnote'>Scores, attempts and timestamps only — learner documents, letters and recordings are never stored. " +
-    "Self-reflections are LearnWorlds&#39; own course records, read in place. Sample-based: <span id='dsample'></span>.</p>" +
+    "Self-reflections are read straight from learners&#39; own course records. Sample-based: <span id='dsample'></span>.</p>" +
     "</div>" +
     "<script>" + DASH_JS + "</script>";
 
@@ -186,7 +189,7 @@ var DATA=null,view='home',cohortFilter=null,search='';
 /* ---------- navigation ---------- */
 var TITLES={home:['Home','Outcomes, progress and attention — at a glance'],
 students:['Students','Every learner in your scope with their employability record'],
-cohorts:['Cohorts','Groups by LearnWorlds tag'],
+cohorts:['Cohorts','Groups by cohort tag'],
 reflections:['Self-Reflections','What learners say before and after each module — in their own words'],
 analytics:['Analytics','Adoption, scores and activity — visual first']};
 function go(v){view=v;
@@ -299,7 +302,7 @@ d.innerHTML="<div class='dr-head'><div><b>"+esc2(r.name)+"</b><br><span class='d
 r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
 "<span class='dr-ready' style='color:"+(r.readiness===null?'#B9AFAB':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span>"+
 "<button type='button' class='dlink' id='drill-close'>✕</button></div>"+
-"<div class='dr-learn'><span class='dr-l'>LearnWorlds modules</span>"+
+"<div class='dr-learn'><span class='dr-l'>Learning modules</span>"+
 "<span class='ms'>"+lg.completed+"/"+lg.enrolled+" completed</span>"+
 "<i class='msb wide'><b style='width:"+modPct+"%;background:#1B7A4B'></b></i>"+
 "<span class='dmut'>"+lg.inProgress+" in progress"+(loginNote?' · '+esc2(loginNote):'')+"</span></div>"+
@@ -349,12 +352,16 @@ var gated=d.responsesEnabled===false;
 $('rf-gate').hidden=!gated;
 $('rf-building').hidden=gated||d.status!=='building';
 $('rf-ready').hidden=gated||d.status==='building';
-if(gated){$('rf-ask').value=d.reason||'';
-var cov=(d.coverage||[]).filter(function(cv){return cv.preTitle||cv.postTitle}).length;
-$('rf-coverage-note').textContent=cov?cov+' modules already have their reflection questions matched and waiting.':'';
+if(gated){var hq=d.scoped===null;
+$('rf-gate-hq').hidden=!hq;
+if(hq){$('rf-gate-title').textContent='One switch left to flip';
+$('rf-gate-body').textContent='Every module already collects a written self-reflection before and after. Reading the answers needs one switch at the platform supplier — send them the message below and this page fills itself in, nothing to rebuild.';
+$('rf-ask').value=d.reason||'';
 $('rf-copy').onclick=function(){var ta=$('rf-ask');ta.select();
 try{navigator.clipboard.writeText(ta.value);}catch(e){document.execCommand('copy');}
-$('rf-copy').textContent='Copied ✓';setTimeout(function(){$('rf-copy').textContent='Copy message for LearnWorlds support'},1600);};
+$('rf-copy').textContent='Copied ✓';setTimeout(function(){$('rf-copy').textContent='Copy message for platform support'},1600);};}
+var cov=(d.coverage||[]).filter(function(cv){return cv.preTitle||cv.postTitle}).length;
+$('rf-coverage-note').textContent=cov?cov+' modules already have their reflection questions matched and waiting.':'';
 return;}
 if(d.status==='building'){var p=d.progress||{done:0,total:1};
 $('rf-progress').textContent='Swept '+p.done+' of '+p.total+' modules so far — this page updates itself.';

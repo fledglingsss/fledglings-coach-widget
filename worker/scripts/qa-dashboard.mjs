@@ -113,6 +113,7 @@ const stubScript =
   ";var __RGATED=" + JSON.stringify(RSTUB_GATED) +
   ";window.fetch=function(url){var u=String(url);" +
   "var body=u.indexOf('/portal/reflections')>-1?(location.search.indexOf('gated=1')>-1?__RGATED:__RREADY):__STUB;" +
+  "if(body===__RGATED&&location.search.indexOf('hq=1')>-1)body=Object.assign({},__RGATED,{scoped:null});" +
   "return Promise.resolve({status:200,json:function(){return Promise.resolve(body)}})};</script>";
 
 const html = renderDashboardPage().replace("<body>", "<body>" + stubScript);
