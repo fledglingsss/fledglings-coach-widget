@@ -708,7 +708,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s5",
       title: "Live activity",
-      caption: "straight from LearnWorlds, as it happens",
+      caption: "straight from the platform, as it happens",
       right: "<span class='livedot' id='livedot'></span><span class='muted' id='live-hint' style='font-size:11.5px'></span>",
       body: "<div id='feed-list'></div>",
     }) +
@@ -792,7 +792,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s12",
       title: "Reflection unit matching",
-      caption: "the exact pre/post units identified in each module — a dash means the unit needs renaming in LearnWorlds to be picked up",
+      caption: "the exact pre/post units identified in each module — a dash means the unit needs renaming to be picked up",
       body: "<div id='coverage-list'></div>",
     }) +
     "</div></div></div>" +

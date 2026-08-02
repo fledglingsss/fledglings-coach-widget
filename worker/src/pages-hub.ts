@@ -82,7 +82,7 @@ export function renderHubPage(): string {
     /* identity */
     "<div class='card idcard' id='account'>" +
     "<div id='id-known' hidden>💾 <b>Progress saving as <span id='id-email'></span></b>" +
-    "<span class='id-sub'>Your scores follow this email — here, standalone, and inside LearnWorlds.</span>" +
+    "<span class='id-sub'>Your scores follow this email — here, standalone, and inside your Fledglings courses.</span>" +
     "<button type='button' class='idlink' id='id-change'>Use a different email</button></div>" +
     "<div id='id-anon' hidden><b>Keep your scores?</b>" +
     "<span class='id-sub'>Enter the email you use with Fledglings and your progress follows you on any device or page. " +
