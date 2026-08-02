@@ -162,7 +162,7 @@ describe("GET /dashboard/data", () => {
     expect(emails).toEqual(["amy@swift.test", "ben@swift.test"]);
     const amy = data.learners.find((l) => l.email === "amy@swift.test")!;
     expect(amy.name).toBe("Amy Ash");
-    expect(amy.employability.cv).toMatchObject({ latest: 72, attempts: 2 });
+    expect(amy.employability.cv).toMatchObject({ latest: 72, attempts: 2, history: [60, 72] });
     expect(amy.employability.interview!.latest).toBe(81);
     /* LearnWorlds learning join: 2 real modules (container excluded),
      * 1 completed, 1 in progress; engagement tier from the risk engine. */

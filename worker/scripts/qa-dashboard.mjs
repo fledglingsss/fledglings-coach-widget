@@ -11,8 +11,9 @@ const learner = (name, email, tags, emp, tasksDone, readiness, learning, engagem
   learning: learning ?? { enrolled: 0, completed: 0, inProgress: 0 },
   engagement: engagement ?? { tier: null, daysSinceLogin: null, nudge: null },
 });
-const tool = (latest, attempts, daysAgo) => ({
+const tool = (latest, attempts, daysAgo, history) => ({
   latest, attempts, lastAt: latest === null && attempts === 0 ? null : NOW - daysAgo * 86400,
+  history: history ?? (latest === null ? [] : [latest]),
 });
 
 const STUB = {
@@ -29,7 +30,7 @@ const STUB = {
     { stage: "Job-ready (70+)", n: 1 },
   ],
   learners: [
-    learner("Amy Ash", "amy@swift.test", ["Swift Learners"], { cv: tool(82, 3, 1), linkedin: tool(74, 2, 2), interview: tool(88, 2, 1), cover: tool(100, 2, 3) }, 7, 82,
+    learner("Amy Ash", "amy@swift.test", ["Swift Learners"], { cv: tool(82, 3, 1, [51, 68, 82]), linkedin: tool(74, 2, 2, [60, 74]), interview: tool(88, 2, 1, [71, 88]), cover: tool(100, 2, 3) }, 7, 82,
       { enrolled: 8, completed: 6, inProgress: 1, modules: [
         { t: "Handling Change & Uncertainty", p: 62, done: false },
         { t: "AI in the Workplace", p: 0, done: false },

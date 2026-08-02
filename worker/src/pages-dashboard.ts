@@ -208,12 +208,13 @@ document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener(
 function hbar(rows,max){var out="<div class='hbars'>";
 rows.forEach(function(r){var pct=max?Math.round(r.v*100/max):0;
 out+="<div class='hb'><span class='hb-l' title='"+esc2(r.l)+"'>"+esc2(r.l)+"</span>"+
-"<div class='hb-t'><i style='width:"+pct+"%;background:"+(r.c||'#13507F')+"'></i></div>"+
-"<span class='hb-v'>"+esc2(r.r!==undefined?r.r:r.v)+"</span></div>";});
+"<div class='hb-t' role='img' aria-label='"+esc2(r.l)+": "+esc2(r.r!==undefined?r.r:r.v)+"'><i style='width:"+pct+"%;background:"+(r.c||'#13507F')+"'></i></div>"+
+"<span class='hb-v' aria-hidden='true'>"+esc2(r.r!==undefined?r.r:r.v)+"</span></div>";});
 return out+"</div>";}
 function colChart(vals,labels,color){var n=vals.length;if(!n)return '';
 var W=Math.max(300,n*34),H=140,base=112,maxH=92;var max=Math.max.apply(null,vals.concat([1]));
-var s="<svg viewBox='0 0 "+W+" "+H+"' class='colchart' role='img'>";
+var desc=labels.map(function(l,i){return l+': '+vals[i]}).join(', ');
+var s="<svg viewBox='0 0 "+W+" "+H+"' class='colchart' role='img' aria-label='"+esc2(desc)+"'>";
 s+="<line x1='0' y1='"+base+"' x2='"+W+"' y2='"+base+"' stroke='#E3DDDA' stroke-width='2'/>";
 vals.forEach(function(v,i){var bw=20;var x=i*(W/n)+(W/n-bw)/2;
 var c=Array.isArray(color)?(color[i]||'#13507F'):(color||'#13507F');
@@ -251,8 +252,8 @@ $('funnel').innerHTML=fu.map(function(st,i){
 var pct=Math.round(st.n*100/Math.max(1,scopeN));
 var c=i===0?'#05253C':i<4?'#13507F':i===4?'#ED9249':'#1B7A4B';
 return "<div class='fu-row'><span class='fu-l'>"+esc2(st.stage)+"</span>"+
-"<div class='fu-t'><i style='width:"+pct+"%;background:"+c+"'></i></div>"+
-"<span class='fu-v'>"+st.n+"<i>"+pct+"%</i></span></div>";}).join('');
+"<div class='fu-t' role='img' aria-label='"+esc2(st.stage)+": "+st.n+" learners ("+pct+"%)'><i style='width:"+pct+"%;background:"+c+"'></i></div>"+
+"<span class='fu-v' aria-hidden='true'>"+st.n+"<i>"+pct+"%</i></span></div>";}).join('');
 var att=DATA.attention||[];$('att-count').textContent=att.length+' flagged';
 $('att-empty').hidden=att.length>0;
 $('att-body').innerHTML=att.map(function(a){
@@ -289,8 +290,14 @@ function wireDrills(){document.querySelectorAll('[data-drill]').forEach(function
 el.onclick=function(){var r=DATA.learners.find(function(x){return x.email===el.dataset.drill});
 if(!r)return;go('students');drill(r);};});}
 function drill(r){var e=r.employability;var d=$('drill');var lg=r.learning;var en=r.engagement;
+/* Tiny score-trend sparkline: every attempt, first to latest. */
+function spark(h){if(!h||h.length<2)return '';
+var W=68,H=22,n=h.length;
+var pts=h.map(function(s,i){return (i*(W-4)/(n-1)+2)+','+(H-2-(s*(H-4)/100))}).join(' ');
+return "<svg class='dr-spark' viewBox='0 0 "+W+" "+H+"' role='img' aria-label='Score trend across "+n+" attempts'>"+
+"<polyline points='"+pts+"' fill='none' stroke='"+band(h[h.length-1])+"' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";}
 function toolRow(label,t,isCount){return "<div class='dr-tool'><span class='dr-l'>"+label+"</span>"+
-(isCount?"<span class='ms'>"+t.attempts+" created</span>":miniScore(t.latest))+
+(isCount?"<span class='ms'>"+t.attempts+" created</span>":miniScore(t.latest)+spark(t.history))+
 "<span class='dmut'>"+t.attempts+" attempt"+(t.attempts===1?'':'s')+(t.lastAt?" · last "+new Date(t.lastAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span></div>";}
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 var tierChip=en.tier?("<span class='dtag "+(en.tier==='high'?'warn':'')+"'>"+
@@ -613,6 +620,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dbtn.sm{padding:8px 13px;font-size:12.5px;}
 .dr-tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0 12px;}
 .dr-tool{border:1.5px solid var(--line);border-radius:12px;padding:12px;}
+.dr-spark{display:inline-block;vertical-align:middle;margin-left:10px;width:68px;height:22px;}
 .dr-l{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);margin-bottom:6px;}
 .dr-tool .dmut{display:block;margin-top:5px;}
 .dr-journey{font-size:13px;color:var(--ink);}

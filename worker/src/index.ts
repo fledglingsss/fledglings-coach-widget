@@ -2544,7 +2544,10 @@ interface DashLearner {
   name: string;
   email: string;
   tags: string[];
-  employability: Record<string, { latest: number | null; attempts: number; lastAt: number | null }>;
+  employability: Record<
+    string,
+    { latest: number | null; attempts: number; lastAt: number | null; history: number[] }
+  >;
   tasksDone: number;
   readiness: number | null;
   /** Learning modules — the other half of the picture, with the
@@ -2589,7 +2592,7 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
     const emp: DashLearner["employability"] = {};
     for (const tool of HUB_TOOLS) {
       const t = summary[tool];
-      emp[tool] = { latest: t.latest, attempts: t.attempts, lastAt: t.lastAt };
+      emp[tool] = { latest: t.latest, attempts: t.attempts, lastAt: t.lastAt, history: t.history };
     }
     const modules = courses.filter((c) => isModuleTitle(c.title));
     const completed = modules.filter((m) => m.completed).length;
@@ -2638,7 +2641,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v8:${scopeKey}`;
+  const cacheKey = `dash:v9:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
