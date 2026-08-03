@@ -125,6 +125,21 @@ describe("moduleShift", () => {
     expect(s.preCount).toBe(2);
   });
 
+  it("parses fraction-style self-ratings like the live data", () => {
+    const frac = (v: string): ReflectionResponse => ({
+      userId: "u",
+      email: "a@b.c",
+      submittedAt: null,
+      answers: [{ question: "q", answer: v, points: null, maxPoints: null }],
+    });
+    const s = moduleShift("c1", "Module", [frac("3 / 10")], [frac("8 / 10")]);
+    expect(s.preAvgPct).toBe(30);
+    expect(s.postAvgPct).toBe(80);
+    expect(s.shift).toBe(50);
+    /* Nonsense fractions never poison the average. */
+    expect(moduleShift("c1", "M", [frac("15 / 10")], []).preAvgPct).toBeNull();
+  });
+
   it("falls back to numeric answers when no points are set", () => {
     const noPoints = (n: string): ReflectionResponse => ({
       userId: "u",

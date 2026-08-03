@@ -156,10 +156,18 @@ function avgPct(responses: ReflectionResponse[]): number | null {
         got += a.points;
         max += a.maxPoints;
       } else {
-        const n = Number(a.answer);
-        if (Number.isFinite(n) && n >= 0 && n <= 10 && a.answer !== "") {
-          got += n;
-          max += 10;
+        /* Learners answer rating blocks as "8 / 10" (live data
+         * 2026-08-03) — parse the fraction, else a bare 0-10 number. */
+        const frac = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*$/.exec(a.answer);
+        if (frac && Number(frac[2]) > 0 && Number(frac[1]) <= Number(frac[2])) {
+          got += Number(frac[1]);
+          max += Number(frac[2]);
+        } else {
+          const n = Number(a.answer);
+          if (Number.isFinite(n) && n >= 0 && n <= 10 && a.answer !== "") {
+            got += n;
+            max += 10;
+          }
         }
       }
     }
