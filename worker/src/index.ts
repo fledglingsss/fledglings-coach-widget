@@ -1834,7 +1834,8 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
               kind === "pre" ? state.preRespondents : state.postRespondents;
             if (parsed.email && !bucket.includes(parsed.email)) bucket.push(parsed.email);
           }
-          if (page >= res.totalPages || page >= 3) break;
+          /* Fixed 20/page: five pages covers 100 responses per unit. */
+          if (page >= res.totalPages || page >= 5) break;
           page++;
         }
       }

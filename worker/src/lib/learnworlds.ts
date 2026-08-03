@@ -523,12 +523,20 @@ export async function getAssessmentResponses(
   unitId: string,
   page: number,
 ): Promise<{ rows: unknown[]; totalPages: number } | null> {
+  /* No items_per_page: this endpoint pages at a fixed 20 and returned
+   * 404 for out-of-range values (support-verified 2026-08-03 — their
+   * bare request succeeded while ours with items_per_page=100 did not). */
   const res = await lwRequest(
     env,
     "GET",
-    `/assessments/${encodeURIComponent(unitId)}/responses?page=${page}&items_per_page=100`,
+    `/assessments/${encodeURIComponent(unitId)}/responses?page=${page}`,
   );
-  if (res.status === 404) return null;
+  if (res.status === 404) {
+    console.log(
+      `[coach] assessment responses 404 unit=${unitId} body=${(await res.text()).slice(0, 200)}`,
+    );
+    return null;
+  }
   if (!res.ok) throw new Error(`LearnWorlds assessment responses failed: HTTP ${res.status}`);
   const payload = (await res.json()) as {
     data?: unknown[];
