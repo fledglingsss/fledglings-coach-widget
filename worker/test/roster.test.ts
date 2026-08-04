@@ -69,9 +69,9 @@ describe("markStale", () => {
 });
 
 describe("perTickFor", () => {
-  it("sizes the tick so a full cycle takes about an hour at any scale", () => {
-    expect(perTickFor(61)).toBe(6); // 61/6 ≈ 11 ticks ≈ 55 min
-    expect(perTickFor(600)).toBe(50); // still 12 ticks = 1 hour
+  it("sizes the tick so a full cycle takes about half an hour at any scale", () => {
+    expect(perTickFor(61)).toBe(11); // 61/11 ≈ 6 ticks ≈ 30 min
+    expect(perTickFor(600)).toBe(100); // still 6 ticks = 30 min
     expect(perTickFor(5)).toBe(3); // floor: tiny schools converge fast
   });
 });

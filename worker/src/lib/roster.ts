@@ -30,10 +30,10 @@ export interface RosterSnapshot {
 export const ROSTER_KV_KEY = "roster:v1";
 
 /** Learners refreshed per 5-minute tick, sized so one full cycle
- * takes about an hour whatever the roster grows to (12 ticks/hour),
- * with a small floor so tiny schools still converge quickly. */
+ * takes about half an hour whatever the roster grows to (6 ticks per
+ * cycle), with a small floor so tiny schools still converge quickly. */
 export function perTickFor(rosterSize: number): number {
-  return Math.max(3, Math.ceil(rosterSize / 12));
+  return Math.max(3, Math.ceil(rosterSize / 6));
 }
 
 export function parseRoster(raw: string | null): RosterSnapshot | null {
