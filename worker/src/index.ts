@@ -112,6 +112,15 @@ import {
 import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderDashboardPage } from "./pages-dashboard";
+import {
+  markStale,
+  parseRoster,
+  reconcileRoster,
+  ROSTER_KV_KEY,
+  ROSTER_PER_TICK,
+  stalestIndices,
+  type RosterSnapshot,
+} from "./lib/roster";
 import { renderChallengePage, type ChallengeRow } from "./pages-challenge";
 import { renderHubPage } from "./pages-hub";
 import {
@@ -2277,6 +2286,20 @@ app.post("/hooks/learnworlds", async (c) => {
     }
   }
 
+  /* Activity marks the learner stale in the rolling roster, so the
+   * next 5-minute tick refreshes them — near-live dashboards without
+   * ever bursting the API. */
+  if (ev.type === "courseCompleted" || ev.type === "userTagAdded" || ev.type === "userTagDeleted") {
+    try {
+      const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
+      if (roster && markStale(roster, ev.email)) {
+        await c.env.RATE_LIMITS.put(ROSTER_KV_KEY, JSON.stringify(roster));
+      }
+    } catch {
+      /* staleness marking is best-effort — the rolling cycle covers it */
+    }
+  }
+
   /* Completions bump the cohort leaderboard live (same entry shape the
    * Skills Passport maintains on visit). */
   if (ev.type === "courseCompleted" && cohort) {
@@ -2568,7 +2591,18 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
   rows: DashLearner[];
   sample: Awaited<ReturnType<typeof portalSample>>["sample"];
 }> {
-  const { totalUsers, sample } = await portalSample(env, tag);
+  /* Prefer the rolling roster (zero API burst, full coverage); fall
+   * back to the live sample only before the first tick has run. */
+  let totalUsers: number | null;
+  let sample: Awaited<ReturnType<typeof portalSample>>["sample"];
+  const roster = parseRoster(await env.RATE_LIMITS.get(ROSTER_KV_KEY));
+  if (roster && roster.entries.length > 0) {
+    const scoped = roster.entries.filter((e) => inScope(e.user.tags ?? [], tag));
+    totalUsers = roster.entries.length;
+    sample = scoped.map((e) => ({ user: e.user as LwUser, courses: e.courses }));
+  } else {
+    ({ totalUsers, sample } = await portalSample(env, tag));
+  }
   /* Engagement tiers come from the nightly risk report (6h cache) —
    * an empty join must never sink the dashboard. */
   const riskByEmail = new Map<string, { tier: string; daysSinceLogin: number | null; nudge: string }>();
@@ -2642,7 +2676,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v9:${scopeKey}`;
+  const cacheKey = `dash:v10:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
@@ -3740,12 +3774,51 @@ app.onError((err, c) => {
 /* Nightly cron: rebuild the early-warning report so the portal opens
  * instantly and the trend history accrues even on days nobody signs
  * in. */
+/* One roster tick: reconcile the account list (1 call), then refresh
+ * the stalest few learners' course progress (ROSTER_PER_TICK calls).
+ * Gentle by construction — the API never sees a burst. */
+async function rosterTick(env: Env): Promise<void> {
+  const users = (await listAllUsers(env, 5)).filter(isLearner);
+  const now = Date.now();
+  const snapshot = reconcileRoster(
+    parseRoster(await env.RATE_LIMITS.get(ROSTER_KV_KEY)),
+    users,
+    now,
+  );
+  const titles = await courseTitleMap(env);
+  const picks = stalestIndices(snapshot, ROSTER_PER_TICK);
+  for (const i of picks) {
+    const entry = snapshot.entries[i]!;
+    try {
+      entry.courses = await accurateUserCourses(env, entry.user.id, titles);
+      entry.fetchedAt = Date.now();
+    } catch {
+      /* One failed learner never blocks the cycle — they stay stale
+       * and the next tick retries them. */
+    }
+  }
+  await env.RATE_LIMITS.put(ROSTER_KV_KEY, JSON.stringify(snapshot));
+  console.log(
+    `[coach] kind=roster-tick learners=${snapshot.entries.length} refreshed=${picks.length}`,
+  );
+}
+
 async function scheduled(
-  _event: ScheduledController,
+  event: ScheduledController,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<void> {
   if (!lwConfigured(env)) return;
+  /* The 5-minute tick only rolls the roster; the heavyweight jobs
+   * stay nightly. */
+  if (event.cron === "*/5 * * * *") {
+    ctx.waitUntil(
+      rosterTick(env).catch((err) =>
+        console.error("[coach] roster tick failed:", String(err)),
+      ),
+    );
+    return;
+  }
   ctx.waitUntil(
     getRiskReport(env, true)
       .then((r) =>

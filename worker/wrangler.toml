@@ -8,9 +8,11 @@ compatibility_date = "2026-07-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Nightly early-warning refresh (03:10 UTC) — keeps the portal instant
-# and the engagement trend history accruing.
+# and the engagement trend history accruing. The 5-minute tick is the
+# rolling roster: a handful of learners refreshed per tick, so the
+# dashboard reads a warm store and the API never sees a burst.
 [triggers]
-crons = ["10 3 * * *"]
+crons = ["10 3 * * *", "*/5 * * * *"]
 
 [vars]
 # Kill switch — set to "true" to make the coach return its authored

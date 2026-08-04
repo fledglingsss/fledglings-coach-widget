@@ -214,6 +214,46 @@ describe("GET /dashboard/data", () => {
     ]);
   });
 
+  it("serves from the rolling roster without a learner-fetch burst", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await env.RATE_LIMITS.put(
+      "roster:v1",
+      JSON.stringify({
+        listSyncedAt: Date.now(),
+        entries: [
+          {
+            user: { id: "u1", email: "amy@swift.test", first_name: "Amy", last_name: "Ash", tags: ["Swift Learners"] },
+            courses: AMY_COURSES,
+            fetchedAt: Date.now(),
+          },
+          {
+            user: { id: "u3", email: "cal@other.test", tags: ["Other College"] },
+            courses: [],
+            fetchedAt: Date.now(),
+          },
+        ],
+      }),
+    );
+    const res = await app.request(
+      get("/dashboard/data", await cookieFor("swift-code-1")),
+      undefined,
+      env,
+    );
+    const data = (await res.json()) as {
+      totalUsers: number;
+      learners: Array<{ email: string; learning: { completed: number } }>;
+    };
+    /* Scoped to the tag, learning data straight from the store, and
+     * crucially: the burst-prone live sample path (listUsersPage +
+     * per-learner course fetches) never ran. The risk engine's own
+     * 6-hour-cached build accounts for any background fetches. */
+    expect(data.learners.map((l) => l.email)).toEqual(["amy@swift.test"]);
+    expect(data.learners[0]!.learning.completed).toBe(1);
+    expect(data.totalUsers).toBe(2);
+    expect(listUsersMock).not.toHaveBeenCalled();
+  });
+
   it("caches per scope so a scoped code never sees the school payload", async () => {
     const env = makeEnv();
     await seedCode(env, "hq-code-0001", "Fledglings HQ");
