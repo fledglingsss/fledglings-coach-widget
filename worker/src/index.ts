@@ -1759,27 +1759,41 @@ const LW_SUPPORT_ASK =
   "Please enable the Assessments & Forms API endpoints for our school so we can read learner " +
   "assessment responses. Thanks!";
 
+const REFLECT_BUILD_KEY = `${REFLECT_KV_KEY}:building`;
+
+/* Double-buffered: the main key only ever holds COMPLETED snapshots
+ * (served to every reader), rebuilds accumulate in the side key and
+ * swap in atomically when ready — a provider mid-rebuild always sees
+ * the last complete data, never a half-filled sweep. */
 async function advanceReflections(env: Env): Promise<ReflectionsState> {
   const now = new Date();
-  let state: ReflectionsState | null = JSON.parse(
-    (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
-  );
-  const stale =
-    state !== null &&
-    now.getTime() - new Date(state.builtAt).getTime() > REFLECT_MAX_AGE_MS;
   const courseEntries = Object.entries(COURSE_MAP).filter(
     (e): e is [string, string] => e[1] !== null,
   );
+  const main: ReflectionsState | null = JSON.parse(
+    (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
+  );
+  const mainUsable =
+    main !== null &&
+    main.status === "ready" &&
+    main.responses !== undefined &&
+    main.totalCourses === courseEntries.length;
+  const mainFresh =
+    mainUsable &&
+    now.getTime() - new Date(main.builtAt).getTime() <= REFLECT_MAX_AGE_MS;
+  if (mainFresh) return main!;
+
+  let state: ReflectionsState | null = JSON.parse(
+    (await env.RATE_LIMITS.get(REFLECT_BUILD_KEY)) || "null",
+  );
   if (
     state === null ||
-    stale ||
+    state.status === "ready" || // finished builds live in main
     state.totalCourses !== courseEntries.length ||
-    state.userTags === undefined || // pre-v2 cached shape
-    state.responses === undefined // pre-v4 cached shape
+    state.responses === undefined
   ) {
     state = emptyState(courseEntries.length, now);
   }
-  if (state.status === "ready") return state;
 
   let calls = 0;
 
@@ -1863,9 +1877,17 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
   }
   if (state.cursor >= courseEntries.length) state.status = "ready";
   state.builtAt = now.toISOString();
-  await env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state), {
-    expirationTtl: 24 * 3600,
-  });
+  if (state.status === "ready") {
+    /* Swap the completed build in; no TTL — the snapshot must outlive
+     * any rebuild cadence, and daily rebuilds replace it anyway. */
+    await env.RATE_LIMITS.put(REFLECT_KV_KEY, JSON.stringify(state));
+    await env.RATE_LIMITS.put(REFLECT_BUILD_KEY, "", { expirationTtl: 60 });
+  } else {
+    /* 6h TTL: a stuck partial build restarts rather than lingering. */
+    await env.RATE_LIMITS.put(REFLECT_BUILD_KEY, JSON.stringify(state), {
+      expirationTtl: 6 * 3600,
+    });
+  }
   return state;
 }
 
@@ -3834,12 +3856,18 @@ async function rosterTick(env: Env): Promise<void> {
 }
 
 /** Read the reflections snapshot without ever advancing the build —
- * provider visits are pure reads; the cron owns freshness. */
+ * provider visits are pure reads; the cron owns freshness. Serves the
+ * last COMPLETE snapshot even during a rebuild; only before the very
+ * first build finishes does it show the in-progress state. */
 async function readReflections(env: Env): Promise<ReflectionsState> {
   const state = JSON.parse(
     (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
   ) as ReflectionsState | null;
   if (state && state.responses !== undefined) return state;
+  const building = JSON.parse(
+    (await env.RATE_LIMITS.get(REFLECT_BUILD_KEY)) || "null",
+  ) as ReflectionsState | null;
+  if (building && building.responses !== undefined) return building;
   const courseCount = Object.values(COURSE_MAP).filter((v) => v !== null).length;
   return emptyState(courseCount, new Date());
 }

@@ -423,6 +423,38 @@ describe("GET /dashboard/reflections.csv", () => {
     expect(res.status).toBe(401);
   });
 
+  it("keeps serving the last complete snapshot during a rebuild", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedReflections(env); // complete snapshot in the main key
+    /* A rebuild in progress sits in the side key — readers must never
+     * see this half-filled state while a complete snapshot exists. */
+    await env.RATE_LIMITS.put(
+      "portal:reflect:v4:building",
+      JSON.stringify({
+        status: "building",
+        responsesEnabled: true,
+        cursor: 3,
+        totalCourses: 33,
+        coverage: [],
+        shifts: [],
+        flags: [],
+        responses: [],
+        userTags: {},
+        preRespondents: [],
+        postRespondents: [],
+        builtAt: new Date().toISOString(),
+      }),
+    );
+    const res = await app.request(
+      get("/dashboard/reflections.csv", await cookieFor("swift-code-1")),
+      undefined,
+      env,
+    );
+    const lines = (await res.text()).split("\r\n");
+    expect(lines).toHaveLength(2); // header + Amy from the COMPLETE snapshot
+  });
+
   it("wellbeing flags carry a key and acknowledge persistently", async () => {
     const env = makeEnv();
     await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
