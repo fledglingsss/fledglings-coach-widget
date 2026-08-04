@@ -149,7 +149,7 @@ export function renderDashboardPage(): string {
     "</section>" +
 
     "<p class='dnote'>Scores, attempts and timestamps only — learner documents, letters and recordings are never stored. " +
-    "Self-reflections are read straight from learners&#39; own course records. Sample-based: <span id='dsample'></span>.</p>" +
+    "Self-reflections are read straight from learners&#39; own course records. Coverage: <span id='dsample'></span>.</p>" +
     "</div>" +
     "<script>" + DASH_JS + "</script>";
 
@@ -487,7 +487,9 @@ if(d.error){$('dh-sub').textContent='Could not load data — '+d.error;return;}
 /* attention list comes precomputed; keep a fallback */
 d.attention=d.attention||[];DATA=d;
 $('dscope').textContent=d.scopedTag?('Scope: '+d.scopedTag):'Whole school';
-$('dsample').textContent=d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled';
+$('dsample').textContent=(d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?
+'all '+d.totalUsers+' accounts covered, refreshed on a rolling half-hour cycle':
+d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled';
 $('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
 renderHome();})
 .catch(function(){$('dh-sub').textContent='Could not reach the dashboard service — refresh to retry.';});
