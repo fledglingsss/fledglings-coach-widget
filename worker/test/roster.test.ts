@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   markStale,
   parseRoster,
+  perTickFor,
   reconcileRoster,
   stalestIndices,
   type RosterSnapshot,
@@ -64,6 +65,14 @@ describe("markStale", () => {
     expect(snap.entries[0]!.fetchedAt).toBe(0);
     /* Already-stale entries report no change. */
     expect(markStale(snap, "amy@x.test")).toBe(false);
+  });
+});
+
+describe("perTickFor", () => {
+  it("sizes the tick so a full cycle takes about an hour at any scale", () => {
+    expect(perTickFor(61)).toBe(6); // 61/6 ≈ 11 ticks ≈ 55 min
+    expect(perTickFor(600)).toBe(50); // still 12 ticks = 1 hour
+    expect(perTickFor(5)).toBe(3); // floor: tiny schools converge fast
   });
 });
 

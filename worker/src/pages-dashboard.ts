@@ -488,7 +488,7 @@ if(d.error){$('dh-sub').textContent='Could not load data — '+d.error;return;}
 d.attention=d.attention||[];DATA=d;
 $('dscope').textContent=d.scopedTag?('Scope: '+d.scopedTag):'Whole school';
 $('dsample').textContent=(d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?
-'all '+d.totalUsers+' accounts covered, refreshed on a rolling half-hour cycle':
+'all '+d.totalUsers+' accounts covered, refreshed automatically every hour':
 d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled';
 $('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
 renderHome();})

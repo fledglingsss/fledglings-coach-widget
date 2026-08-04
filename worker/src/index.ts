@@ -115,9 +115,9 @@ import { renderDashboardPage } from "./pages-dashboard";
 import {
   markStale,
   parseRoster,
+  perTickFor,
   reconcileRoster,
   ROSTER_KV_KEY,
-  ROSTER_PER_TICK,
   stalestIndices,
   type RosterSnapshot,
 } from "./lib/roster";
@@ -1627,7 +1627,10 @@ async function portalSample(
 
 const RISK_CACHE_KEY = "portal:risk:v4";
 const RISK_HISTORY_KEY = "portal:risk:history:v1";
-const RISK_CACHE_TTL = 6 * 3600;
+/* 26h: the nightly cron force-refreshes daily, so a provider visit
+ * should never find this cold and rebuild it inline (the founder's
+ * no-burst-on-login rule, 2026-08-04). */
+const RISK_CACHE_TTL = 26 * 3600;
 const RISK_ENRICH_TOP = 10;
 
 interface RiskReport {
@@ -1746,7 +1749,9 @@ async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport
 
 const REFLECT_KV_KEY = "portal:reflect:v4"; // v4: raw responses retained
 const REFLECT_TAGS_PATCH_KEY = "portal:reflect:tags-patch";
-const REFLECT_MAX_AGE_MS = 6 * 3600 * 1000;
+/* 26h: rebuilt by the nightly cron and advanced by roster ticks —
+ * visits only read. */
+const REFLECT_MAX_AGE_MS = 26 * 3600 * 1000;
 const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
 const LW_SUPPORT_ASK =
   "Hi LearnWorlds — we're on a plan with API access, but GET /v2/assessments/{id}/responses " +
@@ -1899,7 +1904,7 @@ app.get("/portal/reflections", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
-    const state = await advanceReflections(c.env);
+    const state = await readReflections(c.env);
     /* Scope filtering uses the email->tags map captured in the sweep,
      * overlaid with live webhook tag patches. */
     const tagPatch = JSON.parse(
@@ -2519,26 +2524,43 @@ app.post("/api/hub", async (c) => {
     let learning: { enrolled: number; completed: number; inProgress: number } | null = null;
     if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
       try {
-        const learnKey = `hub:learn:v1:${(await hashLearnerId(email)).slice(0, 16)}`;
-        const cachedLearn = await c.env.RATE_LIMITS.get(learnKey);
-        if (cachedLearn !== null) {
-          learning = JSON.parse(cachedLearn) as typeof learning;
+        /* The rolling roster already holds every learner's modules —
+         * zero API calls, at most an hour old, and activity webhooks
+         * fast-track refreshes. Live fetch only for accounts the
+         * roster has not covered yet. */
+        const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
+        const entry = roster?.entries.find(
+          (e) => (e.user.email ?? "").toLowerCase() === email,
+        );
+        if (entry && entry.fetchedAt > 0) {
+          const modules = entry.courses.filter((m) => isModuleTitle(m.title));
+          learning = {
+            enrolled: modules.length,
+            completed: modules.filter((m) => m.completed).length,
+            inProgress: modules.filter((m) => !m.completed && (m.progressRate ?? 0) > 0).length,
+          };
         } else {
-          const user = await lookupUser();
-          if (user) {
-            const titles = await courseTitleMap(c.env);
-            const modules = (await accurateUserCourses(c.env, user.id, titles)).filter((m) =>
-              isModuleTitle(m.title),
-            );
-            learning = {
-              enrolled: modules.length,
-              completed: modules.filter((m) => m.completed).length,
-              inProgress: modules.filter((m) => !m.completed && (m.progressRate ?? 0) > 0).length,
-            };
+          const learnKey = `hub:learn:v1:${(await hashLearnerId(email)).slice(0, 16)}`;
+          const cachedLearn = await c.env.RATE_LIMITS.get(learnKey);
+          if (cachedLearn !== null) {
+            learning = JSON.parse(cachedLearn) as typeof learning;
+          } else {
+            const user = await lookupUser();
+            if (user) {
+              const titles = await courseTitleMap(c.env);
+              const modules = (await accurateUserCourses(c.env, user.id, titles)).filter((m) =>
+                isModuleTitle(m.title),
+              );
+              learning = {
+                enrolled: modules.length,
+                completed: modules.filter((m) => m.completed).length,
+                inProgress: modules.filter((m) => !m.completed && (m.progressRate ?? 0) > 0).length,
+              };
+            }
+            await c.env.RATE_LIMITS.put(learnKey, JSON.stringify(learning), {
+              expirationTtl: 600,
+            });
           }
-          await c.env.RATE_LIMITS.put(learnKey, JSON.stringify(learning), {
-            expirationTtl: 600,
-          });
         }
       } catch {
         /* learning strip is optional — never sink the hub */
@@ -2890,7 +2912,7 @@ app.get("/dashboard/reflections.csv", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
-    const state = await advanceReflections(c.env);
+    const state = await readReflections(c.env);
     const tagPatch = JSON.parse(
       (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
     ) as Record<string, string[]>;
@@ -3786,7 +3808,7 @@ async function rosterTick(env: Env): Promise<void> {
     now,
   );
   const titles = await courseTitleMap(env);
-  const picks = stalestIndices(snapshot, ROSTER_PER_TICK);
+  const picks = stalestIndices(snapshot, perTickFor(snapshot.entries.length));
   for (const i of picks) {
     const entry = snapshot.entries[i]!;
     try {
@@ -3801,6 +3823,25 @@ async function rosterTick(env: Env): Promise<void> {
   console.log(
     `[coach] kind=roster-tick learners=${snapshot.entries.length} refreshed=${picks.length}`,
   );
+  /* The tick also owns reflections freshness so visits never build:
+   * when the snapshot is ready and fresh this is a single KV read;
+   * when building or stale it advances one budgeted step. */
+  try {
+    await advanceReflections(env);
+  } catch (err) {
+    console.error("[coach] tick reflections step failed:", String(err));
+  }
+}
+
+/** Read the reflections snapshot without ever advancing the build —
+ * provider visits are pure reads; the cron owns freshness. */
+async function readReflections(env: Env): Promise<ReflectionsState> {
+  const state = JSON.parse(
+    (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
+  ) as ReflectionsState | null;
+  if (state && state.responses !== undefined) return state;
+  const courseCount = Object.values(COURSE_MAP).filter((v) => v !== null).length;
+  return emptyState(courseCount, new Date());
 }
 
 async function scheduled(
