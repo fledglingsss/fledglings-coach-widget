@@ -714,7 +714,8 @@ export function renderToolsPage(): string {
     "var word=d.score>=70?'Strong':d.score>=50?'Getting there':'Needs work';" +
     "dims+=\"<div class='dim'><div class='dim-r'><span>\"+esc(d.label)+\" <i class='dim-word' style='background:\"+c+\"'>\"+word+\"</i></span><b style='color:\"+c+\"'>\"+d.score+\"</b></div>\"+" +
     "\"<div class='dim-tk'><i style='width:\"+d.score+\"%;background:\"+c+\";animation-delay:.\"+i+\"s'></i></div>\"+" +
-    "\"<div class='dim-tip'>\"+esc(d.tip)+\"</div></div>\"});" +
+    "\"<div class='dim-tip'>\"+esc(d.tip)+\"</div>\"+" +
+    "(d.evidence?\"<div class='dim-ev'>“\"+esc(d.evidence)+\"”</div>\":'')+\"</div>\"});" +
     "$('r-dims').innerHTML=dims;" +
     /* at-a-glance: one tap-card per section, so the overview answers
      * 'where do I look first?' without any scrolling */
@@ -729,7 +730,8 @@ export function renderToolsPage(): string {
     "$('r-goods').innerHTML=goods;" +
     "var fixes='';r.improvements.forEach(function(f,i){" +
     "fixes+=\"<div class='fix'><div class='fix-n'>\"+(i+1)+\"</div><div><div class='fix-t'>\"+esc(f.title)+\"</div>\"+" +
-    "\"<div class='fix-d'>\"+esc(f.detail)+'</div></div></div>'});" +
+    "\"<div class='fix-d'>\"+esc(f.detail)+'</div>'+" +
+    "(f.example?\"<div class='fix-ex'><b>Try:</b> \"+esc(f.example)+'</div>':'')+'</div></div>'});" +
     "$('r-fixes').innerHTML=fixes;" +
     "$('r-next').textContent=r.next_step;" +
     "if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}" +
@@ -795,6 +797,11 @@ export function renderToolsPage(): string {
 #r-ckpass{margin-bottom:14px;}
 .dim-word{font-style:normal;color:#fff;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:800;
   margin-left:7px;vertical-align:2px;}
+.dim-ev{font-size:12px;color:#68788A;font-style:italic;border-left:3px solid var(--off,#ECE7E6);
+  padding-left:10px;margin-top:6px;line-height:1.5;}
+.fix-ex{margin-top:8px;background:#F1F8F3;border:1px solid #CBE3D4;border-radius:9px;padding:9px 12px;
+  font-size:13px;line-height:1.55;}
+.fix-ex b{color:#1B7A4B;margin-right:4px;}
 .journeynext{display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--navy);
   border-left:4px solid var(--orange);transition:box-shadow .2s;}
 .journeynext:hover{box-shadow:0 4px 14px rgba(5,37,60,.12);}

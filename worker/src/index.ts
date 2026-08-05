@@ -912,7 +912,7 @@ app.post("/api/enrol", async (c) => {
  * #3 — AI employability tools (ATS CV review, LinkedIn review)
  * ================================================================== */
 
-const REVIEW_MAX_TOKENS = 2600;
+const REVIEW_MAX_TOKENS = 4200;
 
 app.post("/api/review", async (c) => {
   const body = await readJsonCapped(c, 64_000);

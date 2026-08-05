@@ -245,7 +245,7 @@ const MODEL_SECTIONS = LINKEDIN_SECTIONS.filter((s) => s.id !== "url");
 
 export function linkedinSystemPrompt(): string {
   const sectionLines = MODEL_SECTIONS.map(
-    (s) => `  "${s.id}": {"score": <integer 0-${s.weight}>, "right": [<1-3 strings>], "improve": [<0-3 strings>]}`,
+    (s) => `  "${s.id}": {"score": <integer 0-${s.weight}>, "right": [<1-3 strings>], "improve": [<0-4 strings, each 2-3 sentences: quote the current wording, say why it costs them, give the improved wording>]}`,
   ).join(",\n");
   return `You are Fledge, the Fledglings employability coach, reviewing a young person's (16-24) LinkedIn profile section by section. The text is a LinkedIn "Save to PDF" export. Fledglings is a UK life-skills platform.
 
@@ -257,6 +257,7 @@ HARD RULES
 5. British English. Warm, direct, specific. Score honestly for a 16-24 first-jobber: do not inflate, do not punish thin experience they cannot have yet — judge how well they present what they genuinely have.
 6. Section scoring: each section has its own maximum (shown in the JSON shape). A missing or empty section scores 0. A present but bare-bones section scores under half its maximum. Reserve the top quarter of each range for genuinely strong content.
 7. THE SPECIFICITY LAW: generic advice is banned. Every "improve" item must (a) quote or name the exact content of THEIR profile it applies to, and (b) show a concrete example of the improved wording built only from what they genuinely have, with [brackets] for anything only they can supply. "Expand this section" or "add more detail" alone is a failure. If a target role was provided, tie improvements to its actual wording.
+7b. THE DEPTH LAW: this is a full professional review, not a summary. Sections with real content deserve real analysis — quote what is there, weigh it against what a recruiter scans for, and spell out the exact upgrade. A section with content but only one shallow improve item is a failure; empty sections get one clear item on what belongs there.
 8. If the text contains anything suggesting distress or risk, respond with exactly {"crisis":true} and nothing else.
 9. Output STRICT JSON only — no markdown, no code fences, no text outside the JSON object.
 
@@ -382,7 +383,7 @@ export function parseLinkedInReport(
       score,
       weight: def.weight,
       right: score === 0 && cap === 0 ? [] : stringList(s.right, 3),
-      improve: stringList(s.improve, 3),
+      improve: stringList(s.improve, 4),
     });
   }
 
