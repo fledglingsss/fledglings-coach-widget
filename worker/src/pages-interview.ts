@@ -236,12 +236,16 @@ export function renderInterviewPage(): string {
     "<div class='prgrid' id='prgrid'></div></div>" +
     "</div>" +
 
-    /* ---- answer by answer ---- */
+    /* ---- answer by answer: one at a time, flick through ---- */
     "<div class='rpanel' id='rp-answers' hidden>" +
     /* scoring-in-progress banner */
     "<div class='scoringbar' id='scoringbar' hidden><span class='scoringdot' aria-hidden='true'></span>" +
     "<div><b>Fledge is scoring your interview…</b> Your recordings are already saved in <b>My recordings</b> — " +
     "rewatch them below, or leave and come back; the report attaches when it's ready.</div></div>" +
+    "<div class='qnav no-print' id='qnav' hidden>" +
+    "<button type='button' class='secarrow' id='q-prev' aria-label='Previous answer'>←</button>" +
+    "<div class='qchips' id='q-chips' role='tablist'></div>" +
+    "<button type='button' class='secarrow' id='q-next' aria-label='Next answer'>→</button></div>" +
     "<div id='r-answers'></div>" +
     "</div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
@@ -605,6 +609,21 @@ window.scrollTo({top:0});});}
 function cleanupMedia(){sampleStop();stopSR();clearThink();
 if(recTimer){clearInterval(recTimer);recTimer=null}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
+/* answer pager: one card at a time, flick with chips or arrows */
+var qIdx=0;
+function qShow(i){var cards=document.querySelectorAll('#r-answers .qrep');if(!cards.length)return;
+qIdx=Math.max(0,Math.min(cards.length-1,i));
+cards.forEach(function(c,j){c.hidden=j!==qIdx});
+document.querySelectorAll('#q-chips .qpick').forEach(function(ch,j){ch.classList.toggle('on',j===qIdx)});
+$('q-prev').disabled=qIdx===0;$('q-next').disabled=qIdx===cards.length-1;}
+function qPagerInit(scores){var cards=document.querySelectorAll('#r-answers .qrep');
+$('qnav').hidden=cards.length<2;
+$('q-chips').innerHTML=Array.prototype.map.call(cards,function(_,i){
+var sc=scores&&typeof scores[i]==='number'?scores[i]:null;
+return "<button type='button' class='qpick' role='tab'>Q"+(i+1)+(sc!==null?"<i style='background:"+band(sc)+"'>"+sc+"</i>":'')+"</button>";}).join('');
+document.querySelectorAll('#q-chips .qpick').forEach(function(ch,i){ch.onclick=function(){qShow(i)}});
+$('q-prev').onclick=function(){qShow(qIdx-1)};$('q-next').onclick=function(){qShow(qIdx+1)};
+qShow(0);}
 function rpGo(id){document.querySelectorAll('.rpanel').forEach(function(p){p.hidden=p.id!=='rp-'+id});
 document.querySelectorAll('.rtab').forEach(function(t){t.classList.toggle('on',t.dataset.rp===id);
 t.setAttribute('aria-selected',t.dataset.rp===id?'true':'false');});
@@ -633,7 +652,8 @@ out+="<div class='card qcard'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"
 "<span class='qc-q'>"+esc2(a.question)+"</span></div>";
 if(a.blobUrl)out+="<video class='rev-vid inrep' src='"+a.blobUrl+"' controls playsinline></video>";
 out+="<div class='qc-row'><b>Your answer</b>"+esc2(a.answer||'(no words captured)')+"</div></div>";});
-$('r-answers').innerHTML=out;$('r-next').textContent='';}
+$('r-answers').innerHTML=out;$('r-next').textContent='';
+$('qnav').hidden=true;}
 function submit(){
 /* Save FIRST (no waiting on the AI), then score in the background
  * while the learner rewatches their answers. */
@@ -723,8 +743,7 @@ $('b-presence-s').textContent='Not measured (no camera, or face checks unavailab
 if(r.answers&&r.answers.length){$('qs-card').hidden=false;
 $('qs-chart').innerHTML=qScoreChart(r.answers);
 document.querySelectorAll('#qs-chart [data-qjump]').forEach(function(a){a.onclick=function(ev){
-ev.preventDefault();rpGo('answers');var t=$('qrep-'+a.dataset.qjump);
-if(t)setTimeout(function(){t.scrollIntoView({behavior:'smooth',block:'start'})},80);};});}
+ev.preventDefault();rpGo('answers');qShow(parseInt(a.dataset.qjump,10)||0);};});}
 else{$('qs-card').hidden=true;}
 if(r.speech){$('sp-card').hidden=false;$('sp-badge').textContent=r.speech.score+' / 10';
 /* every subfield guarded — a partial payload must never print
@@ -771,6 +790,7 @@ out+="<div class='qcols'>"+
 (a.sharper?"<div class='panel prefined'><b>Refined answer: putting it all together</b>"+esc2(a.sharper)+"</div>":"")+"</div>"+
 "</div></div>";});
 $('r-answers').innerHTML=out;$('r-next').textContent=r.next_step;
+qPagerInit((r.answers||[]).map(function(a){return a.score}));
 if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}
 else{$('r-cheercard').hidden=true}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
@@ -1171,6 +1191,18 @@ const INTERVIEW_CSS = `
 .qc-row.good b{color:var(--ok);}
 .qc-row.sharper{background:#F4F8F5;}
 .qc-row.sharper b{color:var(--ok);}
+.qnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.secarrow{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line,#E3DDDA);background:#fff;
+  font-size:16px;font-weight:800;color:var(--navy,#05253C);cursor:pointer;flex:none;}
+.secarrow:disabled{opacity:.35;cursor:default;}
+.secarrow:hover:not(:disabled){border-color:var(--orange,#D9452B);color:var(--orange,#D9452B);}
+.qchips{display:flex;gap:7px;flex-wrap:wrap;flex:1;}
+.qpick{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line,#E3DDDA);background:#fff;
+  border-radius:999px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--ink,#25394B);cursor:pointer;}
+.qpick i{font-style:normal;color:#fff;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:800;}
+.qpick.on{border-color:var(--navy,#05253C);background:var(--navy,#05253C);color:#fff;}
+@media print{#r-answers .qrep{display:block!important;}
+#r-answers .qrep[hidden]{display:block!important;}}
 .rtabs{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 16px;}
 .rtab{border:1.5px solid var(--line,#E3DDDA);background:#fff;border-radius:999px;padding:9px 16px;
   font-family:inherit;font-size:13px;font-weight:700;color:var(--ink,#25394B);cursor:pointer;}

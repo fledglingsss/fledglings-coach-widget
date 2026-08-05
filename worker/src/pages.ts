@@ -464,13 +464,17 @@ export function renderToolsPage(): string {
     "<div id='r-checks'></div></div>" +
     "</div>" +
 
-    /* ---- feedback & fixes panel ---- */
+    /* ---- feedback & fixes panel: a deck you flick through ---- */
     "<div class='rpanel' id='rp-improve' hidden>" +
-    "<div class='card'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
-    "<div class='card'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
-    "<div class='card'><h3>What to improve</h3><div id='r-fixes'></div></div>" +
+    "<div class='qnav no-print' id='fb-nav'>" +
+    "<button type='button' class='secarrow' id='fb-prev' aria-label='Previous'>←</button>" +
+    "<div class='qchips' id='fb-chips' role='tablist'></div>" +
+    "<button type='button' class='secarrow' id='fb-next' aria-label='Next'>→</button></div>" +
+    "<div class='card fb-slide' data-fbl='Scores'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
+    "<div class='card fb-slide' data-fbl='Working'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
+    "<div id='fb-fixwrap'></div>" +
     /* the method — teach the frameworks, not just the verdicts */
-    "<div class='card' id='r-method'><h3>📐 The method behind strong bullets</h3>" +
+    "<div class='card fb-slide' data-fbl='📐 Method' id='r-method'><h3>📐 The method behind strong bullets</h3>" +
     "<p class='kw-note'>Recruiters trust lines that prove something. Two frameworks do the proving — use XYZ for " +
     "CV bullets, STAR when you talk about the same story in an interview.</p>" +
     "<div class='xyz'>" +
@@ -492,7 +496,7 @@ export function renderToolsPage(): string {
     "<li><i>2</i>Add the number only you know: how many, how often, how fast.</li>" +
     "<li><i>3</i>End with the how — the thing you did that made the number happen.</li></ul>" +
     "</div>" +
-    "<div class='card' id='r-rwcard' hidden><h3>Example rewrite — your line, upgraded</h3>" +
+    "<div class='card fb-slide' data-fbl='Rewrite' id='r-rwcard' hidden><h3>Example rewrite — your line, upgraded</h3>" +
     "<p class='kw-note'>The pattern above, applied to your own line. Anything in [brackets] is " +
     "yours to fill in — Fledge never invents your numbers.</p>" +
     "<div class='rw before'><div class='rw-tag'>BEFORE</div><div id='r-rwb'></div></div>" +
@@ -620,6 +624,22 @@ export function renderToolsPage(): string {
     "\"<circle cx='\"+x(pct)+\"' cy='40' r='9' fill='\"+band(pct)+\"'/>\"+" +
     "\"<text x='\"+x(pct)+\"' y='62' text-anchor='middle' font-size='13' font-weight='800' fill='\"+band(pct)+\"'>\"+pct+\"%</text>\"+" +
     "'</svg>'}" +
+    /* feedback deck: flick through scores / strengths / each fix /
+     * method / rewrite one screen at a time */
+    "var fbIdx=0;" +
+    /* content-absent slides (e.g. no rewrite) carry data-absent and
+     * never join the deck; the pager owns [hidden] for the rest */
+    "function fbSlides(){return Array.prototype.filter.call(document.querySelectorAll('#rp-improve .fb-slide'),function(s){return !s.hasAttribute('data-absent')});}" +
+    "function fbShow(i){var s=fbSlides();if(!s.length)return;" +
+    "fbIdx=Math.max(0,Math.min(s.length-1,i));" +
+    "s.forEach(function(c,j){c.hidden=j!==fbIdx});" +
+    "document.querySelectorAll('#fb-chips .qpick').forEach(function(ch,j){ch.classList.toggle('on',j===fbIdx)});" +
+    "$('fb-prev').disabled=fbIdx===0;$('fb-next').disabled=fbIdx===s.length-1;}" +
+    "function fbInit(){var s=fbSlides();" +
+    "$('fb-chips').innerHTML=s.map(function(c){return \"<button type='button' class='qpick' role='tab'>\"+c.dataset.fbl+'</button>'}).join('');" +
+    "document.querySelectorAll('#fb-chips .qpick').forEach(function(ch,i){ch.onclick=function(){fbShow(i)}});" +
+    "$('fb-prev').onclick=function(){fbShow(fbIdx-1)};$('fb-next').onclick=function(){fbShow(fbIdx+1)};" +
+    "fbShow(0);}" +
     /* report section tabs */
     "function rpGo(id){document.querySelectorAll('.rpanel').forEach(function(p){p.hidden=p.id!=='rp-'+id});" +
     "document.querySelectorAll('.rtab').forEach(function(t){t.classList.toggle('on',t.dataset.rp===id);" +
@@ -702,7 +722,8 @@ export function renderToolsPage(): string {
     "$('r-checks').innerHTML=ck}" +
     /* rewrite (XYZ/STAR teaching) */
     "if(r.rewrite&&r.rewrite.before){$('r-rwb').textContent=r.rewrite.before;" +
-    "$('r-rwa').textContent=r.rewrite.after;$('r-rwcard').hidden=false}else{$('r-rwcard').hidden=true}" +
+    "$('r-rwa').textContent=r.rewrite.after;$('r-rwcard').removeAttribute('data-absent')}" +
+    "else{$('r-rwcard').setAttribute('data-absent','1');$('r-rwcard').hidden=true}" +
     "flCountUp($('r-score'),r.overall);$('r-score').style.color=col;" +
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-kind').textContent=(kind==='cv'?'CV REVIEW':'LINKEDIN REVIEW');" +
@@ -728,11 +749,13 @@ export function renderToolsPage(): string {
     "document.querySelectorAll('.gl').forEach(function(g){g.onclick=function(){rpGo(g.dataset.rp)}});" +
     "var goods='';r.strengths.forEach(function(s){goods+=\"<li><span class='tick'>✓</span>\"+esc(s)+'</li>'});" +
     "$('r-goods').innerHTML=goods;" +
-    "var fixes='';r.improvements.forEach(function(f,i){" +
-    "fixes+=\"<div class='fix'><div class='fix-n'>\"+(i+1)+\"</div><div><div class='fix-t'>\"+esc(f.title)+\"</div>\"+" +
+    /* each fix is its own slide in the deck */
+    "$('fb-fixwrap').innerHTML=r.improvements.map(function(f,i){" +
+    "return \"<div class='card fb-slide' data-fbl='Fix \"+(i+1)+\"'><h3>What to improve <span class='badge'>\"+(i+1)+' of '+r.improvements.length+\"</span></h3>\"+" +
+    "\"<div class='fix'><div class='fix-n'>\"+(i+1)+\"</div><div><div class='fix-t'>\"+esc(f.title)+\"</div>\"+" +
     "\"<div class='fix-d'>\"+esc(f.detail)+'</div>'+" +
-    "(f.example?\"<div class='fix-ex'><b>Try:</b> \"+esc(f.example)+'</div>':'')+'</div></div>'});" +
-    "$('r-fixes').innerHTML=fixes;" +
+    "(f.example?\"<div class='fix-ex'><b>Try:</b> \"+esc(f.example)+'</div>':'')+'</div></div></div>';}).join('');" +
+    "fbInit();" +
     "$('r-next').textContent=r.next_step;" +
     "if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}" +
     "else{$('r-cheercard').hidden=true}}" +
@@ -781,7 +804,17 @@ export function renderToolsPage(): string {
 .rtab.on{background:var(--navy,#05253C);border-color:var(--navy,#05253C);color:#fff;}
 .rtab:hover:not(.on){border-color:var(--mango,#ED9249);}
 @media print{.rpanel{display:block!important;}
-.rpanel[hidden]{display:block!important;}}
+.rpanel[hidden]{display:block!important;}
+.fb-slide[hidden]{display:block!important;}}
+.qnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.secarrow{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line,#E3DDDA);background:#fff;
+  font-size:16px;font-weight:800;color:var(--navy,#05253C);cursor:pointer;flex:none;}
+.secarrow:disabled{opacity:.35;cursor:default;}
+.secarrow:hover:not(:disabled){border-color:var(--orange,#D9452B);color:var(--orange,#D9452B);}
+.qchips{display:flex;gap:7px;flex-wrap:wrap;flex:1;}
+.qpick{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line,#E3DDDA);background:#fff;
+  border-radius:999px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--ink,#25394B);cursor:pointer;}
+.qpick.on{border-color:var(--navy,#05253C);background:var(--navy,#05253C);color:#fff;}
 .glance{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
 .gl{background:#fff;border:1.5px solid var(--line,#E3DDDA);border-radius:14px;padding:15px;text-align:left;
   font-family:inherit;cursor:pointer;transition:box-shadow .2s,border-color .2s;}
