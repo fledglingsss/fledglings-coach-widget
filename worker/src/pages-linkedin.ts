@@ -52,7 +52,9 @@ export function renderLinkedInPage(): string {
     "<div id='d-err' class='drop-err' hidden></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='li-b2'>← Back</button>" +
     "<span class='hero-note' id='li-aim-note'></span></div></div>" +
-    "</div>" +
+    /* closes step 2 then #u-card itself — report/spinner must be
+     * siblings of u-card, never children (same blanking bug as /tools). */
+    "</div></div>" +
     /* analysing */
     "<div class='card centre' id='a-card' hidden>" +
     "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +

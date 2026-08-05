@@ -395,7 +395,11 @@ export function renderToolsPage(): string {
     "<div id='d-err' class='drop-err' hidden></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cv-b2'>← Back</button>" +
     "<span class='hero-note' id='aim-note'></span></div></div>" +
-    "</div>" +
+    /* one close for step 2, one for #u-card itself — the spinner and
+     * report MUST be u-card's siblings: show() hides u-card when the
+     * report appears, and a child report vanishes with it (the bug
+     * that blanked every review result from 2026-07-28 to 08-05). */
+    "</div></div>" +
     /* analysing card */
     "<div class='card centre' id='a-card' hidden>" +
     "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +

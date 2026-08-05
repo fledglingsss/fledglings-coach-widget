@@ -32,6 +32,25 @@ function inlineScripts(html: string): string[] {
   return out;
 }
 
+describe("upload pages: the report is never swallowed by the upload wrapper", () => {
+  /* An unclosed #u-card nests the spinner/report inside it — and
+   * show() hides u-card when the report appears, blanking every
+   * review result (shipped 2026-07-28 → 08-05). Structural guard:
+   * div opens/closes balance between u-card and a-card. */
+  for (const [name, render] of [
+    ["tools", renderToolsPage],
+    ["linkedin", renderLinkedInPage],
+  ] as const) {
+    it(`${name} closes #u-card before the analysing card`, () => {
+      const html = render();
+      const seg = html.slice(html.indexOf("id='u-card'"), html.indexOf("id='a-card'"));
+      const opens = (seg.match(/<div/g) ?? []).length;
+      const closes = (seg.match(/<\/div>/g) ?? []).length;
+      expect(closes, `${name}: unbalanced divs — report will vanish on submit`).toBe(opens);
+    });
+  }
+});
+
 describe("every page's inline JavaScript parses", () => {
   for (const [name, render] of PAGES) {
     it(`${name} scripts are syntactically valid`, () => {
