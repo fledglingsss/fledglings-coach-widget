@@ -120,12 +120,13 @@ export function renderDashboardPage(): string {
     kpi("rf-post", "🏁", "Reflected after", "learners who answered a post-module reflection") +
     kpi("rf-raw", "💬", "Answers on record", "raw question-and-answer pairs") +
     "</div>" +
-    "<div class='dcard rf-flags' id='rf-flags-card' hidden><h3>⚠ Wellbeing flags <span class='dtag warn' id='rf-flags-count'></span></h3>" +
+    "<div class='chips' id='rf-deck-chips' style='margin-bottom:14px'></div>" +
+    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h3>⚠ Wellbeing flags <span class='dtag warn' id='rf-flags-count'></span></h3>" +
     "<p class='rf-p'>Answers whose wording matched the same crisis patterns that guard the coach. Read them yourself — this is a prompt to check in, not a verdict.</p>" +
     "<div id='rf-flags'></div></div>" +
-    "<div class='dcard'><h3>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h3>" +
+    "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h3>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h3>" +
     "<div id='rf-shifts'></div></div>" +
-    "<div class='dcard'><h3>Latest answers, verbatim</h3>" +
+    "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h3>Latest answers, verbatim</h3>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download raw reflections (CSV)</a></div>" +
     "<div class='dtablewrap'><table class='dtable'><thead><tr><th>Student</th><th>Module</th><th>When</th><th>Question</th><th>Answer</th></tr></thead>" +
     "<tbody id='rf-recent'></tbody></table>" +
@@ -425,7 +426,18 @@ $('rf-recent-empty').hidden=recent.length>0;
 $('rf-recent').innerHTML=recent.map(function(r){
 return "<tr><td class='dmut'>"+esc2(r.email)+"</td><td>"+esc2(r.courseTitle)+"</td>"+
 "<td class='dmut'>"+(r.submittedAt?new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—')+"</td>"+
-"<td class='rf-q'>"+esc2(r.question)+"</td><td class='rf-a'>"+esc2(r.answer)+"</td></tr>";}).join('');}
+"<td class='rf-q'>"+esc2(r.question)+"</td><td class='rf-a'>"+esc2(r.answer)+"</td></tr>";}).join('');
+/* flickable sections: shifts / answers / wellbeing (when present) */
+var rfSecs=Array.prototype.filter.call(document.querySelectorAll('.rf-sec'),function(s){
+return s.id!=='rf-flags-card'||flags.length>0});
+function rfShow(i){rfSecs.forEach(function(c,j){c.hidden=j!==i});
+document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,j){ch.classList.toggle('on',j===i)});}
+$('rf-deck-chips').innerHTML=rfSecs.map(function(s){
+var lbl=s.dataset.rfl;if(s.id==='rf-flags-card'&&flags.length)lbl+=' ('+flags.length+')';
+return "<button type='button' class='chip'>"+esc2(lbl)+"</button>"}).join('');
+document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.onclick=function(){rfShow(i)}});
+/* wellbeing first when flags exist — duty of care leads */
+rfShow(flags.length>0?rfSecs.indexOf($('rf-flags-card')):0);}
 function renderAnalytics(){chips($('a-chips'),renderAnalytics);
 var rows=scoped();
 var TIER_ORDER=[['ok','Engaged','#1B7A4B'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#B96A16'],['high','Needs contact','#D9452B']];

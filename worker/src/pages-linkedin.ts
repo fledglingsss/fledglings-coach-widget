@@ -220,9 +220,8 @@ export function renderLinkedInPage(): string {
     "\"<b class='secbar-v' style='color:\"+c2+\"'>\"+s.score+\"<i>/\"+s.weight+\"</i></b></div>\";});" +
     "$('r-secbars').innerHTML=sb;" +
     /* overview bars jump into the sections tab at that section */
-    "document.querySelectorAll('.secbar').forEach(function(row){row.onclick=function(){" +
-    "rpGo('sections');var t=$('sec-'+row.dataset.sec);" +
-    "if(t)setTimeout(function(){t.scrollIntoView({behavior:'smooth',block:'start'})},80);};});" +
+    "document.querySelectorAll('.secbar').forEach(function(row,idx){row.onclick=function(){" +
+    "rpGo('sections');secShow(idx);};});" +
     "var panels='';r.sections.forEach(function(s){" +
     "var pct=s.weight?Math.round(s.score*100/s.weight):0;var c=band(pct);" +
     "var chip=$('chip-score-'+s.id);if(chip){chip.textContent=s.score+'/'+s.weight;chip.style.color=c;}" +
@@ -237,8 +236,8 @@ export function renderLinkedInPage(): string {
     "if(!s.right.length&&!s.improve.length){panels+=\"<div class='sec-h miss'>Nothing found for this section</div>\";}" +
     "panels+='</div>';});" +
     "$('r-sections').innerHTML=panels;" +
-    "document.querySelectorAll('.schip').forEach(function(ch){ch.onclick=function(){" +
-    "var t=$('sec-'+ch.dataset.sec);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});};});" +
+    "document.querySelectorAll('.schip').forEach(function(ch,idx){ch.onclick=function(){secShow(idx)};});" +
+    "secShow(0);" +
     "$('r-next').textContent=r.next_step;" +
     "if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}" +
     "else{$('r-cheercard').hidden=true}}" +
@@ -247,11 +246,14 @@ export function renderLinkedInPage(): string {
     "body:JSON.stringify({learner_id:lid,tool:'linkedin',helpful:b.dataset.fb==='1'})}).catch(function(){});" +
     "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
     /* section arrows: step through the eight panels */
-    "var secIdx=0;function secGo(d){var panels=document.querySelectorAll('.secpanel');if(!panels.length)return;" +
-    "secIdx=Math.max(0,Math.min(panels.length-1,secIdx+d));" +
-    "panels[secIdx].scrollIntoView({behavior:'smooth',block:'start'});" +
-    "$('sec-pos').textContent=(secIdx+1)+' of '+panels.length;}" +
-    "$('sec-prev').onclick=function(){secGo(-1)};$('sec-next').onclick=function(){secGo(1)};" +
+    /* one section panel at a time — flick with chips or arrows */
+    "var secIdx=0;function secShow(i){var panels=document.querySelectorAll('.secpanel');if(!panels.length)return;" +
+    "secIdx=Math.max(0,Math.min(panels.length-1,i));" +
+    "panels.forEach(function(pnl,j){pnl.hidden=j!==secIdx});" +
+    "document.querySelectorAll('.schip').forEach(function(ch,j){ch.classList.toggle('on',j===secIdx)});" +
+    "$('sec-pos').textContent=(secIdx+1)+' of '+panels.length;" +
+    "$('sec-prev').disabled=secIdx===0;$('sec-next').disabled=secIdx===panels.length-1;}" +
+    "$('sec-prev').onclick=function(){secShow(secIdx-1)};$('sec-next').onclick=function(){secShow(secIdx+1)};" +
     /* profile rewrite */
     "$('rw-btn').onclick=function(){if(!lastLiText){alert('Run a review first.');return;}" +
     "$('rw-btn').disabled=true;$('rw-btn').textContent='Writing your rewrite…';" +
@@ -348,6 +350,8 @@ export function renderLinkedInPage(): string {
   cursor:pointer;color:var(--blue);box-shadow:0 2px 8px rgba(5,37,60,.1);}
 .secarrow:hover{border-color:var(--orange);color:var(--orange);}
 .sec-pos{font-size:12px;font-weight:700;color:var(--mut,#6A7A88);min-width:52px;text-align:center;}
+.schip.on{border-color:var(--navy,#05253C);box-shadow:0 0 0 2px rgba(5,37,60,.15);}
+@media print{.secpanel[hidden]{display:block!important;}}
 .rw-block{border:1.5px solid var(--line,#E3DDDA);border-radius:12px;padding:12px 14px;margin-bottom:10px;position:relative;}
 .rw-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--blue);margin-bottom:6px;}
 .rw-t{font-size:13.5px;line-height:1.6;color:#2A3F52;white-space:pre-wrap;}
