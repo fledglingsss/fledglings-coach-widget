@@ -34,7 +34,6 @@ export function renderDashboardPage(): string {
     nav("analytics", "analytics", "Analytics") +
     "<div class='dsec'>Administration</div>" +
     `<a class='dn' href='/dashboard/export.csv'>${ICONS.csv}<span>Download CSV</span></a>` +
-    `<a class='dn' href='/portal' target='_blank' rel='noopener'>${ICONS.analytics}<span>Engagement portal</span></a>` +
     `<a class='dn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub}<span>Student view</span></a>` +
     "<div class='dfoot'><span class='dscope' id='dscope'>…</span>" +
     "<a href='/portal/logout' class='dout'>Sign out</a></div>" +
@@ -65,11 +64,13 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h3>Learner pipeline <span class='dmut' style='font-weight:500'>from enrolment to job-ready — learning and career progress in one picture</span></h3>" +
     "<div id='funnel'></div></div>" +
     "<div class='dsplit'>" +
+    "<div><div class='dcard'><h3>Live activity <span class='livedot' aria-hidden='true'></span></h3>" +
+    "<div id='feed-list'><div class='dempty'>Listening…</div></div></div>" +
     "<div class='dcard'><h3>Quick actions</h3><div class='qacts'>" +
     "<button type='button' class='dbtn ghost' data-view='students'>👥 Students</button>" +
     "<button type='button' class='dbtn ghost' data-view='analytics'>📊 Analytics</button>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ Download CSV</a>" +
-    "</div></div>" +
+    "</div></div></div>" + // closes quick-actions card + the left column
     "<div class='dcard'><h3>Students needing attention <span class='dtag' id='att-count'></span></h3>" +
     "<div class='dtablewrap'><table class='dtable' id='att-table'>" +
     "<thead><tr><th>Student</th><th>Issue</th><th>Job-ready</th><th>Journey</th><th></th></tr></thead>" +
@@ -87,7 +88,12 @@ export function renderDashboardPage(): string {
     "<thead><tr><th>Student</th><th>Cohort</th><th>Modules</th><th>CV</th><th>LinkedIn</th><th>Interview</th><th>Letters</th><th>Journey</th><th>Job-ready</th></tr></thead>" +
     "<tbody id='s-body'></tbody></table>" +
     "<div class='dempty' id='s-empty' hidden>No learners match.</div></div></div>" +
-    "<div class='dcard' id='drill' hidden></div>" +
+    "</section>" +
+
+    /* ---------- learner profile: the central record for one learner ---------- */
+    "<section class='dview' id='v-profile' hidden>" +
+    "<button type='button' class='dlink' id='prof-back' style='margin-bottom:12px'>← Back to students</button>" +
+    "<div id='prof-body'></div>" +
     "</section>" +
 
     /* ---------- cohorts ---------- */
@@ -145,6 +151,8 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h3>Career tool adoption</h3><div id='ch-adopt'></div></div>" +
     "</div>" +
     "<div class='dcard'><h3>CV score distribution</h3><div id='ch-dist'></div></div>" +
+    "<div class='dcard'><h3>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up — whole school</span></h3>" +
+    "<div id='ch-stalls'><div class='dempty'>Loading module health…</div></div></div>" +
     "<div class='dcard'><h3>Career tool activity — last 12 weeks</h3><div id='ch-activity'></div></div>" +
     "<div class='dcard'><h3>Average job-ready score by cohort</h3><div id='ch-cohorts'></div></div>" +
     "</section>" +
@@ -193,7 +201,8 @@ var TITLES={home:['Home','Outcomes, progress and attention — at a glance'],
 students:['Students','Every learner in your scope with their employability record'],
 cohorts:['Cohorts','Groups by cohort tag'],
 reflections:['Self-Reflections','What learners say before and after each module — in their own words'],
-analytics:['Analytics','Adoption, scores and activity — visual first']};
+analytics:['Analytics','Adoption, scores and activity — visual first'],
+profile:['Learner profile','Their full record — modules, time, reflections, career tools']};
 function go(v){view=v;
 document.querySelectorAll('.dn[data-view]').forEach(function(b){b.classList.toggle('on',b.dataset.view===v)});
 document.querySelectorAll('.dview').forEach(function(s){s.hidden=true});
@@ -203,8 +212,9 @@ $('dh-title').textContent=TITLES[v][0];$('dh-sub').textContent=TITLES[v][1];
 if(v==='students')renderStudents();
 if(v==='cohorts')renderCohorts();
 if(v==='reflections')loadReflections();
-if(v==='analytics')renderAnalytics();}
+if(v==='analytics'){renderAnalytics();loadStalls();}}
 document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){go(b.dataset.view)})});
+$('prof-back').addEventListener('click',function(){go('students')});
 /* ---------- charts (inline SVG) ---------- */
 function hbar(rows,max){var out="<div class='hbars'>";
 rows.forEach(function(r){var pct=max?Math.round(r.v*100/max):0;
@@ -289,67 +299,96 @@ return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)
 wireDrills();}
 function wireDrills(){document.querySelectorAll('[data-drill]').forEach(function(el){
 el.onclick=function(){var r=DATA.learners.find(function(x){return x.email===el.dataset.drill});
-if(!r)return;go('students');drill(r);};});}
-function drill(r){var e=r.employability;var d=$('drill');var lg=r.learning;var en=r.engagement;
+if(!r)return;showProfile(r);};});}
 /* Tiny score-trend sparkline: every attempt, first to latest. */
 function spark(h){if(!h||h.length<2)return '';
 var W=68,H=22,n=h.length;
 var pts=h.map(function(s,i){return (i*(W-4)/(n-1)+2)+','+(H-2-(s*(H-4)/100))}).join(' ');
 return "<svg class='dr-spark' viewBox='0 0 "+W+" "+H+"' role='img' aria-label='Score trend across "+n+" attempts'>"+
 "<polyline points='"+pts+"' fill='none' stroke='"+band(h[h.length-1])+"' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";}
-function toolRow(label,t,isCount){return "<div class='dr-tool'><span class='dr-l'>"+label+"</span>"+
-(isCount?"<span class='ms'>"+t.attempts+" created</span>":miniScore(t.latest)+spark(t.history))+
-"<span class='dmut'>"+t.attempts+" attempt"+(t.attempts===1?'':'s')+(t.lastAt?" · last "+new Date(t.lastAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span></div>";}
+function fmtMins(m){return m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m';}
+/* ---------- learner profile: central record + analysis ---------- */
+function showProfile(r){go('profile');
+document.querySelectorAll('.dn[data-view]').forEach(function(b){b.classList.toggle('on',b.dataset.view==='students')});
+$('dh-title').textContent=r.name;$('dh-sub').textContent=r.email;
+var e=r.employability,lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 var tierChip=en.tier?("<span class='dtag "+(en.tier==='high'?'warn':'')+"'>"+
 ({high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier)+"</span>"):'';
-var loginNote=en.daysSinceLogin===null?(en.tier?'Never logged in':''):
-en.daysSinceLogin===0?'Active today':en.daysSinceLogin+' day'+(en.daysSinceLogin===1?'':'s')+' since login';
+var loginNote=en.daysSinceLogin===null?(en.tier?'Never logged in':'—'):
+en.daysSinceLogin===0?'Active today':en.daysSinceLogin+' day'+(en.daysSinceLogin===1?'':'s')+' ago';
 var mailHref="mailto:"+encodeURIComponent(r.email)+"?subject="+encodeURIComponent('Your Fledglings journey')+
 (en.nudge?"&body="+encodeURIComponent(en.nudge):"");
-d.innerHTML="<div class='dr-head'><div><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
+function toolRow(label,t,isCount){return "<div class='dr-tool'><span class='dr-l'>"+label+"</span>"+
+(isCount?"<span class='ms'>"+t.attempts+" created</span>":miniScore(t.latest)+spark(t.history))+
+"<span class='dmut'>"+t.attempts+" attempt"+(t.attempts===1?'':'s')+(t.lastAt?" · last "+new Date(t.lastAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span></div>";}
+function statCard(v,l,s,barPct,barCol){return "<div class='kpi'><div class='kpi-n'>"+v+"</div>"+
+"<div class='kpi-l'>"+esc2(l)+"</div><div class='kpi-s'>"+esc2(s)+"</div>"+
+(barPct!==null?"<div class='kpi-bar'><i style='width:"+barPct+"%;background:"+(barCol||'#13507F')+"'></i></div>":'')+"</div>";}
+$('prof-body').innerHTML=
+"<div class='dcard dr-head'><div><b style='font-size:19px'>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
 r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
-"<span class='dr-ready' style='color:"+(r.readiness===null?'#B9AFAB':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span>"+
-"<button type='button' class='dlink' id='drill-close'>✕</button></div>"+
-"<div class='dr-learn'><span class='dr-l'>Learning modules</span>"+
-"<span class='ms'>"+lg.completed+"/"+lg.enrolled+" completed</span>"+
-(lg.minutes?"<span class='dtag' style='margin-left:10px'>⏱ "+(lg.minutes>=60?Math.floor(lg.minutes/60)+'h '+(lg.minutes%60)+'m':lg.minutes+'m')+" study time</span>":'')+
-"<i class='msb wide'><b style='width:"+modPct+"%;background:#1B7A4B'></b></i>"+
-"<span class='dmut'>"+lg.inProgress+" in progress"+(loginNote?' · '+esc2(loginNote):'')+"</span>"+
-((lg.modules&&lg.modules.length)?"<div class='dr-mods'>"+lg.modules.map(function(m){
+"<span class='dr-ready' style='color:"+(r.readiness===null?'#B9AFAB':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></div>"+
+"<div class='kpigrid'>"+
+statCard(lg.completed+"<small style='font-size:16px;color:#8a97a1'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress',modPct,'#1B7A4B')+
+statCard(lg.minutes?fmtMins(lg.minutes):'—','Study time','across their modules',null)+
+statCard("<span id='prof-rf-n'>…</span>",'Reflection answers','in their own words',null)+
+statCard(esc2(loginNote),'Last active','on the platform',null)+
+"</div>"+
+"<div id='prof-flags'></div>"+
+"<div class='dsplit'>"+
+"<div class='dcard'><h3>Their modules</h3>"+
+((lg.modules&&lg.modules.length)?"<div class='dr-mods' style='grid-template-columns:1fr'>"+lg.modules.map(function(m){
 return "<div class='dr-mod'><span class='dr-mt"+(m.done?' done':'')+"' title='"+esc2(m.t)+"'>"+
 (m.done?'✓ ':'')+esc2(m.t)+"</span>"+
 "<i class='msb'><b style='width:"+m.p+"%;background:"+(m.done?'#1B7A4B':m.p>0?'#13507F':'#D8D2CE')+"'></b></i>"+
-"<span class='dr-mp'>"+(m.mins?m.mins+'m':m.p+'%')+"</span></div>";}).join('')+"</div>":'')+
-"</div>"+
-/* their own reflections load lazily below the tools */
-"<div class='dr-reflect' id='dr-reflect'><span class='dmut'>Loading their reflections…</span></div>"+
-"<div class='dr-tools'>"+toolRow('CV review',e.cv)+toolRow('LinkedIn',e.linkedin)+
+"<span class='dr-mp'>"+(m.mins?m.mins+'m':m.p+'%')+"</span></div>";}).join('')+"</div>"
+:"<div class='dempty'>No module data yet.</div>")+"</div>"+
+"<div class='dcard'><h3>Career tools</h3><div class='dr-tools' style='grid-template-columns:1fr 1fr'>"+
+toolRow('CV review',e.cv)+toolRow('LinkedIn',e.linkedin)+
 toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
-"<div class='dr-journey'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
-"<i class='msb wide'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></div>"+
+"<div class='dr-journey' style='margin-top:12px'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
+"<i class='msb wide'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></div></div>"+
+"</div>"+
+"<div class='dcard'><h3>Their self-reflections <span class='dtag' id='prof-rf-count'></span></h3>"+
+"<div id='prof-rf-trend'></div><div id='prof-rf-list'><span class='dmut'>Loading their answers…</span></div></div>"+
 "<div class='dr-acts'>"+
 "<a class='dbtn ghost sm' href='/hub?e="+b64u(r.email)+"&view=1' target='_blank' rel='noopener'>Open their hub view</a>"+
 "<a class='dbtn ghost sm' href='"+mailHref+"'>✉ Email"+(en.nudge?' (nudge prefilled)':'')+"</a>"+
+"<a class='dbtn ghost sm' href='/dashboard/reflections.csv'>⬇ All reflections (CSV)</a>"+
 "</div>";
-d.hidden=false;$('drill-close').onclick=function(){d.hidden=true};
-d.scrollIntoView({behavior:'smooth',block:'nearest'});
-/* pull this learner's reflections + any wellbeing flags */
+window.scrollTo({top:0,behavior:'smooth'});
+/* their reflections: flags first, self-rating trend, verbatim answers */
 fetch('/dashboard/learner-reflections?email='+encodeURIComponent(r.email))
 .then(function(x){return x.json()}).then(function(rf){
-var el=$('dr-reflect');if(!el)return;
-if(!rf||!rf.ok){el.innerHTML='';return;}
-var h='';
-if((rf.flags||[]).length){h+="<div class='dr-flagbox'><b>⚠ "+rf.flags.length+" answer"+(rf.flags.length===1?'':'s')+" worth a check-in</b>"+
+if(!rf||!rf.ok){$('prof-rf-list').innerHTML="<span class='dmut'>Reflections unavailable just now.</span>";$('prof-rf-n').textContent='—';return;}
+$('prof-rf-n').textContent=rf.count;$('prof-rf-count').textContent=rf.count+' answers';
+if((rf.flags||[]).length){$('prof-flags').innerHTML=
+"<div class='dcard dr-flagbox' style='margin-bottom:16px'><b>⚠ "+rf.flags.length+" answer"+(rf.flags.length===1?'':'s')+" worth a check-in</b>"+
 rf.flags.map(function(f){return "<div class='dr-flag'><span class='dmut'>"+esc2(f.courseTitle)+" · "+esc2(f.question)+"</span>"+
 "<div class='dr-fa'>“"+esc2(f.answer)+"”</div></div>";}).join('')+"</div>";}
-if(rf.count===0){h+="<span class='dmut'>No reflections submitted yet.</span>";}
-else{h+="<div class='dr-l' style='margin-top:2px'>Their reflections <span class='dtag'>"+rf.count+" answers</span></div>"+
+else{$('prof-flags').innerHTML='';}
+/* self-rating trend: their numeric "n / 10" answers over time */
+var pts=(rf.rows||[]).filter(function(row){return /^\s*\d+(\.\d+)?\s*\/\s*\d+\s*$/.test(row.answer)&&row.submittedAt})
+.map(function(row){var mm=row.answer.split('/');return {at:row.submittedAt,pct:Math.round(parseFloat(mm[0])*100/parseFloat(mm[1]))};})
+.sort(function(a,b){return a.at-b.at});
+if(pts.length>=3){var W2=560,H2=120;
+var t0=pts[0].at,t1=pts[pts.length-1].at,span=Math.max(1,t1-t0);
+var poly=pts.map(function(pp){return (16+(W2-32)*(pp.at-t0)/span).toFixed(1)+','+(H2-16-(pp.pct*(H2-36)/100)).toFixed(1)}).join(' ');
+$('prof-rf-trend').innerHTML="<div class='dmut' style='margin-bottom:6px'>Self-rating trend — every score they have given themselves, oldest to newest</div>"+
+"<svg viewBox='0 0 "+W2+" "+H2+"' style='width:100%;max-width:560px' role='img' aria-label='Self-rating trend across "+pts.length+" answers'>"+
+"<line x1='16' y1='"+(H2-16)+"' x2='"+(W2-16)+"' y2='"+(H2-16)+"' stroke='#E3DDDA'/>"+
+"<polyline points='"+poly+"' fill='none' stroke='#13507F' stroke-width='2' stroke-linejoin='round'/>"+
+pts.map(function(pp){var x=(16+(W2-32)*(pp.at-t0)/span).toFixed(1),y=(H2-16-(pp.pct*(H2-36)/100)).toFixed(1);
+return "<circle cx='"+x+"' cy='"+y+"' r='3.5' fill='"+band(pp.pct)+"'/>";}).join('')+"</svg>";}
+else{$('prof-rf-trend').innerHTML='';}
+$('prof-rf-list').innerHTML=(rf.count===0)?"<span class='dmut'>No reflections submitted yet.</span>":
 "<div class='dr-rflist'>"+rf.rows.slice(0,12).map(function(row){
 return "<div class='dr-rf'><span class='dmut'>"+esc2(row.courseTitle)+(row.submittedAt?" · "+new Date(row.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span>"+
 "<div class='dr-rq'>"+esc2(row.question)+"</div><div class='dr-ra'>"+esc2(row.answer)+"</div></div>";}).join('')+"</div>"+
-(rf.count>12?"<span class='dmut'>Showing the latest 12 of "+rf.count+" — the reflections CSV has every answer.</span>":'');}
-el.innerHTML=h;}).catch(function(){var el=$('dr-reflect');if(el)el.innerHTML='';});}
+(rf.count>12?"<div class='dmut' style='margin-top:8px'>Showing the latest 12 of "+rf.count+" — the CSV has every answer.</div>":'');})
+.catch(function(){$('prof-rf-list').innerHTML="<span class='dmut'>Could not load reflections.</span>";$('prof-rf-n').textContent='—';});}
+
 function renderCohorts(){var tags=DATA.tags||[];
 $('co-empty').hidden=tags.length>0;
 $('co-grid').innerHTML=tags.map(function(t){
@@ -506,6 +545,27 @@ return {l:t.tag,v:m.length?Math.round(m.reduce(function(s,r){return s+r.readines
 .filter(function(x){return x.v>0}).sort(function(a,b){return b.v-a.v}).slice(0,8);
 $('ch-cohorts').innerHTML=perTag.length?hbar(perTag,100):"<div class='dempty'>No scored learners in any cohort yet.</div>";}
 $('s-search').addEventListener('input',function(){search=this.value;renderStudents();});
+/* ---------- live feed (Home) + module health (Analytics), lazily ---------- */
+var feedTimer=null;
+function loadFeed(){fetch('/portal/feed').then(function(r){return r.json()}).then(function(d){
+var el=$('feed-list');if(!el)return;
+var feed=(d&&d.feed)||[];
+if(!feed.length){el.innerHTML="<div class='dempty'>Quiet right now — completions and new joiners appear here live.</div>";return;}
+el.innerHTML=feed.slice(0,8).map(function(f){
+var ico=f.kind==='completion'?'🎓':f.kind==='joined'?'👋':'★';
+var what=f.kind==='completion'?('completed <b>'+esc2(f.detail)+'</b>'):f.kind==='joined'?'joined the platform':'new enquiry';
+return "<div class='feedrow'><span>"+ico+"</span><div><b>"+esc2(f.name||f.email)+"</b> "+what+
+"<div class='dmut'>"+new Date(f.at*1000).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+"</div></div></div>";}).join('');})
+.catch(function(){});}
+var stallsLoaded=false;
+function loadStalls(){if(stallsLoaded)return;stallsLoaded=true;
+fetch('/portal/module-health').then(function(r){return r.json()}).then(function(d){
+var el=$('ch-stalls');if(!el)return;
+var reps=(d&&d.reports)||[];
+if(!reps.length){el.innerHTML="<div class='dempty'>"+(d&&d.status==='building'?'Still measuring — check back shortly.':'No stall data yet.')+"</div>";return;}
+el.innerHTML=hbar(reps.slice(0,8).map(function(rep){
+return {l:rep.title,v:rep.retention,r:rep.retention+'% finish'+(rep.stallUnit?' · stalls at “'+rep.stallUnit+'”':''),c:rep.retention>=60?'#1B7A4B':rep.retention>=35?'#ED9249':'#D9452B'};}),100);})
+.catch(function(){var el=$('ch-stalls');if(el)el.innerHTML='';});}
 /* ---------- boot ---------- */
 fetch('/dashboard/data').then(function(r){
 if(r.status===401){document.querySelectorAll('.dview').forEach(function(s){s.hidden=true});
@@ -522,7 +582,8 @@ $('dsample').textContent=(d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?
 'all '+d.totalUsers+' accounts covered, refreshed automatically every 30 minutes':
 d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled';
 $('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
-renderHome();})
+renderHome();
+loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
 .catch(function(){$('dh-sub').textContent='Could not reach the dashboard service — refresh to retry.';});
 })();`;
 
@@ -644,6 +705,13 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dr-ready i{display:block;font-style:normal;font-size:10px;color:var(--mut);font-weight:700;}
 .dr-learn{border:1.5px solid #CBE3D4;background:#F3FAF6;border-radius:12px;padding:12px;margin-top:14px;}
 .dr-learn .dmut{display:block;margin-top:5px;}
+.livedot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#1B7A4B;margin-left:6px;
+  animation:pulse 2s ease-in-out infinite;vertical-align:1px;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.livedot{animation:none;}}
+.feedrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--off);font-size:13px;}
+.feedrow:last-child{border-bottom:none;}
+.feedrow>span{font-size:15px;flex:none;}
 .dr-reflect{margin-top:14px;}
 .dr-flagbox{border:1.5px solid #F3C9C0;background:#FDF6F4;border-radius:12px;padding:12px;margin-bottom:12px;}
 .dr-flagbox>b{color:var(--orange);font-size:13px;}

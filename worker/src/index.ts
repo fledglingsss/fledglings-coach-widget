@@ -1582,26 +1582,48 @@ async function portalSession(c: {
   return portalCodeMeta(c, code);
 }
 
-/* Staff who hold learner-looking accounts (seat managers, tutors the
- * platform has no staff flag for) — excluded from every learner
- * surface. KV `ops:staff-emails` = JSON array of emails; editable
- * without a deploy. Cached per-request only. */
-async function getStaffExclusions(env: Env): Promise<Set<string>> {
+/* Roles come from TAGS (founder law 2026-08-05): a learner is a
+ * learner; seat managers/tutors carry a staff role tag and are
+ * excluded from every learner surface. The tag list lives in KV
+ * `ops:staff-tags` (JSON array) so new conventions need no deploy;
+ * these defaults always apply. */
+const DEFAULT_STAFF_TAGS = [
+  "seat manager",
+  "seat managers",
+  "staff",
+  "admin",
+  "admins",
+  "tutor",
+  "tutors",
+  "provider",
+];
+async function getStaffTags(env: Env): Promise<Set<string>> {
+  const set = new Set(DEFAULT_STAFF_TAGS);
   try {
-    const raw = await env.RATE_LIMITS.get("ops:staff-emails");
-    const list = JSON.parse(raw || "[]") as unknown;
-    return new Set(
-      (Array.isArray(list) ? list : [])
-        .filter((e): e is string => typeof e === "string")
-        .map((e) => e.toLowerCase()),
-    );
+    const raw = await env.RATE_LIMITS.get("ops:staff-tags");
+    for (const t of JSON.parse(raw || "[]") as unknown[]) {
+      if (typeof t === "string") set.add(t.toLowerCase());
+    }
   } catch {
-    return new Set();
+    /* defaults stand */
   }
+  return set;
+}
+function isStaffTagged(tags: string[] | undefined, staffTags: Set<string>): boolean {
+  return (tags ?? []).some((t) => staffTags.has(t.toLowerCase()));
 }
 
+/* Hierarchical tag scoping: a provider-level tag ("Swift") covers the
+ * exact tag AND every cohort tag beneath it ("Swift Learners",
+ * "Swift Cohort 2" — anything starting "Swift "). Cohort-level codes
+ * keep matching only their own cohort. */
 function inScope(tags: string[] | undefined, tag: string | null): boolean {
-  return tag === null || (tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase());
+  if (tag === null) return true;
+  const t = tag.toLowerCase();
+  return (tags ?? []).some((x) => {
+    const xl = x.toLowerCase();
+    return xl === t || xl.startsWith(t + " ");
+  });
 }
 
 function isLearner(u: LwUser): boolean {
@@ -1617,10 +1639,10 @@ async function portalSample(
 }> {
   const page = await listUsersPage(env, 1);
   const titles = await courseTitleMap(env);
-  const staffOut = await getStaffExclusions(env);
+  const staffOut = await getStaffTags(env);
   const learners = page.users
     .filter(isLearner)
-    .filter((u) => !staffOut.has((u.email ?? "").toLowerCase()))
+    .filter((u) => !isStaffTagged(u.tags, staffOut))
     .filter((u) => inScope(u.tags ?? [], tag))
     .slice(0, PORTAL_SAMPLE_SIZE);
   /* Parallel batches of 6 — serial took ~1.2s per learner and made a
@@ -1659,10 +1681,10 @@ interface RiskReport {
 }
 
 async function buildRiskReport(env: Env, now: Date): Promise<RiskReport> {
-  const staffSet = await getStaffExclusions(env);
+  const staffSet = await getStaffTags(env);
   const users = (await listAllUsers(env))
     .filter(isLearner)
-    .filter((u) => !staffSet.has((u.email ?? "").toLowerCase()));
+    .filter((u) => !isStaffTagged(u.tags, staffSet));
   let assessments = users.map((u) =>
     assessLearner(
       {
@@ -3876,10 +3898,10 @@ app.onError((err, c) => {
  * the stalest few learners' course progress (ROSTER_PER_TICK calls).
  * Gentle by construction — the API never sees a burst. */
 async function rosterTick(env: Env): Promise<void> {
-  const staff = await getStaffExclusions(env);
+  const staff = await getStaffTags(env);
   const users = (await listAllUsers(env, 5))
     .filter(isLearner)
-    .filter((u) => !staff.has((u.email ?? "").toLowerCase()));
+    .filter((u) => !isStaffTagged(u.tags, staff));
   const now = Date.now();
   const snapshot = reconcileRoster(
     parseRoster(await env.RATE_LIMITS.get(ROSTER_KV_KEY)),
