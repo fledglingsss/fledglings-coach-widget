@@ -3436,6 +3436,37 @@ app.get("/ops/user", async (c) => {
   }
 });
 
+/* Role census — founder-only: every account's platform role and the
+ * learner-filter verdict, so "only users appear as learners" is
+ * checkable against ground truth in one call. */
+app.get("/ops/roles", async (c) => {
+  if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
+  try {
+    const users = await listAllUsers(c.env, 5);
+    const counts: Record<string, number> = {};
+    const nonUsers: Array<{ email: string; level: string; flags: string }> = [];
+    for (const u of users) {
+      const level = u.role?.level ?? (u.is_admin ? "admin(flag)" : u.is_instructor ? "instructor(flag)" : "user(absent)");
+      counts[level] = (counts[level] ?? 0) + 1;
+      if (level !== "user" && level !== "user(absent)") {
+        nonUsers.push({
+          email: u.email ?? "?",
+          level,
+          flags: [u.is_admin && "admin", u.is_instructor && "instructor", u.is_suspended && "suspended", u.is_reporter && "reporter"].filter(Boolean).join(",") || "-",
+        });
+      }
+    }
+    return c.json({
+      total: users.length,
+      counts,
+      nonUsers,
+      learnersAfterFilter: users.filter(isLearner).length,
+    });
+  } catch (err) {
+    return c.json({ error: String(err).slice(0, 120) }, 500);
+  }
+});
+
 app.get("/ops/status", async (c) => {
   if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
   const kv = c.env.RATE_LIMITS;
