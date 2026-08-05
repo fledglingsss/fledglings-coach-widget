@@ -230,3 +230,13 @@ describe("rawRows", () => {
     expect(rawRows(UNIT, response)[0]!.answer).toHaveLength(RAW_ANSWER_MAX_CHARS);
   });
 });
+
+describe("rich-text stripping", () => {
+  it("removes editor markup from questions and answers", () => {
+    const r = parseResponse({
+      ...LW_ROW,
+      answers: [{ blockType: "freeText", description: "Do you think budgets are restrictive?", answer: "<strong>empowering</strong> — I can plan ahead.<br />More freedom.", points: 0, blockMaxScore: 0 }],
+    })!;
+    expect(r.answers[0]!.answer).toBe("empowering — I can plan ahead. More freedom.");
+  });
+});

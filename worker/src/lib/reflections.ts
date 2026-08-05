@@ -70,10 +70,15 @@ export function parseResponse(raw: unknown): ReflectionResponse | null {
   const answers: ReflectionAnswer[] = (Array.isArray(r.answers) ? r.answers : [])
     .map((a) => {
       const an = a as Record<string, unknown>;
-      const question = typeof an.description === "string" ? an.description.trim() : "";
+      /* The LW rich-text editor leaks markup into free-text answers
+       * ("<strong>empowering</strong>", "<br />") — strip tags so the
+       * verbatim record reads as the learner wrote it. */
+      const detag = (s: string) =>
+        s.replace(/<br\s*\/?>/gi, " ").replace(/<\/?[a-z][^>]*>/gi, "").replace(/\s+/g, " ").trim();
+      const question = typeof an.description === "string" ? detag(an.description.trim()) : "";
       const answer =
         typeof an.answer === "string"
-          ? an.answer.trim()
+          ? detag(an.answer.trim())
           : an.answer !== null && an.answer !== undefined
             ? String(an.answer)
             : "";
