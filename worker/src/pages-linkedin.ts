@@ -71,13 +71,36 @@ export function renderLinkedInPage(): string {
     "<div class='r-headtxt'><div class='r-kind'>LINKEDIN REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
+    /* report sections — focused screens, not one long scroll; print
+     * shows everything */
+    "<div class='rtabs no-print' role='tablist'>" +
+    "<button type='button' class='rtab on' data-rp='overview' role='tab'>Overview</button>" +
+    "<button type='button' class='rtab' data-rp='sections' role='tab'>Section by section</button>" +
+    "<button type='button' class='rtab' data-rp='rewrite' role='tab'>✍️ Rewrite</button>" +
+    "</div>" +
+
+    /* ---- overview ---- */
+    "<div class='rpanel' id='rp-overview'>" +
     "<div class='card'><h3>Where your points came from</h3><div id='r-secbars'></div></div>" +
+    "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
+    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "<a class='card journeynext no-print' href='/interview'><div>" +
+    "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
+    "<b>Mock interview — practise telling this story out loud</b></div>" +
+    "<span class='jn-btn'>Go →</span></a>" +
+    "</div>" +
+
+    /* ---- section by section ---- */
+    "<div class='rpanel' id='rp-sections' hidden>" +
     `<div class='chiprow' role='tablist' aria-label='Section scores'>${chipRow}</div>` +
     "<div class='secnav no-print'><button type='button' class='secarrow' id='sec-prev' aria-label='Previous section'>←</button>" +
     "<span class='sec-pos' id='sec-pos'></span>" +
     "<button type='button' class='secarrow' id='sec-next' aria-label='Next section'>→</button></div>" +
     "<div id='r-sections'></div>" +
-    /* profile rewrite — paste-ready wording from their real content */
+    "</div>" +
+
+    /* ---- rewrite ---- */
+    "<div class='rpanel' id='rp-rewrite' hidden>" +
     "<div class='card no-print' id='rw-panel'><h3>✍️ Profile Rewrite</h3>" +
     "<p class='kw-note'>Fledge drafts paste-ready wording for your headline, About section and weakest experience " +
     "entry — built only from what your profile genuinely says, with [brackets] for anything only you can add. " +
@@ -88,12 +111,7 @@ export function renderLinkedInPage(): string {
     "<div class='rw-block'><div class='rw-h'>ABOUT — paste into LinkedIn</div><div class='rw-t' id='rw-about'></div><button type='button' class='rev-copy' data-copy-rw='rw-about'>Copy</button></div>" +
     "<div class='rw-block'><div class='rw-h'>YOUR WEAKEST EXPERIENCE ENTRY, REWRITTEN</div><div class='rw-t' id='rw-exp'></div><button type='button' class='rev-copy' data-copy-rw='rw-exp'>Copy</button></div>" +
     "<div class='kw-note' id='rw-next'></div></div></div>" +
-    "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
-    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
-    "<a class='card journeynext no-print' href='/interview'><div>" +
-    "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
-    "<b>Mock interview — practise telling this story out loud</b></div>" +
-    "<span class='jn-btn'>Go →</span></a>" +
+    "</div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
     "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
@@ -183,7 +201,12 @@ export function renderLinkedInPage(): string {
     "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
     /* A fresh review must never show the PREVIOUS profile's rewrite —
      * hide the rewrite panel and reset its button every render. */
-    "function renderReport(r){var col=band(r.overall);" +
+    "function rpGo(id){document.querySelectorAll('.rpanel').forEach(function(p){p.hidden=p.id!=='rp-'+id});" +
+    "document.querySelectorAll('.rtab').forEach(function(t){t.classList.toggle('on',t.dataset.rp===id);" +
+    "t.setAttribute('aria-selected',t.dataset.rp===id?'true':'false');});" +
+    "window.scrollTo({top:0,behavior:'smooth'});}" +
+    "document.querySelectorAll('.rtab').forEach(function(t){t.onclick=function(){rpGo(t.dataset.rp)}});" +
+    "function renderReport(r){var col=band(r.overall);rpGo('overview');" +
     "$('rw-out').hidden=true;$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
     "flCountUp($('r-score'),r.overall,'%');$('r-score').style.color=col;" +
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
@@ -196,8 +219,10 @@ export function renderLinkedInPage(): string {
     "\"<div class='secbar-t'><i style='width:\"+p2+\"%;background:\"+c2+\";animation-delay:.\"+(i*0.07).toFixed(2)+\"s'></i></div>\"+" +
     "\"<b class='secbar-v' style='color:\"+c2+\"'>\"+s.score+\"<i>/\"+s.weight+\"</i></b></div>\";});" +
     "$('r-secbars').innerHTML=sb;" +
+    /* overview bars jump into the sections tab at that section */
     "document.querySelectorAll('.secbar').forEach(function(row){row.onclick=function(){" +
-    "var t=$('sec-'+row.dataset.sec);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});};});" +
+    "rpGo('sections');var t=$('sec-'+row.dataset.sec);" +
+    "if(t)setTimeout(function(){t.scrollIntoView({behavior:'smooth',block:'start'})},80);};});" +
     "var panels='';r.sections.forEach(function(s){" +
     "var pct=s.weight?Math.round(s.score*100/s.weight):0;var c=band(pct);" +
     "var chip=$('chip-score-'+s.id);if(chip){chip.textContent=s.score+'/'+s.weight;chip.style.color=c;}" +
@@ -279,6 +304,13 @@ export function renderLinkedInPage(): string {
 @keyframes flPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,69,43,.35)}
   50%{transform:scale(1.07);box-shadow:0 0 0 16px rgba(217,69,43,0)}}
 .r-head{display:flex;align-items:center;gap:22px;flex-wrap:wrap;border-top:6px solid var(--orange);}
+.rtabs{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 16px;}
+.rtab{border:1.5px solid var(--line,#E3DDDA);background:#fff;border-radius:999px;padding:9px 16px;
+  font-family:inherit;font-size:13px;font-weight:700;color:var(--ink,#25394B);cursor:pointer;}
+.rtab.on{background:var(--navy,#05253C);border-color:var(--navy,#05253C);color:#fff;}
+.rtab:hover:not(.on){border-color:var(--mango,#ED9249);}
+@media print{.rpanel{display:block!important;}
+.rpanel[hidden]{display:block!important;}}
 .secbar{display:grid;grid-template-columns:150px 1fr 62px;gap:12px;align-items:center;padding:7px 0;cursor:pointer;}
 .secbar:hover .secbar-l{color:var(--orange);}
 .secbar-l{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}

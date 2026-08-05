@@ -416,18 +416,50 @@ export function renderToolsPage(): string {
     "<div class='r-headtxt'><div class='r-kind' id='r-kind'>CV REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
+    /* report sections — one focused screen at a time, never a scroll
+     * marathon; print shows everything */
+    "<div class='rtabs no-print' role='tablist'>" +
+    "<button type='button' class='rtab on' data-rp='overview' role='tab'>Overview</button>" +
+    "<button type='button' class='rtab' data-rp='match' id='rtab-match' role='tab'>Job match</button>" +
+    "<button type='button' class='rtab' data-rp='checks' role='tab'>Recruiter checks</button>" +
+    "<button type='button' class='rtab' data-rp='improve' role='tab'>Feedback &amp; fixes</button>" +
+    "</div>" +
+
+    /* ---- overview panel ---- */
+    "<div class='rpanel' id='rp-overview'>" +
+    "<div class='glance' id='r-glance'></div>" +
+    "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
+    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "<a class='card journeynext no-print' id='r-journey' href='/linkedin'><div>" +
+    "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
+    "<b id='r-journey-t'>LinkedIn review — get your profile to match this CV</b></div>" +
+    "<span class='jn-btn'>Go →</span></a>" +
+    "</div>" +
+
+    /* ---- job match panel ---- */
+    "<div class='rpanel' id='rp-match' hidden>" +
     "<div class='card' id='r-kwcard' hidden><h3>Match against the job advert</h3>" +
     "<div class='kwgauge-wrap'><div id='r-kwgauge'></div>" +
     "<p class='kw-note' style='margin:0'>Screening software compares your wording to the advert's — the flag marks the 75% target. " +
     "Only claim a missing skill if you genuinely have it.</p></div>" +
     "<div class='kw-h'>✓ Found in your document</div><div class='chips' id='r-kwm'></div>" +
     "<div class='kw-h miss'>Missing from your document</div><div class='chips' id='r-kwx'></div></div>" +
+    "<div class='card' id='r-kwnone' hidden><p class='kw-note' style='margin:0'>No job advert was given this time — " +
+    "add the advert (or role) on the first step and this tab scores your wording against it.</p></div>" +
+    "</div>" +
+
+    /* ---- recruiter checks panel ---- */
+    "<div class='rpanel' id='rp-checks' hidden>" +
     "<div class='card'><h3>Recruiter checks <span class='badge' id='r-ckcount'></span></h3>" +
     "<p class='kw-note'>Objective, rule-based checks — the things screening software and a skim-reading recruiter " +
     "judge before reading a word properly.</p>" +
     "<div class='ck-seg' id='r-ckseg'></div>" +
     "<div class='chips' id='r-ckpass'></div>" +
     "<div id='r-checks'></div></div>" +
+    "</div>" +
+
+    /* ---- feedback & fixes panel ---- */
+    "<div class='rpanel' id='rp-improve' hidden>" +
     "<div class='card'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
     "<div class='card'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
     "<div class='card'><h3>What to improve</h3><div id='r-fixes'></div></div>" +
@@ -436,12 +468,7 @@ export function renderToolsPage(): string {
     "yours to fill in — Fledge never invents your numbers.</p>" +
     "<div class='rw before'><div class='rw-tag'>BEFORE</div><div id='r-rwb'></div></div>" +
     "<div class='rw after'><div class='rw-tag'>AFTER</div><div id='r-rwa'></div></div></div>" +
-    "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
-    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
-    "<a class='card journeynext no-print' id='r-journey' href='/linkedin'><div>" +
-    "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
-    "<b id='r-journey-t'>LinkedIn review — get your profile to match this CV</b></div>" +
-    "<span class='jn-btn'>Go →</span></a>" +
+    "</div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
     "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
@@ -564,15 +591,23 @@ export function renderToolsPage(): string {
     "\"<circle cx='\"+x(pct)+\"' cy='40' r='9' fill='\"+band(pct)+\"'/>\"+" +
     "\"<text x='\"+x(pct)+\"' y='62' text-anchor='middle' font-size='13' font-weight='800' fill='\"+band(pct)+\"'>\"+pct+\"%</text>\"+" +
     "'</svg>'}" +
+    /* report section tabs */
+    "function rpGo(id){document.querySelectorAll('.rpanel').forEach(function(p){p.hidden=p.id!=='rp-'+id});" +
+    "document.querySelectorAll('.rtab').forEach(function(t){t.classList.toggle('on',t.dataset.rp===id);" +
+    "t.setAttribute('aria-selected',t.dataset.rp===id?'true':'false');});" +
+    "window.scrollTo({top:0,behavior:'smooth'});}" +
+    "document.querySelectorAll('.rtab').forEach(function(t){t.onclick=function(){rpGo(t.dataset.rp)}});" +
     "function renderReport(r,checks){" +
-    "var col=band(r.overall);" +
+    "var col=band(r.overall);rpGo('overview');" +
     /* keyword match (Jobscan model) */
     "var kw=r.keywords||{matched:[],missing:[]};var kwTotal=kw.matched.length+kw.missing.length;" +
-    "if(kwTotal>0){var pct=Math.round(kw.matched.length*100/kwTotal);" +
+    "var pct=null;" +
+    "if(kwTotal>0){pct=Math.round(kw.matched.length*100/kwTotal);" +
     "$('r-kwgauge').innerHTML=kwGauge(pct);" +
     "$('r-kwm').innerHTML=kw.matched.map(function(k){return \"<span class='chip ok'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>none yet</span>\";" +
     "$('r-kwx').innerHTML=kw.missing.map(function(k){return \"<span class='chip miss'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>nothing important missing</span>\";" +
-    "$('r-kwcard').hidden=false}else{$('r-kwcard').hidden=true}" +
+    "$('r-kwcard').hidden=false;$('r-kwnone').hidden=true}" +
+    "else{$('r-kwcard').hidden=true;$('r-kwnone').hidden=false}" +
     /* deterministic recruiter checks — visual summary first: a
      * segmented pass/warn/fail bar, passes as compact chips, prose
      * only where action is needed. */
@@ -608,6 +643,15 @@ export function renderToolsPage(): string {
     "\"<div class='dim-tk'><i style='width:\"+d.score+\"%;background:\"+c+\";animation-delay:.\"+i+\"s'></i></div>\"+" +
     "\"<div class='dim-tip'>\"+esc(d.tip)+\"</div></div>\"});" +
     "$('r-dims').innerHTML=dims;" +
+    /* at-a-glance: one tap-card per section, so the overview answers
+     * 'where do I look first?' without any scrolling */
+    "var weakest=r.dimensions.length?r.dimensions.reduce(function(a,b){return b.score<a.score?b:a}):null;" +
+    "var glance='';" +
+    "if(pct!==null)glance+=\"<button type='button' class='gl' data-rp='match'><b style='color:\"+band(pct)+\"'>\"+pct+\"%</b><span>job advert match</span><i>75% target →</i></button>\";" +
+    "if(checks&&checks.groups)glance+=\"<button type='button' class='gl' data-rp='checks'><b style='color:\"+(checks.passed>=checks.total-1?'#1B7A4B':checks.passed>=checks.total-4?'#ED9249':'#D9452B')+\"'>\"+checks.passed+\"/\"+checks.total+\"</b><span>recruiter checks passed</span><i>see the rest →</i></button>\";" +
+    "if(weakest)glance+=\"<button type='button' class='gl' data-rp='improve'><b style='color:\"+band(weakest.score)+\"'>\"+esc(weakest.label)+\"</b><span>your weakest area</span><i>fix it →</i></button>\";" +
+    "$('r-glance').innerHTML=glance;" +
+    "document.querySelectorAll('.gl').forEach(function(g){g.onclick=function(){rpGo(g.dataset.rp)}});" +
     "var goods='';r.strengths.forEach(function(s){goods+=\"<li><span class='tick'>✓</span>\"+esc(s)+'</li>'});" +
     "$('r-goods').innerHTML=goods;" +
     "var fixes='';r.improvements.forEach(function(f,i){" +
@@ -629,6 +673,20 @@ export function renderToolsPage(): string {
     "})();</script>";
 
   const extraCss = `
+.rtabs{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 16px;}
+.rtab{border:1.5px solid var(--line,#E3DDDA);background:#fff;border-radius:999px;padding:9px 16px;
+  font-family:inherit;font-size:13px;font-weight:700;color:var(--ink,#25394B);cursor:pointer;}
+.rtab.on{background:var(--navy,#05253C);border-color:var(--navy,#05253C);color:#fff;}
+.rtab:hover:not(.on){border-color:var(--mango,#ED9249);}
+@media print{.rpanel{display:block!important;}
+.rpanel[hidden]{display:block!important;}}
+.glance{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
+.gl{background:#fff;border:1.5px solid var(--line,#E3DDDA);border-radius:14px;padding:15px;text-align:left;
+  font-family:inherit;cursor:pointer;transition:box-shadow .2s,border-color .2s;}
+.gl:hover{border-color:var(--mango,#ED9249);box-shadow:0 4px 12px rgba(5,37,60,.08);}
+.gl b{display:block;font-size:21px;font-weight:800;}
+.gl span{display:block;font-size:12px;font-weight:600;color:var(--ink,#25394B);margin-top:3px;}
+.gl i{display:block;font-style:normal;font-size:11px;font-weight:700;color:#8a97a1;margin-top:6px;}
 .kwgauge-wrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
 .kwg{width:340px;max-width:100%;flex:none;}
 .ck-seg{display:flex;gap:3px;border-radius:999px;overflow:hidden;margin-bottom:12px;min-height:26px;}
