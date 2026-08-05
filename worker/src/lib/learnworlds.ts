@@ -208,6 +208,10 @@ export interface LwUser {
   is_instructor?: boolean;
   is_suspended?: boolean;
   is_reporter?: boolean;
+  /** The platform's user role — "user" is a learner; anything else
+   * (seat_manager, admin, instructor…) is staff. Ground truth
+   * confirmed 2026-08-05 on a live seat-manager record. */
+  role?: { level?: string; name?: string };
   tags?: string[];
 }
 

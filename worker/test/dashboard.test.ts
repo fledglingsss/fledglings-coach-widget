@@ -670,3 +670,25 @@ describe("GET /dashboard/learner-reflections", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("role-based learner filter", () => {
+  it("a seat_manager role never appears as a learner even with learner tags", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const withSeatManager = USERS.concat([{
+      id: "u9", email: "manager@swift.test", first_name: "Seat", last_name: "Manager",
+      tags: ["Swift Learners"], role: { level: "seat_manager", name: "Seat manager" },
+      created: NOW - 60 * 86_400, last_login: NOW - 86_400,
+    } as never]);
+    listUsersMock.mockResolvedValue({ users: withSeatManager, totalItems: 5 } as never);
+    listAllMock.mockResolvedValue(withSeatManager as never);
+    const res = await app.request(
+      get("/dashboard/data", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    const d = (await res.json()) as { learners: Array<{ email: string }> };
+    expect(d.learners.some((l) => l.email === "manager@swift.test")).toBe(false);
+    /* ordinary role:"user" accounts still count */
+    expect(d.learners.some((l) => l.email === "amy@swift.test")).toBe(true);
+  });
+});

@@ -59,6 +59,7 @@ import {
   listAllUsers,
   listUsersPage,
   lwConfigured,
+  lwRequest,
   type LwUser,
   type LwUserCourse,
 } from "./lib/learnworlds";
@@ -1626,8 +1627,14 @@ function inScope(tags: string[] | undefined, tag: string | null): boolean {
   });
 }
 
+/* A learner is an account whose platform ROLE is "user" (founder law:
+ * roles come from the user role, never emails). Seat managers, admins,
+ * instructors and reporters all carry other role levels; the boolean
+ * flags stay as belt-and-braces for older records without `role`. */
 function isLearner(u: LwUser): boolean {
-  return Boolean(u.email) && !u.is_admin && !u.is_instructor && !u.is_suspended;
+  if (!u.email || u.is_admin || u.is_instructor || u.is_suspended || u.is_reporter) return false;
+  const level = u.role?.level;
+  return level === undefined || level === "user";
 }
 
 async function portalSample(
@@ -3413,6 +3420,20 @@ app.get("/ops", async (c) => {
   const access = await opsSession(c);
   if (!access) return c.html(renderPortalLogin("The ops console needs a whole-school access code."));
   return c.html(renderOpsPage(access.label));
+});
+
+/* Raw platform record for one account — founder-only diagnostics
+ * (used to identify role fields like seat manager). */
+app.get("/ops/user", async (c) => {
+  if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
+  const email = (c.req.query("email") || "").trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) return c.json({ error: "invalid_email" }, 400);
+  try {
+    const res = await lwRequest(c.env, "GET", `/users/${encodeURIComponent(email)}`);
+    return c.json((await res.json()) as Record<string, unknown>);
+  } catch (err) {
+    return c.json({ error: String(err).slice(0, 120) }, 500);
+  }
 });
 
 app.get("/ops/status", async (c) => {
