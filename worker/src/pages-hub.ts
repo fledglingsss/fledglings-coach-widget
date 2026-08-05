@@ -286,7 +286,7 @@ const HUB_CSS = `
   font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none;}
 .tasklist li.done{color:var(--navy);}
 .tasklist li.done i{background:#E3F4EA;color:var(--ok);}
-.nextstep{color:#fff;}
+.nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
 .nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;margin-bottom:6px;}
 .nextstep div:nth-child(2){font-size:15.5px;line-height:1.6;font-weight:500;}
 .nextstep a.btn{text-decoration:none;background:#fff;color:var(--pri);}

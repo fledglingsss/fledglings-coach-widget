@@ -1135,8 +1135,8 @@ const INTERVIEW_CSS = `
 .qc-row.good b{color:var(--ok);}
 .qc-row.sharper{background:#F4F8F5;}
 .qc-row.sharper b{color:var(--ok);}
-.nextstep{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;}
-.nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
+.nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
+.nextstep .ns-label{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:var(--orange);margin-bottom:6px;}
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 @media print{.rev-vid,video{display:none!important;}}
 `;

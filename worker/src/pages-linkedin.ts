@@ -368,8 +368,8 @@ export function renderLinkedInPage(): string {
 .fix-n{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;font-size:12.5px;
   display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px;}
 .fix-d{font-size:13.5px;color:#4a5b66;line-height:1.55;padding-top:3px;}
-.nextstep{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;}
-.nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
+.nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
+.nextstep .ns-label{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:var(--orange);margin-bottom:6px;}
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 `;
   return appShell({

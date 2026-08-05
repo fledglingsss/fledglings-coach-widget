@@ -258,8 +258,8 @@ const APP_OVERRIDES = `
 .rolebtn:hover{border-color:var(--orange);}
 .tpl.on{border-color:var(--orange);box-shadow:0 0 0 2px rgba(217,69,43,.18);}
 .tpl:hover{border-color:var(--mango);}
-.nextstep{background:linear-gradient(120deg,var(--navy),var(--blue));}
-.nextstep .ns-label{color:var(--mango);}
+.nextstep{background:#fff;border-left:4px solid var(--orange);}
+.nextstep .ns-label{color:var(--orange);}
 .r-head{border-top-color:var(--orange);}
 .ready{border-top-color:var(--orange);}
 .hero{border-top-color:var(--orange);}
@@ -428,6 +428,12 @@ export function renderToolsPage(): string {
     /* ---- overview panel ---- */
     "<div class='rpanel' id='rp-overview'>" +
     "<div class='glance' id='r-glance'></div>" +
+    "<div class='ov2'>" +
+    "<div class='card'><h3>Your score in context</h3><div id='r-scale'></div><div id='r-compare' class='r-compare'></div></div>" +
+    "<div class='card'><h3>The shape of your CV</h3><div id='r-radar'></div>" +
+    "<p class='kw-note' style='margin:8px 0 0'>Solid shape = this CV. The dashed line is the interview-ready mark (70) — " +
+    "every corner pushed past it is genuinely competitive.</p></div>" +
+    "</div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
     "<a class='card journeynext no-print' id='r-journey' href='/linkedin'><div>" +
@@ -463,8 +469,31 @@ export function renderToolsPage(): string {
     "<div class='card'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
     "<div class='card'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
     "<div class='card'><h3>What to improve</h3><div id='r-fixes'></div></div>" +
+    /* the method — teach the frameworks, not just the verdicts */
+    "<div class='card' id='r-method'><h3>📐 The method behind strong bullets</h3>" +
+    "<p class='kw-note'>Recruiters trust lines that prove something. Two frameworks do the proving — use XYZ for " +
+    "CV bullets, STAR when you talk about the same story in an interview.</p>" +
+    "<div class='xyz'>" +
+    "<div class='xyz-seg x'><b>Accomplished [X]</b><span>the achievement</span><i>“Served 200+ customers per shift”</i></div>" +
+    "<span class='xyz-arrow'>→</span>" +
+    "<div class='xyz-seg y'><b>measured by [Y]</b><span>the number that proves it</span><i>“queue times under 4 minutes”</i></div>" +
+    "<span class='xyz-arrow'>→</span>" +
+    "<div class='xyz-seg z'><b>by doing [Z]</b><span>how you actually did it</span><i>“running two tills at peak”</i></div>" +
+    "</div>" +
+    "<div class='starrow'>" +
+    "<span class='star-chip'><b>S</b>ituation<i>where you were</i></span>" +
+    "<span class='star-chip'><b>T</b>ask<i>what needed doing</i></span>" +
+    "<span class='star-chip'><b>A</b>ction<i>what YOU did</i></span>" +
+    "<span class='star-chip'><b>R</b>esult<i>what changed</i></span>" +
+    "</div>" +
+    "<div class='ck-g' style='margin-top:14px'>Apply it to one bullet now</div>" +
+    "<ul class='tasklist method-list'>" +
+    "<li><i>1</i>Pick your weakest bullet — usually one starting with “responsible for”.</li>" +
+    "<li><i>2</i>Add the number only you know: how many, how often, how fast.</li>" +
+    "<li><i>3</i>End with the how — the thing you did that made the number happen.</li></ul>" +
+    "</div>" +
     "<div class='card' id='r-rwcard' hidden><h3>Example rewrite — your line, upgraded</h3>" +
-    "<p class='kw-note'>The pattern: what you achieved, measured how, by doing what. Anything in [brackets] is " +
+    "<p class='kw-note'>The pattern above, applied to your own line. Anything in [brackets] is " +
     "yours to fill in — Fledge never invents your numbers.</p>" +
     "<div class='rw before'><div class='rw-tag'>BEFORE</div><div id='r-rwb'></div></div>" +
     "<div class='rw after'><div class='rw-tag'>AFTER</div><div id='r-rwa'></div></div></div>" +
@@ -597,8 +626,46 @@ export function renderToolsPage(): string {
     "t.setAttribute('aria-selected',t.dataset.rp===id?'true':'false');});" +
     "window.scrollTo({top:0,behavior:'smooth'});}" +
     "document.querySelectorAll('.rtab').forEach(function(t){t.onclick=function(){rpGo(t.dataset.rp)}});" +
+    /* score-in-context: the honest calibration bands this scoring is
+     * built on, with the learner's pin on them */
+    "function scaleChart(v){var BANDS=[[0,40,'#D9452B','Rebuild it'],[40,55,'#E07B39','Early draft'],[55,70,'#ED9249','Solid start'],[70,85,'#4E9A6B','Interview-ready'],[85,100,'#1B7A4B','Excellent']];" +
+    "var W=360,H=74,x=function(p){return 6+(W-12)*p/100};var s=\"<svg viewBox='0 0 \"+W+\" \"+H+\"' class='kwg' role='img' aria-label='Score \"+v+\" of 100: \"+(BANDS.filter(function(b){return v>=b[0]&&v<=b[1]})[0]||BANDS[4])[3]+\"'>\";" +
+    "BANDS.forEach(function(b,i){s+=\"<rect x='\"+x(b[0])+\"' y='30' width='\"+(x(b[1])-x(b[0]))+\"' height='12' \"+(i===0?\"rx='6' \":i===4?\"rx='6' \":'')+\"fill='\"+b[2]+\"' opacity='.42'/>\";" +
+    "s+=\"<text x='\"+((x(b[0])+x(b[1]))/2)+\"' y='58' text-anchor='middle' font-size='8.6' font-weight='700' fill='#68788A'>\"+b[3]+\"</text>\";});" +
+    "s+=\"<circle cx='\"+x(v)+\"' cy='36' r='9' fill='\"+band(v)+\"'/>\";" +
+    "s+=\"<text x='\"+x(v)+\"' y='18' text-anchor='middle' font-size='14' font-weight='800' fill='\"+band(v)+\"'>\"+v+\"</text>\";" +
+    "return s+'</svg>'}" +
+    /* radar: the CV's shape vs the interview-ready line */
+    "function radar(dims){var n=dims.length;if(n<3)return '';" +
+    "var C=110,R=78,pt=function(i,v){var a=-Math.PI/2+i*2*Math.PI/n;return (C+Math.cos(a)*R*v/100).toFixed(1)+','+(C+Math.sin(a)*R*v/100).toFixed(1)};" +
+    "var s=\"<svg viewBox='0 0 220 220' class='radar' role='img' aria-label='\"+dims.map(function(d){return d.label+' '+d.score}).join(', ')+\"'>\";" +
+    "[25,50,75,100].forEach(function(g){s+=\"<polygon points='\"+dims.map(function(_,i){return pt(i,g)}).join(' ')+\"' fill='none' stroke='#E3DDDA' stroke-width='1'/>\";});" +
+    "dims.forEach(function(_,i){s+=\"<line x1='\"+C+\"' y1='\"+C+\"' x2='\"+pt(i,100).split(',')[0]+\"' y2='\"+pt(i,100).split(',')[1]+\"' stroke='#E3DDDA' stroke-width='1'/>\";});" +
+    "s+=\"<polygon points='\"+dims.map(function(_,i){return pt(i,70)}).join(' ')+\"' fill='none' stroke='#05253C' stroke-width='1.6' stroke-dasharray='4 3'/>\";" +
+    "s+=\"<polygon points='\"+dims.map(function(d,i){return pt(i,d.score)}).join(' ')+\"' fill='rgba(217,69,43,.22)' stroke='#D9452B' stroke-width='2.2' stroke-linejoin='round'/>\";" +
+    "dims.forEach(function(d,i){var a=-Math.PI/2+i*2*Math.PI/n;var lx=C+Math.cos(a)*(R+18),ly=C+Math.sin(a)*(R+16);" +
+    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+ly.toFixed(1)+\"' text-anchor='middle' font-size='9.6' font-weight='700' fill='#25394B'>\"+esc(d.label.length>14?d.label.slice(0,13)+'…':d.label)+\"</text>\";" +
+    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+(ly+11).toFixed(1)+\"' text-anchor='middle' font-size='10' font-weight='800' fill='\"+band(d.score)+\"'>\"+d.score+\"</text>\";});" +
+    "return s+'</svg>'}" +
+    /* attempt-over-attempt: real history from the hub score store */
+    "function loadCompare(){var el=$('r-compare');if(!hubEmail){" +
+    "el.innerHTML=\"<span class='dmut2'>Save your email on the Hub and every review compares with your last attempt.</span>\";return;}" +
+    "fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({learner_id:lid,email:hubEmail})})" +
+    ".then(function(x){return x.json()}).then(function(d){" +
+    "var t=d&&d.summary&&d.summary[kind==='cv'?'cv':'linkedin'];if(!t||!t.history||t.history.length<2){" +
+    "el.innerHTML=\"<span class='dmut2'>First scored attempt — your next review compares here.</span>\";return;}" +
+    "var h=t.history,prev=h[h.length-2],cur=h[h.length-1],dl=cur-prev;" +
+    "var W=120,Hh=30,n=h.length;var pts=h.map(function(sv,i){return (i*(W-6)/(n-1)+3)+','+(Hh-3-(sv*(Hh-6)/100))}).join(' ');" +
+    "el.innerHTML=\"<div class='cmp'><span class='cmp-d' style='color:\"+(dl>=0?'#1B7A4B':'#D9452B')+\"'>\"+(dl>=0?'▲ +':'▼ ')+dl+\"</span>\"+" +
+    "\"<span class='cmp-t'>vs your last attempt (\"+prev+\" → \"+cur+\")</span>\"+" +
+    "\"<svg viewBox='0 0 \"+W+\" \"+Hh+\"' class='cmp-spark' role='img' aria-label='Score trend across \"+n+\" attempts'>\"+" +
+    "\"<polyline points='\"+pts+\"' fill='none' stroke='\"+band(cur)+\"' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>\"+" +
+    "\"<span class='cmp-n'>\"+n+\" attempts</span></div>\";}).catch(function(){el.textContent='';});}" +
     "function renderReport(r,checks){" +
     "var col=band(r.overall);rpGo('overview');" +
+    "$('r-scale').innerHTML=scaleChart(r.overall);" +
+    "$('r-radar').innerHTML=radar(r.dimensions||[]);" +
+    "loadCompare();" +
     /* keyword match (Jobscan model) */
     "var kw=r.keywords||{matched:[],missing:[]};var kwTotal=kw.matched.length+kw.missing.length;" +
     "var pct=null;" +
@@ -673,6 +740,33 @@ export function renderToolsPage(): string {
     "})();</script>";
 
   const extraCss = `
+.ov2{display:grid;grid-template-columns:1.25fr 1fr;gap:14px;align-items:stretch;}
+@media(max-width:760px){.ov2{grid-template-columns:1fr;}}
+.radar{width:230px;max-width:100%;display:block;margin:0 auto;}
+.r-compare{margin-top:10px;}
+.dmut2{font-size:12.5px;color:#8a97a1;}
+.cmp{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cmp-d{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;}
+.cmp-t{font-size:12.5px;font-weight:600;color:#25394B;}
+.cmp-spark{width:120px;height:30px;flex:none;}
+.cmp-n{font-size:11px;font-weight:700;color:#8a97a1;}
+.xyz{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin:14px 0;}
+.xyz-seg{flex:1;min-width:150px;border-radius:12px;padding:12px 14px;color:#fff;}
+.xyz-seg.x{background:#D9452B;}
+.xyz-seg.y{background:#ED9249;}
+.xyz-seg.z{background:#13507F;}
+.xyz-seg b{display:block;font-size:13.5px;}
+.xyz-seg span{display:block;font-size:11px;font-weight:700;opacity:.85;margin-top:2px;}
+.xyz-seg i{display:block;font-size:11.5px;font-style:italic;margin-top:7px;opacity:.95;line-height:1.4;}
+.xyz-arrow{align-self:center;font-size:18px;font-weight:800;color:#8a97a1;}
+@media(max-width:640px){.xyz-arrow{display:none;}}
+.starrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;margin-top:6px;}
+.star-chip{border:1.5px solid var(--line,#E3DDDA);border-radius:11px;padding:10px 12px;font-size:12.5px;font-weight:600;}
+.star-chip b{color:var(--orange,#D9452B);font-size:15px;}
+.star-chip i{display:block;font-style:normal;font-size:11px;color:#8a97a1;margin-top:2px;}
+.method-list li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.55;padding:6px 0;list-style:none;}
+.method-list li i{flex:none;width:22px;height:22px;border-radius:50%;background:var(--off,#ECE7E6);color:var(--navy,#05253C);
+  font-style:normal;font-weight:800;font-size:11.5px;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;}
 .rtabs{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 16px;}
 .rtab{border:1.5px solid var(--line,#E3DDDA);background:#fff;border-radius:999px;padding:9px 16px;
   font-family:inherit;font-size:13px;font-weight:700;color:var(--ink,#25394B);cursor:pointer;}
@@ -779,8 +873,8 @@ export function renderToolsPage(): string {
 .rw-tag{font-size:10.5px;font-weight:800;letter-spacing:.1em;margin-bottom:4px;}
 .rw.before .rw-tag{color:#8a97a1;}
 .rw.after .rw-tag{color:var(--ok);}
-.nextstep{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;}
-.nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:var(--mango);margin-bottom:6px;}
+.nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
+.nextstep .ns-label{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:var(--orange);margin-bottom:6px;}
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 `;
   return appShell({
