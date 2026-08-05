@@ -662,7 +662,10 @@ out+="<div class='tc-row'><span class='tc-l'>Q"+(i+1)+"</span><div class='tc-tra
 return out+"</div>";}
 var PR_ICONS={face:'👤',centre:'🎯',dist:'↔️',head:'📐',eye:'👁️'};
 function prStat(label,icon,metric,unavailableNote){
-if(metric===null)return "<div class='prstat na'><div class='prring'><em>"+icon+"</em></div><b>"+esc2(label)+"</b><span>"+esc2(unavailableNote)+"</span></div>";
+/* a metric without a usable pct is an unavailable metric — never
+ * print 'undefined%' at a learner */
+if(metric&&(typeof metric.pct!=='number'||!isFinite(metric.pct)))metric=null;
+if(metric===null)return "<div class='prstat na'><div class='prring'><em>"+icon+"</em></div><b>"+esc2(label)+"</b><span>"+esc2(unavailableNote||'Not measured')+"</span></div>";
 var cls=metric.band==='great'?'good':metric.band==='okay'?'mid':'bad';
 var word=metric.band==='great'?'Excellent':metric.band==='okay'?'Getting there':'Needs work';
 return "<div class='prstat'><div class='prring "+cls+"'><em>"+icon+"</em></div>"+
@@ -695,18 +698,22 @@ $('b-presence-s').textContent='Not measured (no camera, or face checks unavailab
 if(r.answers&&r.answers.length){$('qs-card').hidden=false;
 $('qs-chart').innerHTML=qScoreChart(r.answers);}else{$('qs-card').hidden=true;}
 if(r.speech){$('sp-card').hidden=false;$('sp-badge').textContent=r.speech.score+' / 10';
+/* every subfield guarded — a partial payload must never print
+ * 'undefined' or 'NaN' at a learner */
+var ps=typeof r.speech.paceScore==='number'?r.speech.paceScore:null;
+var fs=typeof r.speech.fillerScore==='number'?r.speech.fillerScore:null;
 ['slow','good','fast'].forEach(function(bnd){$('band-'+bnd).className='bandc'+(r.speech.paceBand===bnd?' on '+bnd:'');});
-$('sp-rate-frac').textContent=r.speech.paceScore+'/5';
-/* wpm gauge: 0-250 scale */
-var gp=Math.max(2,Math.min(98,(r.speech.wpm/250)*100));
-$('sp-pin').style.left=gp+'%';$('sp-pin-l').textContent=r.speech.wpm+' wpm';
-$('sp-wpm-d').textContent=r.speech.paceBand==='good'?'A natural, confident pace.':r.speech.paceBand==='slow'?'On the slow side — practising out loud builds pace without rushing.':'Quick — a breath between points gives your answers room to land.';
-$('sp-fill-frac').textContent=r.speech.fillerScore+'/5';
-$('sp-fill').textContent=r.speech.fillerCount+(r.speech.fillerCount===1?' word':' words');
-$('sp-fill-bar').style.width=(r.speech.fillerScore*20)+'%';
-$('sp-fill-bar').style.background=band(r.speech.fillerScore*20);
-$('sp-fill-d').textContent=r.speech.fillerCount===0?'Clean answers — no crutch words caught.':'Caught in your transcript (um, basically, sort of…). A short pause beats a filler.';
-$('sp-time').textContent=fmt(r.speech.totalSecs);
+$('sp-rate-frac').textContent=ps===null?'':ps+'/5';
+var wpmOk=typeof r.speech.wpm==='number'&&isFinite(r.speech.wpm);
+var gp=wpmOk?Math.max(2,Math.min(98,(r.speech.wpm/250)*100)):50;
+$('sp-pin').style.left=gp+'%';$('sp-pin-l').textContent=wpmOk?r.speech.wpm+' wpm':'';
+$('sp-wpm-d').textContent=r.speech.paceBand==='good'?'A natural, confident pace.':r.speech.paceBand==='slow'?'On the slow side — practising out loud builds pace without rushing.':r.speech.paceBand==='fast'?'Quick — a breath between points gives your answers room to land.':'';
+$('sp-fill-frac').textContent=fs===null?'':fs+'/5';
+$('sp-fill').textContent=typeof r.speech.fillerCount==='number'?r.speech.fillerCount+(r.speech.fillerCount===1?' word':' words'):'—';
+$('sp-fill-bar').style.width=(fs===null?0:fs*20)+'%';
+$('sp-fill-bar').style.background=fs===null?'#E3DDDA':band(fs*20);
+$('sp-fill-d').textContent=r.speech.fillerCount===0?'Clean answers — no crutch words caught.':typeof r.speech.fillerCount==='number'?'Caught in your transcript (um, basically, sort of…). A short pause beats a filler.':'';
+$('sp-time').textContent=(typeof r.speech.totalSecs==='number'&&isFinite(r.speech.totalSecs))?fmt(r.speech.totalSecs):'—';
 $('sp-times').innerHTML=timeChart(answers);}else{$('sp-card').hidden=true;}
 if(r.presence){$('pr-card').hidden=false;$('pr-badge').textContent=r.presence.score+' / 10';
 var m=r.presence.metrics||{};
@@ -732,7 +739,7 @@ out+="<div class='qcols'>"+
 "<div class='panel pbad'><b>What needs improvement</b>"+esc2(a.improve)+"</div></div>"+
 "<div class='qcol'><div class='qcol-t'>ANSWER GUIDANCE</div>"+
 (a.impress?"<div class='panel pinfo'><b>What would have impressed the interviewer</b>"+esc2(a.impress)+"</div>":"")+
-"<div class='panel prefined'><b>Refined answer: putting it all together</b>"+esc2(a.sharper)+"</div></div>"+
+(a.sharper?"<div class='panel prefined'><b>Refined answer: putting it all together</b>"+esc2(a.sharper)+"</div>":"")+"</div>"+
 "</div></div>";});
 $('r-answers').innerHTML=out;$('r-next').textContent=r.next_step;
 if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}
