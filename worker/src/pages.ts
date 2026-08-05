@@ -412,14 +412,18 @@ export function renderToolsPage(): string {
     "<div class='r-headtxt'><div class='r-kind' id='r-kind'>CV REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
-    "<div class='card' id='r-kwcard' hidden><h3>Match against the job advert <span class='badge' id='r-kwpct'></span></h3>" +
-    "<p class='kw-note'>Screening software compares your wording to the advert's — aim for 75%+ matched. " +
-    "Only claim a missing skill if you genuinely have it.</p>" +
+    "<div class='card' id='r-kwcard' hidden><h3>Match against the job advert</h3>" +
+    "<div class='kwgauge-wrap'><div id='r-kwgauge'></div>" +
+    "<p class='kw-note' style='margin:0'>Screening software compares your wording to the advert's — the flag marks the 75% target. " +
+    "Only claim a missing skill if you genuinely have it.</p></div>" +
     "<div class='kw-h'>✓ Found in your document</div><div class='chips' id='r-kwm'></div>" +
     "<div class='kw-h miss'>Missing from your document</div><div class='chips' id='r-kwx'></div></div>" +
     "<div class='card'><h3>Recruiter checks <span class='badge' id='r-ckcount'></span></h3>" +
     "<p class='kw-note'>Objective, rule-based checks — the things screening software and a skim-reading recruiter " +
-    "judge before reading a word properly.</p><div id='r-checks'></div></div>" +
+    "judge before reading a word properly.</p>" +
+    "<div class='ck-seg' id='r-ckseg'></div>" +
+    "<div class='chips' id='r-ckpass'></div>" +
+    "<div id='r-checks'></div></div>" +
     "<div class='card'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
     "<div class='card'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
     "<div class='card'><h3>What to improve</h3><div id='r-fixes'></div></div>" +
@@ -430,6 +434,10 @@ export function renderToolsPage(): string {
     "<div class='rw after'><div class='rw-tag'>AFTER</div><div id='r-rwa'></div></div></div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "<a class='card journeynext no-print' id='r-journey' href='/linkedin'><div>" +
+    "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
+    "<b id='r-journey-t'>LinkedIn review — get your profile to match this CV</b></div>" +
+    "<span class='jn-btn'>Go →</span></a>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
     "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
@@ -540,33 +548,59 @@ export function renderToolsPage(): string {
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
     "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
+    /* Horizontal gauge: coloured zones, a pin at the score, a flag at
+     * the 75% screening target. */
+    "function kwGauge(pct){var W=340,H=64,x=function(v){return 8+(W-16)*v/100};" +
+    "return \"<svg viewBox='0 0 \"+W+\" \"+H+\"' class='kwg' role='img' aria-label='Keyword match \"+pct+\" percent, target 75'>\"+" +
+    "\"<rect x='\"+x(0)+\"' y='34' width='\"+(x(50)-x(0))+\"' height='12' rx='6' fill='#F0C9C0'/>\"+" +
+    "\"<rect x='\"+x(50)+\"' y='34' width='\"+(x(75)-x(50))+\"' height='12' fill='#F3D9B6'/>\"+" +
+    "\"<rect x='\"+x(75)+\"' y='34' width='\"+(x(100)-x(75))+\"' height='12' rx='6' fill='#BFDCCB'/>\"+" +
+    "\"<line x1='\"+x(75)+\"' y1='26' x2='\"+x(75)+\"' y2='52' stroke='#05253C' stroke-width='2' stroke-dasharray='3 2'/>\"+" +
+    "\"<text x='\"+x(75)+\"' y='20' text-anchor='middle' font-size='10' font-weight='700' fill='#05253C'>75% target</text>\"+" +
+    "\"<circle cx='\"+x(pct)+\"' cy='40' r='9' fill='\"+band(pct)+\"'/>\"+" +
+    "\"<text x='\"+x(pct)+\"' y='62' text-anchor='middle' font-size='13' font-weight='800' fill='\"+band(pct)+\"'>\"+pct+\"%</text>\"+" +
+    "'</svg>'}" +
     "function renderReport(r,checks){" +
     "var col=band(r.overall);" +
     /* keyword match (Jobscan model) */
     "var kw=r.keywords||{matched:[],missing:[]};var kwTotal=kw.matched.length+kw.missing.length;" +
     "if(kwTotal>0){var pct=Math.round(kw.matched.length*100/kwTotal);" +
-    "$('r-kwpct').textContent=pct+'% match';$('r-kwpct').style.background=band(pct);$('r-kwpct').style.color='#fff';" +
+    "$('r-kwgauge').innerHTML=kwGauge(pct);" +
     "$('r-kwm').innerHTML=kw.matched.map(function(k){return \"<span class='chip ok'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>none yet</span>\";" +
     "$('r-kwx').innerHTML=kw.missing.map(function(k){return \"<span class='chip miss'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>nothing important missing</span>\";" +
     "$('r-kwcard').hidden=false}else{$('r-kwcard').hidden=true}" +
-    /* deterministic recruiter checks (Resume Worded model) */
+    /* deterministic recruiter checks — visual summary first: a
+     * segmented pass/warn/fail bar, passes as compact chips, prose
+     * only where action is needed. */
     "if(checks&&checks.groups){$('r-ckcount').textContent=checks.passed+' of '+checks.total+' passed';" +
-    "var ck='';checks.groups.forEach(function(g){ck+=\"<div class='ck-g'>\"+esc(g.label)+'</div>';" +
-    "g.items.forEach(function(c){var ic=c.status==='pass'?'✓':c.status==='warn'?'!':'✗';" +
+    "var all=[];checks.groups.forEach(function(g){g.items.forEach(function(c){c.group=g.label;all.push(c)})});" +
+    "var nP=all.filter(function(c){return c.status==='pass'}).length," +
+    "nW=all.filter(function(c){return c.status==='warn'}).length,nF=all.length-nP-nW;" +
+    "var seg='';[['#1B7A4B',nP,'passed'],['#ED9249',nW,'to tighten'],['#D9452B',nF,'to fix']].forEach(function(s){" +
+    "if(s[1]>0)seg+=\"<div class='ck-seg-i' style='flex:\"+s[1]+\";background:\"+s[0]+\"'>\"+s[1]+' '+s[2]+'</div>';});" +
+    "$('r-ckseg').innerHTML=seg;" +
+    "$('r-ckpass').innerHTML=all.filter(function(c){return c.status==='pass'})" +
+    ".map(function(c){return \"<span class='chip ok' title='\"+esc(c.detail)+\"'>✓ \"+esc(c.label)+'</span>'}).join('');" +
+    "var ck='';var todo=all.filter(function(c){return c.status!=='pass'});" +
+    "if(todo.length)ck+=\"<div class='ck-g'>Worth your attention</div>\";" +
+    "todo.forEach(function(c){var ic=c.status==='warn'?'!':'✗';" +
     "ck+=\"<div class='ck \"+c.status+\"'><span class='ck-i'>\"+ic+\"</span><div><div class='ck-l'>\"+esc(c.label)+\"</div>\"+" +
     "\"<div class='ck-d'>\"+esc(c.detail)+'</div>'+" +
-    "(c.evidence?\"<div class='ck-e'>“\"+esc(c.evidence)+\"”</div>\":'')+'</div></div>'})});" +
+    "(c.evidence?\"<div class='ck-e'>“\"+esc(c.evidence)+\"”</div>\":'')+'</div></div>'});" +
     "$('r-checks').innerHTML=ck}" +
     /* rewrite (XYZ/STAR teaching) */
     "if(r.rewrite&&r.rewrite.before){$('r-rwb').textContent=r.rewrite.before;" +
     "$('r-rwa').textContent=r.rewrite.after;$('r-rwcard').hidden=false}else{$('r-rwcard').hidden=true}" +
-    "$('r-score').textContent=r.overall;$('r-score').style.color=col;" +
+    "flCountUp($('r-score'),r.overall);$('r-score').style.color=col;" +
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-kind').textContent=(kind==='cv'?'CV REVIEW':'LINKEDIN REVIEW');" +
     "$('r-verdict').textContent=r.verdict;" +
     "$('r-file').textContent=lastName+($('target').value?' · aiming at: '+$('target').value:'');" +
+    "if(kind==='cv'){$('r-journey').href='/linkedin';$('r-journey-t').textContent='LinkedIn review — get your profile to match this CV';}" +
+    "else{$('r-journey').href='/interview';$('r-journey-t').textContent='Mock interview — practise saying it out loud';}" +
     "var dims='';r.dimensions.forEach(function(d,i){var c=band(d.score);" +
-    "dims+=\"<div class='dim'><div class='dim-r'><span>\"+esc(d.label)+\"</span><b style='color:\"+c+\"'>\"+d.score+\"</b></div>\"+" +
+    "var word=d.score>=70?'Strong':d.score>=50?'Getting there':'Needs work';" +
+    "dims+=\"<div class='dim'><div class='dim-r'><span>\"+esc(d.label)+\" <i class='dim-word' style='background:\"+c+\"'>\"+word+\"</i></span><b style='color:\"+c+\"'>\"+d.score+\"</b></div>\"+" +
     "\"<div class='dim-tk'><i style='width:\"+d.score+\"%;background:\"+c+\";animation-delay:.\"+i+\"s'></i></div>\"+" +
     "\"<div class='dim-tip'>\"+esc(d.tip)+\"</div></div>\"});" +
     "$('r-dims').innerHTML=dims;" +
@@ -585,9 +619,26 @@ export function renderToolsPage(): string {
     "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
     "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
+    /* QA hook: render a report without a model call (closure-scoped
+     * renderer, same pattern as the interview page). */
+    "window.__flToolsRender=function(r,checks){renderReport(r,checks);show('r-card');};" +
     "})();</script>";
 
   const extraCss = `
+.kwgauge-wrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.kwg{width:340px;max-width:100%;flex:none;}
+.ck-seg{display:flex;gap:3px;border-radius:999px;overflow:hidden;margin-bottom:12px;min-height:26px;}
+.ck-seg-i{color:#fff;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  padding:5px 8px;white-space:nowrap;min-width:52px;}
+#r-ckpass{margin-bottom:14px;}
+.dim-word{font-style:normal;color:#fff;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:800;
+  margin-left:7px;vertical-align:2px;}
+.journeynext{display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--navy);
+  border-left:4px solid var(--orange);transition:box-shadow .2s;}
+.journeynext:hover{box-shadow:0 4px 14px rgba(5,37,60,.12);}
+.journeynext>div{flex:1;}
+.journeynext b{font-size:15px;}
+.jn-btn{flex:none;background:var(--orange);color:#fff;border-radius:11px;padding:10px 18px;font-weight:800;font-size:14px;}
 .clsteps{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
 .clstep{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#8a97a1;
   background:#fff;border:1.5px solid var(--line,#E3DDDA);border-radius:999px;padding:7px 14px;}

@@ -69,6 +69,7 @@ export function renderLinkedInPage(): string {
     "<div class='r-headtxt'><div class='r-kind'>LINKEDIN REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
+    "<div class='card'><h3>Where your points came from</h3><div id='r-secbars'></div></div>" +
     `<div class='chiprow' role='tablist' aria-label='Section scores'>${chipRow}</div>` +
     "<div class='secnav no-print'><button type='button' class='secarrow' id='sec-prev' aria-label='Previous section'>←</button>" +
     "<span class='sec-pos' id='sec-pos'></span>" +
@@ -87,6 +88,10 @@ export function renderLinkedInPage(): string {
     "<div class='kw-note' id='rw-next'></div></div></div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "<a class='card journeynext no-print' href='/interview'><div>" +
+    "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
+    "<b>Mock interview — practise telling this story out loud</b></div>" +
+    "<span class='jn-btn'>Go →</span></a>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
     "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
@@ -182,6 +187,15 @@ export function renderLinkedInPage(): string {
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-verdict').textContent=r.verdict;" +
     "$('r-file').textContent=lastName+($('target').value?' · aiming at: '+$('target').value:'');" +
+    /* Section overview: one bar per section, width = share of its
+     * maximum, so weak sections jump out before any reading. */
+    "var sb='';r.sections.forEach(function(s,i){var p2=s.weight?Math.round(s.score*100/s.weight):0;var c2=band(p2);" +
+    "sb+=\"<div class='secbar' data-sec='\"+s.id+\"'><span class='secbar-l'>\"+esc2(s.label)+\"</span>\"+" +
+    "\"<div class='secbar-t'><i style='width:\"+p2+\"%;background:\"+c2+\";animation-delay:.\"+(i*0.07).toFixed(2)+\"s'></i></div>\"+" +
+    "\"<b class='secbar-v' style='color:\"+c2+\"'>\"+s.score+\"<i>/\"+s.weight+\"</i></b></div>\";});" +
+    "$('r-secbars').innerHTML=sb;" +
+    "document.querySelectorAll('.secbar').forEach(function(row){row.onclick=function(){" +
+    "var t=$('sec-'+row.dataset.sec);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});};});" +
     "var panels='';r.sections.forEach(function(s){" +
     "var pct=s.weight?Math.round(s.score*100/s.weight):0;var c=band(pct);" +
     "var chip=$('chip-score-'+s.id);if(chip){chip.textContent=s.score+'/'+s.weight;chip.style.color=c;}" +
@@ -229,6 +243,8 @@ export function renderLinkedInPage(): string {
     ".catch(function(){$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
     "alert('Could not reach Fledge — try again in a minute.');});};" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
+    /* QA hook: render a report without a model call. */
+    "window.__flLiRender=function(r){renderReport(r);show('r-card');};" +
     "})();</script>";
 
   const extraCss = `
@@ -261,6 +277,21 @@ export function renderLinkedInPage(): string {
 @keyframes flPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(217,69,43,.35)}
   50%{transform:scale(1.07);box-shadow:0 0 0 16px rgba(217,69,43,0)}}
 .r-head{display:flex;align-items:center;gap:22px;flex-wrap:wrap;border-top:6px solid var(--orange);}
+.secbar{display:grid;grid-template-columns:150px 1fr 62px;gap:12px;align-items:center;padding:7px 0;cursor:pointer;}
+.secbar:hover .secbar-l{color:var(--orange);}
+.secbar-l{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.secbar-t{height:13px;border-radius:999px;background:var(--off,#ECE7E6);overflow:hidden;}
+.secbar-t i{display:block;height:100%;border-radius:999px;animation:secgrow .8s cubic-bezier(.2,.7,.3,1) both;}
+@keyframes secgrow{from{width:0}}
+.secbar-v{font-size:13px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+.secbar-v i{font-style:normal;color:#8a97a1;font-weight:600;font-size:11px;}
+.journeynext{display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--navy);
+  border-left:4px solid var(--orange);transition:box-shadow .2s;}
+.journeynext:hover{box-shadow:0 4px 14px rgba(5,37,60,.12);}
+.journeynext>div{flex:1;}
+.journeynext b{font-size:15px;}
+.jn-btn{flex:none;background:var(--orange);color:#fff;border-radius:11px;padding:10px 18px;font-weight:800;font-size:14px;}
+@media(prefers-reduced-motion:reduce){.secbar-t i{animation:none;}}
 .ring2{width:118px;height:118px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;}
 .ring2 .in{width:90px;height:90px;border-radius:50%;background:#fff;display:flex;flex-direction:column;
   align-items:center;justify-content:center;}
