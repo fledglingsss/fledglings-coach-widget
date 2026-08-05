@@ -289,6 +289,8 @@ document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
 fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,tool:'cover',helpful:b.dataset.fb==='1'})}).catch(function(){});
 $('fbrow').textContent='Thanks — that helps Fledge improve.';};});
+/* QA hook: render a drafted letter without a model call. */
+window.__flClRender=function(d){renderLetter(d,true);show('s-out');};
 })();`;
 
 const COVER_LETTER_CSS = `
