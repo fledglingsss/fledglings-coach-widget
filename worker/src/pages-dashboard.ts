@@ -313,14 +313,17 @@ r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' '
 "<button type='button' class='dlink' id='drill-close'>✕</button></div>"+
 "<div class='dr-learn'><span class='dr-l'>Learning modules</span>"+
 "<span class='ms'>"+lg.completed+"/"+lg.enrolled+" completed</span>"+
+(lg.minutes?"<span class='dtag' style='margin-left:10px'>⏱ "+(lg.minutes>=60?Math.floor(lg.minutes/60)+'h '+(lg.minutes%60)+'m':lg.minutes+'m')+" study time</span>":'')+
 "<i class='msb wide'><b style='width:"+modPct+"%;background:#1B7A4B'></b></i>"+
 "<span class='dmut'>"+lg.inProgress+" in progress"+(loginNote?' · '+esc2(loginNote):'')+"</span>"+
 ((lg.modules&&lg.modules.length)?"<div class='dr-mods'>"+lg.modules.map(function(m){
 return "<div class='dr-mod'><span class='dr-mt"+(m.done?' done':'')+"' title='"+esc2(m.t)+"'>"+
 (m.done?'✓ ':'')+esc2(m.t)+"</span>"+
 "<i class='msb'><b style='width:"+m.p+"%;background:"+(m.done?'#1B7A4B':m.p>0?'#13507F':'#D8D2CE')+"'></b></i>"+
-"<span class='dr-mp'>"+m.p+"%</span></div>";}).join('')+"</div>":'')+
+"<span class='dr-mp'>"+(m.mins?m.mins+'m':m.p+'%')+"</span></div>";}).join('')+"</div>":'')+
 "</div>"+
+/* their own reflections load lazily below the tools */
+"<div class='dr-reflect' id='dr-reflect'><span class='dmut'>Loading their reflections…</span></div>"+
 "<div class='dr-tools'>"+toolRow('CV review',e.cv)+toolRow('LinkedIn',e.linkedin)+
 toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
 "<div class='dr-journey'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
@@ -330,7 +333,23 @@ toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
 "<a class='dbtn ghost sm' href='"+mailHref+"'>✉ Email"+(en.nudge?' (nudge prefilled)':'')+"</a>"+
 "</div>";
 d.hidden=false;$('drill-close').onclick=function(){d.hidden=true};
-d.scrollIntoView({behavior:'smooth',block:'nearest'});}
+d.scrollIntoView({behavior:'smooth',block:'nearest'});
+/* pull this learner's reflections + any wellbeing flags */
+fetch('/dashboard/learner-reflections?email='+encodeURIComponent(r.email))
+.then(function(x){return x.json()}).then(function(rf){
+var el=$('dr-reflect');if(!el)return;
+if(!rf||!rf.ok){el.innerHTML='';return;}
+var h='';
+if((rf.flags||[]).length){h+="<div class='dr-flagbox'><b>⚠ "+rf.flags.length+" answer"+(rf.flags.length===1?'':'s')+" worth a check-in</b>"+
+rf.flags.map(function(f){return "<div class='dr-flag'><span class='dmut'>"+esc2(f.courseTitle)+" · "+esc2(f.question)+"</span>"+
+"<div class='dr-fa'>“"+esc2(f.answer)+"”</div></div>";}).join('')+"</div>";}
+if(rf.count===0){h+="<span class='dmut'>No reflections submitted yet.</span>";}
+else{h+="<div class='dr-l' style='margin-top:2px'>Their reflections <span class='dtag'>"+rf.count+" answers</span></div>"+
+"<div class='dr-rflist'>"+rf.rows.slice(0,12).map(function(row){
+return "<div class='dr-rf'><span class='dmut'>"+esc2(row.courseTitle)+(row.submittedAt?" · "+new Date(row.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span>"+
+"<div class='dr-rq'>"+esc2(row.question)+"</div><div class='dr-ra'>"+esc2(row.answer)+"</div></div>";}).join('')+"</div>"+
+(rf.count>12?"<span class='dmut'>Showing the latest 12 of "+rf.count+" — the reflections CSV has every answer.</span>":'');}
+el.innerHTML=h;}).catch(function(){var el=$('dr-reflect');if(el)el.innerHTML='';});}
 function renderCohorts(){var tags=DATA.tags||[];
 $('co-empty').hidden=tags.length>0;
 $('co-grid').innerHTML=tags.map(function(t){
@@ -625,6 +644,15 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dr-ready i{display:block;font-style:normal;font-size:10px;color:var(--mut);font-weight:700;}
 .dr-learn{border:1.5px solid #CBE3D4;background:#F3FAF6;border-radius:12px;padding:12px;margin-top:14px;}
 .dr-learn .dmut{display:block;margin-top:5px;}
+.dr-reflect{margin-top:14px;}
+.dr-flagbox{border:1.5px solid #F3C9C0;background:#FDF6F4;border-radius:12px;padding:12px;margin-bottom:12px;}
+.dr-flagbox>b{color:var(--orange);font-size:13px;}
+.dr-flag{margin-top:8px;font-size:12.5px;}
+.dr-fa{margin-top:3px;line-height:1.5;}
+.dr-rflist{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;margin-top:8px;}
+.dr-rf{border:1.5px solid var(--line);border-radius:11px;padding:10px 12px;font-size:12.5px;}
+.dr-rq{font-weight:600;color:var(--ink);margin-top:4px;}
+.dr-ra{margin-top:3px;line-height:1.5;}
 .dr-mods{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:7px 18px;}
 .dr-mod{display:grid;grid-template-columns:1fr 56px 34px;gap:8px;align-items:center;}
 .dr-mt{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}

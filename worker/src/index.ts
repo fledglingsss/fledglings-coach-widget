@@ -1582,6 +1582,24 @@ async function portalSession(c: {
   return portalCodeMeta(c, code);
 }
 
+/* Staff who hold learner-looking accounts (seat managers, tutors the
+ * platform has no staff flag for) — excluded from every learner
+ * surface. KV `ops:staff-emails` = JSON array of emails; editable
+ * without a deploy. Cached per-request only. */
+async function getStaffExclusions(env: Env): Promise<Set<string>> {
+  try {
+    const raw = await env.RATE_LIMITS.get("ops:staff-emails");
+    const list = JSON.parse(raw || "[]") as unknown;
+    return new Set(
+      (Array.isArray(list) ? list : [])
+        .filter((e): e is string => typeof e === "string")
+        .map((e) => e.toLowerCase()),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 function inScope(tags: string[] | undefined, tag: string | null): boolean {
   return tag === null || (tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase());
 }
@@ -1599,8 +1617,10 @@ async function portalSample(
 }> {
   const page = await listUsersPage(env, 1);
   const titles = await courseTitleMap(env);
+  const staffOut = await getStaffExclusions(env);
   const learners = page.users
     .filter(isLearner)
+    .filter((u) => !staffOut.has((u.email ?? "").toLowerCase()))
     .filter((u) => inScope(u.tags ?? [], tag))
     .slice(0, PORTAL_SAMPLE_SIZE);
   /* Parallel batches of 6 — serial took ~1.2s per learner and made a
@@ -1639,7 +1659,10 @@ interface RiskReport {
 }
 
 async function buildRiskReport(env: Env, now: Date): Promise<RiskReport> {
-  const users = (await listAllUsers(env)).filter(isLearner);
+  const staffSet = await getStaffExclusions(env);
+  const users = (await listAllUsers(env))
+    .filter(isLearner)
+    .filter((u) => !staffSet.has((u.email ?? "").toLowerCase()));
   let assessments = users.map((u) =>
     assessLearner(
       {
@@ -2624,7 +2647,9 @@ interface DashLearner {
     enrolled: number;
     completed: number;
     inProgress: number;
-    modules: Array<{ t: string; p: number; done: boolean }>;
+    /** Total study minutes across modules (0 until roster refresh). */
+    minutes: number;
+    modules: Array<{ t: string; p: number; done: boolean; mins: number }>;
   };
   /** Early-warning engine join: engagement tier + copy-ready nudge. */
   engagement: { tier: string | null; daysSinceLogin: number | null; nudge: string | null };
@@ -2692,6 +2717,9 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
         enrolled: modules.length,
         completed,
         inProgress: modules.filter((m) => !m.completed && (m.progressRate ?? 0) > 0).length,
+        minutes: Math.round(
+          modules.reduce((s, m) => s + (m.timeSeconds ?? 0), 0) / 60,
+        ),
         /* In-progress first (most actionable), untouched next,
          * completed last. */
         modules: modules
@@ -2699,6 +2727,7 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
             t: m.title,
             p: m.completed ? 100 : Math.round(m.progressRate ?? 0),
             done: m.completed,
+            mins: Math.round((m.timeSeconds ?? 0) / 60),
           }))
           .sort((a, b) =>
             (a.done ? 2 : a.p > 0 ? 0 : 1) - (b.done ? 2 : b.p > 0 ? 0 : 1) || b.p - a.p,
@@ -2720,7 +2749,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v10:${scopeKey}`;
+  const cacheKey = `dash:v11:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
@@ -2923,6 +2952,31 @@ app.get("/dashboard/cohorts.csv", async (c) => {
   } catch (err) {
     console.error("[coach] cohorts export error:", String(err));
     return c.json({ error: "export_failed" }, 500);
+  }
+});
+
+/* One learner's own reflections + wellbeing flags for the drill-in
+ * profile. Scope-guarded twice: the code's tag must cover the learner. */
+app.get("/dashboard/learner-reflections", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const email = (c.req.query("email") || "").trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) return c.json({ error: "invalid_email" }, 400);
+  try {
+    const state = await readReflections(c.env);
+    const tagPatch = JSON.parse(
+      (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+    ) as Record<string, string[]>;
+    const tags = tagPatch[email] ?? state.userTags[email] ?? [];
+    if (!inScope(tags, access.tag)) return c.json({ error: "out_of_scope" }, 403);
+    const rows = state.responses
+      .filter((r) => r.email.toLowerCase() === email)
+      .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
+    const flags = state.flags.filter((f) => f.email.toLowerCase() === email);
+    return c.json({ ok: true, count: rows.length, rows: rows.slice(0, 60), flags });
+  } catch (err) {
+    console.error("[coach] learner reflections error:", String(err));
+    return c.json({ error: "service_error" }, 500);
   }
 });
 
@@ -3822,7 +3876,10 @@ app.onError((err, c) => {
  * the stalest few learners' course progress (ROSTER_PER_TICK calls).
  * Gentle by construction — the API never sees a burst. */
 async function rosterTick(env: Env): Promise<void> {
-  const users = (await listAllUsers(env, 5)).filter(isLearner);
+  const staff = await getStaffExclusions(env);
+  const users = (await listAllUsers(env, 5))
+    .filter(isLearner)
+    .filter((u) => !staff.has((u.email ?? "").toLowerCase()));
   const now = Date.now();
   const snapshot = reconcileRoster(
     parseRoster(await env.RATE_LIMITS.get(ROSTER_KV_KEY)),

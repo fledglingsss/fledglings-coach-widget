@@ -243,6 +243,8 @@ export interface LwUserCourse {
   title: string;
   progressRate: number | null;
   completed: boolean;
+  /** Study time on the course in seconds; absent on older records. */
+  timeSeconds?: number;
 }
 
 /** A user's course enrolments with whatever progress detail the API
@@ -648,6 +650,7 @@ export async function accurateUserCourses(
       title: titles.get(r.courseId)!,
       progressRate: r.progressRate,
       completed: r.status === "completed",
+      timeSeconds: r.timeSeconds,
     }));
 }
 

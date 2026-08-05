@@ -464,7 +464,7 @@ export function renderOpsPage(label: string): string {
     "<input id='ob-mods' placeholder='Starter modules, comma-separated exact titles (optional, max 3)'>" +
     "</div>" +
     "<label style='display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;margin:12px 0'>" +
-    "<input type='checkbox' id='ob-email' style='width:17px;height:17px'> Send each learner LearnWorlds' welcome email with their sign-in link</label>" +
+    "<input type='checkbox' id='ob-email' style='width:17px;height:17px'> Send each learner the platform welcome email with their sign-in link</label>" +
     "<div class='actions'>" +
     "<button class='abtn sec' id='ob-dry' type='button'>Dry run (no changes)</button>" +
     "<button class='abtn' id='ob-go' type='button' disabled>Create cohort</button>" +
@@ -487,7 +487,7 @@ export function renderOpsPage(label: string): string {
     "var ok=function(b){return b?\"<b style='color:#1B7A4B'>✓</b>\":\"<b style='color:#D9452B'>✗</b>\"};" +
     "$('ops-status').innerHTML=" +
     "'<div class=srow>'+ok(s.apiKeyOk)+' Anthropic key</div>'+" +
-    "'<div class=srow>'+ok(s.learnworlds)+' LearnWorlds API</div>'+" +
+    "'<div class=srow>'+ok(s.learnworlds)+' Platform API</div>'+" +
     "'<div class=srow>'+ok(s.webhooks)+' Webhooks'+(s.lastWebhook?' · last event '+esc(s.lastWebhook):'')+'</div>'+" +
     "'<div class=srow>'+ok(!s.coachKilled&&!s.envKilled)+' Coach '+(s.coachKilled||s.envKilled?'PAUSED':'live')+'</div>'+" +
     "'<div class=srow>Risk snapshot: '+esc(s.riskBuilt||'not built')+'</div>'+" +
@@ -544,7 +544,7 @@ export function renderOpsPage(label: string): string {
     "else if(good===0){$('ob-prog').textContent='Nothing new to create.';}" +
     "else{$('ob-prog').textContent=good+' account'+(good===1?'':'s')+' ready — review, then press Create cohort.';}});};" +
     "$('ob-go').onclick=function(){var n=obRows().length;" +
-    "if(!confirm('Create '+n+' learner account'+(n===1?'':'s')+' in LearnWorlds now?'+($('ob-email').checked?' Welcome emails WILL be sent.':' No emails will be sent.')))return;" +
+    "if(!confirm('Create '+n+' learner account'+(n===1?'':'s')+' on the platform now?'+($('ob-email').checked?' Welcome emails WILL be sent.':' No emails will be sent.')))return;" +
     "obRun(false);};" +
     "$('bust-btn').onclick=function(){act('bust_caches',null,function(){flash();load();});};" +
     "$('feed-btn').onclick=function(){act('clear_feed',null,function(){flash();});};" +

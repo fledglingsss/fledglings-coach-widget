@@ -169,10 +169,10 @@ describe("GET /dashboard/data", () => {
     expect(amy.learning).toMatchObject({ enrolled: 2, completed: 1, inProgress: 1 });
     /* Per-module detail, in-progress first, completed last. */
     expect(
-      (amy.learning as unknown as { modules: Array<{ t: string; p: number; done: boolean }> }).modules,
+      (amy.learning as unknown as { modules: Array<{ t: string; p: number; done: boolean; mins: number }> }).modules,
     ).toEqual([
-      { t: "Cybersecurity Fundamentals", p: 40, done: false },
-      { t: "Budgeting That Actually Works", p: 100, done: true },
+      { t: "Cybersecurity Fundamentals", p: 40, done: false, mins: 0 },
+      { t: "Budgeting That Actually Works", p: 100, done: true, mins: 0 },
     ]);
     expect(amy.engagement.tier).toBe("ok");
     expect(amy.engagement.daysSinceLogin).toBe(2);
@@ -617,5 +617,56 @@ describe("POST /portal/login next handling", () => {
     );
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("/dashboard?login=failed");
+  });
+});
+
+describe("GET /dashboard/learner-reflections", () => {
+  const REAL_COURSES2 = Object.values(COURSE_MAP).filter((v) => v !== null).length;
+  async function seedState(env: Env) {
+    await env.RATE_LIMITS.put(
+      "portal:reflect:v4",
+      JSON.stringify({
+        status: "ready", responsesEnabled: true, cursor: REAL_COURSES2, totalCourses: REAL_COURSES2,
+        coverage: [], shifts: [],
+        flags: [{ email: "amy@swift.test", courseTitle: "Confidence", unitTitle: "Post", question: "How are you?", answer: "some days I do not want to be here", submittedAt: 1, matched: "crisis-language" }],
+        responses: [
+          { email: "amy@swift.test", courseTitle: "Budgeting", unitTitle: "Pre", kind: "pre", submittedAt: 2, question: "Q1", answer: "A1" },
+          { email: "cal@other.test", courseTitle: "Budgeting", unitTitle: "Pre", kind: "pre", submittedAt: 2, question: "Qx", answer: "Ax" },
+        ],
+        userTags: { "amy@swift.test": ["Swift Learners"], "cal@other.test": ["Other College"] },
+        preRespondents: [], postRespondents: [], builtAt: new Date().toISOString(),
+      }),
+    );
+  }
+
+  it("returns the learner's own rows and flags, in scope", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedState(env);
+    const res = await app.request(
+      get("/dashboard/learner-reflections?email=amy@swift.test", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(200);
+    const d = (await res.json()) as { ok: boolean; count: number; rows: Array<{ answer: string }>; flags: unknown[] };
+    expect(d.count).toBe(1);
+    expect(d.rows[0]!.answer).toBe("A1");
+    expect(d.flags).toHaveLength(1);
+  });
+
+  it("refuses learners outside the code's scope", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedState(env);
+    const res = await app.request(
+      get("/dashboard/learner-reflections?email=cal@other.test", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects without a session", async () => {
+    const res = await app.request(get("/dashboard/learner-reflections?email=a@b.co"), undefined, makeEnv());
+    expect(res.status).toBe(401);
   });
 });
