@@ -181,6 +181,15 @@ export function renderInterviewPage(): string {
     "<div class='r-headtxt'><div class='r-kind'>MOCK INTERVIEW · AI REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-meta'></div></div></div>" +
+    /* report sections — focused screens, print reveals everything */
+    "<div class='rtabs no-print' role='tablist'>" +
+    "<button type='button' class='rtab on' data-rp='overview' role='tab'>Overview</button>" +
+    "<button type='button' class='rtab' data-rp='delivery' role='tab'>Speech &amp; presence</button>" +
+    "<button type='button' class='rtab' data-rp='answers' role='tab'>Answer by answer</button>" +
+    "</div>" +
+
+    /* ---- overview ---- */
+    "<div class='rpanel' id='rp-overview'>" +
     /* breakdown — segmented pill bars like the reference design */
     "<div class='bgrid'>" +
     "<div class='bcard'><div class='b-l'>💬 Answer evaluation</div>" +
@@ -197,6 +206,12 @@ export function renderInterviewPage(): string {
     "<div class='card' id='qs-card' hidden><h3>Your answers at a glance</h3>" +
     "<div id='qs-chart'></div>" +
     "<p class='kw-note' style='margin:8px 0 0'>Tap a bar to jump to that answer's full breakdown.</p></div>" +
+    "<div class='card nextstep'><div class='ns-label'>PRACTISE THIS FIRST</div><div id='r-next'></div></div>" +
+    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "</div>" +
+
+    /* ---- speech & presence ---- */
+    "<div class='rpanel' id='rp-delivery' hidden>" +
     /* speech detail — gauge, fraction bars and a per-answer time chart */
     "<div class='card' id='sp-card' hidden><h3>Speech evaluation <span class='badge' id='sp-badge'></span></h3>" +
     "<div class='spgrid'>" +
@@ -219,13 +234,16 @@ export function renderInterviewPage(): string {
     "never used to judge you, and safely ignored if a disability or medical condition affects your posture, movement or " +
     "eye contact.</div>" +
     "<div class='prgrid' id='prgrid'></div></div>" +
+    "</div>" +
+
+    /* ---- answer by answer ---- */
+    "<div class='rpanel' id='rp-answers' hidden>" +
     /* scoring-in-progress banner */
     "<div class='scoringbar' id='scoringbar' hidden><span class='scoringdot' aria-hidden='true'></span>" +
     "<div><b>Fledge is scoring your interview…</b> Your recordings are already saved in <b>My recordings</b> — " +
     "rewatch them below, or leave and come back; the report attaches when it's ready.</div></div>" +
     "<div id='r-answers'></div>" +
-    "<div class='card nextstep'><div class='ns-label'>PRACTISE THIS FIRST</div><div id='r-next'></div></div>" +
-    "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
+    "</div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
     "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
@@ -587,7 +605,14 @@ window.scrollTo({top:0});});}
 function cleanupMedia(){sampleStop();stopSR();clearThink();
 if(recTimer){clearInterval(recTimer);recTimer=null}
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
-function repShowScoring(on){['scoringbar'].forEach(function(k){$(k).hidden=!on});}
+function rpGo(id){document.querySelectorAll('.rpanel').forEach(function(p){p.hidden=p.id!=='rp-'+id});
+document.querySelectorAll('.rtab').forEach(function(t){t.classList.toggle('on',t.dataset.rp===id);
+t.setAttribute('aria-selected',t.dataset.rp===id?'true':'false');});
+window.scrollTo({top:0,behavior:'smooth'});}
+document.querySelectorAll('.rtab').forEach(function(t){t.onclick=function(){rpGo(t.dataset.rp)}});
+function repShowScoring(on){['scoringbar'].forEach(function(k){$(k).hidden=!on});
+/* while scoring, the recordings (answers section) are the show */
+if(on)rpGo('answers');}
 function renderPendingReport(scoring){
 /* Recordings-first view: watchable instantly, report joins later.
  * Reset EVERY piece of report chrome a previously viewed scored
@@ -645,7 +670,7 @@ s+="<line x1='0' y1='"+base+"' x2='"+W+"' y2='"+base+"' stroke='#E3DDDA' stroke-
 s+="<line x1='0' y1='"+y+"' x2='"+W+"' y2='"+y+"' stroke='#F0EBE8' stroke-width='1'/>";});
 list.forEach(function(a,i){var c=band(a.score);var bw=34;var x=i*(W/n)+(W/n-bw)/2;
 var h=Math.max(3,(a.score/100)*maxH);var y=base-h;
-s+="<a href='#qrep-"+i+"'><rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='6' fill='"+c+"'/>"+
+s+="<a href='#qrep-"+i+"' data-qjump='"+i+"'><rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='6' fill='"+c+"'/>"+
 "<text x='"+(x+bw/2)+"' y='"+(y-7)+"' text-anchor='middle' font-size='13' font-weight='800' fill='"+c+"'>"+a.score+"</text>"+
 "<text x='"+(x+bw/2)+"' y='"+(base+18)+"' text-anchor='middle' font-size='11' font-weight='600' fill='#6A7A88'>Q"+(i+1)+"</text></a>";});
 return s+"</svg>";}
@@ -671,7 +696,7 @@ var word=metric.band==='great'?'Excellent':metric.band==='okay'?'Getting there':
 return "<div class='prstat'><div class='prring "+cls+"'><em>"+icon+"</em></div>"+
 "<b>"+esc2(label)+"</b><span class='pr-word "+cls+"'>"+word+"</span>"+
 "<div class='pr-pctbar'><i style='width:"+metric.pct+"%'></i></div><span class='pr-pct'>"+metric.pct+"% of your answer time</span></div>";}
-function renderReport(r){repShowScoring(false);var col=band(r.overall);
+function renderReport(r){repShowScoring(false);rpGo('overview');var col=band(r.overall);
 flCountUp($('r-score'),r.overall);$('r-score').style.color=col;
 $('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';
 $('r-verdict').textContent=r.verdict;
@@ -696,7 +721,11 @@ else{$('b-presence').textContent='—';$('b-presence-bar').innerHTML=seg5(0,'');
 $('b-presence-s').textContent='Not measured (no camera, or face checks unavailable)';}
 /* scores at a glance */
 if(r.answers&&r.answers.length){$('qs-card').hidden=false;
-$('qs-chart').innerHTML=qScoreChart(r.answers);}else{$('qs-card').hidden=true;}
+$('qs-chart').innerHTML=qScoreChart(r.answers);
+document.querySelectorAll('#qs-chart [data-qjump]').forEach(function(a){a.onclick=function(ev){
+ev.preventDefault();rpGo('answers');var t=$('qrep-'+a.dataset.qjump);
+if(t)setTimeout(function(){t.scrollIntoView({behavior:'smooth',block:'start'})},80);};});}
+else{$('qs-card').hidden=true;}
 if(r.speech){$('sp-card').hidden=false;$('sp-badge').textContent=r.speech.score+' / 10';
 /* every subfield guarded — a partial payload must never print
  * 'undefined' or 'NaN' at a learner */
@@ -1142,6 +1171,13 @@ const INTERVIEW_CSS = `
 .qc-row.good b{color:var(--ok);}
 .qc-row.sharper{background:#F4F8F5;}
 .qc-row.sharper b{color:var(--ok);}
+.rtabs{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 16px;}
+.rtab{border:1.5px solid var(--line,#E3DDDA);background:#fff;border-radius:999px;padding:9px 16px;
+  font-family:inherit;font-size:13px;font-weight:700;color:var(--ink,#25394B);cursor:pointer;}
+.rtab.on{background:var(--navy,#05253C);border-color:var(--navy,#05253C);color:#fff;}
+.rtab:hover:not(.on){border-color:var(--mango,#ED9249);}
+@media print{.rpanel{display:block!important;}
+.rpanel[hidden]{display:block!important;}}
 .nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
 .nextstep .ns-label{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:var(--orange);margin-bottom:6px;}
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
