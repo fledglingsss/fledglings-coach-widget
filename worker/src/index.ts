@@ -110,7 +110,7 @@ import {
   renderPassportPage,
   renderToolsPage,
 } from "./pages";
-import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalDashboard, renderPortalLogin } from "./pages-portal";
+import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalLogin } from "./pages-portal";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderDashboardPage } from "./pages-dashboard";
 import {
@@ -195,10 +195,8 @@ import {
 } from "./lib/webhooks";
 import {
   aggregate,
-  csvExport,
   EXCLUDED_TITLES,
   narrativeSystemPrompt,
-  type PortalStats,
 } from "./lib/portal";
 import {
   appendHistory,
@@ -206,7 +204,6 @@ import {
   sortAssessments,
   summarise,
   type RiskAssessment,
-  type RiskHistoryPoint,
   type RiskSummary,
 } from "./lib/risk";
 import { b64urlDecode, b64urlEncode, signPayload, verifyPayload } from "./lib/sign";
@@ -452,7 +449,11 @@ app.get("/preview", (c) =>
 /* Ops probe: verifies the stored LearnWorlds credentials by listing
  * courses (titles + ids — already public on the school site; no
  * secrets, no learner data). */
-app.get("/lw-check", async (c) => {
+/* Founder-only course-catalogue probe (verifies COURSE_MAP ids).
+ * HQ-gated: it names nothing vendor-side in the URL and costs one
+ * platform API call per use, so it must never be public. */
+app.get("/ops/course-check", async (c) => {
+  if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) {
     return c.json({ configured: false, ok: false });
   }
@@ -1832,6 +1833,9 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
     main.totalCourses === courseEntries.length;
   const mainFresh =
     mainUsable &&
+    /* Snapshots built before the learner filter existed still carry
+     * staff/test-account answers — serve them, but rebuild promptly. */
+    main.learnerEmails !== undefined &&
     now.getTime() - new Date(main.builtAt).getTime() <= REFLECT_MAX_AGE_MS;
   if (mainFresh) return main!;
 
@@ -1853,17 +1857,26 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
    * cohort scoping is self-contained. Retried on EVERY build step while
    * the map is empty — a transient failure here must never leave
    * scoped safeguarding flags silently hidden (QA 2026-07-22). */
-  if (Object.keys(state.userTags).length === 0) {
+  if (
+    Object.keys(state.userTags).length === 0 ||
+    (state.learnerEmails ?? []).length === 0
+  ) {
     try {
       const users = await listAllUsers(env, 5);
       calls += Math.max(1, Math.ceil(users.length / 100));
       for (const u of users) {
         if (u.email) state.userTags[u.email.toLowerCase()] = u.tags ?? [];
       }
+      /* Same role rule as everywhere else: only role-"user" accounts
+       * are learners. Their emails gate response ingestion below. */
+      state.learnerEmails = users
+        .filter(isLearner)
+        .map((u) => u.email!.toLowerCase());
     } catch {
       /* tags map is best-effort; scoping falls back to empty */
     }
   }
+  const learnerSet = new Set(state.learnerEmails ?? []);
 
   while (state.cursor < courseEntries.length && calls < REFLECT_CALL_BUDGET) {
     const [courseTitle, courseId] = courseEntries[state.cursor]!;
@@ -1905,6 +1918,12 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
           for (const raw of res.rows) {
             const parsed = parseResponse(raw);
             if (!parsed) continue;
+            /* Only learners' answers count — staff and platform test
+             * accounts answer assessments too, and an unattributable
+             * response can never be shown to a provider anyway. */
+            if (learnerSet.size > 0 && (!parsed.email || !learnerSet.has(parsed.email))) {
+              continue;
+            }
             (kind === "pre" ? pre : post).push(parsed);
             if (state.responses.length < RAW_ROWS_MAX) {
               state.responses.push(...rawRows(assessmentUnit, parsed));
@@ -3173,32 +3192,33 @@ app.get("/demo", (c) =>
  * check is needed to serve the shell. */
 app.get("/dashboard", (c) => c.html(renderDashboardPage()));
 
-app.get("/portal", async (c) => {
-  const access = await portalSession(c);
-  if (!access) return c.html(renderPortalLogin());
-  return c.html(renderPortalDashboard(access.label, access.tag));
-});
+/* The provider portal is the dashboard — one surface, per the
+ * founder's "all as one" call. The old /portal address stays as a
+ * redirect so bookmarks and issued links keep working. */
+app.get("/portal", (c) => c.redirect("/dashboard"));
 
 app.get("/portal/logout", (c) => {
   c.header(
     "Set-Cookie",
     PORTAL_COOKIE + "=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0",
   );
-  return c.redirect("/portal");
+  return c.redirect("/dashboard");
 });
 
 app.post("/portal/login", async (c) => {
   const form = await c.req.parseBody();
   const code = typeof form.code === "string" ? form.code.trim() : "";
   /* `next` is an allowlist, never a free redirect. */
-  const next = form.next === "/dashboard" ? "/dashboard" : "/portal";
+  const next = form.next === "/ops" ? "/ops" : "/dashboard";
   const meta = await portalCodeMeta(c, code);
   if (!meta) {
-    if (next === "/dashboard") return c.redirect("/dashboard?login=failed");
-    return c.html(
-      renderPortalLogin("That code didn't work — check it and try again, or contact Fledglings for access."),
-      401,
-    );
+    if (next === "/ops") {
+      return c.html(
+        renderPortalLogin("That code didn't work — check it and try again, or contact Fledglings for access."),
+        401,
+      );
+    }
+    return c.redirect("/dashboard?login=failed");
   }
   const sig = await signPayload(c.env.LEARNWORLDS_CLIENT_SECRET || "", `portal:${code}`);
   c.header(
@@ -3208,112 +3228,6 @@ app.post("/portal/login", async (c) => {
   return c.redirect(next);
 });
 
-app.get("/portal/data", async (c) => {
-  const access = await portalSession(c);
-  if (!access) return c.json({ error: "unauthorised" }, 401);
-  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
-
-  /* Cache is per scope — a tag-scoped code must never be served the
-   * whole-school payload. */
-  const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `portal:data:v8:${scopeKey}`;
-  const cached = await c.env.RATE_LIMITS.get(cacheKey);
-  if (cached) return c.json(JSON.parse(cached));
-
-  try {
-    const { totalUsers, sample } = await portalSample(c.env, access.tag);
-    const stats = aggregate(totalUsers, sample, new Date());
-    const riskAll = await getRiskReport(c.env);
-    const learners = riskAll.learners.filter((a) => inScope(a.tags, access.tag));
-    const summary = access.tag ? summarise(learners, new Date()) : riskAll.summary;
-    const history = access.tag
-      ? [] /* history is school-wide; scoped views grow their own later */
-      : (JSON.parse(
-          (await c.env.RATE_LIMITS.get(RISK_HISTORY_KEY)) || "[]",
-        ) as RiskHistoryPoint[]);
-
-    /* Distinct cohorts (whole-school codes only) power the in-page
-     * cohort switcher. */
-    const cohortCounts = new Map<string, number>();
-    if (!access.tag) {
-      for (const a of riskAll.learners) {
-        for (const t of a.tags) cohortCounts.set(t, (cohortCounts.get(t) ?? 0) + 1);
-      }
-    }
-
-    /* Full tag inventory from the sampled ACCOUNTS (not just learners
-     * with reflections) — the backbone for the provider dashboard's
-     * tag/cohort views. Scoped codes see only tags co-occurring on
-     * learners inside their scope. */
-    const tagCounts = new Map<string, number>();
-    for (const { user } of sample) {
-      for (const t of user.tags ?? []) {
-        tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
-      }
-    }
-    const tagInventory = [...tagCounts.entries()]
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => b.count - a.count);
-
-    /* The narrative is generated lazily by /portal/narrative — keeping
-     * a Sonnet call off this endpoint's critical path (QA 2026-07-22:
-     * it was part of a 33s cold load). */
-    /* Curriculum impact: module stats rolled up to the four learning
-     * areas (+ deep dives) for the framework-style overview bars. */
-    const areaOrder = [
-      "Financial Literacy",
-      "Employability Skills",
-      "Confidence & Resilience",
-      "Staying Safe Online",
-      "Deep Dive Mini Series",
-    ];
-    const byArea = new Map<string, { enrolled: number; completed: number }>();
-    for (const cs of stats.courseStats) {
-      const area = groupForTitle(cs.title);
-      const entry = byArea.get(area) ?? { enrolled: 0, completed: 0 };
-      entry.enrolled += cs.enrolled;
-      entry.completed += cs.completed;
-      byArea.set(area, entry);
-    }
-    const curriculum = areaOrder
-      .filter((a) => byArea.has(a))
-      .map((a) => {
-        const e = byArea.get(a)!;
-        return {
-          area: a,
-          enrolled: e.enrolled,
-          completed: e.completed,
-          pct: e.enrolled ? Math.round((e.completed / e.enrolled) * 100) : 0,
-        };
-      });
-
-    const payload = {
-      stats,
-      curriculum,
-      risk: { summary, learners },
-      history,
-      scopedTag: access.tag,
-      cohorts: [...cohortCounts.entries()]
-        .map(([tag, count]) => ({ tag, count }))
-        .sort((a, b) => b.count - a.count),
-      /* Learner tags for the dashboard: every tag seen across the
-       * sampled accounts with how many learners carry it, plus the
-       * sample context needed to read the numbers honestly. */
-      tags: {
-        inventory: tagInventory,
-        sampleSize: sample.length,
-        totalUsers,
-      },
-    };
-    await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
-      expirationTtl: PORTAL_CACHE_TTL,
-    });
-    return c.json(payload);
-  } catch (err) {
-    console.error("[coach] portal data error:", String(err));
-    return c.json({ error: "service_error" });
-  }
-});
 
 /* ==================================================================
  * Module health — per-unit stall analysis (school-wide analytics),
@@ -3730,43 +3644,31 @@ app.get("/inspect", async (c) => {
   try {
     const tag = grant.tag ?? null;
     const scopeKey = tag ? tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-    /* Reuse the portal's cached aggregates when warm; build otherwise. */
-    let stats: PortalStats;
-    let summary: RiskSummary;
-    let curriculum: Array<{ area: string; enrolled: number; completed: number; pct: number }>;
-    const dataRaw = await c.env.RATE_LIMITS.get(`portal:data:v7:${scopeKey}`);
-    if (dataRaw) {
-      const cachedPayload = JSON.parse(dataRaw) as {
-        stats: PortalStats;
-        risk: { summary: RiskSummary };
-        curriculum: typeof curriculum;
-      };
-      stats = cachedPayload.stats;
-      summary = cachedPayload.risk.summary;
-      curriculum = cachedPayload.curriculum ?? [];
-    } else {
-      const { totalUsers, sample } = await portalSample(c.env, tag);
-      stats = aggregate(totalUsers, sample, new Date());
-      const riskAll = await getRiskReport(c.env);
-      const learners = riskAll.learners.filter((a) => inScope(a.tags, tag));
-      summary = tag ? summarise(learners, new Date()) : riskAll.summary;
-      const byArea = new Map<string, { enrolled: number; completed: number }>();
-      for (const cs of stats.courseStats) {
-        const area = groupForTitle(cs.title);
-        const entry = byArea.get(area) ?? { enrolled: 0, completed: 0 };
-        entry.enrolled += cs.enrolled;
-        entry.completed += cs.completed;
-        byArea.set(area, entry);
-      }
-      curriculum = [...byArea.entries()].map(([area, e]) => ({
-        area,
-        enrolled: e.enrolled,
-        completed: e.completed,
-        pct: e.enrolled ? Math.round((e.completed / e.enrolled) * 100) : 0,
-      }));
+    /* Aggregates come from the rolling roster snapshot — pure KV, so
+     * an inspector opening this link never bursts the platform API. */
+    const { totalUsers, sample } = await dashboardRows(c.env, tag);
+    /* A scoped snapshot's population IS the scope — quoting the
+     * whole-school total against cohort figures misstates the reach. */
+    const stats = aggregate(tag ? sample.length : totalUsers, sample, new Date());
+    const riskAll = await getRiskReport(c.env);
+    const learners = riskAll.learners.filter((a) => inScope(a.tags, tag));
+    const summary = tag ? summarise(learners, new Date()) : riskAll.summary;
+    const byArea = new Map<string, { enrolled: number; completed: number }>();
+    for (const cs of stats.courseStats) {
+      const area = groupForTitle(cs.title);
+      const entry = byArea.get(area) ?? { enrolled: 0, completed: 0 };
+      entry.enrolled += cs.enrolled;
+      entry.completed += cs.completed;
+      byArea.set(area, entry);
     }
+    const curriculum = [...byArea.entries()].map(([area, e]) => ({
+      area,
+      enrolled: e.enrolled,
+      completed: e.completed,
+      pct: e.enrolled ? Math.round((e.completed / e.enrolled) * 100) : 0,
+    }));
     const narrative =
-      (await c.env.RATE_LIMITS.get(`portal:narrative:v1:${scopeKey}`)) ??
+      (await c.env.RATE_LIMITS.get(`portal:narrative:v2:${scopeKey}`)) ??
       "The provider can generate the written narrative from their portal; the figures above are live from the platform.";
     const activePct = summary.learners
       ? Math.round((summary.activeLast7Days / summary.learners) * 100)
@@ -3832,28 +3734,19 @@ app.get("/portal/narrative", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `portal:narrative:v1:${scopeKey}`;
+  const cacheKey = `portal:narrative:v2:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json({ narrative: cached });
   try {
-    /* Reuse the cached dashboard payload when present; otherwise build. */
-    const dataRaw = await c.env.RATE_LIMITS.get(`portal:data:v7:${scopeKey}`);
-    let stats: PortalStats;
-    let summary: RiskSummary;
-    if (dataRaw) {
-      const d = JSON.parse(dataRaw) as {
-        stats: PortalStats;
-        risk: { summary: RiskSummary };
-      };
-      stats = d.stats;
-      summary = d.risk.summary;
-    } else {
-      const { totalUsers, sample } = await portalSample(c.env, access.tag);
-      stats = aggregate(totalUsers, sample, new Date());
-      const riskAll = await getRiskReport(c.env);
-      const learners = riskAll.learners.filter((a) => inScope(a.tags, access.tag));
-      summary = access.tag ? summarise(learners, new Date()) : riskAll.summary;
-    }
+    /* Aggregates come from the rolling roster snapshot — pure KV
+     * reads, so generating a narrative never bursts the platform API. */
+    const { totalUsers, sample } = await dashboardRows(c.env, access.tag);
+    /* Scoped narratives must quote the scope's own population, never
+     * the whole-school total. */
+    const stats = aggregate(access.tag ? sample.length : totalUsers, sample, new Date());
+    const riskAll = await getRiskReport(c.env);
+    const learners = riskAll.learners.filter((a) => inScope(a.tags, access.tag));
+    const summary = access.tag ? summarise(learners, new Date()) : riskAll.summary;
     const narrative = await generate(
       c.env.ANTHROPIC_API_KEY,
       c.env.COACH_MODEL || "claude-sonnet-4-6",
@@ -3904,31 +3797,6 @@ app.get("/portal/feed", async (c) => {
     lastEvent: (await c.env.RATE_LIMITS.get(HOOK_SEEN_KV_KEY)) || null,
     feed: scoped.slice(0, 30),
   });
-});
-
-app.get("/portal/export.csv", async (c) => {
-  const access = await portalSession(c);
-  if (!access) return c.json({ error: "unauthorised" }, 401);
-  if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
-  try {
-    const { sample } = await portalSample(c.env, access.tag);
-    let riskByEmail: Map<string, { tier: string; daysSinceLogin: number | null }> | undefined;
-    try {
-      const risk = await getRiskReport(c.env);
-      riskByEmail = new Map(
-        risk.learners.map((a) => [a.email, { tier: a.tier, daysSinceLogin: a.daysSinceLogin }]),
-      );
-    } catch {
-      /* CSV still exports without risk columns filled. */
-    }
-    return c.body(csvExport(sample, riskByEmail), 200, {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": "attachment; filename=fledglings-learners.csv",
-    });
-  } catch (err) {
-    console.error("[coach] portal csv error:", String(err));
-    return c.json({ error: "service_error" });
-  }
 });
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));

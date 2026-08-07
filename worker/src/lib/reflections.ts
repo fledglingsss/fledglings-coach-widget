@@ -298,6 +298,12 @@ export interface ReflectionsState {
   /** email (lowercased) -> LearnWorlds tags, captured in the same
    * sweep so cohort scoping never depends on another cache. */
   userTags: Record<string, string[]>;
+  /** Lowercased emails of role-"user" accounts at sweep time. Staff,
+   * admin and platform-support accounts also answer assessments while
+   * testing modules — their responses must never reach a provider's
+   * reflections view or skew the confidence shifts. Absent on
+   * pre-filter snapshots, which marks them due for a rebuild. */
+  learnerEmails?: string[];
   /** emails seen per kind, for the completion stat */
   preRespondents: string[];
   postRespondents: string[];
@@ -315,6 +321,7 @@ export function emptyState(totalCourses: number, now: Date): ReflectionsState {
     flags: [],
     responses: [],
     userTags: {},
+    learnerEmails: [],
     preRespondents: [],
     postRespondents: [],
     builtAt: now.toISOString(),

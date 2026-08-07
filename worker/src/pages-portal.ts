@@ -390,6 +390,7 @@ export function renderPortalLogin(error?: string): string {
       "<div class='login-r'>" +
       (error ? `<div class='err'>${esc(error)}</div>` : "") +
       "<form method='POST' action='/portal/login'>" +
+      "<input type='hidden' name='next' value='/ops'>" +
       "<h3>Sign in</h3>" +
       "<label for='code'>Access code</label>" +
       "<input type='text' id='code' name='code' autocomplete='off' required placeholder='Issued by Fledglings'>" +

@@ -15,18 +15,22 @@ vi.mock("../src/lib/learnworlds", async (importOriginal) => {
     courseTitleMap: vi.fn().mockResolvedValue(new Map()),
     accurateUserCourses: vi.fn(),
     getUserByEmail: vi.fn(),
+    getCourseContents: vi.fn(),
+    getAssessmentResponses: vi.fn(),
   };
 });
 
-import { app, type Env } from "../src/index";
+import worker, { app, type Env } from "../src/index";
 import { hashLearnerId } from "../src/lib/rate-limit";
 import { signPayload } from "../src/lib/sign";
-import { accurateUserCourses, getUserByEmail, listAllUsers, listUsersPage } from "../src/lib/learnworlds";
+import { accurateUserCourses, getAssessmentResponses, getCourseContents, getUserByEmail, listAllUsers, listUsersPage } from "../src/lib/learnworlds";
 
 const listUsersMock = vi.mocked(listUsersPage);
 const listAllMock = vi.mocked(listAllUsers);
 const getUserMock = vi.mocked(getUserByEmail);
 const coursesMock = vi.mocked(accurateUserCourses);
+const contentsMock = vi.mocked(getCourseContents);
+const responsesMock = vi.mocked(getAssessmentResponses);
 
 const SECRET = "lw-secret";
 const NOW_SECS = Math.floor(Date.now() / 1000);
@@ -606,7 +610,17 @@ describe("POST /portal/login next handling", () => {
       undefined,
       env,
     );
-    expect(res.headers.get("Location")).toBe("/portal");
+    expect(res.headers.get("Location")).toBe("/dashboard");
+  });
+
+  it("sends the old /portal address to the dashboard", async () => {
+    const res = await app.request(
+      new Request("http://coach.test/portal"),
+      undefined,
+      makeEnv(),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe("/dashboard");
   });
 
   it("bounces a bad code back to the dashboard login with the error flag", async () => {
@@ -617,6 +631,24 @@ describe("POST /portal/login next handling", () => {
     );
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("/dashboard?login=failed");
+  });
+
+  it("keeps the course-catalogue probe founder-only", async () => {
+    const res = await app.request(
+      new Request("http://coach.test/ops/course-check"),
+      undefined,
+      makeEnv(),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("no longer serves the vendor-named check route", async () => {
+    const res = await app.request(
+      new Request("http://coach.test/lw-check"),
+      undefined,
+      makeEnv(),
+    );
+    expect(res.status).toBe(404);
   });
 });
 
@@ -690,5 +722,72 @@ describe("role-based learner filter", () => {
     expect(d.learners.some((l) => l.email === "manager@swift.test")).toBe(false);
     /* ordinary role:"user" accounts still count */
     expect(d.learners.some((l) => l.email === "amy@swift.test")).toBe(true);
+  });
+});
+
+describe("reflections sweep learner filter", () => {
+  it("keeps staff and platform test-account answers out of the built snapshot", async () => {
+    const env = makeEnv();
+    const learner = {
+      id: "u1", email: "amy@swift.test", first_name: "Amy",
+      tags: ["Swift Learners"], role: { level: "user", name: "User" },
+      created: NOW - 60 * 86_400, last_login: NOW - 2 * 86_400,
+    };
+    const vendorAdmin = {
+      id: "u9", email: "support@vendor.test", first_name: "Tech",
+      is_admin: true, tags: [], role: { level: false, name: "Admin" },
+      created: NOW - 900 * 86_400, last_login: NOW - 86_400,
+    };
+    listAllMock.mockResolvedValue([learner, vendorAdmin] as never);
+    listUsersMock.mockResolvedValue({ users: [learner, vendorAdmin], totalItems: 2 } as never);
+    coursesMock.mockResolvedValue([] as never);
+    contentsMock.mockResolvedValue([
+      { id: "unit-1", title: "Initial Self - Reflection", type: "assessmentV2" },
+    ] as never);
+    responsesMock.mockResolvedValue({
+      rows: [
+        {
+          user_id: "u1", email: "amy@swift.test", submittedTimestamp: 1_753_000_000,
+          answers: [{ description: "How confident are you?", answer: "7 / 10" }],
+        },
+        {
+          user_id: "u9", email: "support@vendor.test", submittedTimestamp: 1_753_000_000,
+          answers: [{ description: "How confident are you?", answer: "0 / 10" }],
+        },
+      ],
+      totalPages: 1,
+    } as never);
+
+    /* Drive the real 5-minute tick until the budgeted sweep finishes —
+     * the same path production uses, so the filter is tested where it
+     * lives. */
+    const waits: Promise<unknown>[] = [];
+    const ctx = { waitUntil: (p: Promise<unknown>) => waits.push(p) } as unknown as ExecutionContext;
+    for (let i = 0; i < 10; i++) {
+      await worker.scheduled(
+        { cron: "*/5 * * * *" } as unknown as ScheduledController,
+        env,
+        ctx,
+      );
+      await Promise.all(waits.splice(0));
+      const built = env.RATE_LIMITS.store.get("portal:reflect:v4");
+      if (built && (JSON.parse(built) as { status: string }).status === "ready") break;
+    }
+
+    const raw = env.RATE_LIMITS.store.get("portal:reflect:v4");
+    expect(raw).toBeTruthy();
+    const state = JSON.parse(raw!) as {
+      status: string;
+      learnerEmails: string[];
+      responses: Array<{ email: string }>;
+      preRespondents: string[];
+    };
+    expect(state.status).toBe("ready");
+    expect(state.learnerEmails).toContain("amy@swift.test");
+    expect(state.learnerEmails).not.toContain("support@vendor.test");
+    const emails = state.responses.map((r) => r.email);
+    expect(emails).toContain("amy@swift.test");
+    expect(emails).not.toContain("support@vendor.test");
+    expect(state.preRespondents).not.toContain("support@vendor.test");
   });
 });

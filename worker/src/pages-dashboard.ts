@@ -17,6 +17,7 @@ const ICONS: Record<string, string> = {
   csv: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12m0 0 4-4m-4 4-4-4'/><path d='M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/></svg>",
   hub: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14 5h5v5M19 5l-8 8'/><path d='M19 14v5H5V5h5'/></svg>",
   reflect: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.5-2.7A8 8 0 1 1 21 12z'/><path d='M9 10h6M9 13.5h4'/></svg>",
+  shield: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z'/><path d='m9 12 2 2 4-4.5'/></svg>",
 };
 
 export function renderDashboardPage(): string {
@@ -32,6 +33,7 @@ export function renderDashboardPage(): string {
     nav("cohorts", "cohorts", "Cohorts") +
     nav("reflections", "reflect", "Reflections") +
     nav("analytics", "analytics", "Analytics") +
+    nav("evidence", "shield", "Evidence") +
     "<div class='dsec'>Administration</div>" +
     `<a class='dn' href='/dashboard/export.csv'>${ICONS.csv}<span>Download CSV</span></a>` +
     `<a class='dn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub}<span>Student view</span></a>` +
@@ -157,6 +159,27 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h3>Average job-ready score by cohort</h3><div id='ch-cohorts'></div></div>" +
     "</section>" +
 
+    /* ---------- evidence (SAR narrative + inspector link) ---------- */
+    "<section class='dview' id='v-evidence' hidden>" +
+    "<div class='dcard'><h3>Evidence narrative</h3>" +
+    "<p class='dmut'>Three short paragraphs drafted from your live aggregate figures — ready to paste into a self-assessment " +
+    "report or personal development evidence. Honest about what the data can and cannot claim; no learner is ever named.</p>" +
+    "<div class='evnarr' id='ev-narr'><div class='dempty' id='ev-narr-wait'>Drafting from your live figures — this takes a few seconds…</div></div>" +
+    "<div class='dbar' style='margin-top:12px'>" +
+    "<button type='button' class='dbtn ghost' id='ev-copy' hidden>📋 Copy narrative</button>" +
+    "<span class='dtag' id='ev-copied' hidden>Copied ✓</span></div></div>" +
+    "<div class='dcard'><h3>Inspector link</h3>" +
+    "<p class='dmut'>A read-only evidence snapshot you can hand to an inspector or governor — aggregate figures and the narrative " +
+    "only, no learner names or emails anywhere on it. Each link works for 7 days; create a fresh one any time.</p>" +
+    "<div class='dbar'><button type='button' class='dbtn' id='ev-link-make'>🔗 Create inspector link (7 days)</button></div>" +
+    "<div id='ev-link-out' hidden style='margin-top:10px'>" +
+    "<input type='text' id='ev-link-url' readonly style='width:100%;padding:10px 12px;border:1px solid #E3DDDA;border-radius:10px;font-size:13px'>" +
+    "<div class='dbar' style='margin-top:8px'>" +
+    "<button type='button' class='dbtn ghost' id='ev-link-copy'>📋 Copy link</button>" +
+    "<a class='dbtn ghost' id='ev-link-open' target='_blank' rel='noopener'>↗ Preview it</a>" +
+    "<span class='dtag' id='ev-link-copied' hidden>Copied ✓</span></div></div></div>" +
+    "</section>" +
+
     "<p class='dnote'>Scores, attempts and timestamps only — learner documents, letters and recordings are never stored. " +
     "Self-reflections are read straight from learners&#39; own course records. Coverage: <span id='dsample'></span>.</p>" +
     "</div>" +
@@ -202,6 +225,7 @@ students:['Students','Every learner in your scope with their employability recor
 cohorts:['Cohorts','Groups by cohort tag'],
 reflections:['Self-Reflections','What learners say before and after each module — in their own words'],
 analytics:['Analytics','Adoption, scores and activity — visual first'],
+evidence:['Evidence','Inspection-ready narrative and a shareable read-only snapshot'],
 profile:['Learner profile','Their full record — modules, time, reflections, career tools']};
 function go(v){view=v;
 document.querySelectorAll('.dn[data-view]').forEach(function(b){b.classList.toggle('on',b.dataset.view===v)});
@@ -212,7 +236,8 @@ $('dh-title').textContent=TITLES[v][0];$('dh-sub').textContent=TITLES[v][1];
 if(v==='students')renderStudents();
 if(v==='cohorts')renderCohorts();
 if(v==='reflections')loadReflections();
-if(v==='analytics'){renderAnalytics();loadStalls();}}
+if(v==='analytics'){renderAnalytics();loadStalls();}
+if(v==='evidence')loadEvidence();}
 document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){go(b.dataset.view)})});
 $('prof-back').addEventListener('click',function(){go('students')});
 /* ---------- charts (inline SVG) ---------- */
@@ -566,6 +591,30 @@ if(!reps.length){el.innerHTML="<div class='dempty'>"+(d&&d.status==='building'?'
 el.innerHTML=hbar(reps.slice(0,8).map(function(rep){
 return {l:rep.title,v:rep.retention,r:rep.retention+'% finish'+(rep.stallUnit?' · stalls at “'+rep.stallUnit+'”':''),c:rep.retention>=60?'#1B7A4B':rep.retention>=35?'#ED9249':'#D9452B'};}),100);})
 .catch(function(){var el=$('ch-stalls');if(el)el.innerHTML='';});}
+/* ---------- evidence: narrative + inspector link ---------- */
+var evidenceLoaded=false;
+function loadEvidence(){if(evidenceLoaded)return;evidenceLoaded=true;
+fetch('/portal/narrative').then(function(r){return r.json()}).then(function(d){
+var text=(d&&d.narrative)||'Narrative unavailable just now — refresh to retry.';
+$('ev-narr').innerHTML=text.split(/\n{2,}|\n/).filter(function(p){return p.trim()})
+.map(function(p){return '<p>'+esc2(p)+'</p>'}).join('');
+$('ev-copy').hidden=false;
+$('ev-copy').onclick=function(){
+try{navigator.clipboard.writeText(text);}catch(e){}
+$('ev-copied').hidden=false;setTimeout(function(){$('ev-copied').hidden=true},1600);};})
+.catch(function(){evidenceLoaded=false;
+$('ev-narr').innerHTML="<div class='dempty'>Could not draft the narrative — leave this view and come back to retry.</div>";});}
+$('ev-link-make').onclick=function(){
+$('ev-link-make').disabled=true;
+fetch('/portal/inspect-link',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
+$('ev-link-make').disabled=false;
+if(!d||!d.url)return;
+var abs=location.origin+d.url;
+$('ev-link-out').hidden=false;$('ev-link-url').value=abs;$('ev-link-open').href=abs;})
+.catch(function(){$('ev-link-make').disabled=false;});};
+$('ev-link-copy').onclick=function(){var inp=$('ev-link-url');inp.select();
+try{navigator.clipboard.writeText(inp.value);}catch(e){document.execCommand('copy');}
+$('ev-link-copied').hidden=false;setTimeout(function(){$('ev-link-copied').hidden=true},1600);};
 /* ---------- boot ---------- */
 fetch('/dashboard/data').then(function(r){
 if(r.status===401){document.querySelectorAll('.dview').forEach(function(s){s.hidden=true});
@@ -777,6 +826,10 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dlogin input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-family:inherit;
   font-size:14px;margin-bottom:12px;}
 .dnote{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.5;}
+.evnarr{background:#FAF8F7;border:1px solid var(--line);border-left:3px solid var(--orange);
+  border-radius:12px;padding:16px 18px;margin-top:12px;}
+.evnarr p{font-size:14px;line-height:1.65;color:var(--ink);}
+.evnarr p+p{margin-top:10px;}
 @media(max-width:820px){.dside{width:74px;padding:16px 8px;}
 .dn span,.dsec,.dscope,.dout,.dlogo{display:none;}
 .dn{justify-content:center;}
