@@ -23,6 +23,7 @@ vi.mock("../src/lib/learnworlds", async (importOriginal) => {
 import worker, { app, type Env } from "../src/index";
 import { hashLearnerId } from "../src/lib/rate-limit";
 import { signPayload } from "../src/lib/sign";
+import { mintIdentityToken } from "../src/lib/identity";
 import { accurateUserCourses, getAssessmentResponses, getCourseContents, getUserByEmail, listAllUsers, listUsersPage } from "../src/lib/learnworlds";
 
 const listUsersMock = vi.mocked(listUsersPage);
@@ -518,13 +519,60 @@ describe("GET /dashboard/reflections.csv", () => {
 describe("POST /api/hub greeting", () => {
   const DEVICE = "d".repeat(32);
 
-  function hubReq(email?: string) {
+  /* Identity is a signed token now: the test mints one the way
+   * /api/identity does, for this device. */
+  async function tokenFor(email: string, device = DEVICE) {
+    const deviceHash16 = (await hashLearnerId(device)).slice(0, 16);
+    return mintIdentityToken(SECRET, email, deviceHash16, Math.floor(Date.now() / 1000));
+  }
+
+  async function hubReq(email?: string) {
+    const body: Record<string, unknown> = { learner_id: DEVICE };
+    if (email) body.token = await tokenFor(email);
     return new Request("http://coach.test/api/hub", {
       method: "POST",
       headers: { "Content-Type": "application/json", Origin: "https://www.fledglings.co" },
-      body: JSON.stringify({ learner_id: DEVICE, email }),
+      body: JSON.stringify(body),
     });
   }
+
+  it("IGNORES a raw email in the body — only a signed token counts", async () => {
+    const env = makeEnv();
+    getUserMock.mockResolvedValue({ id: "u1", email: "amy@swift.test", username: "AmyAsh" } as never);
+    const res = await app.request(
+      new Request("http://coach.test/api/hub", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://www.fledglings.co" },
+        body: JSON.stringify({ learner_id: DEVICE, email: "amy@swift.test" }),
+      }),
+      undefined,
+      env,
+    );
+    const data = (await res.json()) as { ok: boolean; name?: string };
+    expect(data.ok).toBe(true);
+    /* No identity was established, so no lookup and no greeting. */
+    expect(data.name).toBeUndefined();
+    expect(getUserMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a token minted for a different device (stolen link)", async () => {
+    const env = makeEnv();
+    getUserMock.mockResolvedValue({ id: "u1", email: "amy@swift.test", username: "AmyAsh" } as never);
+    const stolen = await tokenFor("amy@swift.test", "other-device-entirely-1234567890ab");
+    const res = await app.request(
+      new Request("http://coach.test/api/hub", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://www.fledglings.co" },
+        body: JSON.stringify({ learner_id: DEVICE, token: stolen }),
+      }),
+      undefined,
+      env,
+    );
+    const data = (await res.json()) as { ok: boolean; name?: string };
+    expect(data.ok).toBe(true);
+    expect(data.name).toBeUndefined();
+    expect(getUserMock).not.toHaveBeenCalled();
+  });
 
   it("returns the learner's first name and caches it", async () => {
     const env = makeEnv();
@@ -533,32 +581,32 @@ describe("POST /api/hub greeting", () => {
       email: "amy@swift.test",
       username: "AmyAsh",
     } as never);
-    const res = await app.request(hubReq("amy@swift.test"), undefined, env);
+    const res = await app.request(await hubReq("amy@swift.test"), undefined, env);
     const data = (await res.json()) as { ok: boolean; name?: string };
     expect(data.ok).toBe(true);
     expect(data.name).toBe("Amy");
     /* Second call hits the cache — LearnWorlds asked exactly once. */
-    await app.request(hubReq("amy@swift.test"), undefined, env);
+    await app.request(await hubReq("amy@swift.test"), undefined, env);
     expect(getUserMock).toHaveBeenCalledTimes(1);
   });
 
   it("omits the name for unknown emails and survives LW failures", async () => {
     const env = makeEnv();
     getUserMock.mockResolvedValue(null as never);
-    const res = await app.request(hubReq("nobody@x.test"), undefined, env);
+    const res = await app.request(await hubReq("nobody@x.test"), undefined, env);
     const data = (await res.json()) as { ok: boolean; name?: string };
     expect(data.ok).toBe(true);
     expect(data.name).toBeUndefined();
 
     getUserMock.mockRejectedValue(new Error("lw down"));
-    const res2 = await app.request(hubReq("other@x.test"), undefined, env);
+    const res2 = await app.request(await hubReq("other@x.test"), undefined, env);
     const data2 = (await res2.json()) as { ok: boolean; name?: string };
     expect(data2.ok).toBe(true);
     expect(data2.name).toBeUndefined();
   });
 
   it("skips the lookup entirely without an email", async () => {
-    const res = await app.request(hubReq(), undefined, makeEnv());
+    const res = await app.request(await hubReq(), undefined, makeEnv());
     const data = (await res.json()) as { ok: boolean; name?: string };
     expect(data.ok).toBe(true);
     expect(getUserMock).not.toHaveBeenCalled();
@@ -567,7 +615,7 @@ describe("POST /api/hub greeting", () => {
   it("returns the learner's own module progress, cached", async () => {
     const env = makeEnv();
     getUserMock.mockResolvedValue({ id: "u1", email: "amy@swift.test" } as never);
-    const res = await app.request(hubReq("amy@swift.test"), undefined, env);
+    const res = await app.request(await hubReq("amy@swift.test"), undefined, env);
     const data = (await res.json()) as {
       ok: boolean;
       learning?: { enrolled: number; completed: number; inProgress: number };
@@ -575,7 +623,7 @@ describe("POST /api/hub greeting", () => {
     expect(data.ok).toBe(true);
     expect(data.learning).toEqual({ enrolled: 2, completed: 1, inProgress: 1 });
     /* Second call rides the 10-minute cache — no second progress fetch. */
-    await app.request(hubReq("amy@swift.test"), undefined, env);
+    await app.request(await hubReq("amy@swift.test"), undefined, env);
     expect(coursesMock).toHaveBeenCalledTimes(1);
   });
 });

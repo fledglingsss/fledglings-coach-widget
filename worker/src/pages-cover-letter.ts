@@ -157,7 +157,7 @@ function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16
 var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');
 var $=function(id){return document.getElementById(id)};
 var params=new URLSearchParams(location.search);
-var hubEmail=flResolveEmail();flIdentityChip();
+var hubEmail=flResolveEmail();flIdentityInit(lid);
 function show(id){['s-in','s-wait','s-msg','s-out'].forEach(function(k){$(k).hidden=k!==id});}
 /* guided steps */
 function clGo(n){[1,2,3].forEach(function(i){
@@ -231,7 +231,7 @@ clErr('');show('s-wait');
 var pasted=$('cl-cv').value.trim();
 fetch('/api/cover-letter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
 learner_id:lid,session_id:sid,jd:jd,cv_text:(pasted||cvText).slice(0,9000),
-role:$('cl-role').value,company:$('cl-company').value,email:hubEmail})})
+role:$('cl-role').value,company:$('cl-company').value,token:flToken()})})
 .then(function(r){return r.json()}).then(function(d){
 if(d&&d.draft){renderLetter(d.draft);show('s-out');window.scrollTo({top:0,behavior:'smooth'});return;}
 $('msgtext').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('s-msg');})

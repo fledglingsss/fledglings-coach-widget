@@ -611,26 +611,52 @@
 
   var open = false;
   /* Continue where you left off — once per session, on first open. */
-  function offerNextStep() {
-    if (!learnerEmail) return;
-    try {
-      if (sessionStorage.getItem("fl_coach_nextstep_v1")) return;
-      sessionStorage.setItem("fl_coach_nextstep_v1", "1");
-    } catch (e) { /* private mode: still offer, just maybe twice */ }
-    fetch(ENDPOINT + "/api/next-step", {
+  /* Identity is a signed token, not the address itself: the widget
+   * exchanges the LearnWorlds email for one (this page is served by
+   * the school, so the mint is allowed) and reuses it afterwards. The
+   * token is stored under the same key the tools read, so linking here
+   * links the whole suite on this browser. */
+  function ensureToken() {
+    var stored = "";
+    try { stored = localStorage.getItem("fl_hub_token_v1") || ""; } catch (e) { /* private mode */ }
+    if (stored) return Promise.resolve(stored);
+    if (!learnerEmail) return Promise.resolve("");
+    return fetch(ENDPOINT + "/api/identity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ learner_id: learnerId, email: learnerEmail }),
     })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (!d || !d.ok || !d.title) return;
-        var lead = d.percent > 0
-          ? "Pick up where you left off — you're " + d.percent + "% through **" + d.title + "**:"
-          : "Ready for your next step? **" + d.title + "** is waiting:";
-        addLinkMsg(lead, "Continue " + (d.percent > 0 ? "→" : "▸"), d.url);
+        if (!d || !d.ok || !d.token) return "";
+        try { localStorage.setItem("fl_hub_token_v1", d.token); } catch (e) { /* private mode */ }
+        return d.token;
       })
-      .catch(function () { /* a missing nudge is never an error */ });
+      .catch(function () { return ""; });
+  }
+
+  function offerNextStep() {
+    if (!learnerEmail) return;
+    try {
+      if (sessionStorage.getItem("fl_coach_nextstep_v1")) return;
+      sessionStorage.setItem("fl_coach_nextstep_v1", "1");
+    } catch (e) { /* private mode: still offer, just maybe twice */ }
+    ensureToken().then(function (token) {
+      if (!token) return;
+      return fetch(ENDPOINT + "/api/next-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ learner_id: learnerId, token: token }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d || !d.ok || !d.title) return;
+          var lead = d.percent > 0
+            ? "Pick up where you left off — you're " + d.percent + "% through **" + d.title + "**:"
+            : "Ready for your next step? **" + d.title + "** is waiting:";
+          addLinkMsg(lead, "Continue " + (d.percent > 0 ? "→" : "▸"), d.url);
+        });
+    }).catch(function () { /* a missing nudge is never an error */ });
   }
 
   function setOpen(next) {

@@ -29,7 +29,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { isOriginAllowed } from "./lib/origin";
+import { isOriginAllowed, isSchoolOrigin } from "./lib/origin";
 import { checkAndIncrement, hashLearnerId, limits } from "./lib/rate-limit";
 import { crisisHeuristic, guardReply, neutraliseAngles, sanitiseText } from "./lib/safety";
 import {
@@ -207,6 +207,14 @@ import {
   type RiskSummary,
 } from "./lib/risk";
 import { b64urlDecode, b64urlEncode, signPayload, verifyPayload } from "./lib/sign";
+import {
+  addBinding,
+  decideMint,
+  IDENTITY_TTL_SECS,
+  mintIdentityToken,
+  parseBindings,
+  verifyIdentityToken,
+} from "./lib/identity";
 import { generate } from "./lib/anthropic";
 import {
   BLOCKED_REPLY,
@@ -1011,7 +1019,7 @@ app.post("/api/review", async (c) => {
     await recordHubScore(
       c.env,
       learnerId,
-      typeof body.email === "string" ? body.email : undefined,
+      await emailFromToken(c.env, body.token, learnerId),
       validated.kind,
       report.overall,
     );
@@ -1330,7 +1338,7 @@ app.post("/api/linkedin", async (c) => {
     await recordHubScore(
       c.env,
       learnerId,
-      typeof body.email === "string" ? body.email : undefined,
+      await emailFromToken(c.env, body.token, learnerId),
       "linkedin",
       report.overall,
     );
@@ -1429,7 +1437,7 @@ app.post("/api/cover-letter", async (c) => {
     await recordHubScore(
       c.env,
       learnerId,
-      typeof body.email === "string" ? body.email : undefined,
+      await emailFromToken(c.env, body.token, learnerId),
       "cover",
       100,
     );
@@ -2066,6 +2074,34 @@ function questionSigningSecret(env: Env): string {
   return env.LEARNWORLDS_CLIENT_SECRET || env.ANTHROPIC_API_KEY || "";
 }
 
+/* Identity tokens share the same server-only signing key. */
+function identitySecret(env: Env): string {
+  return questionSigningSecret(env);
+}
+
+/**
+ * The ONLY way a request can name an email. Returns the verified
+ * address a signed token carries, or undefined — a raw `email` field
+ * in a request body is never read anywhere in this worker.
+ *
+ * The token must have been minted for THIS device, so a token lifted
+ * from someone's URL is inert on another machine.
+ */
+async function emailFromToken(
+  env: Env,
+  token: unknown,
+  learnerId: string,
+): Promise<string | undefined> {
+  const deviceHash16 = (await hashLearnerId(learnerId)).slice(0, 16);
+  const email = await verifyIdentityToken(
+    identitySecret(env),
+    token,
+    Math.floor(Date.now() / 1000),
+    deviceHash16,
+  );
+  return email ?? undefined;
+}
+
 /* Generate five tailored questions from a pasted job advert. The set
  * comes back HMAC-signed so /api/interview can trust it statelessly. */
 app.post("/api/interview-questions", async (c) => {
@@ -2261,7 +2297,7 @@ app.post("/api/interview", async (c) => {
     await recordHubScore(
       c.env,
       learnerId,
-      typeof body.email === "string" ? body.email : undefined,
+      await emailFromToken(c.env, body.token, learnerId),
       "interview",
       breakdown.final,
     );
@@ -2462,11 +2498,13 @@ app.post("/api/next-step", async (c) => {
   const body = await readJsonCapped(c, 4_000);
   if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
-  const email =
-    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  if (!ID_PATTERN.test(learnerId) || !EMAIL_PATTERN.test(email)) {
+  if (!ID_PATTERN.test(learnerId)) {
     return c.json({ error: "invalid_request" }, 400);
   }
+  /* Another learner's course progress is not readable by naming their
+   * address — only a token signed for THIS device unlocks it. */
+  const email = (await emailFromToken(c.env, body.token, learnerId)) || "";
+  if (!EMAIL_PATTERN.test(email)) return c.json({ ok: false, reason: "no_identity" });
   if (!lwConfigured(c.env)) return c.json({ ok: false });
   try {
     /* Rate limit BEFORE the cache read AND the user lookup — a cached
@@ -2535,13 +2573,141 @@ app.post("/api/next-step", async (c) => {
 
 app.get("/hub", (c) => c.html(renderHubPage(), 200, FRAME_HEADERS));
 
-app.post("/api/hub", async (c) => {
+/* ==================================================================
+ * Identity — mint a signed token for an email + this device.
+ *
+ * This is the ONE place an email is turned into something the rest of
+ * the worker will honour. Layers, in order:
+ *   1. Origin allowlist (global on /api/*) + hard per-device/per-IP
+ *      daily caps, so the route cannot be swept.
+ *   2. The address must belong to a real learner (LearnWorlds lookup)
+ *      when the API is configured.
+ *   3. First-claim binding: a standalone browser may claim an email
+ *      nobody is using, or one this device already holds — but NOT one
+ *      already bound elsewhere. Linking a second device is done from
+ *      the course pages, where LearnWorlds itself rendered the address.
+ * Honest residual: without SSO or an email round-trip, a page loaded
+ * on a school origin can still claim any known address. Documented in
+ * docs/IDENTITY.md rather than papered over.
+ * ================================================================== */
+
+const IDENTITY_MINTS_PER_DEVICE_PER_DAY = 10;
+const IDENTITY_MINTS_PER_IP_PER_DAY = 40;
+
+app.post("/api/identity", async (c) => {
   const body = await readJsonCapped(c, 4_000);
   if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const email =
     typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  if (!EMAIL_PATTERN.test(email) || email.length > 80) {
+    return c.json({ ok: false, reason: "bad_email" }, 400);
+  }
+
+  const secret = identitySecret(c.env);
+  if (!secret) {
+    console.error("[coach] identity signing secret unavailable — refusing to mint");
+    return c.json({ ok: false, reason: "unavailable" }, 503);
+  }
+
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const deviceHash = await hashLearnerId(learnerId);
+    const deviceHash16 = deviceHash.slice(0, 16);
+    const rlKey = `id:rl:${deviceHash16}:${day}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= IDENTITY_MINTS_PER_DEVICE_PER_DAY) {
+      return c.json({ ok: false, reason: "rate_limited" }, 429);
+    }
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+    const ip = c.req.header("CF-Connecting-IP") || "";
+    if (ip) {
+      const ipKey = `id:ip:${(await hashLearnerId(ip)).slice(0, 16)}:${day}`;
+      const ipUsed = parseInt((await c.env.RATE_LIMITS.get(ipKey)) || "0", 10) || 0;
+      if (ipUsed >= IDENTITY_MINTS_PER_IP_PER_DAY) {
+        return c.json({ ok: false, reason: "rate_limited" }, 429);
+      }
+      await c.env.RATE_LIMITS.put(ipKey, String(ipUsed + 1), { expirationTtl: 86_400 });
+    }
+
+    /* The address must belong to a real learner. Cached (hits AND
+     * misses) so this cannot become an email-existence oracle worth
+     * sweeping, and so a class linking at once costs one lookup. */
+    if (lwConfigured(c.env)) {
+      const knownKey = `id:known:${(await hashLearnerId(email)).slice(0, 16)}`;
+      let known = await c.env.RATE_LIMITS.get(knownKey);
+      if (known === null) {
+        const user = await getUserByEmail(c.env, email).catch(() => null);
+        known = user ? "1" : "0";
+        await c.env.RATE_LIMITS.put(knownKey, known, { expirationTtl: 6 * 3600 });
+      }
+      if (known !== "1") {
+        return c.json({ ok: false, reason: "unknown_email" }, 200);
+      }
+    }
+
+    const bindKey = `id:bind:${(await hashLearnerId(email)).slice(0, 16)}`;
+    const bindings = parseBindings(await c.env.RATE_LIMITS.get(bindKey));
+    const origin = c.req.header("Origin") || c.req.header("Referer") || "";
+    const decision = decideMint(bindings, deviceHash16, isSchoolOrigin(origin));
+    if (!decision.allow) {
+      console.log("[coach] kind=identity outcome=claimed_elsewhere");
+      return c.json({ ok: false, reason: "claimed_elsewhere" }, 200);
+    }
+
+    const next = addBinding(bindings, deviceHash16);
+    if (next !== bindings) {
+      await c.env.RATE_LIMITS.put(bindKey, JSON.stringify(next), {
+        expirationTtl: 180 * 24 * 3600,
+      });
+    }
+    const nowSecs = Math.floor(Date.now() / 1000);
+    const token = await mintIdentityToken(secret, email, deviceHash16, nowSecs);
+    if (!token) return c.json({ ok: false, reason: "unavailable" }, 500);
+    console.log(`[coach] kind=identity outcome=minted via=${decision.reason}`);
+    return c.json({
+      ok: true,
+      token,
+      email,
+      expires_at: nowSecs + IDENTITY_TTL_SECS,
+    });
+  } catch (err) {
+    console.error("[coach] identity error:", String(err));
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
+
+app.post("/api/hub", async (c) => {
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  /* Email-keyed history is unlocked ONLY by a token this worker signed
+   * for this device — never by an address in the request body. */
+  let email = (await emailFromToken(c.env, body.token, learnerId)) || "";
+  /* Provider "open their hub view": authorised by the portal session
+   * cookie and the caller's own tag scope, read-only — it never mints
+   * a token and never merges the provider's device history in. */
+  const viewEmail =
+    typeof body.view_email === "string" ? body.view_email.trim().toLowerCase() : "";
+  let viewing = false;
+  if (viewEmail) {
+    if (!EMAIL_PATTERN.test(viewEmail)) {
+      return c.json({ error: "invalid_request" }, 400);
+    }
+    const access = await portalSession(c);
+    if (!access) return c.json({ error: "unauthorised" }, 401);
+    if (access.tag) {
+      const user = await getUserByEmail(c.env, viewEmail).catch(() => null);
+      if (!user || !inScope(user.tags ?? [], access.tag)) {
+        console.log("[coach] kind=hub-view outcome=out_of_scope");
+        return c.json({ error: "out_of_scope" }, 403);
+      }
+    }
+    email = viewEmail;
+    viewing = true;
+  }
   try {
     /* Same anti-enumeration cap as next-step; the device cap is
      * rotatable by a scraper, so an IP cap backs it up. */
@@ -2560,8 +2726,9 @@ app.post("/api/hub", async (c) => {
     }
 
     /* Merge device-keyed and email-keyed histories so scores earned
-     * before the hub knew the email still count. */
-    const hashes = [deviceHash.slice(0, 16)];
+     * before the hub knew the email still count. In a provider view
+     * only the learner's own record is read — never the viewer's. */
+    const hashes = viewing ? [] : [deviceHash.slice(0, 16)];
     if (EMAIL_PATTERN.test(email)) {
       hashes.push((await hashLearnerId(email)).slice(0, 16));
     }

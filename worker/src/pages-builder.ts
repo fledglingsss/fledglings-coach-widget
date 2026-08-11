@@ -115,7 +115,7 @@ var lid=stored(localStorage,'fl_coach_learner_v1');
 var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 var params=new URLSearchParams(location.search);
-flResolveEmail();flIdentityChip();
+flIdentityInit(lid);
 
 /* ---------------- storage ---------------- */
 var KEY='fl_builder_cvs_v1';

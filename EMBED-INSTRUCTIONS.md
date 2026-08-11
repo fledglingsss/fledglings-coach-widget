@@ -84,13 +84,14 @@ and their scores follow them; inside LearnWorlds the Liquid email does
 it automatically. Every tool shows a "Saving progress as … · Not you?"
 chip so shared devices never silently mix learners up.
 
-**Privacy note on the email key:** the email is a lookup key for score
-history (whole numbers + timestamps only), not an authenticated
-account — there is no password and nothing sensitive behind it. Anyone
-who knows a learner's email could see or add to their score history;
-that is the deliberate trade-off for zero-friction access with no
-stored personal data. Documents, answers, letters and video are never
-stored at all.
+**How identity works (signed tokens):** an email address is never
+accepted as a claim. The learner's browser exchanges it — once — for a
+token the worker signs, binds to that browser and expires after 30
+days; every scoring call carries the token, and a raw `email` field in
+a request body is ignored everywhere. Inside LearnWorlds the exchange
+happens automatically from the Liquid email; standalone, the learner
+enters it on the Home page. See `docs/IDENTITY.md` for the full model,
+including what it does and does not protect against.
 
 ## Employability Hub — `hub-embed.html`
 

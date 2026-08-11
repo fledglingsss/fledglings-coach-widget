@@ -117,11 +117,15 @@ function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16
 var lid=stored(localStorage,'fl_coach_learner_v1');
 var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-var email=flResolveEmail();
 var viewOnly=flViewOnly();
+/* Normally identity comes from the signed token. In a provider view
+ * the address rides on the URL and the SERVER authorises the read
+ * against their portal session — nothing is stored on this device. */
+var email=viewOnly?flEmbedEmail():flResolveEmail();
+/* Carry the signed token between surfaces — never a bare address. */
 function toolHref(base){if(viewOnly)return base;
-var ev=flEmailParam();
-return base+(base.indexOf('?')>-1?'&':'?')+(ev?'e='+ev+'&':'')+'hub=1';}
+var ev=flToken();
+return base+(base.indexOf('?')>-1?'&':'?')+(ev?'t='+encodeURIComponent(ev)+'&':'')+'hub=1';}
 document.querySelectorAll('a[data-tool]').forEach(function(a){a.href=toolHref(a.getAttribute('href'));});
 /* identity card */
 function renderIdentity(){if(viewOnly){
@@ -135,9 +139,28 @@ var known=email.length>0;
 $('id-known').hidden=!known;$('id-anon').hidden=known;
 if(known)$('id-email').textContent=email;}
 renderIdentity();
-$('id-save').onclick=function(){var em=flSaveEmail($('id-input').value);
-if(!em){$('id-err').hidden=false;return;}
-location.reload();};
+/* Opened inside a LearnWorlds course with ?e=? Exchange that address
+ * for a signed token once, then re-render as the linked learner. */
+if(!viewOnly&&!email){try{flAdoptEmbedEmail(lid).then(function(linked){
+if(linked)location.reload();});}catch(e){}}
+/* Linking an email asks the worker for a signed token; it can say no
+ * (address already in use on another device, or not a Fledglings
+ * learner) and the learner gets told plainly what to do instead. */
+var ID_REFUSALS={
+claimed_elsewhere:"That email is already linked to another device. Open the tools from inside your Fledglings course once and this device links itself — no password needed.",
+unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking — your scores still save on this device.",
+bad_email:"That doesn't look like an email — check it and try again.",
+rate_limited:"That's a lot of linking attempts for one day. Try again tomorrow.",
+offline:"Couldn't reach Fledglings just now — check your connection and try again.",
+unavailable:"Linking is unavailable right now — your scores still save on this device."};
+$('id-save').onclick=function(){var btn=this;
+var raw=$('id-input').value;
+$('id-err').hidden=true;btn.disabled=true;btn.textContent='Linking…';
+flLinkEmail(raw,lid).then(function(r){
+if(r.ok){location.reload();return;}
+btn.disabled=false;btn.textContent='Save my progress';
+$('id-err').textContent=ID_REFUSALS[r.reason]||ID_REFUSALS.unavailable;
+$('id-err').hidden=false;});};
 $('id-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('id-save').click();});
 $('id-change').onclick=function(){flClearEmail();location.reload();};
 function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#D9452B'}
@@ -147,8 +170,10 @@ var LABELS={cv:'CV review',linkedin:'LinkedIn review',interview:'Mock interview'
 var HREFS={cv:'/tools',linkedin:'/linkedin',interview:'/interview',cover:'/cover-letter'};
 /* Tasks per tool (mirrors the server's seven-task model). */
 var TOOL_TASKS={cv:['cv-reviewed','cv-strong'],linkedin:['li-reviewed','li-strong'],interview:['iv-done','iv-strong'],cover:['cl-created']};
+var hubReq={learner_id:lid,token:flToken()};
+if(viewOnly&&email)hubReq={learner_id:lid,view_email:email};
 fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({learner_id:lid,email:email})})
+body:JSON.stringify(hubReq)})
 .then(function(r){return r.json()}).then(function(d){
 if(!d||!d.ok||!d.summary)return;var s=d.summary;
 if(d.name)$('hub-hi').textContent="Let's kickstart your career journey, "+d.name;
@@ -161,7 +186,7 @@ var lc=lp>=70?'#1B7A4B':'#13507F';$('lr-pct').style.color=lc;
 $('lr-ring').style.background='conic-gradient('+lc+' 0deg '+Math.round(lp*3.6)+'deg,#E7EAF0 '+Math.round(lp*3.6)+'deg)';
 if(email&&L.completed<L.enrolled){
 fetch('/api/next-step',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({learner_id:lid,email:email})})
+body:JSON.stringify({learner_id:lid,token:flToken()})})
 .then(function(r){return r.json()}).then(function(ns){
 if(!ns||!ns.ok||!ns.url)return;
 $('learn-card').hidden=false;$('learn-title').textContent=ns.title;

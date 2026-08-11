@@ -85,34 +85,80 @@ td.c,th.c{text-align:center;}
   body{background:#fff;}.card,.kpi{box-shadow:none;border:1px solid #ddd;}}
 `;
 
-/* Shared identity resolver, included on every tool page. The tools
- * work identically embedded in LearnWorlds or standalone:
+/* Shared identity layer, included on every tool page.
+ *
+ * Identity IS a signed token: the worker mints it at /api/identity and
+ * every scoring call carries it. Nothing here can assert an email on
+ * its own — the address shown in the UI is read out of the token the
+ * worker issued, so what the learner sees is what the server honours.
+ *
  *   1. Embedded: the LearnWorlds Liquid email arrives as ?e= (b64url)
- *      and is remembered for this browser.
- *   2. Standalone: the learner saves their email once on /hub and it
- *      follows them to every tool from localStorage.
- * The email is only ever used as the key for score history — no
- * account, no password, nothing readable by other sites. */
+ *      and is exchanged, once, for a token bound to this device.
+ *   2. Standalone: the learner enters their email on /hub and the same
+ *      exchange happens (subject to the worker's first-claim rules).
+ *   3. Tool-to-tool: the token travels as ?t= so a hub link opened on
+ *      the same device keeps its identity even when the iframe's
+ *      storage is partitioned.
+ * The token is scoped to this browser and expires; the email inside it
+ * is only ever a key for score history — no account, no password. */
 export const IDENTITY_JS = String.raw`
 function flViewOnly(){try{return new URLSearchParams(location.search).get('view')==='1'}catch(e){return false}}
-function flResolveEmail(){var email='';
+function flLs(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
+function flLsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function flLsDel(k){try{localStorage.removeItem(k)}catch(e){}}
+/* Read the claims out of a token WITHOUT trusting them — display only;
+ * the signature is what the worker checks on every call. */
+function flTokenClaims(tok){try{var dot=String(tok||'').indexOf('.');if(dot<1)return null;
+var b=tok.slice(0,dot).replace(/-/g,'+').replace(/_/g,'/');
+var json=decodeURIComponent(atob(b).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));
+var cl=JSON.parse(json);
+if(!cl||typeof cl.e!=='string'||typeof cl.exp!=='number')return null;
+if(cl.exp*1000<=Date.now())return null;
+return cl;}catch(e){return null}}
+/* The live token for this browser: ?t= (a link from another surface)
+ * wins, else whatever is stored. Expired tokens are dropped. */
+function flToken(){var tok='';
+try{tok=new URLSearchParams(location.search).get('t')||''}catch(e){}
+if(tok&&flTokenClaims(tok)){if(!flViewOnly())flLsSet('fl_hub_token_v1',tok);return tok;}
+tok=flLs('fl_hub_token_v1');
+if(tok&&flTokenClaims(tok))return tok;
+if(tok)flLsDel('fl_hub_token_v1');
+return '';}
+/* The email this device is signed in as — read from the token only. */
+function flResolveEmail(){var cl=flTokenClaims(flToken());return cl?String(cl.e||''):'';}
+/* Exchange an email for a signed token (the ONLY way to gain an
+ * identity). Resolves {ok:true,email} or {ok:false,reason}. */
+function flLinkEmail(em,learnerId){em=String(em||'').trim().toLowerCase();
+if(em.indexOf('@')===-1||em.length<6||em.length>80)return Promise.resolve({ok:false,reason:'bad_email'});
+return fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:learnerId,email:em})})
+.then(function(r){return r.json()}).then(function(d){
+if(d&&d.ok&&d.token){if(!flViewOnly())flLsSet('fl_hub_token_v1',d.token);return {ok:true,email:d.email||em};}
+return {ok:false,reason:(d&&d.reason)||'unavailable'};})
+.catch(function(){return {ok:false,reason:'offline'}});}
+/* The raw ?e= address on the URL — a request for identity, never
+ * identity itself. Only the embed exchange and the provider's
+ * read-only view (authorised by their portal session) read it. */
+function flEmbedEmail(){var em='';
 try{var p=new URLSearchParams(location.search).get('e');
-if(p){email=decodeURIComponent(atob(p.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(e){}
-email=String(email||'').trim().toLowerCase();
-if(email.indexOf('@')===-1)email='';
-/* view=1 is a provider looking in — never adopt that identity on
- * this device. */
-try{if(email){if(!flViewOnly())localStorage.setItem('fl_hub_email_v1',email);}
-else{email=localStorage.getItem('fl_hub_email_v1')||'';email=String(email).trim().toLowerCase();
-if(email.indexOf('@')===-1)email='';}}catch(e){}
-return email;}
-function flSaveEmail(em){em=String(em||'').trim().toLowerCase();
-if(em.indexOf('@')===-1||em.length<6||em.length>80)return '';
-try{localStorage.setItem('fl_hub_email_v1',em)}catch(e){}return em;}
-function flClearEmail(){try{localStorage.removeItem('fl_hub_email_v1')}catch(e){}}
-function flEmailParam(){var em=flResolveEmail();if(!em)return '';
-try{return btoa(unescape(encodeURIComponent(em))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(e){return ''}}
-function flHubLink(){var ev=flEmailParam();return '/hub'+(ev?'?e='+ev:'');}
+if(p){em=decodeURIComponent(atob(p.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(e){}
+em=String(em||'').trim().toLowerCase();
+return em.indexOf('@')===-1?'':em;}
+/* The Liquid email in an embed is a REQUEST for a token, not proof —
+ * exchange it once per browser, then the token does the work. */
+function flAdoptEmbedEmail(learnerId){var em=flEmbedEmail();
+if(!em||flViewOnly())return Promise.resolve(false);
+if(flResolveEmail()===em)return Promise.resolve(false);
+return flLinkEmail(em,learnerId).then(function(r){return r.ok});}
+function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');}
+/* One call per tool page: show who we are saving as, and — when the
+ * page was opened from a LearnWorlds embed carrying ?e= — exchange
+ * that address for a token, then re-render as the signed-in learner. */
+function flIdentityInit(learnerId){flIdentityChip();
+try{flAdoptEmbedEmail(learnerId).then(function(linked){if(linked)location.reload();});}catch(e){}}
+/* Carry identity between surfaces as the token itself. */
+function flEmailParam(){return flToken();}
+function flHubLink(){var t=flToken();return '/hub'+(t?'?t='+encodeURIComponent(t):'');}
 function flAddHubBackLink(){var bk=document.createElement('a');bk.href=flHubLink();
 bk.textContent='← Your Employability Hub';
 bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
@@ -126,7 +172,8 @@ chip.style.cssText='display:inline-flex;gap:8px;align-items:center;margin:-8px 0
 var who=document.createElement('span');who.textContent='Saving progress as '+em;
 var not=document.createElement('button');not.type='button';not.textContent='Not you?';
 not.style.cssText='border:none;background:none;color:#13507F;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;';
-not.onclick=function(){flClearEmail();var u=new URL(location.href);u.searchParams.delete('e');location.href=u.pathname+u.search;};
+not.onclick=function(){flClearEmail();var u=new URL(location.href);
+u.searchParams.delete('e');u.searchParams.delete('t');location.href=u.pathname+u.search;};
 chip.appendChild(who);chip.appendChild(not);
 var hh=document.querySelector('h2.page');
 if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}`;
@@ -305,11 +352,11 @@ export function appShell(opts: {
     opts.bodyHtml +
     "<div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div>" +
     "</div>" +
-    "<script>(function(){var ev=flEmailParam();if(ev){" +
+    "<script>(function(){var ev=flToken();if(ev){var evq=encodeURIComponent(ev);" +
     "document.querySelectorAll('a[data-nav]').forEach(function(a){" +
     "var href=a.getAttribute('href');if(href.indexOf('http')===0)return;" +
     "var hash='';var hi=href.indexOf('#');if(hi>-1){hash=href.slice(hi);href=href.slice(0,hi);}" +
-    "a.href=href+(href.indexOf('?')>-1?'&':'?')+'e='+ev+hash;});}" +
+    "a.href=href+(href.indexOf('?')>-1?'&':'?')+'t='+evq+hash;});}" +
     /* Liveness layer: animate anything that becomes visible, and give
      * pages a count-up for their big score reveals. */
     "var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;" +
@@ -519,7 +566,7 @@ export function renderToolsPage(): string {
     /* Identity via the shared resolver: works embedded (Liquid ?e=)
      * and standalone (email saved on /hub). */
     "var qs=new URLSearchParams(location.search);" +
-    "var hubEmail=flResolveEmail();flIdentityChip();" +
+    "var hubEmail=flResolveEmail();flIdentityInit(lid);" +
     "var tabCv=$('tab-cv'),tabLi=$('tab-li');" +
     "function dots(a,b,c){[['cvs-1',a],['cvs-2',b],['cvs-3',c]].forEach(function(p){" +
     "$(p[0]).className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');});}" +
@@ -545,7 +592,7 @@ export function renderToolsPage(): string {
     "show('u-card');}" +
     /* The LinkedIn tab now lives at the dedicated Optimizer — carry
      * the hub identity across so scores land in one history. */
-    "function linkedinUrl(){var ev=flEmailParam();return '/linkedin'+(ev?'?e='+ev:'');}" +
+    "function linkedinUrl(){var ev=flToken();return '/linkedin'+(ev?'?t='+encodeURIComponent(ev):'');}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){location.href=linkedinUrl()};" +
     "if(qs.get('tab')==='li'){location.replace(linkedinUrl());}" +
     /* Handoff from the Resume Builder: the built CV's text arrives via
@@ -606,7 +653,7 @@ export function renderToolsPage(): string {
     "function band(s){return s>=70?'#1B7A4B':s>=50?'#B96A16':'#D9452B'}" +
     "function submit(text){" +
     "fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
-    "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value,email:hubEmail})})" +
+    "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value,token:flToken()})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
     "if(d&&d.report){renderReport(d.report,d.checks);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
@@ -676,7 +723,7 @@ export function renderToolsPage(): string {
     /* attempt-over-attempt: real history from the hub score store */
     "function loadCompare(){var el=$('r-compare');if(!hubEmail){" +
     "el.innerHTML=\"<span class='dmut2'>Save your email on the Hub and every review compares with your last attempt.</span>\";return;}" +
-    "fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({learner_id:lid,email:hubEmail})})" +
+    "fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({learner_id:lid,token:flToken()})})" +
     ".then(function(x){return x.json()}).then(function(d){" +
     "var t=d&&d.summary&&d.summary[kind==='cv'?'cv':'linkedin'];if(!t||!t.history||t.history.length<2){" +
     "el.innerHTML=\"<span class='dmut2'>First scored attempt — your next review compares here.</span>\";return;}" +
@@ -948,6 +995,15 @@ export function renderAiPrivacyPage(): string {
     "<p><b>Never stored:</b> your CV, your LinkedIn profile, your cover letters, your interview answers, " +
     "your video or your voice. PDFs are read inside your own browser. Interview recordings never leave " +
     "your device — the AI only ever sees the words, and forgets them once your feedback is written.</p></div></div>" +
+    "<div class='card'><h3>How your progress stays yours</h3><div class='result'>" +
+    "<p>When you link your email, this browser is given a signed pass — a bit like a cloakroom ticket. " +
+    "It's tied to this browser, it runs out after 30 days, and every time your scores are saved or shown " +
+    "the pass is checked. Typing someone else's email somewhere gets nobody anywhere: without a pass " +
+    "issued by us, there's no way in.</p>" +
+    "<p>Linking a second device? Open the tools once from inside your Fledglings course and that device " +
+    "gets its own pass automatically. If an email is already in use, a random browser can't take it over.</p>" +
+    "<p>There's still no password, because there's nothing sensitive behind it — the whole record is " +
+    "scores and dates. Tap <b>Not you?</b> on any tool to hand the device back.</p></div></div>" +
     "<div class='card'><h3>The no-fabrication law</h3><div class='result'>" +
     "<p>These tools never invent experience, qualifications or numbers for you. Praise must quote your own " +
     "words back to you; anything a document needs that only you can supply appears in [brackets] for you to " +

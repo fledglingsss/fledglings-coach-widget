@@ -284,7 +284,7 @@ function show(id){STAGES.forEach(function(k){$(k).hidden=k!==id});}
 
 /* identity chip via the shared resolver (embedded or standalone) */
 var params=new URLSearchParams(location.search);
-var hubEmail=flResolveEmail();flIdentityChip();
+var hubEmail=flResolveEmail();flIdentityInit(lid);
 
 /* ---------------- state ---------------- */
 var role=null,roleLabel='',qs=[],sig='',sigIat=0,idx=0,answers=[],mode='video';
@@ -660,7 +660,7 @@ function submit(){
 saveSession('scoring',null);
 cleanupMedia();
 renderPendingReport(true);show('s-rep');window.scrollTo({top:0,behavior:'smooth'});
-var payload={learner_id:lid,session_id:sid,role:role,role_label:roleLabel,email:hubEmail,
+var payload={learner_id:lid,session_id:sid,role:role,role_label:roleLabel,token:flToken(),
 answers:answers.map(function(a){return {question:a.question,answer:a.answer,duration_secs:a.duration_secs}})};
 if(role==='custom'){payload.questions=qs;payload.sig=sig;payload.iat=sigIat;}
 if(presence.frames>=3){var pr={frames:presence.frames,faceVisible:presence.faceVisible,

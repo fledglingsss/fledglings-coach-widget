@@ -128,7 +128,7 @@ export function renderLinkedInPage(): string {
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
     "var qs=new URLSearchParams(location.search);" +
-    "var hubEmail=flResolveEmail();flIdentityChip();" +
+    "var hubEmail=flResolveEmail();flIdentityInit(lid);" +
     "function dots(a,b,c){[['lis-1',a],['lis-2',b],['lis-3',c]].forEach(function(p){" +
     "$(p[0]).className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');});}" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
@@ -193,7 +193,7 @@ export function renderLinkedInPage(): string {
     "var lastLiText='';" +
     "function submit(text){lastLiText=text;" +
     "fetch('/api/linkedin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
-    "learner_id:lid,session_id:sid,text:text,target:$('target').value,email:hubEmail})})" +
+    "learner_id:lid,session_id:sid,text:text,target:$('target').value,token:flToken()})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
     "if(d&&d.report){renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
