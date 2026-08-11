@@ -233,6 +233,7 @@ import {
   moderate,
 } from "./lib/anthropic";
 import { classifyModelError } from "./lib/model-error";
+import { isGrounded, keepGrounded } from "./lib/verbatim";
 import widgetSource from "./widget/coach-widget.js.txt";
 
 export interface Env {
@@ -999,6 +1000,15 @@ app.post("/api/review", async (c) => {
       console.error("[coach] review report failed to parse");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
     }
+    /* THE NO-FABRICATION LAW, enforced: praise survives only if it
+     * quotes the learner's own document verbatim. */
+    const grounded = keepGrounded(report.strengths, validated.text);
+    if (grounded.dropped > 0) {
+      console.warn(
+        `[coach] kind=review ungrounded_praise_dropped=${grounded.dropped}/${report.strengths.length}`,
+      );
+    }
+    report.strengths = grounded.kept;
     /* Output gate over every string the learner will see — including
      * the rewrite pair (the field the no-fabrication law is about),
      * keywords and dimension labels. */
@@ -1324,6 +1334,20 @@ app.post("/api/linkedin", async (c) => {
     if (report === null) {
       console.error("[coach] linkedin report failed to parse");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    /* THE NO-FABRICATION LAW, enforced per section. The URL section is
+     * worker-authored (a deterministic pattern check, not praise about
+     * their words) so it is exempt — everything the model wrote must
+     * quote the profile. */
+    let liDropped = 0;
+    for (const section of report.sections) {
+      if (section.id === "url") continue;
+      const grounded = keepGrounded(section.right, validated.text);
+      liDropped += grounded.dropped;
+      section.right = grounded.kept;
+    }
+    if (liDropped > 0) {
+      console.warn(`[coach] kind=linkedin ungrounded_praise_dropped=${liDropped}`);
     }
     /* Output gate over every string the learner will see. */
     const visible = [
@@ -2297,6 +2321,25 @@ app.post("/api/interview", async (c) => {
     if (report === null) {
       console.error("[coach] interview report failed to parse");
       return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
+    }
+    /* THE NO-FABRICATION LAW, enforced: "what worked" must quote what
+     * they actually said. Checked against their own answer first, then
+     * any of their answers (a learner may build on an earlier one);
+     * ungrounded praise is blanked and the row is hidden rather than
+     * shown as something they never said. */
+    const allAnswers = validated.answers.map((a) => a.answer);
+    let ivDropped = 0;
+    report.answers = report.answers.map((a, i) => {
+      if (isGrounded(a.strength, validated.answers[i]?.answer ?? "", ...allAnswers)) {
+        return a;
+      }
+      ivDropped += 1;
+      return { ...a, strength: "" };
+    });
+    if (ivDropped > 0) {
+      console.warn(
+        `[coach] kind=interview ungrounded_praise_dropped=${ivDropped}/${report.answers.length}`,
+      );
     }
     const visible = [
       report.verdict,

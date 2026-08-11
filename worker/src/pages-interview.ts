@@ -783,7 +783,9 @@ out+="<div class='qcols'>"+
 "<div class='qcol'><div class='qcol-t'>ANSWER ASSESSMENT</div>"+
 "<div class='meter'><i style='width:"+a.score+"%;background:"+c+"'></i></div>"+
 "<div class='meter-l' style='color:"+c+"'>"+scoreLabel(a.score)+"</div>"+
-"<div class='panel pgood'><b>What went well</b>"+esc2(a.strength)+"</div>"+
+/* Blank when the praise didn't quote what they actually said — the
+ * server drops it rather than showing words they never used. */
+(a.strength?"<div class='panel pgood'><b>What went well</b>"+esc2(a.strength)+"</div>":"")+
 "<div class='panel pbad'><b>What needs improvement</b>"+esc2(a.improve)+"</div></div>"+
 "<div class='qcol'><div class='qcol-t'>ANSWER GUIDANCE</div>"+
 (a.impress?"<div class='panel pinfo'><b>What would have impressed the interviewer</b>"+esc2(a.impress)+"</div>":"")+

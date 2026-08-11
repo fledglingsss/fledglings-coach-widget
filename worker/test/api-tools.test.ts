@@ -255,3 +255,63 @@ describe("POST /api/passport + GET /passport", () => {
     expect(out.reason).toBe("daily_cap");
   });
 });
+
+/* THE NO-FABRICATION LAW is enforced in code, not just asked for in
+ * the prompt: praise that does not quote the learner's own document is
+ * dropped before it can reach them. */
+describe("verbatim enforcement on /api/review", () => {
+  const body = {
+    learner_id: GOOD_ID,
+    session_id: GOOD_ID,
+    kind: "cv",
+    text: CV,
+    target: "Retail assistant",
+  };
+
+  function reportWith(strengths: string[]) {
+    return JSON.stringify({
+      overall: 64,
+      verdict: "Solid start, needs sharpening",
+      dimensions: [
+        { label: "Impact", score: 55, tip: "Show outcomes." },
+        { label: "Clarity & structure", score: 72, tip: "Good ordering." },
+        { label: "ATS readiness", score: 60, tip: "Standard headings." },
+      ],
+      strengths,
+      improvements: [
+        { title: "Add outcomes", detail: "Say what changed." },
+        { title: "Tighten the top", detail: "Recruiters skim." },
+      ],
+      next_step: "Lead with a result.",
+    });
+  }
+
+  it("drops praise that quotes nothing and praise that quotes something invented", async () => {
+    generateMock.mockResolvedValue(
+      reportWith([
+        'Real: "handled tills and customers" shows genuine service experience.',
+        "Your CV is beautifully structured and very professional.", // no quote
+        'Impressive: "managed a team of twelve at Tesco" stands out.', // invented
+      ]),
+    );
+    const out = await (
+      await app.request(post("/api/review", body), undefined, makeEnv())
+    ).json();
+    expect(out.report.strengths).toHaveLength(1);
+    expect(out.report.strengths[0]).toContain("handled tills and customers");
+    /* The fabrication never reaches the learner. */
+    expect(JSON.stringify(out.report.strengths)).not.toMatch(/Tesco/);
+  });
+
+  it("still serves the report when every strength is ungrounded", async () => {
+    generateMock.mockResolvedValue(
+      reportWith(["Great CV!", "Very professional throughout."]),
+    );
+    const out = await (
+      await app.request(post("/api/review", body), undefined, makeEnv())
+    ).json();
+    expect(out.kind).toBe("review");
+    expect(out.report.strengths).toEqual([]);
+    expect(out.report.overall).toBe(64); // the rest of the review survives
+  });
+});

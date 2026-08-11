@@ -842,8 +842,12 @@ export function renderToolsPage(): string {
     "if(weakest)glance+=\"<button type='button' class='gl' data-rp='improve'><b style='color:\"+band(weakest.score)+\"'>\"+esc(weakest.label)+\"</b><span>your weakest area</span><i>fix it →</i></button>\";" +
     "$('r-glance').innerHTML=glance;" +
     "document.querySelectorAll('.gl').forEach(function(g){g.onclick=function(){rpGo(g.dataset.rp)}});" +
+    /* Praise that failed the verbatim check is dropped server-side, so
+     * this list can legitimately be empty — say so plainly rather than
+     * showing an empty card. */
     "var goods='';r.strengths.forEach(function(s){goods+=\"<li><span class='tick'>✓</span>\"+esc(s)+'</li>'});" +
-    "$('r-goods').innerHTML=goods;" +
+    "$('r-goods').innerHTML=goods||\"<li class='dmut2'>Nothing here yet that we can point to in your own words — " +
+    "the fixes below are where to start.</li>\";" +
     /* each fix is its own slide in the deck */
     "$('fb-fixwrap').innerHTML=r.improvements.map(function(f,i){" +
     "return \"<div class='card fb-slide' data-fbl='Fix \"+(i+1)+\"'><h3>What to improve <span class='badge'>\"+(i+1)+' of '+r.improvements.length+\"</span></h3>\"+" +
