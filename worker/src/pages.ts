@@ -103,6 +103,18 @@ td.c,th.c{text-align:center;}
  * is only ever a key for score history — no account, no password. */
 export const IDENTITY_JS = String.raw`
 function flViewOnly(){try{return new URLSearchParams(location.search).get('view')==='1'}catch(e){return false}}
+/* Stable per-browser ids, even where storage is blocked (private mode,
+ * or a cross-site iframe with partitioned storage). An in-memory
+ * fallback keeps the id constant for the life of the page instead of
+ * minting a fresh one on every read. */
+var FL_IDS={};
+function flStoredId(st,k){var v='';
+try{v=st.getItem(k)||''}catch(e){}
+if(!v)v=FL_IDS[k]||'';
+if(!v)v=Math.random().toString(16).slice(2)+Date.now().toString(16);
+FL_IDS[k]=v;
+try{st.setItem(k,v)}catch(e){}
+return v;}
 function flLs(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
 function flLsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function flLsDel(k){try{localStorage.removeItem(k)}catch(e){}}
@@ -133,7 +145,12 @@ if(em.indexOf('@')===-1||em.length<6||em.length>80)return Promise.resolve({ok:fa
 return fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:learnerId,email:em})})
 .then(function(r){return r.json()}).then(function(d){
-if(d&&d.ok&&d.token){if(!flViewOnly())flLsSet('fl_hub_token_v1',d.token);return {ok:true,email:d.email||em};}
+if(d&&d.ok&&d.token){if(!flViewOnly())flLsSet('fl_hub_token_v1',d.token);
+/* Storage can be blocked (private mode, or a cross-site iframe with
+ * third-party storage partitioned off). Report whether the token
+ * actually persisted so callers carry it in the URL instead of
+ * re-minting on every load. */
+return {ok:true,email:d.email||em,token:d.token,persisted:flLs('fl_hub_token_v1')===d.token};}
 return {ok:false,reason:(d&&d.reason)||'unavailable'};})
 .catch(function(){return {ok:false,reason:'offline'}});}
 /* The raw ?e= address on the URL — a request for identity, never
@@ -147,15 +164,36 @@ return em.indexOf('@')===-1?'':em;}
 /* The Liquid email in an embed is a REQUEST for a token, not proof —
  * exchange it once per browser, then the token does the work. */
 function flAdoptEmbedEmail(learnerId){var em=flEmbedEmail();
-if(!em||flViewOnly())return Promise.resolve(false);
-if(flResolveEmail()===em)return Promise.resolve(false);
-return flLinkEmail(em,learnerId).then(function(r){return r.ok});}
-function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');}
+if(!em||flViewOnly())return Promise.resolve({ok:false});
+/* Already this learner — nothing to exchange, so never re-navigate. */
+if(flResolveEmail()===em)return Promise.resolve({ok:false});
+return flLinkEmail(em,learnerId);}
+/* Handing the device to someone else: drop the identity AND the work
+ * saved on this browser. /ai-privacy promises exactly this, and a
+ * shared Chromebook would otherwise show the next learner the last
+ * one's CVs, letters and interview recordings. */
+function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');
+['fl_builder_cvs_v1','fl_letters_v1','fl_iv_learn_v1'].forEach(flLsDel);
+try{if(window.indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('fl_interview_v1');}catch(e){}}
+/* Leave the current page as nobody — strips identity from the URL too,
+ * or the ?t= we just cleared would sign us straight back in. */
+function flSignOutHere(){flClearEmail();
+try{var u=new URL(location.href);u.searchParams.delete('t');u.searchParams.delete('e');
+location.href=u.pathname+u.search;}catch(e){location.href='/hub';}}
 /* One call per tool page: show who we are saving as, and — when the
  * page was opened from a LearnWorlds embed carrying ?e= — exchange
- * that address for a token, then re-render as the signed-in learner. */
+ * that address for a token, then re-render as the signed-in learner.
+ *
+ * Reloads via ?t= rather than a bare reload: if storage is blocked the
+ * URL is the only place identity can live, and a plain reload would
+ * mint again on every load (an endless loop on a locked-down device). */
 function flIdentityInit(learnerId){flIdentityChip();
-try{flAdoptEmbedEmail(learnerId).then(function(linked){if(linked)location.reload();});}catch(e){}}
+try{flAdoptEmbedEmail(learnerId).then(function(res){
+if(res&&res.ok)flReloadWithToken(res.token);});}catch(e){}}
+function flReloadWithToken(token){try{var u=new URL(location.href);
+u.searchParams.delete('e');
+if(token)u.searchParams.set('t',token);
+location.replace(u.pathname+u.search+u.hash);}catch(e){}}
 /* Carry identity between surfaces as the token itself. */
 function flEmailParam(){return flToken();}
 function flHubLink(){var t=flToken();return '/hub'+(t?'?t='+encodeURIComponent(t):'');}
@@ -172,8 +210,7 @@ chip.style.cssText='display:inline-flex;gap:8px;align-items:center;margin:-8px 0
 var who=document.createElement('span');who.textContent='Saving progress as '+em;
 var not=document.createElement('button');not.type='button';not.textContent='Not you?';
 not.style.cssText='border:none;background:none;color:#13507F;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;';
-not.onclick=function(){flClearEmail();var u=new URL(location.href);
-u.searchParams.delete('e');u.searchParams.delete('t');location.href=u.pathname+u.search;};
+not.onclick=flSignOutHere;
 chip.appendChild(who);chip.appendChild(not);
 var hh=document.querySelector('h2.page');
 if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}`;
@@ -367,10 +404,14 @@ export function appShell(opts: {
     "}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}" +
     "window.flCountUp=function(el,to,suffix){if(!el)return;suffix=suffix||'';" +
     "to=Math.round(to);if(reduce||!window.requestAnimationFrame){el.textContent=to+suffix;return;}" +
-    "var start=performance.now(),dur=650;" +
-    "function tick(now){var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);" +
+    "var start=performance.now(),dur=650,done=false;" +
+    "function tick(now){if(done)return;var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);" +
     "el.textContent=Math.round(to*p)+suffix;" +
-    "if(p<1)requestAnimationFrame(tick);}requestAnimationFrame(tick);};" +
+    "if(p<1)requestAnimationFrame(tick);else done=true;}requestAnimationFrame(tick);" +
+    /* Backstop: requestAnimationFrame is paused in a hidden/background
+     * tab, so a score landing while the learner is elsewhere would sit
+     * at 0. The real number must never wait for an animation. */
+    "setTimeout(function(){if(!done){done=true;el.textContent=to+suffix;}},dur+120);};" +
     "})();</script>" +
     "</body></html>"
   );
@@ -560,7 +601,7 @@ export function renderToolsPage(): string {
     "if anything in your document worries Fledge about your wellbeing, it will point you to real support instead of reviewing.</p>" +
     "</main>" +
     "<script>(function(){var kind='cv';var lastName='';" +
-    "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
+    "function stored(st,k){return flStoredId(st,k)}" +
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
     /* Identity via the shared resolver: works embedded (Liquid ?e=)
@@ -707,7 +748,8 @@ export function renderToolsPage(): string {
     "var CX=140,CY=112,R=74;" +
     "var pt=function(i,v){var a=-Math.PI/2+i*2*Math.PI/n;" +
     "return (CX+Math.cos(a)*R*v/100).toFixed(1)+','+(CY+Math.sin(a)*R*v/100).toFixed(1)};" +
-    "var s=\"<svg viewBox='0 0 280 224' class='radar' role='img' aria-label='\"+dims.map(function(d){return d.label+' '+d.score}).join(', ')+\"'>\";" +
+    /* Dimension labels are model text landing in an attribute — escape. */
+    "var s=\"<svg viewBox='0 0 280 224' class='radar' role='img' aria-label='\"+esc(dims.map(function(d){return d.label+' '+d.score}).join(', '))+\"'>\";" +
     "[25,50,75,100].forEach(function(g){s+=\"<polygon points='\"+dims.map(function(_,i){return pt(i,g)}).join(' ')+\"' fill='none' stroke='#E3DDDA' stroke-width='1'/>\";});" +
     "dims.forEach(function(_,i){s+=\"<line x1='\"+CX+\"' y1='\"+CY+\"' x2='\"+pt(i,100).split(',')[0]+\"' y2='\"+pt(i,100).split(',')[1]+\"' stroke='#E3DDDA' stroke-width='1'/>\";});" +
     "s+=\"<polygon points='\"+dims.map(function(_,i){return pt(i,70)}).join(' ')+\"' fill='none' stroke='#05253C' stroke-width='1.6' stroke-dasharray='4 3'/>\";" +
@@ -776,8 +818,10 @@ export function renderToolsPage(): string {
     "$('r-kind').textContent=(kind==='cv'?'CV REVIEW':'LINKEDIN REVIEW');" +
     "$('r-verdict').textContent=r.verdict;" +
     "$('r-file').textContent=lastName+($('target').value?' · aiming at: '+$('target').value:'');" +
-    "if(kind==='cv'){$('r-journey').href='/linkedin';$('r-journey-t').textContent='LinkedIn review — get your profile to match this CV';}" +
-    "else{$('r-journey').href='/interview';$('r-journey-t').textContent='Mock interview — practise saying it out loud';}" +
+    /* Carry identity onward or the next tool scores anonymously. */
+    "function flNextHref(p){var t=flToken();return p+(t?'?t='+encodeURIComponent(t):'');}" +
+    "if(kind==='cv'){$('r-journey').href=flNextHref('/linkedin');$('r-journey-t').textContent='LinkedIn review — get your profile to match this CV';}" +
+    "else{$('r-journey').href=flNextHref('/interview');$('r-journey-t').textContent='Mock interview — practise saying it out loud';}" +
     "var dims='';r.dimensions.forEach(function(d,i){var c=band(d.score);" +
     "var word=d.score>=70?'Strong':d.score>=50?'Getting there':'Needs work';" +
     "dims+=\"<div class='dim'><div class='dim-r'><span>\"+esc(d.label)+\" <i class='dim-word' style='background:\"+c+\"'>\"+word+\"</i></span><b style='color:\"+c+\"'>\"+d.score+\"</b></div>\"+" +
@@ -810,7 +854,12 @@ export function renderToolsPage(): string {
     "fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'}," +
     "body:JSON.stringify({learner_id:lid,tool:kind,helpful:b.dataset.fb==='1'})}).catch(function(){});" +
     "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
-    "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" +
+    /* Escapes QUOTES too: several of these strings land in single-quoted
+     * attributes (title=, aria-label=) and the check copy legitimately
+     * contains apostrophes — "No 'hard-working team player' filler" —
+     * which would otherwise terminate the attribute early. */
+    "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')" +
+    ".replace(/\"/g,'&quot;').replace(/'/g,'&#39;')}" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
     /* QA hook: render a report without a model call (closure-scoped
      * renderer, same pattern as the interview page). */

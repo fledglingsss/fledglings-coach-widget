@@ -18,6 +18,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import coachSystemText from "../prompts/coach-system.txt";
 import moderationSystemText from "../prompts/moderation-system.txt";
+import { neutraliseAngles } from "./safety";
 import type { ChatTurn } from "./validate";
 
 export type ModerationVerdict = "ALLOW" | "BLOCK" | "CRISIS";
@@ -98,9 +99,12 @@ export async function coach(
     maxRetries: MAX_RETRIES,
   });
 
+  /* The name and page are learner-supplied: neutralise angle brackets
+   * so neither can close <context> and forge worker-authored
+   * scaffolding inside the turn. */
   const contextBlock =
-    `<context>learner first name: ${context.learnerName || "unknown"}; ` +
-    `current page: ${context.page || "unknown"}</context>`;
+    `<context>learner first name: ${neutraliseAngles(context.learnerName || "unknown")}; ` +
+    `current page: ${neutraliseAngles(context.page || "unknown")}</context>`;
 
   const messages: Anthropic.MessageParam[] = history.map((turn, i) => ({
     role: turn.role,

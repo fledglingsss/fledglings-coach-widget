@@ -110,7 +110,7 @@ export function renderBuilderPage(): string {
 }
 
 const BUILDER_JS = String.raw`(function(){
-function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}
+function stored(st,k){return flStoredId(st,k)}
 var lid=stored(localStorage,'fl_coach_learner_v1');
 var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
@@ -428,7 +428,9 @@ $('refreshbtn').onclick=function(){runCheck(false)};
 $('sendreview').onclick=function(){
 if(!lastText){alert('Tap ⟳ for a fresh check first — the review reads that exact text.');return;}
 try{sessionStorage.setItem('fl_builder_cv_text',lastText)}catch(e){}
-var q=['from=builder'];var ev=flEmailParam();if(ev)q.push('e='+ev);
+/* The identity is a TOKEN — it must ride as t=, never as the e=
+ * embed-email param (which /tools decodes with atob and would drop). */
+var q=['from=builder'];var ev=flToken();if(ev)q.push('t='+encodeURIComponent(ev));
 location.href='/tools?'+q.join('&');};
 
 renderList();

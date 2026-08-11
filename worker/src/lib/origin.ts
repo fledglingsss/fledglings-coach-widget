@@ -26,20 +26,29 @@ export function isOriginAllowed(origin: string): boolean {
   return ALLOWED_HOSTS.some((re) => re.test(host));
 }
 
-/* The school's own surfaces — where a page is rendered by LearnWorlds
- * for a signed-in learner, so the email in the embed came from the
- * platform rather than from a text box. The worker's own domain and
- * localhost are deliberately NOT school origins: a tool opened
- * standalone must go through the first-claim path. */
+/* THIS school's own surfaces — where a page is rendered by LearnWorlds
+ * for a signed-in learner. Deliberately NOT the LearnWorlds/mycourse
+ * vendor apexes: anyone can create a free school at
+ * attacker.learnworlds.com, and a page there would otherwise count as
+ * ours. The tenant subdomain is taken from LEARNWORLDS_SCHOOL_URL, so
+ * only the configured school matches. The worker's own domain and
+ * localhost are not school origins either — a tool opened standalone
+ * must go through the first-claim path. */
 const SCHOOL_HOSTS = [
   /^(.*\.)?fledglings\.co$/,
   /^(.*\.)?fledglings-school\.co\.uk$/,
-  /^(.*\.)?learnworlds\.com$/,
-  /^(.*\.)?mycourse\.app$/,
 ];
 
-/** True when the request came from a signed-in school page. */
-export function isSchoolOrigin(origin: string): boolean {
+/**
+ * True when the request came from a page on this school.
+ *
+ * NOTE ON STRENGTH: `Origin`/`Referer` are enforced by browsers but a
+ * non-browser client can send whatever it likes, so this is a
+ * deterrence layer, not an authorisation boundary — see
+ * docs/IDENTITY.md. It exists to stop a page on someone else's site
+ * (including another LearnWorlds tenant) counting as ours.
+ */
+export function isSchoolOrigin(origin: string, schoolUrl?: string): boolean {
   if (!origin) return false;
   let host: string;
   try {
@@ -47,5 +56,15 @@ export function isSchoolOrigin(origin: string): boolean {
   } catch {
     return false;
   }
-  return SCHOOL_HOSTS.some((re) => re.test(host));
+  if (SCHOOL_HOSTS.some((re) => re.test(host))) return true;
+  /* The configured LearnWorlds tenant only — never the vendor apex. */
+  if (schoolUrl) {
+    try {
+      const tenant = new URL(schoolUrl).host.toLowerCase();
+      if (tenant && host === tenant) return true;
+    } catch {
+      /* an unparseable school URL simply matches nothing */
+    }
+  }
+  return false;
 }

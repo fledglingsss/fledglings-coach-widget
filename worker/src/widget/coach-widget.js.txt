@@ -617,9 +617,32 @@
    * Note this store belongs to the SCHOOL's origin — the tools live on
    * the worker's origin and mint their own; the two are independent by
    * design, and both are bound to this browser. */
+  /* A token past its expiry must be discarded, not returned for ever —
+   * otherwise the nudge silently dies after 30 days and can never
+   * re-mint because the stale value is always found first. */
+  function tokenAlive(token) {
+    try {
+      var payload = String(token).split(".")[0];
+      var json = decodeURIComponent(
+        atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+          .split("")
+          .map(function (c) { return "%" + c.charCodeAt(0).toString(16).padStart(2, "0"); })
+          .join(""),
+      );
+      var claims = JSON.parse(json);
+      return !!claims && typeof claims.exp === "number" && claims.exp * 1000 > Date.now();
+    } catch (e) {
+      return false;
+    }
+  }
+
   function ensureToken() {
     var stored = "";
     try { stored = localStorage.getItem("fl_hub_token_v1") || ""; } catch (e) { /* private mode */ }
+    if (stored && !tokenAlive(stored)) {
+      try { localStorage.removeItem("fl_hub_token_v1"); } catch (e) { /* private mode */ }
+      stored = "";
+    }
     if (stored) return Promise.resolve(stored);
     if (!learnerEmail) return Promise.resolve("");
     return fetch(ENDPOINT + "/api/identity", {

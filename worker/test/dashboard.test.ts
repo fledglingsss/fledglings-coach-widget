@@ -54,9 +54,11 @@ async function seedCode(env: Env, code: string, label: string, tag?: string) {
   await env.RATE_LIMITS.put(`portal:code:${code}`, JSON.stringify({ label, tag }));
 }
 
-async function cookieFor(code: string): Promise<string> {
-  const sig = await signPayload(SECRET, `portal:${code}`);
-  return `fl_portal=${code}.${sig}`;
+/* Sessions carry their issued-at inside the signature (code.iat.sig)
+ * so a captured cookie expires with the session, not the code. */
+async function cookieFor(code: string, iat = Math.floor(Date.now() / 1000)): Promise<string> {
+  const sig = await signPayload(SECRET, `portal:${code}:${iat}`);
+  return `fl_portal=${code}.${iat}.${sig}`;
 }
 
 /* Lists are chronological (oldest first) — `latest` is the last entry. */
@@ -526,15 +528,46 @@ describe("POST /api/hub greeting", () => {
     return mintIdentityToken(SECRET, email, deviceHash16, Math.floor(Date.now() / 1000));
   }
 
-  async function hubReq(email?: string) {
+  /* The device must also be on the email's binding list — that is what
+   * makes clearing a binding a real revocation. */
+  async function bind(env: Env, email: string, device = DEVICE) {
+    const deviceHash16 = (await hashLearnerId(device)).slice(0, 16);
+    const emailHash16 = (await hashLearnerId(email)).slice(0, 16);
+    await env.RATE_LIMITS.put(`id:bind:${emailHash16}`, JSON.stringify([deviceHash16]));
+  }
+
+  async function hubReq(email?: string, env?: Env) {
     const body: Record<string, unknown> = { learner_id: DEVICE };
-    if (email) body.token = await tokenFor(email);
+    if (email) {
+      body.token = await tokenFor(email);
+      if (env) await bind(env, email);
+    }
     return new Request("http://coach.test/api/hub", {
       method: "POST",
       headers: { "Content-Type": "application/json", Origin: "https://www.fledglings.co" },
       body: JSON.stringify(body),
     });
   }
+
+  it("a token whose binding was cleared is DEAD — revocation is real", async () => {
+    const env = makeEnv();
+    getUserMock.mockResolvedValue({ id: "u1", email: "amy@swift.test", username: "AmyAsh" } as never);
+    /* Valid signature, valid device, but no binding on record. */
+    const token = await tokenFor("amy@swift.test");
+    const res = await app.request(
+      new Request("http://coach.test/api/hub", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://www.fledglings.co" },
+        body: JSON.stringify({ learner_id: DEVICE, token }),
+      }),
+      undefined,
+      env,
+    );
+    const data = (await res.json()) as { ok: boolean; name?: string };
+    expect(data.ok).toBe(true);
+    expect(data.name).toBeUndefined();
+    expect(getUserMock).not.toHaveBeenCalled();
+  });
 
   it("IGNORES a raw email in the body — only a signed token counts", async () => {
     const env = makeEnv();
@@ -581,12 +614,12 @@ describe("POST /api/hub greeting", () => {
       email: "amy@swift.test",
       username: "AmyAsh",
     } as never);
-    const res = await app.request(await hubReq("amy@swift.test"), undefined, env);
+    const res = await app.request(await hubReq("amy@swift.test", env), undefined, env);
     const data = (await res.json()) as { ok: boolean; name?: string };
     expect(data.ok).toBe(true);
     expect(data.name).toBe("Amy");
     /* Second call hits the cache — LearnWorlds asked exactly once. */
-    await app.request(await hubReq("amy@swift.test"), undefined, env);
+    await app.request(await hubReq("amy@swift.test", env), undefined, env);
     expect(getUserMock).toHaveBeenCalledTimes(1);
   });
 
@@ -615,7 +648,7 @@ describe("POST /api/hub greeting", () => {
   it("returns the learner's own module progress, cached", async () => {
     const env = makeEnv();
     getUserMock.mockResolvedValue({ id: "u1", email: "amy@swift.test" } as never);
-    const res = await app.request(await hubReq("amy@swift.test"), undefined, env);
+    const res = await app.request(await hubReq("amy@swift.test", env), undefined, env);
     const data = (await res.json()) as {
       ok: boolean;
       learning?: { enrolled: number; completed: number; inProgress: number };
@@ -623,7 +656,7 @@ describe("POST /api/hub greeting", () => {
     expect(data.ok).toBe(true);
     expect(data.learning).toEqual({ enrolled: 2, completed: 1, inProgress: 1 });
     /* Second call rides the 10-minute cache — no second progress fetch. */
-    await app.request(await hubReq("amy@swift.test"), undefined, env);
+    await app.request(await hubReq("amy@swift.test", env), undefined, env);
     expect(coursesMock).toHaveBeenCalledTimes(1);
   });
 });

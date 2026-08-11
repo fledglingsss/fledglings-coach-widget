@@ -27,6 +27,8 @@ vi.mock("../src/lib/course-map", async (importOriginal) => {
 
 import { app, type Env } from "../src/index";
 import { enrolUserInCourse, findUserByEmail } from "../src/lib/learnworlds";
+import { hashLearnerId } from "../src/lib/rate-limit";
+import { mintIdentityToken } from "../src/lib/identity";
 
 const findMock = vi.mocked(findUserByEmail);
 const enrolMock = vi.mocked(enrolUserInCourse);
@@ -65,12 +67,35 @@ const PATHWAY_BODY = {
   focus: "day_to_day",
 };
 
+const ENROL_EMAIL = "learner@example.com";
 const ENROL_BODY = {
   learner_id: GOOD_ID,
   session_id: GOOD_ID,
-  email: "learner@example.com",
   title: "Budgeting that Actually Works",
 };
+
+/* Enrolment writes to a real account, so it needs a signed identity:
+ * seed the device binding the way /api/identity would, then mint. */
+async function identify(env: Env, email = ENROL_EMAIL): Promise<string> {
+  const device16 = (await hashLearnerId(GOOD_ID)).slice(0, 16);
+  const emailHash16 = (await hashLearnerId(email)).slice(0, 16);
+  await env.RATE_LIMITS.put(`id:bind:${emailHash16}`, JSON.stringify([device16]));
+  return (
+    (await mintIdentityToken(
+      "lw-secret",
+      email,
+      device16,
+      Math.floor(Date.now() / 1000),
+    )) ?? ""
+  );
+}
+
+/** An env plus an enrol body that carries a valid token for it. */
+async function enrolSetup(overrides: Partial<Env> = {}, email = ENROL_EMAIL) {
+  const env = makeEnv(overrides);
+  const token = await identify(env, email);
+  return { env, body: { ...ENROL_BODY, token } };
+}
 
 beforeEach(() => {
   findMock.mockReset().mockResolvedValue("user_1");
@@ -125,7 +150,8 @@ describe("POST /api/pathway (read-only)", () => {
 
 describe("POST /api/enrol (one confirmed module)", () => {
   it("enrols exactly the named module", async () => {
-    const res = await app.request(post("/api/enrol", ENROL_BODY), undefined, makeEnv());
+    const { env, body: reqBody } = await enrolSetup();
+    const res = await app.request(post("/api/enrol", reqBody), undefined, env);
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.title).toBe("Budgeting that Actually Works");
@@ -149,10 +175,11 @@ describe("POST /api/enrol (one confirmed module)", () => {
   });
 
   it("declines gracefully when the title has no mapped course id", async () => {
+    const { env, body: reqBody } = await enrolSetup();
     const res = await app.request(
-      post("/api/enrol", { ...ENROL_BODY, title: "Managing Stress & Burnout" }),
+      post("/api/enrol", { ...reqBody, title: "Managing Stress & Burnout" }),
       undefined,
-      makeEnv(),
+      env,
     );
     const body = await res.json();
     expect(body.ok).toBe(false);
@@ -160,58 +187,60 @@ describe("POST /api/enrol (one confirmed module)", () => {
     expect(enrolMock).not.toHaveBeenCalled();
   });
 
-  it("handles unknown accounts, missing email and missing config", async () => {
+  it("enrols NOBODY without a signed identity — a raw email is ignored", async () => {
+    const res = await app.request(
+      post("/api/enrol", { ...ENROL_BODY, email: "victim@example.com" }),
+      undefined,
+      makeEnv(),
+    );
+    expect(await res.json()).toMatchObject({ ok: false, reason: "no_identity" });
+    expect(enrolMock).not.toHaveBeenCalled();
+    expect(findMock).not.toHaveBeenCalled();
+  });
+
+  it("handles unknown accounts and missing config", async () => {
     findMock.mockResolvedValue(null);
+    const first = await enrolSetup();
     let body = await (
-      await app.request(post("/api/enrol", ENROL_BODY), undefined, makeEnv())
+      await app.request(post("/api/enrol", first.body), undefined, first.env)
     ).json();
     expect(body).toMatchObject({ ok: false, reason: "account_not_found" });
 
+    const second = await enrolSetup({ LEARNWORLDS_SCHOOL_URL: undefined });
     body = await (
-      await app.request(
-        post("/api/enrol", { ...ENROL_BODY, email: "not-an-email" }),
-        undefined,
-        makeEnv(),
-      )
-    ).json();
-    expect(body).toMatchObject({ ok: false, reason: "no_email" });
-
-    body = await (
-      await app.request(
-        post("/api/enrol", ENROL_BODY),
-        undefined,
-        makeEnv({ LEARNWORLDS_SCHOOL_URL: undefined }),
-      )
+      await app.request(post("/api/enrol", second.body), undefined, second.env)
     ).json();
     expect(body).toMatchObject({ ok: false, reason: "not_configured" });
   });
 
   it("enforces the daily enrolment cap", async () => {
-    const env = makeEnv();
+    const { env, body: reqBody } = await enrolSetup();
     for (let i = 0; i < 6; i++) {
       const body = await (
-        await app.request(post("/api/enrol", ENROL_BODY), undefined, env)
+        await app.request(post("/api/enrol", reqBody), undefined, env)
       ).json();
       expect(body.ok).toBe(true);
     }
     const body = await (
-      await app.request(post("/api/enrol", ENROL_BODY), undefined, env)
+      await app.request(post("/api/enrol", reqBody), undefined, env)
     ).json();
     expect(body).toMatchObject({ ok: false, reason: "daily_cap" });
   });
 
   it("a LearnWorlds outage degrades to service_error", async () => {
     findMock.mockRejectedValue(new Error("lw down"));
+    const { env, body: reqBody } = await enrolSetup();
     const body = await (
-      await app.request(post("/api/enrol", ENROL_BODY), undefined, makeEnv())
+      await app.request(post("/api/enrol", reqBody), undefined, env)
     ).json();
     expect(body).toMatchObject({ ok: false, reason: "service_error" });
   });
 
   it("a failed enrolment call reports enrol_failed, never a silent success", async () => {
     enrolMock.mockResolvedValue({ ok: false, status: 422 });
+    const { env, body: reqBody } = await enrolSetup();
     const body = await (
-      await app.request(post("/api/enrol", ENROL_BODY), undefined, makeEnv())
+      await app.request(post("/api/enrol", reqBody), undefined, env)
     ).json();
     expect(body).toMatchObject({ ok: false, reason: "enrol_failed" });
   });

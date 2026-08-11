@@ -153,15 +153,26 @@ export function parseBindings(raw: string | null): string[] {
   }
 }
 
+/** Add a device, or return the list unchanged when it is full.
+ *
+ * Deliberately fails CLOSED: evicting the oldest binding would let
+ * repeated mints push a learner's real device off their own record and
+ * lock them out. A full list means no new device — the learner (or
+ * Fledglings) clears it instead. */
 export function addBinding(existing: string[], deviceHash16: string): string[] {
   if (existing.includes(deviceHash16)) return existing;
-  /* Oldest binding drops out once the cap is reached. */
-  return [...existing, deviceHash16].slice(-MAX_BOUND_DEVICES);
+  if (existing.length >= MAX_BOUND_DEVICES) return existing;
+  return [...existing, deviceHash16];
+}
+
+/** True when the list is full and this device is not on it. */
+export function bindingsFull(existing: string[], deviceHash16: string): boolean {
+  return existing.length >= MAX_BOUND_DEVICES && !existing.includes(deviceHash16);
 }
 
 export type MintDecision =
   | { allow: true; reason: "first_claim" | "known_device" | "school_origin" }
-  | { allow: false; reason: "claimed_elsewhere" };
+  | { allow: false; reason: "claimed_elsewhere" | "too_many_devices" };
 
 /**
  * Decide whether this device may mint a token for this email.
@@ -180,6 +191,11 @@ export function decideMint(
   fromSchoolOrigin: boolean,
 ): MintDecision {
   if (bindings.includes(deviceHash16)) return { allow: true, reason: "known_device" };
+  /* A full record admits nobody new — including from a school page —
+   * so the cap can never be used to displace the real learner. */
+  if (bindingsFull(bindings, deviceHash16)) {
+    return { allow: false, reason: "too_many_devices" };
+  }
   if (fromSchoolOrigin) return { allow: true, reason: "school_origin" };
   if (bindings.length === 0) return { allow: true, reason: "first_claim" };
   return { allow: false, reason: "claimed_elsewhere" };

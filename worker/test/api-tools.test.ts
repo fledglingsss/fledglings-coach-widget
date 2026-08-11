@@ -23,6 +23,8 @@ vi.mock("../src/lib/learnworlds", async (importOriginal) => {
 import { app, type Env } from "../src/index";
 import { FALLBACK_REPLY, generate } from "../src/lib/anthropic";
 import { accurateUserCourses, getUserByEmail } from "../src/lib/learnworlds";
+import { hashLearnerId } from "../src/lib/rate-limit";
+import { mintIdentityToken } from "../src/lib/identity";
 
 const generateMock = vi.mocked(generate);
 const getUserMock = vi.mocked(getUserByEmail);
@@ -166,15 +168,40 @@ describe("POST /api/review", () => {
 });
 
 describe("POST /api/passport + GET /passport", () => {
-  const body = {
-    learner_id: GOOD_ID,
-    session_id: GOOD_ID,
-    email: "learner@example.com",
-  };
+  const PASSPORT_EMAIL = "learner@example.com";
+  const body = { learner_id: GOOD_ID, session_id: GOOD_ID };
+
+  /* A passport names the learner and lists their modules, so it is
+   * issued only against a signed identity bound to this device. */
+  async function identified(overrides: Partial<Env> = {}) {
+    const env = makeEnv(overrides);
+    const device16 = (await hashLearnerId(GOOD_ID)).slice(0, 16);
+    const emailHash16 = (await hashLearnerId(PASSPORT_EMAIL)).slice(0, 16);
+    await env.RATE_LIMITS.put(`id:bind:${emailHash16}`, JSON.stringify([device16]));
+    const token = await mintIdentityToken(
+      "lw-secret",
+      PASSPORT_EMAIL,
+      device16,
+      Math.floor(Date.now() / 1000),
+    );
+    return { env, body: { ...body, token: token ?? "" } };
+  }
+
+  it("issues NOTHING for a raw email — only a signed identity counts", async () => {
+    const out = await (
+      await app.request(
+        post("/api/passport", { ...body, email: PASSPORT_EMAIL }),
+        undefined,
+        makeEnv(),
+      )
+    ).json();
+    expect(out).toMatchObject({ ok: false, reason: "no_identity" });
+    expect(getUserMock).not.toHaveBeenCalled();
+  });
 
   it("builds a signed passport link that the passport page accepts", async () => {
-    const env = makeEnv();
-    const res = await app.request(post("/api/passport", body), undefined, env);
+    const { env, body: reqBody } = await identified();
+    const res = await app.request(post("/api/passport", reqBody), undefined, env);
     const out = await res.json();
     expect(out.ok).toBe(true);
     expect(out.completed).toBe(1);
@@ -189,47 +216,41 @@ describe("POST /api/passport + GET /passport", () => {
   });
 
   it("rejects a tampered passport link", async () => {
-    const env = makeEnv();
+    const { env, body: reqBody } = await identified();
     const out = await (
-      await app.request(post("/api/passport", body), undefined, env)
+      await app.request(post("/api/passport", reqBody), undefined, env)
     ).json();
     const tampered = String(out.url).replace(/s=[0-9a-f]{10}/, "s=aaaaaaaaaa");
     const page = await app.request(`http://coach.test${tampered}`, {}, env);
     expect(await page.text()).toContain("expired");
   });
 
-  it("degrades: no config, bad email, unknown account, daily cap", async () => {
+  it("degrades: no config, no identity, unknown account, daily cap", async () => {
+    const noConfig = await identified({ LEARNWORLDS_CLIENT_ID: undefined });
     let out = await (
-      await app.request(
-        post("/api/passport", body),
-        undefined,
-        makeEnv({ LEARNWORLDS_CLIENT_ID: undefined }),
-      )
+      await app.request(post("/api/passport", noConfig.body), undefined, noConfig.env)
     ).json();
     expect(out.reason).toBe("not_configured");
 
     out = await (
-      await app.request(
-        post("/api/passport", { ...body, email: "nope" }),
-        undefined,
-        makeEnv(),
-      )
+      await app.request(post("/api/passport", body), undefined, makeEnv())
     ).json();
-    expect(out.reason).toBe("no_email");
+    expect(out.reason).toBe("no_identity");
 
     getUserMock.mockResolvedValue(null);
+    const unknown = await identified();
     out = await (
-      await app.request(post("/api/passport", body), undefined, makeEnv())
+      await app.request(post("/api/passport", unknown.body), undefined, unknown.env)
     ).json();
     expect(out.reason).toBe("account_not_found");
 
     getUserMock.mockResolvedValue({ id: "u1" });
-    const env = makeEnv();
+    const capped = await identified();
     for (let i = 0; i < 10; i++) {
-      await app.request(post("/api/passport", body), undefined, env);
+      await app.request(post("/api/passport", capped.body), undefined, capped.env);
     }
     out = await (
-      await app.request(post("/api/passport", body), undefined, env)
+      await app.request(post("/api/passport", capped.body), undefined, capped.env)
     ).json();
     expect(out.reason).toBe("daily_cap");
   });

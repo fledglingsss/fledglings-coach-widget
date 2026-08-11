@@ -823,12 +823,9 @@ interface PathwayBody {
  * enrolment happens solely via POST /api/enrol, one module at a time,
  * after the learner confirms that module by name. */
 app.post("/api/pathway", async (c) => {
-  let body: PathwayBody;
-  try {
-    body = await c.req.json<PathwayBody>();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const rawPathway = await readJsonCapped(c, 8_000);
+  if (rawPathway === null) return c.json({ error: "invalid_json" }, 400);
+  const body = rawPathway as PathwayBody & Record<string, unknown>;
 
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
@@ -860,19 +857,18 @@ interface EnrolBody {
 /* One module, explicitly confirmed by the learner in the widget.
  * No tagging, no batch writes, allowlisted titles only. */
 app.post("/api/enrol", async (c) => {
-  let body: EnrolBody;
-  try {
-    body = await c.req.json<EnrolBody>();
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+  const raw = await readJsonCapped(c, 4_000);
+  if (raw === null) return c.json({ error: "invalid_json" }, 400);
+  const body = raw as EnrolBody & Record<string, unknown>;
 
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
     return c.json({ error: "invalid_request" }, 400);
   }
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  /* Enrolment WRITES to a LearnWorlds account — only ever the one this
+   * device can prove it is. */
+  const email = (await emailFromToken(c.env, body.token, learnerId)) || "";
   const title = typeof body.title === "string" ? body.title : "";
 
   /* The title must be one the pathway engine can actually emit. */
@@ -886,7 +882,7 @@ app.post("/api/enrol", async (c) => {
   };
 
   if (!lwConfigured(c.env)) return respond(false, "not_configured");
-  if (!EMAIL_PATTERN.test(email)) return respond(false, "no_email");
+  if (!EMAIL_PATTERN.test(email)) return respond(false, "no_identity");
 
   const courseId = courseIdFor(title);
   if (!courseId) return respond(false, "not_mapped");
@@ -1464,10 +1460,12 @@ app.post("/api/passport", async (c) => {
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
     return c.json({ error: "invalid_request" }, 400);
   }
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  /* A passport carries the learner's name and every module they have
+   * done — issued only for the identity this device can prove. */
+  const email = (await emailFromToken(c.env, body.token, learnerId)) || "";
 
   if (!lwConfigured(c.env)) return c.json({ ok: false, reason: "not_configured" });
-  if (!EMAIL_PATTERN.test(email)) return c.json({ ok: false, reason: "no_email" });
+  if (!EMAIL_PATTERN.test(email)) return c.json({ ok: false, reason: "no_identity" });
 
   const learnerHash = await hashLearnerId(learnerId);
   const capKey = `pp:day:${learnerHash}:${new Date().toISOString().slice(0, 10)}`;
@@ -1552,6 +1550,9 @@ app.get("/passport/sample", (c) => {
 const PORTAL_SAMPLE_SIZE = 30;
 const PORTAL_CACHE_TTL = 6 * 3600;
 const PORTAL_COOKIE = "fl_portal";
+/* Provider session length — enforced in the SIGNATURE, not just the
+ * cookie's Max-Age (which a client can ignore). */
+const PORTAL_SESSION_SECS = 8 * 3600;
 
 /* A portal code grants either the whole school or ONE cohort tag —
  * tag scoping is enforced server-side on every data/CSV response, so a
@@ -1581,11 +1582,19 @@ async function portalSession(c: {
   const cookies = c.req.header("Cookie") || "";
   const match = cookies.match(new RegExp(`${PORTAL_COOKIE}=([^;]+)`));
   if (!match) return null;
-  const [code, sig] = match[1].split(".");
-  if (!code || !sig) return null;
+  /* code.iat.sig — the issued-at is inside the signature, so a
+   * captured cookie stops working after the session window rather
+   * than living as long as the code itself. Legacy two-part cookies
+   * (no iat) are rejected; the provider simply signs in again. */
+  const [code, iatRaw, sig] = match[1].split(".");
+  if (!code || !iatRaw || !sig) return null;
+  const iat = parseInt(iatRaw, 10);
+  if (!Number.isFinite(iat)) return null;
+  const ageSecs = Math.floor(Date.now() / 1000) - iat;
+  if (ageSecs > PORTAL_SESSION_SECS || ageSecs < -300) return null;
   const okSig = await verifyPayload(
     c.env.LEARNWORLDS_CLIENT_SECRET || "",
-    `portal:${code}`,
+    `portal:${code}:${iat}`,
     sig,
   );
   if (!okSig) return null;
@@ -2099,7 +2108,19 @@ async function emailFromToken(
     Math.floor(Date.now() / 1000),
     deviceHash16,
   );
-  return email ?? undefined;
+  if (!email) return undefined;
+  /* A signature is not enough: the device must still be on the email's
+   * binding list. That makes clearing a binding a REAL revocation
+   * rather than a 30-day wait for the token to lapse. */
+  try {
+    const bindKey = `id:bind:${(await hashLearnerId(email)).slice(0, 16)}`;
+    const bindings = parseBindings(await env.RATE_LIMITS.get(bindKey));
+    if (!bindings.includes(deviceHash16)) return undefined;
+  } catch {
+    /* KV trouble must not hand out an identity. */
+    return undefined;
+  }
+  return email;
 }
 
 /* Generate five tailored questions from a pasted job advert. The set
@@ -2643,17 +2664,25 @@ app.post("/api/identity", async (c) => {
         await c.env.RATE_LIMITS.put(knownKey, known, { expirationTtl: 6 * 3600 });
       }
       if (known !== "1") {
-        return c.json({ ok: false, reason: "unknown_email" }, 200);
+        /* Deliberately the SAME refusal the binding path gives: a
+         * distinguishable answer would turn this into an "is this
+         * person enrolled?" oracle. The real reason stays in the log. */
+        console.log("[coach] kind=identity outcome=refused why=unknown_email");
+        return c.json({ ok: false, reason: "cannot_link" }, 200);
       }
     }
 
     const bindKey = `id:bind:${(await hashLearnerId(email)).slice(0, 16)}`;
     const bindings = parseBindings(await c.env.RATE_LIMITS.get(bindKey));
     const origin = c.req.header("Origin") || c.req.header("Referer") || "";
-    const decision = decideMint(bindings, deviceHash16, isSchoolOrigin(origin));
+    const decision = decideMint(
+      bindings,
+      deviceHash16,
+      isSchoolOrigin(origin, c.env.LEARNWORLDS_SCHOOL_URL),
+    );
     if (!decision.allow) {
-      console.log("[coach] kind=identity outcome=claimed_elsewhere");
-      return c.json({ ok: false, reason: "claimed_elsewhere" }, 200);
+      console.log(`[coach] kind=identity outcome=refused why=${decision.reason}`);
+      return c.json({ ok: false, reason: decision.reason }, 200);
     }
 
     const next = addBinding(bindings, deviceHash16);
@@ -3387,10 +3416,14 @@ app.post("/portal/login", async (c) => {
     }
     return c.redirect("/dashboard?login=failed");
   }
-  const sig = await signPayload(c.env.LEARNWORLDS_CLIENT_SECRET || "", `portal:${code}`);
+  const iat = Math.floor(Date.now() / 1000);
+  const sig = await signPayload(
+    c.env.LEARNWORLDS_CLIENT_SECRET || "",
+    `portal:${code}:${iat}`,
+  );
   c.header(
     "Set-Cookie",
-    `${PORTAL_COOKIE}=${code}.${sig}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=28800`,
+    `${PORTAL_COOKIE}=${code}.${iat}.${sig}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${PORTAL_SESSION_SECS}`,
   );
   return c.redirect(next);
 });

@@ -113,7 +113,7 @@ export function renderHubPage(): string {
 }
 
 const HUB_JS = String.raw`(function(){
-function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}
+function stored(st,k){return flStoredId(st,k)}
 var lid=stored(localStorage,'fl_coach_learner_v1');
 var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -148,6 +148,8 @@ if(linked)location.reload();});}catch(e){}}
  * learner) and the learner gets told plainly what to do instead. */
 var ID_REFUSALS={
 claimed_elsewhere:"That email is already linked to another device. Open the tools from inside your Fledglings course once and this device links itself — no password needed.",
+cannot_link:"We couldn't link that email — check it's the address you use with Fledglings. You can carry on without linking; your scores still save on this device.",
+too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it, or carry on without linking — your scores still save on this device.",
 unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking — your scores still save on this device.",
 bad_email:"That doesn't look like an email — check it and try again.",
 rate_limited:"That's a lot of linking attempts for one day. Try again tomorrow.",
@@ -162,7 +164,9 @@ btn.disabled=false;btn.textContent='Save my progress';
 $('id-err').textContent=ID_REFUSALS[r.reason]||ID_REFUSALS.unavailable;
 $('id-err').hidden=false;});};
 $('id-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('id-save').click();});
-$('id-change').onclick=function(){flClearEmail();location.reload();};
+/* Must strip ?t= as well — a plain reload would re-adopt the token
+ * sitting in the URL and sign the same learner straight back in. */
+$('id-change').onclick=flSignOutHere;
 function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#D9452B'}
 function ago(at){if(!at)return '';var d=Math.floor((Date.now()/1000-at)/86400);
 return d<=0?'today':d===1?'yesterday':d+' days ago';}

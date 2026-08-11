@@ -276,7 +276,7 @@ export function renderInterviewPage(): string {
 /* The client app. Kept as one template literal (no backticks or ${}
  * inside) so quotes stay readable. */
 const INTERVIEW_APP_JS = String.raw`(function(){
-function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}
+function stored(st,k){return flStoredId(st,k)}
 var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');
 var $=function(id){return document.getElementById(id)};
 var STAGES=['s-home','s-setup','s-int','s-review','s-wait','s-msg','s-rep'];

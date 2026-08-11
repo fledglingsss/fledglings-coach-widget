@@ -84,7 +84,7 @@ export function renderLinkedInPage(): string {
     "<div class='card'><h3>Where your points came from</h3><div id='r-secbars'></div></div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
-    "<a class='card journeynext no-print' href='/interview'><div>" +
+    "<a class='card journeynext no-print' id='li-journey' href='/interview'><div>" +
     "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
     "<b>Mock interview — practise telling this story out loud</b></div>" +
     "<span class='jn-btn'>Go →</span></a>" +
@@ -124,11 +124,14 @@ export function renderLinkedInPage(): string {
     "point you to real support instead of reviewing.</p>" +
     "</main>" +
     "<script>(function(){var lastName='';" +
-    "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
+    "function stored(st,k){return flStoredId(st,k)}" +
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
     "var qs=new URLSearchParams(location.search);" +
     "var hubEmail=flResolveEmail();flIdentityInit(lid);" +
+    /* The journey card must carry identity to the next tool. */
+    "(function(){var j=document.getElementById('li-journey'),t=flToken();" +
+    "if(j&&t)j.href='/interview?t='+encodeURIComponent(t);})();" +
     "function dots(a,b,c){[['lis-1',a],['lis-2',b],['lis-3',c]].forEach(function(p){" +
     "$(p[0]).className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');});}" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +

@@ -123,15 +123,33 @@ describe("device bindings", () => {
     expect(parseBindings(JSON.stringify(many))).toHaveLength(MAX_BOUND_DEVICES);
   });
 
-  it("adds without duplicating and drops the oldest past the cap", () => {
+  it("adds without duplicating, and REFUSES past the cap rather than evicting", () => {
     expect(addBinding([DEVICE], DEVICE)).toEqual([DEVICE]);
     const full = Array.from({ length: MAX_BOUND_DEVICES }, (_, i) =>
       i.toString(16).padStart(16, "0"),
     );
-    const next = addBinding(full, DEVICE);
-    expect(next).toHaveLength(MAX_BOUND_DEVICES);
-    expect(next[next.length - 1]).toBe(DEVICE);
-    expect(next).not.toContain(full[0]);
+    /* Evicting would let repeated mints push the learner's own device
+     * off their record and lock them out — so the list is immutable
+     * once full, and the real device keeps its place. */
+    expect(addBinding(full, DEVICE)).toEqual(full);
+    expect(addBinding(full, DEVICE)).not.toContain(DEVICE);
+    expect(full[0]).toBe(addBinding(full, DEVICE)[0]);
+  });
+
+  it("a full record admits nobody new — even from a school page", () => {
+    const full = Array.from({ length: MAX_BOUND_DEVICES }, (_, i) =>
+      i.toString(16).padStart(16, "0"),
+    );
+    expect(decideMint(full, DEVICE, false)).toEqual({
+      allow: false,
+      reason: "too_many_devices",
+    });
+    expect(decideMint(full, DEVICE, true)).toEqual({
+      allow: false,
+      reason: "too_many_devices",
+    });
+    /* A device already on the list still works. */
+    expect(decideMint(full, full[0]!, false).allow).toBe(true);
   });
 });
 
@@ -163,10 +181,21 @@ describe("decideMint", () => {
 });
 
 describe("isSchoolOrigin", () => {
-  it("recognises the school's own surfaces", () => {
+  const SCHOOL_URL = "https://fledglings.mycourse.app";
+
+  it("recognises the school's own domains", () => {
     expect(isSchoolOrigin("https://www.fledglings.co")).toBe(true);
-    expect(isSchoolOrigin("https://fledglings.mycourse.app")).toBe(true);
-    expect(isSchoolOrigin("https://school.learnworlds.com")).toBe(true);
+    expect(isSchoolOrigin("https://fledglings-school.co.uk")).toBe(true);
+  });
+
+  it("recognises the CONFIGURED LearnWorlds tenant only", () => {
+    expect(isSchoolOrigin("https://fledglings.mycourse.app", SCHOOL_URL)).toBe(true);
+    /* Anyone can create a free school at their own subdomain — the
+     * vendor apex must never count as ours. */
+    expect(isSchoolOrigin("https://attacker.learnworlds.com", SCHOOL_URL)).toBe(false);
+    expect(isSchoolOrigin("https://attacker.mycourse.app", SCHOOL_URL)).toBe(false);
+    expect(isSchoolOrigin("https://fledglings.mycourse.app")).toBe(false); // no config passed
+    expect(isSchoolOrigin("https://fledglings.mycourse.app", "not a url")).toBe(false);
   });
 
   it("does NOT treat the worker's own domain or localhost as the school", () => {
