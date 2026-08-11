@@ -62,3 +62,26 @@ describe("every page's inline JavaScript parses", () => {
     });
   }
 });
+
+/* A page that reloads itself on a falsy-but-truthy result loops for
+ * ever. This shipped once: flAdoptEmbedEmail started resolving an
+ * object, the hub still tested it as a boolean, and every unlinked
+ * visitor to /hub reloaded endlessly. Identity navigation now lives
+ * inside flAdoptEmbedEmail — no page may re-implement it. */
+describe("no page can loop on identity adoption", () => {
+  for (const [name, render] of PAGES) {
+    it(`${name} never branches on the adoption result`, () => {
+      const html = render();
+      const calls = [...html.matchAll(/flAdoptEmbedEmail\([^)]*\)([^;]{0,120})/g)];
+      for (const [, tail] of calls) {
+        expect(tail, `${name}: adoption result must not be branched on`).not.toMatch(
+          /\.then/,
+        );
+      }
+      /* And nothing may reload straight after asking for identity. */
+      expect(html, `${name}: unconditional reload after adoption`).not.toMatch(
+        /flAdoptEmbedEmail[\s\S]{0,160}?location\.reload\(\)/,
+      );
+    });
+  }
+});

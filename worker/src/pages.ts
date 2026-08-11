@@ -163,11 +163,16 @@ em=String(em||'').trim().toLowerCase();
 return em.indexOf('@')===-1?'':em;}
 /* The Liquid email in an embed is a REQUEST for a token, not proof —
  * exchange it once per browser, then the token does the work. */
+/* Owns the navigation itself: callers must never have to decide, or a
+ * truthy-but-failed result turns into a reload loop (it did — an
+ * unlinked visitor to /hub reloaded for ever, 2026-08-11). */
 function flAdoptEmbedEmail(learnerId){var em=flEmbedEmail();
 if(!em||flViewOnly())return Promise.resolve({ok:false});
 /* Already this learner — nothing to exchange, so never re-navigate. */
 if(flResolveEmail()===em)return Promise.resolve({ok:false});
-return flLinkEmail(em,learnerId);}
+return flLinkEmail(em,learnerId).then(function(r){
+if(r&&r.ok)flReloadWithToken(r.token);
+return r;});}
 /* Handing the device to someone else: drop the identity AND the work
  * saved on this browser. /ai-privacy promises exactly this, and a
  * shared Chromebook would otherwise show the next learner the last
@@ -188,8 +193,7 @@ location.href=u.pathname+u.search;}catch(e){location.href='/hub';}}
  * URL is the only place identity can live, and a plain reload would
  * mint again on every load (an endless loop on a locked-down device). */
 function flIdentityInit(learnerId){flIdentityChip();
-try{flAdoptEmbedEmail(learnerId).then(function(res){
-if(res&&res.ok)flReloadWithToken(res.token);});}catch(e){}}
+try{flAdoptEmbedEmail(learnerId);}catch(e){}}
 function flReloadWithToken(token){try{var u=new URL(location.href);
 u.searchParams.delete('e');
 if(token)u.searchParams.set('t',token);
