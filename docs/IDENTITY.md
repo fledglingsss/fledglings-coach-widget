@@ -40,12 +40,48 @@ Layered, in order:
    (max 6, 180 days):
    - a device already bound → allowed;
    - an email nobody has claimed → allowed (trust on first use);
-   - an email already in use, from a **standalone** browser → **refused**,
-     with copy telling the learner to open the tools once from inside
-     their Fledglings course;
-   - from a **school page** (fledglings.co / LearnWorlds), where
-     LearnWorlds itself rendered the signed-in learner's address →
-     allowed. This is how a learner links a second device.
+   - an email already in use → **refused**, unless the request carries a
+     valid device link code (below);
+   - a full record (6 devices) → refused outright, even with a code, so
+     the cap can never be used to displace the real learner.
+
+There is deliberately **no** "the request came from a school page"
+branch. That existed until 2026-08-11 and rested on an `Origin` header,
+which a browser enforces but any non-browser client can simply assert —
+and it accepted the whole `learnworlds.com` / `mycourse.app` vendor
+estate, so a free school at `attacker.learnworlds.com` counted as ours.
+Device link codes replaced it.
+
+## Adding a second device: link codes
+
+The learner proves possession of a device that already holds the
+identity, rather than asserting anything about themselves.
+
+1. On the linked device: Hub → **Link another device** →
+   `POST /api/identity/link-code` (requires a valid token for *that*
+   device) returns a six-character code, shown as `ABC-234`.
+2. On the new device: Hub → **I already use Fledglings on another
+   device** → type the code → `POST /api/identity {code}` mints a token
+   bound to the new device and adds the binding.
+
+Properties:
+
+| Property | Value |
+|---|---|
+| Alphabet | 31 chars, no `0/O/1/I/L` — it gets read aloud and typed |
+| Space | 31⁶ ≈ 887 million |
+| Life | 10 minutes |
+| Uses | One — deleted the moment it is accepted |
+| Redemption attempts | 10 per device per day, 30 per IP per day |
+| Issuing | 20 per device per day, and only from a linked device |
+
+A redeemed code skips the LearnWorlds existence check: the address came
+from a device already holding it, so it is known-good.
+
+**The one stored address.** `id:link:<CODE>` holds the email for up to
+ten minutes so the handover can complete. It is the only place this
+worker stores an address in clear, it is deleted on use, and it expires
+on its own. Everything else is a hash.
 
 ## What this protects against
 
@@ -62,27 +98,28 @@ Layered, in order:
 ## What it does not protect against — honestly
 
 Without LearnWorlds SSO or an email round-trip, nothing can *prove* a
-person owns an address. Two residuals remain:
+person owns an address. One residual remains:
 
-1. **A page on a school origin may claim any known address.** Someone
-   signed in to the school who knows a classmate's email could mint a
-   token for it. This is the path SSO would close; it is deliberately
-   allowed today because it is also how legitimate second-device
-   linking works.
-2. **An unclaimed address can be claimed by whoever gets there first.**
-   Trust on first use: the protection starts once a real learner is
-   using it.
+**An unclaimed address can be claimed by whoever gets there first.**
+Trust on first use — the protection starts the moment a real learner
+links. Someone who knew a classmate's address, knew they had never
+used the tools, and got there first could sit on their score history;
+the classmate would then be refused and would contact Fledglings, so
+it is noisy rather than silent. Clearing the binding
+(`id:bind:<emailHash16>`) revokes it immediately, including any token
+already minted.
 
 The data behind identity remains whole numbers and timestamps —
 scores, never documents, answers, letters or video. That is why this
 trade-off is acceptable, and it is written down rather than implied.
 
-## Closing residual 1 later
+## Closing the last residual later
 
 If LearnWorlds SSO (or the Assessments/Forms-style plan gate) becomes
 available: have LearnWorlds sign a short-lived assertion, verify it in
-`/api/identity`, and drop the `school_origin` branch of `decideMint`.
-Nothing else changes — every caller already speaks tokens.
+`/api/identity`, and let a verified assertion satisfy first-claim
+instead of "nobody has claimed it yet". Nothing else changes — every
+caller already speaks tokens, and link codes stay as the offline path.
 
 ## Provider "open their hub view"
 

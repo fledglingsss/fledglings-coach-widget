@@ -1049,8 +1049,9 @@ export function renderAiPrivacyPage(): string {
     "It's tied to this browser, it runs out after 30 days, and every time your scores are saved or shown " +
     "the pass is checked. Typing someone else's email somewhere gets nobody anywhere: without a pass " +
     "issued by us, there's no way in.</p>" +
-    "<p>Linking a second device? Open the tools once from inside your Fledglings course and that device " +
-    "gets its own pass automatically. If an email is already in use, a random browser can't take it over.</p>" +
+    "<p>Linking a second device? On the one that already works, open the Hub and tap <b>Link another device</b> — " +
+    "it shows a six-character code that you type on the new device. Codes last ten minutes and work once. " +
+    "That's why nobody can take your progress just by typing your email: they'd need the code from your device.</p>" +
     "<p>There's still no password, because there's nothing sensitive behind it — the whole record is " +
     "scores and dates. Tap <b>Not you?</b> on any tool to hand the device back.</p></div></div>" +
     "<div class='card'><h3>The no-fabrication law</h3><div class='result'>" +

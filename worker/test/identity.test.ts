@@ -3,14 +3,19 @@ import { describe, expect, it } from "vitest";
 import {
   addBinding,
   decideMint,
+  formatLinkCode,
+  generateLinkCode,
   IDENTITY_TTL_SECS,
+  LINK_CODE_LENGTH,
   MAX_BOUND_DEVICES,
   mintIdentityToken,
+  normaliseLinkCode,
   parseBindings,
   parseIdentityToken,
+  parseLinkCodeRecord,
   verifyIdentityToken,
 } from "../src/lib/identity";
-import { isOriginAllowed, isSchoolOrigin } from "../src/lib/origin";
+import { isOriginAllowed } from "../src/lib/origin";
 
 const SECRET = "test-signing-secret-value";
 const EMAIL = "learner@example.com";
@@ -172,38 +177,75 @@ describe("decideMint", () => {
     });
   });
 
-  it("allows a new device when the page came from the school (signed-in embed)", () => {
+  it("admits a new device ONLY with a link code — never on a header", () => {
+    /* The old "came from a school page" branch is gone: an Origin
+     * header is assertable by any non-browser client. */
     expect(decideMint([OTHER_DEVICE], DEVICE, true)).toEqual({
       allow: true,
-      reason: "school_origin",
+      reason: "link_code",
     });
+    expect(decideMint([OTHER_DEVICE], DEVICE, false).allow).toBe(false);
   });
 });
 
-describe("isSchoolOrigin", () => {
-  const SCHOOL_URL = "https://fledglings.mycourse.app";
-
-  it("recognises the school's own domains", () => {
-    expect(isSchoolOrigin("https://www.fledglings.co")).toBe(true);
-    expect(isSchoolOrigin("https://fledglings-school.co.uk")).toBe(true);
+describe("link codes", () => {
+  it("generates codes of the right shape, from an unambiguous alphabet", () => {
+    for (let i = 0; i < 50; i++) {
+      const code = generateLinkCode();
+      expect(code).toHaveLength(LINK_CODE_LENGTH);
+      /* No 0/O/1/I/L — these get read aloud and mistyped. */
+      expect(code).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]+$/);
+    }
   });
 
-  it("recognises the CONFIGURED LearnWorlds tenant only", () => {
-    expect(isSchoolOrigin("https://fledglings.mycourse.app", SCHOOL_URL)).toBe(true);
-    /* Anyone can create a free school at their own subdomain — the
-     * vendor apex must never count as ours. */
-    expect(isSchoolOrigin("https://attacker.learnworlds.com", SCHOOL_URL)).toBe(false);
-    expect(isSchoolOrigin("https://attacker.mycourse.app", SCHOOL_URL)).toBe(false);
-    expect(isSchoolOrigin("https://fledglings.mycourse.app")).toBe(false); // no config passed
-    expect(isSchoolOrigin("https://fledglings.mycourse.app", "not a url")).toBe(false);
+  it("does not repeat itself", () => {
+    const seen = new Set(Array.from({ length: 200 }, () => generateLinkCode()));
+    expect(seen.size).toBeGreaterThan(190);
   });
 
-  it("does NOT treat the worker's own domain or localhost as the school", () => {
-    expect(isSchoolOrigin("https://fledglings-coach.fledglings.workers.dev")).toBe(false);
-    expect(isSchoolOrigin("http://localhost:8787")).toBe(false);
-    expect(isSchoolOrigin("")).toBe(false);
-    expect(isSchoolOrigin("not a url")).toBe(false);
-    /* …while both remain allowed callers of the API. */
+  it("accepts what a learner actually types", () => {
+    const code = generateLinkCode();
+    expect(normaliseLinkCode(code.toLowerCase())).toBe(code);
+    expect(normaliseLinkCode(`${code.slice(0, 3)}-${code.slice(3)}`)).toBe(code);
+    expect(normaliseLinkCode(` ${code.slice(0, 3)} ${code.slice(3)} `)).toBe(code);
+  });
+
+  it("rejects anything that is not a code", () => {
+    expect(normaliseLinkCode("")).toBe("");
+    expect(normaliseLinkCode("ABC")).toBe("");
+    expect(normaliseLinkCode("ABCDEFGH")).toBe("");
+    expect(normaliseLinkCode(null)).toBe("");
+    expect(normaliseLinkCode(42)).toBe("");
+    expect(normaliseLinkCode("x".repeat(500))).toBe("");
+    /* Ambiguous characters are not in the alphabet, so a code made
+     * only of them is not a code. */
+    expect(normaliseLinkCode("OIL01O")).toBe("");
+  });
+
+  it("formats for reading aloud", () => {
+    expect(formatLinkCode("ABC234")).toBe("ABC-234");
+    expect(formatLinkCode("short")).toBe("short");
+  });
+
+  it("parses a stored record, and refuses expired or malformed ones", () => {
+    const now = 1_785_000_000;
+    const good = JSON.stringify({ e: "learner@example.com", exp: now + 60 });
+    expect(parseLinkCodeRecord(good, now)).toEqual({
+      e: "learner@example.com",
+      exp: now + 60,
+    });
+    expect(parseLinkCodeRecord(null, now)).toBeNull();
+    expect(parseLinkCodeRecord("not json", now)).toBeNull();
+    expect(
+      parseLinkCodeRecord(JSON.stringify({ e: "learner@example.com", exp: now - 1 }), now),
+    ).toBeNull();
+    expect(parseLinkCodeRecord(JSON.stringify({ e: "nope", exp: now + 60 }), now)).toBeNull();
+  });
+});
+
+describe("origin allowlist", () => {
+  it("still admits the worker's own domain as an API caller", () => {
     expect(isOriginAllowed("https://fledglings-coach.fledglings.workers.dev")).toBe(true);
+    expect(isOriginAllowed("https://evil.example.com")).toBe(false);
   });
 });

@@ -171,32 +171,100 @@ export function bindingsFull(existing: string[], deviceHash16: string): boolean 
 }
 
 export type MintDecision =
-  | { allow: true; reason: "first_claim" | "known_device" | "school_origin" }
+  | { allow: true; reason: "first_claim" | "known_device" | "link_code" }
   | { allow: false; reason: "claimed_elsewhere" | "too_many_devices" };
 
 /**
  * Decide whether this device may mint a token for this email.
  *
- * - From a school page (the LearnWorlds embed, where LearnWorlds
- *   itself rendered the logged-in learner's address): allowed — this
- *   is how a learner links a second device.
- * - Standalone: allowed only for an email nobody has claimed yet, or a
- *   device already bound to it. That way a stranger who happens to
- *   know an active learner's address cannot take over their history
- *   from their own browser.
+ * Naming an address is never enough once someone is using it. The only
+ * ways in are: a device already on the record, an address nobody has
+ * claimed yet, or a link code proved from an already-linked device.
+ *
+ * There is deliberately NO "came from a school page" branch: that
+ * rested on an `Origin` header, which a non-browser client can simply
+ * assert. The link code replaces it — see docs/IDENTITY.md.
  */
 export function decideMint(
   bindings: string[],
   deviceHash16: string,
-  fromSchoolOrigin: boolean,
+  withLinkCode: boolean,
 ): MintDecision {
   if (bindings.includes(deviceHash16)) return { allow: true, reason: "known_device" };
-  /* A full record admits nobody new — including from a school page —
-   * so the cap can never be used to displace the real learner. */
+  /* A full record admits nobody new — even with a valid code — so the
+   * cap can never be used to displace the real learner. */
   if (bindingsFull(bindings, deviceHash16)) {
     return { allow: false, reason: "too_many_devices" };
   }
-  if (fromSchoolOrigin) return { allow: true, reason: "school_origin" };
+  if (withLinkCode) return { allow: true, reason: "link_code" };
   if (bindings.length === 0) return { allow: true, reason: "first_claim" };
   return { allow: false, reason: "claimed_elsewhere" };
+}
+
+/* ------------------------------------------------------------------
+ * Device link codes — how a learner adds a second device.
+ *
+ * A device that already holds the identity asks for a code; the new
+ * device types it in. Possession of the code IS the proof, so no
+ * header, origin or guessable address is involved.
+ * ------------------------------------------------------------------ */
+
+/** Short enough to read off a phone screen, long enough that guessing
+ * is hopeless: 31^6 ≈ 887 million, one-time use, ten-minute life, and
+ * redemption attempts are capped per device and per IP. */
+export const LINK_CODE_LENGTH = 6;
+export const LINK_CODE_TTL_SECS = 600;
+
+/* No 0/O/1/I/L — a code is read aloud and typed by a tired teenager. */
+const LINK_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+/** A fresh code, using the platform CSPRNG. */
+export function generateLinkCode(): string {
+  const bytes = new Uint8Array(LINK_CODE_LENGTH);
+  crypto.getRandomValues(bytes);
+  let code = "";
+  for (const b of bytes) code += LINK_CODE_ALPHABET[b % LINK_CODE_ALPHABET.length];
+  return code;
+}
+
+/** Accept what the learner actually types — lower case, spaces and
+ * hyphens are all fine. Anything outside the alphabet is dropped
+ * (the ambiguous characters are not in it to begin with), and the
+ * result must be exactly a code's worth. Returns "" otherwise. */
+export function normaliseLinkCode(raw: unknown): string {
+  if (typeof raw !== "string" || raw.length > 40) return "";
+  const candidate = raw
+    .toUpperCase()
+    .split("")
+    .filter((ch) => LINK_CODE_ALPHABET.includes(ch))
+    .join("");
+  return candidate.length === LINK_CODE_LENGTH ? candidate : "";
+}
+
+/** Group as XXX-XXX purely for display. */
+export function formatLinkCode(code: string): string {
+  return code.length === LINK_CODE_LENGTH ? `${code.slice(0, 3)}-${code.slice(3)}` : code;
+}
+
+export interface LinkCodeRecord {
+  /** The address the code hands over. */
+  e: string;
+  /** Expiry, epoch seconds. */
+  exp: number;
+}
+
+export function parseLinkCodeRecord(
+  raw: string | null,
+  nowSecs: number,
+): LinkCodeRecord | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<LinkCodeRecord>;
+    if (typeof parsed.e !== "string" || typeof parsed.exp !== "number") return null;
+    const email = parsed.e.trim().toLowerCase();
+    if (email.indexOf("@") === -1 || parsed.exp <= nowSecs) return null;
+    return { e: email, exp: parsed.exp };
+  } catch {
+    return null;
+  }
 }

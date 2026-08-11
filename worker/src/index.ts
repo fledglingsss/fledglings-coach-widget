@@ -29,7 +29,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { isOriginAllowed, isSchoolOrigin } from "./lib/origin";
+import { isOriginAllowed } from "./lib/origin";
 import { checkAndIncrement, hashLearnerId, limits } from "./lib/rate-limit";
 import { crisisHeuristic, guardReply, neutraliseAngles, sanitiseText } from "./lib/safety";
 import {
@@ -210,9 +210,14 @@ import { b64urlDecode, b64urlEncode, signPayload, verifyPayload } from "./lib/si
 import {
   addBinding,
   decideMint,
+  formatLinkCode,
+  generateLinkCode,
   IDENTITY_TTL_SECS,
+  LINK_CODE_TTL_SECS,
   mintIdentityToken,
+  normaliseLinkCode,
   parseBindings,
+  parseLinkCodeRecord,
   verifyIdentityToken,
 } from "./lib/identity";
 import { generate } from "./lib/anthropic";
@@ -2614,15 +2619,70 @@ app.get("/hub", (c) => c.html(renderHubPage(), 200, FRAME_HEADERS));
 
 const IDENTITY_MINTS_PER_DEVICE_PER_DAY = 10;
 const IDENTITY_MINTS_PER_IP_PER_DAY = 40;
+/* Redemption attempts are what a guesser would burn — capped hard and
+ * separately from ordinary linking. */
+const LINK_CODE_TRIES_PER_DEVICE_PER_DAY = 10;
+const LINK_CODE_TRIES_PER_IP_PER_DAY = 30;
+
+/* Ask for a code to link ANOTHER device. Only a device that already
+ * holds the identity can issue one — that possession is the proof the
+ * new device inherits. */
+app.post("/api/identity/link-code", async (c) => {
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  const email = await emailFromToken(c.env, body.token, learnerId);
+  if (!email) return c.json({ ok: false, reason: "no_identity" }, 200);
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const deviceHash16 = (await hashLearnerId(learnerId)).slice(0, 16);
+    const rlKey = `id:lc:${deviceHash16}:${day}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= 20) return c.json({ ok: false, reason: "rate_limited" }, 429);
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+
+    const code = generateLinkCode();
+    const expiresAt = Math.floor(Date.now() / 1000) + LINK_CODE_TTL_SECS;
+    /* The ONE place an address is stored — for ten minutes, one use,
+     * so a learner can move their own identity between their own
+     * devices. Documented in docs/IDENTITY.md. */
+    await c.env.RATE_LIMITS.put(
+      `id:link:${code}`,
+      JSON.stringify({ e: email, exp: expiresAt }),
+      { expirationTtl: LINK_CODE_TTL_SECS },
+    );
+    console.log("[coach] kind=identity-link-code outcome=issued");
+    return c.json({
+      ok: true,
+      code,
+      display: formatLinkCode(code),
+      expires_at: expiresAt,
+      expires_in: LINK_CODE_TTL_SECS,
+    });
+  } catch (err) {
+    console.error("[coach] link-code error:", String(err));
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
 
 app.post("/api/identity", async (c) => {
   const body = await readJsonCapped(c, 4_000);
   if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
-  const email =
-    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
-  if (!EMAIL_PATTERN.test(email) || email.length > 80) {
+  /* Two ways in: name an address (subject to first-claim), or redeem a
+   * code issued by a device that already holds the identity. */
+  const linkCode = normaliseLinkCode(body.code);
+  /* A code that was offered but is the wrong shape is a bad CODE, not
+   * a bad email — say so, or the learner is told to check an address
+   * they never typed. */
+  if (!linkCode && typeof body.code === "string" && body.code.trim() !== "") {
+    return c.json({ ok: false, reason: "bad_code" }, 200);
+  }
+  const claimedEmail =
+    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!linkCode && (!EMAIL_PATTERN.test(claimedEmail) || claimedEmail.length > 80)) {
     return c.json({ ok: false, reason: "bad_email" }, 400);
   }
 
@@ -2636,6 +2696,40 @@ app.post("/api/identity", async (c) => {
     const day = new Date().toISOString().slice(0, 10);
     const deviceHash = await hashLearnerId(learnerId);
     const deviceHash16 = deviceHash.slice(0, 16);
+
+    /* Redeeming a code: cap the attempts hard (this is the surface a
+     * guesser would hammer), then resolve it to the address it holds.
+     * One use only — it is deleted the moment it works. */
+    let email = claimedEmail;
+    if (linkCode) {
+      const tryKey = `id:lct:${deviceHash16}:${day}`;
+      const tries = parseInt((await c.env.RATE_LIMITS.get(tryKey)) || "0", 10) || 0;
+      if (tries >= LINK_CODE_TRIES_PER_DEVICE_PER_DAY) {
+        return c.json({ ok: false, reason: "rate_limited" }, 429);
+      }
+      await c.env.RATE_LIMITS.put(tryKey, String(tries + 1), { expirationTtl: 86_400 });
+      const ipForTries = c.req.header("CF-Connecting-IP") || "";
+      if (ipForTries) {
+        const ipTryKey = `id:lcti:${(await hashLearnerId(ipForTries)).slice(0, 16)}:${day}`;
+        const ipTries = parseInt((await c.env.RATE_LIMITS.get(ipTryKey)) || "0", 10) || 0;
+        if (ipTries >= LINK_CODE_TRIES_PER_IP_PER_DAY) {
+          return c.json({ ok: false, reason: "rate_limited" }, 429);
+        }
+        await c.env.RATE_LIMITS.put(ipTryKey, String(ipTries + 1), {
+          expirationTtl: 86_400,
+        });
+      }
+      const record = parseLinkCodeRecord(
+        await c.env.RATE_LIMITS.get(`id:link:${linkCode}`),
+        Math.floor(Date.now() / 1000),
+      );
+      if (!record) {
+        console.log("[coach] kind=identity outcome=refused why=bad_link_code");
+        return c.json({ ok: false, reason: "bad_code" }, 200);
+      }
+      email = record.e;
+    }
+
     const rlKey = `id:rl:${deviceHash16}:${day}`;
     const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
     if (used >= IDENTITY_MINTS_PER_DEVICE_PER_DAY) {
@@ -2654,8 +2748,10 @@ app.post("/api/identity", async (c) => {
 
     /* The address must belong to a real learner. Cached (hits AND
      * misses) so this cannot become an email-existence oracle worth
-     * sweeping, and so a class linking at once costs one lookup. */
-    if (lwConfigured(c.env)) {
+     * sweeping, and so a class linking at once costs one lookup.
+     * A redeemed code already came from a linked device, so the
+     * address is known-good and the lookup is skipped. */
+    if (!linkCode && lwConfigured(c.env)) {
       const knownKey = `id:known:${(await hashLearnerId(email)).slice(0, 16)}`;
       let known = await c.env.RATE_LIMITS.get(knownKey);
       if (known === null) {
@@ -2674,15 +2770,19 @@ app.post("/api/identity", async (c) => {
 
     const bindKey = `id:bind:${(await hashLearnerId(email)).slice(0, 16)}`;
     const bindings = parseBindings(await c.env.RATE_LIMITS.get(bindKey));
-    const origin = c.req.header("Origin") || c.req.header("Referer") || "";
-    const decision = decideMint(
-      bindings,
-      deviceHash16,
-      isSchoolOrigin(origin, c.env.LEARNWORLDS_SCHOOL_URL),
-    );
+    const decision = decideMint(bindings, deviceHash16, Boolean(linkCode));
     if (!decision.allow) {
       console.log(`[coach] kind=identity outcome=refused why=${decision.reason}`);
       return c.json({ ok: false, reason: decision.reason }, 200);
+    }
+    /* Burn the code the moment it is accepted — one device, one use.
+     * Never let a storage hiccup here fail the link itself. */
+    if (linkCode) {
+      try {
+        await c.env.RATE_LIMITS.delete(`id:link:${linkCode}`);
+      } catch {
+        /* it expires on its own within ten minutes regardless */
+      }
     }
 
     const next = addBinding(bindings, deviceHash16);

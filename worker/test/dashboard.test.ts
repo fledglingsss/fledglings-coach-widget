@@ -872,3 +872,139 @@ describe("reflections sweep learner filter", () => {
     expect(state.preRespondents).not.toContain("support@vendor.test");
   });
 });
+
+/* The device link code — how a second device joins now that the
+ * "came from a school page" branch is gone. */
+describe("device link codes", () => {
+  const DEVICE_A = "a".repeat(32);
+  const DEVICE_B = "b".repeat(32);
+  const EMAIL = "amy@swift.test";
+  const ORIGIN = "https://www.fledglings.co";
+
+  function post(path: string, body: Record<string, unknown>) {
+    return new Request(`http://coach.test${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: ORIGIN },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function linkFirstDevice(env: Env) {
+    getUserMock.mockResolvedValue({ id: "u1", email: EMAIL } as never);
+    const res = await app.request(
+      post("/api/identity", { learner_id: DEVICE_A, email: EMAIL }),
+      undefined,
+      env,
+    );
+    return (await res.json()) as { ok: boolean; token?: string };
+  }
+
+  it("hands an identity to a second device, once", async () => {
+    const env = makeEnv();
+    const first = await linkFirstDevice(env);
+    expect(first.ok).toBe(true);
+
+    /* Device B cannot simply claim the address. */
+    const refused = await (
+      await app.request(
+        post("/api/identity", { learner_id: DEVICE_B, email: EMAIL }),
+        undefined,
+        env,
+      )
+    ).json() as { ok: boolean; reason?: string };
+    expect(refused).toMatchObject({ ok: false, reason: "claimed_elsewhere" });
+
+    /* Device A issues a code; device B redeems it. */
+    const issued = (await (
+      await app.request(
+        post("/api/identity/link-code", { learner_id: DEVICE_A, token: first.token }),
+        undefined,
+        env,
+      )
+    ).json()) as { ok: boolean; code?: string; display?: string };
+    expect(issued.ok).toBe(true);
+    expect(issued.display).toMatch(/^[A-Z0-9]{3}-[A-Z0-9]{3}$/);
+
+    const linked = (await (
+      await app.request(
+        post("/api/identity", { learner_id: DEVICE_B, code: issued.display }),
+        undefined,
+        env,
+      )
+    ).json()) as { ok: boolean; token?: string; email?: string };
+    expect(linked.ok).toBe(true);
+    expect(linked.email).toBe(EMAIL);
+
+    /* The token really works for device B… */
+    const hub = (await (
+      await app.request(
+        post("/api/hub", { learner_id: DEVICE_B, token: linked.token }),
+        undefined,
+        env,
+      )
+    ).json()) as { ok: boolean; name?: string };
+    expect(hub.name).toBe("Amy");
+
+    /* …and the code is burnt: a third device cannot reuse it. */
+    const reused = (await (
+      await app.request(
+        post("/api/identity", { learner_id: "c".repeat(32), code: issued.code }),
+        undefined,
+        env,
+      )
+    ).json()) as { ok: boolean; reason?: string };
+    expect(reused).toMatchObject({ ok: false, reason: "bad_code" });
+  });
+
+  it("refuses a code nobody issued, and only a linked device can issue one", async () => {
+    const env = makeEnv();
+    const guessed = (await (
+      await app.request(
+        post("/api/identity", { learner_id: DEVICE_B, code: "ZZZ-999" }),
+        undefined,
+        env,
+      )
+    ).json()) as { ok: boolean; reason?: string };
+    expect(guessed).toMatchObject({ ok: false, reason: "bad_code" });
+
+    const noIdentity = (await (
+      await app.request(
+        post("/api/identity/link-code", { learner_id: DEVICE_B }),
+        undefined,
+        env,
+      )
+    ).json()) as { ok: boolean; reason?: string };
+    expect(noIdentity).toMatchObject({ ok: false, reason: "no_identity" });
+  });
+
+  it("caps redemption attempts so a code cannot be guessed", async () => {
+    const env = makeEnv();
+    /* Every attempt must be a well-formed code, or it is rejected on
+     * shape before it ever reaches the counter. */
+    const guesses = ["ZZZ234", "ZZZ235", "ZZZ236", "ZZZ237", "ZZZ238"];
+    let last: { ok: boolean; reason?: string } = { ok: false };
+    for (let i = 0; i < 12; i++) {
+      last = (await (
+        await app.request(
+          post("/api/identity", { learner_id: DEVICE_B, code: guesses[i % guesses.length] }),
+          undefined,
+          env,
+        )
+      ).json()) as { ok: boolean; reason?: string };
+      if (i < 9) expect(last.reason).toBe("bad_code");
+    }
+    expect(last.reason).toBe("rate_limited");
+  });
+
+  it("tells a learner their code is malformed, not their email", async () => {
+    const env = makeEnv();
+    const out = (await (
+      await app.request(
+        post("/api/identity", { learner_id: DEVICE_B, code: "nope" }),
+        undefined,
+        env,
+      )
+    ).json()) as { ok: boolean; reason?: string };
+    expect(out).toMatchObject({ ok: false, reason: "bad_code" });
+  });
+});

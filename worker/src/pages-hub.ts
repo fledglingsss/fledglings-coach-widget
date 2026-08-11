@@ -90,13 +90,29 @@ export function renderHubPage(): string {
     "<div class='card idcard' id='account'>" +
     "<div id='id-known' hidden>💾 <b>Progress saving as <span id='id-email'></span></b>" +
     "<span class='id-sub'>Your scores follow this email — here, standalone, and inside your Fledglings courses.</span>" +
+    "<div class='idbtns'><button type='button' class='idlink' id='id-adddevice'>Link another device</button>" +
     "<button type='button' class='idlink' id='id-change'>Use a different email</button></div>" +
+    /* the code this device issues for another one */
+    "<div class='linkbox' id='lc-box' hidden>" +
+    "<b>Type this code on your other device</b>" +
+    "<div class='lc-code' id='lc-code'>------</div>" +
+    "<span class='id-sub'>On that device open the Hub, choose <b>I already use Fledglings</b> and enter the code. " +
+    "It works once and expires in <span id='lc-left'>10:00</span>.</span>" +
+    "<div class='id-err' id='lc-err' hidden></div></div></div>" +
     "<div id='id-anon' hidden><b>Keep your scores?</b>" +
     "<span class='id-sub'>Enter the email you use with Fledglings and your progress follows you on any device or page. " +
     "It's only used as the key for your scores — no password, nothing else stored.</span>" +
     "<div class='idrow'><input type='email' id='id-input' maxlength='80' placeholder='you@example.com' aria-label='Your email'>" +
     "<button type='button' class='btn' id='id-save'>Save my progress</button></div>" +
-    "<div class='id-err' id='id-err' hidden>That doesn't look like an email — check it and try again.</div></div>" +
+    "<div class='id-err' id='id-err' hidden>That doesn't look like an email — check it and try again.</div>" +
+    /* redeem a code issued by a device the learner already uses */
+    "<div class='lc-alt'><button type='button' class='idlink' id='lc-show'>I already use Fledglings on another device</button>" +
+    "<div id='lc-enter' hidden>" +
+    "<span class='id-sub'>On your other device: Hub → <b>Link another device</b>. Type the code it shows here.</span>" +
+    "<div class='idrow'><input type='text' id='lc-input' maxlength='12' placeholder='ABC-234' " +
+    "autocomplete='off' autocapitalize='characters' spellcheck='false' aria-label='Your link code'>" +
+    "<button type='button' class='btn' id='lc-go'>Link this device</button></div>" +
+    "<div class='id-err' id='lc-enter-err' hidden></div></div></div></div>" +
     "</div>" +
     "<p class='sub' style='font-size:12.5px;margin-top:8px'>Scores stay for six months so you can watch them climb. " +
     "Daily limits: 5 reviews, 3 mock interviews, 3 cover letters. If anything you write or say worries Fledge about your " +
@@ -147,7 +163,7 @@ if(linked)location.reload();});}catch(e){}}
  * (address already in use on another device, or not a Fledglings
  * learner) and the learner gets told plainly what to do instead. */
 var ID_REFUSALS={
-claimed_elsewhere:"That email is already linked to another device. Open the tools from inside your Fledglings course once and this device links itself — no password needed.",
+claimed_elsewhere:"That email is already linked to another device — that's your protection working. Open the Hub on that device, tap “Link another device” and type the code it gives you below.",
 cannot_link:"We couldn't link that email — check it's the address you use with Fledglings. You can carry on without linking; your scores still save on this device.",
 too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it, or carry on without linking — your scores still save on this device.",
 unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking — your scores still save on this device.",
@@ -162,7 +178,59 @@ flLinkEmail(raw,lid).then(function(r){
 if(r.ok){location.reload();return;}
 btn.disabled=false;btn.textContent='Save my progress';
 $('id-err').textContent=ID_REFUSALS[r.reason]||ID_REFUSALS.unavailable;
-$('id-err').hidden=false;});};
+$('id-err').hidden=false;
+/* Already in use elsewhere? The code path is the way through — open
+ * it for them rather than leaving a dead end. */
+if(r.reason==='claimed_elsewhere'){$('lc-enter').hidden=false;$('lc-show').hidden=true;
+$('lc-input').focus();}});};
+
+/* ---- device link codes ---- */
+var lcTimer=null;
+function lcCountdown(until){if(lcTimer)clearInterval(lcTimer);
+function tick(){var left=Math.max(0,Math.round(until-Date.now()/1000));
+var m=Math.floor(left/60),s=left%60;
+$('lc-left').textContent=m+':'+(s<10?'0':'')+s;
+if(left<=0){clearInterval(lcTimer);lcTimer=null;
+$('lc-code').textContent='------';
+$('lc-err').textContent='That code has expired — tap “Link another device” for a fresh one.';
+$('lc-err').hidden=false;}}
+tick();lcTimer=setInterval(tick,1000);}
+$('id-adddevice').onclick=function(){var btn=this;
+btn.disabled=true;btn.textContent='Getting a code…';$('lc-err').hidden=true;
+fetch('/api/identity/link-code',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,token:flToken()})})
+.then(function(r){return r.json()}).then(function(d){
+btn.disabled=false;btn.textContent='Link another device';
+if(d&&d.ok&&d.code){$('lc-box').hidden=false;
+$('lc-code').textContent=d.display||d.code;
+lcCountdown(d.expires_at);return;}
+$('lc-box').hidden=false;$('lc-code').textContent='------';
+$('lc-err').textContent=(d&&d.reason==='rate_limited')
+?'That is a lot of codes for one day — try again tomorrow.'
+:'Could not get a code just now — try again in a minute.';
+$('lc-err').hidden=false;})
+.catch(function(){btn.disabled=false;btn.textContent='Link another device';
+$('lc-box').hidden=false;$('lc-err').textContent='Could not reach Fledglings — check your connection.';
+$('lc-err').hidden=false;});};
+$('lc-show').onclick=function(){$('lc-enter').hidden=false;this.hidden=true;$('lc-input').focus();};
+var LC_REFUSALS={
+bad_code:"That code didn't work — check it, or get a fresh one on your other device (they last ten minutes and work once).",
+too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it.",
+rate_limited:"Too many tries for one day — have another go tomorrow.",
+offline:"Couldn't reach Fledglings just now — check your connection and try again."};
+$('lc-go').onclick=function(){var btn=this;
+$('lc-enter-err').hidden=true;btn.disabled=true;btn.textContent='Linking…';
+fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,code:$('lc-input').value})})
+.then(function(r){return r.json()}).then(function(d){
+if(d&&d.ok&&d.token){try{localStorage.setItem('fl_hub_token_v1',d.token)}catch(e){}
+location.replace('/hub?t='+encodeURIComponent(d.token));return;}
+btn.disabled=false;btn.textContent='Link this device';
+$('lc-enter-err').textContent=LC_REFUSALS[d&&d.reason]||LC_REFUSALS.bad_code;
+$('lc-enter-err').hidden=false;})
+.catch(function(){btn.disabled=false;btn.textContent='Link this device';
+$('lc-enter-err').textContent=LC_REFUSALS.offline;$('lc-enter-err').hidden=false;});};
+$('lc-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('lc-go').click();});
 $('id-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('id-save').click();});
 /* Must strip ?t= as well — a plain reload would re-adopt the token
  * sitting in the URL and sign the same learner straight back in. */
@@ -327,4 +395,12 @@ const HUB_CSS = `
 .idrow{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
 .idrow input{flex:1;min-width:220px;}
 .id-err{color:var(--orange);font-weight:600;font-size:12.5px;margin-top:8px;}
+.idbtns{display:flex;gap:18px;flex-wrap:wrap;}
+/* device link code — meant to be read off one screen and typed on another */
+.linkbox{margin-top:14px;padding:14px 16px;border:1.5px dashed var(--pri);border-radius:14px;
+  background:rgba(19,80,127,.04);}
+.lc-code{font-size:34px;font-weight:800;letter-spacing:.16em;color:var(--navy);margin:8px 0 6px;
+  font-variant-numeric:tabular-nums;user-select:all;}
+.lc-alt{margin-top:14px;border-top:1px solid var(--off);padding-top:12px;}
+#lc-input{text-transform:uppercase;letter-spacing:.14em;font-weight:700;}
 `;

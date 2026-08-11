@@ -90,8 +90,15 @@ token the worker signs, binds to that browser and expires after 30
 days; every scoring call carries the token, and a raw `email` field in
 a request body is ignored everywhere. Inside LearnWorlds the exchange
 happens automatically from the Liquid email; standalone, the learner
-enters it on the Home page. See `docs/IDENTITY.md` for the full model,
-including what it does and does not protect against.
+enters it on the Home page.
+
+**Second device?** Once an email is in use, no other browser can claim
+it by typing the address — that is the protection. The learner opens
+the Hub on the device that already works, taps **Link another device**,
+and types the six-character code it shows (`ABC-234`) into the Hub on
+the new one. Codes last ten minutes and work once. Tell learners this
+during onboarding: it is the answer to "it says my email is already
+linked". See `docs/IDENTITY.md` for the full model.
 
 ## Employability Hub — `hub-embed.html`
 

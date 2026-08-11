@@ -9,5 +9,8 @@ export function makeKvMock() {
     async put(key: string, value: string): Promise<void> {
       store.set(key, value);
     },
+    async delete(key: string): Promise<void> {
+      store.delete(key);
+    },
   } as unknown as KVNamespace & { store: Map<string, string> };
 }
