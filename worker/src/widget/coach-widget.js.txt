@@ -613,9 +613,10 @@
   /* Continue where you left off — once per session, on first open. */
   /* Identity is a signed token, not the address itself: the widget
    * exchanges the LearnWorlds email for one (this page is served by
-   * the school, so the mint is allowed) and reuses it afterwards. The
-   * token is stored under the same key the tools read, so linking here
-   * links the whole suite on this browser. */
+   * the school, so the mint is allowed) and reuses it afterwards.
+   * Note this store belongs to the SCHOOL's origin — the tools live on
+   * the worker's origin and mint their own; the two are independent by
+   * design, and both are bound to this browser. */
   function ensureToken() {
     var stored = "";
     try { stored = localStorage.getItem("fl_hub_token_v1") || ""; } catch (e) { /* private mode */ }
