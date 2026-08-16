@@ -249,6 +249,7 @@ export const APP_NAV: Array<{ id: string; icon: string; label: string; href: str
 
 const APP_CSS = `
 :root{--navy:#05253C;--pri:#D9452B;--pri-dark:#B93A22;--pri-soft:#FBEAE6;--orange:#D9452B;--mango:#ED9249;
+--pri-btn:#D2432A;
   --blue:#13507F;--ink:#25394B;--mut:#6A7A88;--line:#E3DDDA;--off:#ECE7E6;--canvas:#F4F1EF;--ok:#1B7A4B;--amber:#B96A16;}
 /* The HTML hidden attribute must ALWAYS win, even against components
  * that set their own display (flex overlays, bars, chips). */
@@ -282,7 +283,7 @@ textarea:focus,input:focus{outline:none;border-color:var(--mango);box-shadow:0 0
 label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px;}
 label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 .counter{font-size:12px;color:var(--mut);text-align:right;margin-top:4px;}
-.btn{background:var(--pri);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:15px;
+.btn{background:var(--pri-btn);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:15px;
   font-weight:600;cursor:pointer;min-height:46px;transition:background .15s ease,transform .15s ease;}
 .btn:hover{background:var(--pri-dark);transform:translateY(-1px);}
 .btn:disabled{opacity:.5;cursor:default;transform:none;}

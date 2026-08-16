@@ -670,6 +670,11 @@ loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
 
 const DASH_CSS = `
 :root{--navy:#05253C;--orange:#D9452B;--mango:#ED9249;--blue:#13507F;--off:#ECE7E6;--canvas:#F4F1EF;
+/* Brand orange carrying WHITE text only. #D9452B is 4.34:1 against
+ * white, just under WCAG AA's 4.5 — this shade is 4.59 and reads as
+ * the same orange. The brand colour itself is untouched: as text on a
+ * pale tint, and in the logo, it is unchanged. */
+--orange-btn:#D2432A;
   --ink:#25394B;--mut:#5C6B78;--line:#E3DDDA;--ok:#1B7A4B;}
 [hidden]{display:none!important;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
@@ -721,7 +726,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 #ch-courses .hb-l,#ch-curriculum .hb-l{width:200px;}
 @media(max-width:700px){#ch-courses .hb-l,#ch-curriculum .hb-l{width:120px;}}
 .qacts{display:flex;flex-direction:column;gap:9px;}
-.dbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--orange);color:#fff;
+.dbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--orange-btn);color:#fff;
   border:none;border-radius:11px;padding:11px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;
   text-decoration:none;}
 .dbtn:hover{background:#B93A22;}
