@@ -269,7 +269,14 @@ export function rawRows(
       kind: unit.kind,
       submittedAt: response.submittedAt,
       question: a.question,
-      answer: a.answer.slice(0, RAW_ANSWER_MAX_CHARS),
+      /* A cut-off answer is marked, never silently shortened: these
+       * are shown as the learner's verbatim words, so the reader has
+       * to be able to tell where the learner stopped and where we
+       * did. */
+      answer:
+        a.answer.length > RAW_ANSWER_MAX_CHARS
+          ? a.answer.slice(0, RAW_ANSWER_MAX_CHARS) + "… [truncated]"
+          : a.answer,
     }));
 }
 

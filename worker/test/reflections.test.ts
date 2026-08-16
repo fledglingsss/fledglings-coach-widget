@@ -220,14 +220,18 @@ describe("rawRows", () => {
     expect(rows[1]!.answer).toBe("Running out before payday.");
   });
 
-  it("caps runaway answers at the storage bound", () => {
+  it("caps runaway answers at the storage bound, and says that it did", () => {
     const response: ReflectionResponse = {
       userId: "u9",
       email: "amy@swift.test",
       submittedAt: null,
       answers: [{ question: "Q", answer: "x".repeat(2000), points: null, maxPoints: null }],
     };
-    expect(rawRows(UNIT, response)[0]!.answer).toHaveLength(RAW_ANSWER_MAX_CHARS);
+    const answer = rawRows(UNIT, response)[0]!.answer;
+    expect(answer.slice(0, RAW_ANSWER_MAX_CHARS)).toBe("x".repeat(RAW_ANSWER_MAX_CHARS));
+    /* Shown as the learner's verbatim words, so the reader must be
+     * able to see that the ending is ours and not theirs. */
+    expect(answer.endsWith("… [truncated]")).toBe(true);
   });
 });
 

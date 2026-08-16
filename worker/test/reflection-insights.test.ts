@@ -150,3 +150,26 @@ describe("word families", () => {
     expect(words[0].count).toBe(2);
   });
 });
+
+/* Truncation must be visible: these answers are presented as the
+ * learner's own words, so a cut-off has to look like one. */
+describe("long answers", () => {
+  it("marks an answer that hit the storage cap", async () => {
+    const { rawRows, RAW_ANSWER_MAX_CHARS } = await import("../src/lib/reflections");
+    const long = "a".repeat(RAW_ANSWER_MAX_CHARS + 50);
+    const [out] = rawRows(
+      { courseId: "c", courseTitle: "Course", unitId: "u", unitTitle: "Unit", kind: "post" },
+      { userId: "u1", email: "learner@example.com", submittedAt: 1, answers: [{ question: "Q", answer: long, points: null, maxPoints: null }] },
+    );
+    expect(out.answer.endsWith("… [truncated]")).toBe(true);
+  });
+
+  it("leaves an answer within the cap exactly as written", async () => {
+    const { rawRows } = await import("../src/lib/reflections");
+    const [out] = rawRows(
+      { courseId: "c", courseTitle: "Course", unitId: "u", unitTitle: "Unit", kind: "post" },
+      { userId: "u1", email: "learner@example.com", submittedAt: 1, answers: [{ question: "Q", answer: "short and complete", points: null, maxPoints: null }] },
+    );
+    expect(out.answer).toBe("short and complete");
+  });
+});

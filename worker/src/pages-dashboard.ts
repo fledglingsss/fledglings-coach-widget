@@ -10,14 +10,14 @@ import { WORDMARK_LIGHT } from "./brand";
 import { esc } from "./pages";
 
 const ICONS: Record<string, string> = {
-  home: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg>",
-  students: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='8' r='3.2'/><path d='M2.8 20a6.2 6.2 0 0 1 12.4 0'/><path d='M15.5 8.5a2.8 2.8 0 1 1 2.2 4.6M16.6 14.6a5.4 5.4 0 0 1 4.6 5.4'/></svg>",
-  cohorts: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='m12 4 10 4-10 4L2 8z'/><path d='M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5'/></svg>",
-  analytics: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V10M10 20V4M16 20v-7M21 20H3'/></svg>",
-  csv: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12m0 0 4-4m-4 4-4-4'/><path d='M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/></svg>",
-  hub: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14 5h5v5M19 5l-8 8'/><path d='M19 14v5H5V5h5'/></svg>",
-  reflect: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.5-2.7A8 8 0 1 1 21 12z'/><path d='M9 10h6M9 13.5h4'/></svg>",
-  shield: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z'/><path d='m9 12 2 2 4-4.5'/></svg>",
+  home: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/></svg>",
+  students: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='8' r='3.2'/><path d='M2.8 20a6.2 6.2 0 0 1 12.4 0'/><path d='M15.5 8.5a2.8 2.8 0 1 1 2.2 4.6M16.6 14.6a5.4 5.4 0 0 1 4.6 5.4'/></svg>",
+  cohorts: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='m12 4 10 4-10 4L2 8z'/><path d='M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5'/></svg>",
+  analytics: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V10M10 20V4M16 20v-7M21 20H3'/></svg>",
+  csv: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12m0 0 4-4m-4 4-4-4'/><path d='M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/></svg>",
+  hub: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14 5h5v5M19 5l-8 8'/><path d='M19 14v5H5V5h5'/></svg>",
+  reflect: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.5-2.7A8 8 0 1 1 21 12z'/><path d='M9 10h6M9 13.5h4'/></svg>",
+  shield: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z'/><path d='m9 12 2 2 4-4.5'/></svg>",
 };
 
 export function renderDashboardPage(): string {
@@ -25,7 +25,8 @@ export function renderDashboardPage(): string {
     `<button type='button' class='dn${id === "home" ? " on" : ""}' data-view='${id}'>${ICONS[icon]}<span>${esc(label)}</span></button>`;
 
   const body =
-    "<aside class='dside'>" +
+    "<a class='dskip' href='#dmain-content'>Skip to dashboard content</a>" +
+    "<nav class='dside' aria-label='Dashboard sections'>" +
     `<div class='dlogo'>${WORDMARK_LIGHT}</div>` +
     "<div class='dsec'>Workbench</div>" +
     nav("home", "home", "Home") +
@@ -39,9 +40,9 @@ export function renderDashboardPage(): string {
     `<a class='dn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub}<span>Student view</span></a>` +
     "<div class='dfoot'><span class='dscope' id='dscope'>…</span>" +
     "<a href='/portal/logout' class='dout'>Sign out</a></div>" +
-    "</aside>" +
+    "</nav>" +
 
-    "<div class='dmain'>" +
+    "<main class='dmain' id='dmain-content' tabindex='-1'>" +
     "<header class='dhead'><div><h1 id='dh-title'>Home</h1>" +
     "<p id='dh-sub'>Outcomes, progress and attention — at a glance</p></div>" +
     "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span>" +
@@ -83,7 +84,7 @@ export function renderDashboardPage(): string {
     /* ---------- students ---------- */
     "<section class='dview' id='v-students' hidden>" +
     "<div class='dstats' id='s-stats'></div>" +
-    "<div class='dbar'><input type='text' id='s-search' placeholder='🔍 Search students…'>" +
+    "<div class='dbar'><input type='text' id='s-search' aria-label='Search students by name or email' placeholder='🔍 Search students…'>" +
     "<div class='chips' id='s-chips'></div>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
     "<div class='dcard'><div class='dtablewrap'><table class='dtable'>" +
@@ -114,7 +115,7 @@ export function renderDashboardPage(): string {
     /* Whole-school codes see the actionable supplier ask; scoped
      * provider codes never see vendor plumbing. */
     "<div id='rf-gate-hq' hidden>" +
-    "<textarea class='rf-ask' id='rf-ask' readonly rows='4'></textarea>" +
+    "<textarea class='rf-ask' id='rf-ask' aria-label='Message to send to platform support' readonly rows='4'></textarea>" +
     "<button type='button' class='dbtn sm' id='rf-copy'>Copy message for platform support</button>" +
     "</div>" +
     "<p class='dmut' id='rf-coverage-note'></p></div>" +
@@ -141,8 +142,10 @@ export function renderDashboardPage(): string {
     "<div id='rf-experience'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='💡 What they asked for' id='rf-asks-card' hidden>" +
     "<h3>What learners asked for <span class='dtag' id='rf-asks-count'></span></h3>" +
-    "<p class='rf-p'>Every answer to “what would you add or change”, in the learner's own words and not attributed to them — this is what the modules are missing, straight from the people taking them.</p>" +
-    "<div id='rf-asks'></div></div>" +
+    "<p class='rf-p'>Answers to “what would you add or change”, in the learner's own words and not attributed to them — this is what the modules are missing, straight from the people taking them.</p>" +
+    "<div id='rf-asks'></div>" +
+    "<p class='dmut' id='rf-asks-more' hidden></p>" +
+    "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download every reflection (CSV)</a></div></div>" +
     "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h3>Latest answers, verbatim</h3>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download raw reflections (CSV)</a></div>" +
     "<div class='dtablewrap'><table class='dtable'><thead><tr><th>Student</th><th>Module</th><th>When</th><th>Question</th><th>Answer</th></tr></thead>" +
@@ -182,7 +185,7 @@ export function renderDashboardPage(): string {
     "only, no learner names or emails anywhere on it. Each link works for 7 days; create a fresh one any time.</p>" +
     "<div class='dbar'><button type='button' class='dbtn' id='ev-link-make'>🔗 Create inspector link (7 days)</button></div>" +
     "<div id='ev-link-out' hidden style='margin-top:10px'>" +
-    "<input type='text' id='ev-link-url' readonly style='width:100%;padding:10px 12px;border:1px solid #E3DDDA;border-radius:10px;font-size:13px'>" +
+    "<input type='text' id='ev-link-url' aria-label='Shareable evidence link' readonly style='width:100%;padding:10px 12px;border:1px solid #E3DDDA;border-radius:10px;font-size:13px'>" +
     "<div class='dbar' style='margin-top:8px'>" +
     "<button type='button' class='dbtn ghost' id='ev-link-copy'>📋 Copy link</button>" +
     "<a class='dbtn ghost' id='ev-link-open' target='_blank' rel='noopener'>↗ Preview it</a>" +
@@ -191,7 +194,7 @@ export function renderDashboardPage(): string {
 
     "<p class='dnote'>Scores, attempts and timestamps only — learner documents, letters and recordings are never stored. " +
     "Self-reflections are read straight from learners&#39; own course records. Coverage: <span id='dsample'></span>.</p>" +
-    "</div>" +
+    "</main>" +
     "<script>" + DASH_JS + "</script>";
 
   return (
@@ -492,10 +495,13 @@ if(exper.length){$('rf-experience').innerHTML=hbar(exper.map(function(e){
 return {l:e.label,v:e.pct,r:e.pct+'% · '+e.responses+' rating'+(e.responses===1?'':'s'),c:band(e.pct)};}),100);}
 else{$('rf-experience').innerHTML="<div class='dempty'>No experience ratings yet.</div>";}
 $('rf-asks-card').hidden=asks.length===0;
-$('rf-asks-count').textContent=asks.length?asks.length+' asks':'';
+var asksTotal=ins.requestsTotal||asks.length;
+$('rf-asks-count').textContent=asks.length?(asksTotal>asks.length?'showing '+asks.length+' of '+asksTotal:asks.length+' asks'):'';
 $('rf-asks').innerHTML=asks.map(function(a){
 return "<div class='rf-ask-item'><div class='rf-a'>“"+esc2(a.text)+"”</div>"+
 "<div class='dmut'>"+esc2(a.courseTitle)+(a.submittedAt?' · '+new Date(a.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</div></div>";}).join('');
+$('rf-asks-more').hidden=asksTotal<=asks.length;
+$('rf-asks-more').textContent='Newest '+asks.length+' shown here — all '+asksTotal+' are in the CSV.';
 var flags=(d.flags||[]).slice().sort(function(a,b){return (a.acked?1:0)-(b.acked?1:0)});
 var open=flags.filter(function(f){return !f.acked}).length;
 $('rf-flags-card').hidden=flags.length===0;
@@ -664,7 +670,7 @@ loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
 
 const DASH_CSS = `
 :root{--navy:#05253C;--orange:#D9452B;--mango:#ED9249;--blue:#13507F;--off:#ECE7E6;--canvas:#F4F1EF;
-  --ink:#25394B;--mut:#6A7A88;--line:#E3DDDA;--ok:#1B7A4B;}
+  --ink:#25394B;--mut:#5C6B78;--line:#E3DDDA;--ok:#1B7A4B;}
 [hidden]{display:none!important;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
 body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
@@ -683,6 +689,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dscope{font-size:12px;font-weight:700;color:var(--blue);padding:0 10px;}
 .dout{font-size:12px;color:var(--mut);text-decoration:underline;padding:0 10px;}
 .dmain{flex:1;min-width:0;padding:26px 30px 60px;max-width:1180px;}
+.dskip{position:absolute;left:-9999px;top:0;z-index:100;background:#05253C;color:#fff;padding:10px 16px;border-radius:0 0 10px 0;font-weight:600;}
+.dskip:focus{left:0;}
+.dmain:focus{outline:none;}
 .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
 .dhead h1{font-size:24px;letter-spacing:-.01em;}
 .dhead p{font-size:13.5px;color:var(--mut);margin-top:3px;}

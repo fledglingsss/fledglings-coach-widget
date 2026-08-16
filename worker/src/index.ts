@@ -79,6 +79,7 @@ import {
   descriptorWords,
   experienceRatings,
   improvementRequests,
+  countImprovementRequests,
 } from "./lib/reflection-insights";
 import {
   advanceStreak,
@@ -2097,6 +2098,7 @@ app.get("/portal/reflections", async (c) => {
         descriptors: descriptorWords(recent),
         experience: experienceRatings(recent),
         requests: improvementRequests(recent),
+        requestsTotal: countImprovementRequests(recent),
       },
       scoped: access.tag,
       builtAt: state.builtAt,
@@ -3426,7 +3428,7 @@ app.get("/dashboard/reflections.csv", async (c) => {
 /** Quote a CSV field AND neutralise spreadsheet formula injection —
  * learner-authored text starting with = + - or @ must never execute
  * when the provider opens the export in Excel. */
-function csvField(v: unknown): string {
+export function csvField(v: unknown): string {
   const s = String(v ?? "");
   const guarded = /^[=+\-@\t]/.test(s) ? `'${s}` : s;
   return `"${guarded.replace(/"/g, '""')}"`;

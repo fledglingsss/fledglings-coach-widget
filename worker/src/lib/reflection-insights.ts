@@ -215,10 +215,7 @@ export interface ImprovementRequest {
 /** Verbatim improvement requests, newest first. Deliberately not
  * attributed: this is product feedback, so a provider needs the ask,
  * not the learner behind it. */
-export function improvementRequests(
-  rows: RawReflectionRow[],
-  limit = 60,
-): ImprovementRequest[] {
+function genuineRequests(rows: RawReflectionRow[]): ImprovementRequest[] {
   return rows
     .filter((row) => matches(row, REQUEST_PHRASES))
     .filter((row) => {
@@ -230,6 +227,19 @@ export function improvementRequests(
       text: row.answer.trim(),
       submittedAt: row.submittedAt,
     }))
-    .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
-    .slice(0, limit);
+    .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
+}
+
+export function improvementRequests(
+  rows: RawReflectionRow[],
+  limit = 60,
+): ImprovementRequest[] {
+  return genuineRequests(rows).slice(0, limit);
+}
+
+/** How many genuine asks exist in total. The page shows the newest
+ * few; without this it would say "60 asks" over a truncated list and a
+ * provider would think they had read them all. */
+export function countImprovementRequests(rows: RawReflectionRow[]): number {
+  return genuineRequests(rows).length;
 }
