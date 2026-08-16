@@ -407,7 +407,7 @@ export function appShell(opts: {
     "el.classList.remove('fl-in');void el.offsetWidth;el.classList.add('fl-in');}});" +
     "}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}" +
     "window.flCountUp=function(el,to,suffix){if(!el)return;suffix=suffix||'';" +
-    "to=Math.round(to);if(reduce||!window.requestAnimationFrame){el.textContent=to+suffix;return;}" +
+    "to=Math.round(to);if(reduce||document.hidden||!window.requestAnimationFrame){el.textContent=to+suffix;return;}" +
     "var start=performance.now(),dur=650,done=false;" +
     "function tick(now){if(done)return;var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);" +
     "el.textContent=Math.round(to*p)+suffix;" +

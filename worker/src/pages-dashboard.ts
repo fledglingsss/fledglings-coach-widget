@@ -134,6 +134,15 @@ export function renderDashboardPage(): string {
     "<div id='rf-flags'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h3>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h3>" +
     "<div id='rf-shifts'></div></div>" +
+    "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
+    "<h3>How learners describe the modules <span class='dmut' style='font-weight:500'>their own words, counted — spellings of one word grouped together</span></h3>" +
+    "<div id='rf-words'></div>" +
+    "<h3 style='margin-top:22px'>How the learning felt <span class='dmut' style='font-weight:500'>average of learners' own ratings</span></h3>" +
+    "<div id='rf-experience'></div></div>" +
+    "<div class='dcard rf-sec' data-rfl='💡 What they asked for' id='rf-asks-card' hidden>" +
+    "<h3>What learners asked for <span class='dtag' id='rf-asks-count'></span></h3>" +
+    "<p class='rf-p'>Every answer to “what would you add or change”, in the learner's own words and not attributed to them — this is what the modules are missing, straight from the people taking them.</p>" +
+    "<div id='rf-asks'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h3>Latest answers, verbatim</h3>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download raw reflections (CSV)</a></div>" +
     "<div class='dtablewrap'><table class='dtable'><thead><tr><th>Student</th><th>Module</th><th>When</th><th>Question</th><th>Answer</th></tr></thead>" +
@@ -213,7 +222,7 @@ function b64u(s){try{return btoa(unescape(encodeURIComponent(s))).replace(/[+]/g
 /* liveness: rise-in on view swaps + count-up numbers */
 var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 function countUp(el,to,suffix){suffix=suffix||'';to=Math.round(to);
-if(reduce||!window.requestAnimationFrame){el.textContent=to+suffix;return;}
+if(reduce||document.hidden||!window.requestAnimationFrame){el.textContent=to+suffix;return;}
 var start=performance.now(),dur=600;
 (function tick(now){var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);
 el.textContent=Math.round(to*p)+suffix;if(p<1)requestAnimationFrame(tick);})(start);}
@@ -470,6 +479,23 @@ countUp($('rf-pre'),d.preCount||0);$('rf-pre-bar').parentElement.style.display='
 countUp($('rf-post'),d.postCount||0);
 $('rf-post-bar').style.width=(d.preCount?Math.round((d.postCount||0)*100/d.preCount):0)+'%';
 countUp($('rf-raw'),d.rawCount||0);$('rf-raw-bar').parentElement.style.display='none';
+/* voice of the learner — words, ratings and asks */
+var ins=d.insights||{descriptors:[],experience:[],requests:[]};
+var words=ins.descriptors||[],exper=ins.experience||[],asks=ins.requests||[];
+$('rf-voice-card').hidden=!(words.length||exper.length);
+if(words.length){var topN=words[0].count;
+$('rf-words').innerHTML=hbar(words.map(function(w){
+return {l:w.word,v:w.count,r:w.count+(w.forms.length>1?' · '+w.forms.slice(1).join(', '):''),
+c:'#13507F'};}),topN);}
+else{$('rf-words').innerHTML="<div class='dempty'>No word answers yet.</div>";}
+if(exper.length){$('rf-experience').innerHTML=hbar(exper.map(function(e){
+return {l:e.label,v:e.pct,r:e.pct+'% · '+e.responses+' rating'+(e.responses===1?'':'s'),c:band(e.pct)};}),100);}
+else{$('rf-experience').innerHTML="<div class='dempty'>No experience ratings yet.</div>";}
+$('rf-asks-card').hidden=asks.length===0;
+$('rf-asks-count').textContent=asks.length?asks.length+' asks':'';
+$('rf-asks').innerHTML=asks.map(function(a){
+return "<div class='rf-ask-item'><div class='rf-a'>“"+esc2(a.text)+"”</div>"+
+"<div class='dmut'>"+esc2(a.courseTitle)+(a.submittedAt?' · '+new Date(a.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</div></div>";}).join('');
 var flags=(d.flags||[]).slice().sort(function(a,b){return (a.acked?1:0)-(b.acked?1:0)});
 var open=flags.filter(function(f){return !f.acked}).length;
 $('rf-flags-card').hidden=flags.length===0;
@@ -789,6 +815,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   font-size:12.5px;color:var(--ink);background:#FBFAF9;resize:vertical;margin-bottom:10px;}
 .rf-flags{border-left:4px solid var(--orange);}
 .rf-flag{border:1.5px solid #F3C9C0;background:#FDF6F4;border-radius:12px;padding:12px;margin-bottom:9px;font-size:13px;}
+/* An ask is a suggestion, not a concern — neutral card, no alarm colour. */
+.rf-ask-item{border:1px solid #E7EAF0;background:#FBFCFD;border-radius:12px;padding:11px 13px;margin-bottom:8px;font-size:13px;}
+.rf-ask-item .rf-a{margin-bottom:5px;}
 .rf-flag.acked{border-color:var(--line);background:#FBFAF9;opacity:.75;}
 .rf-acts{display:flex;gap:16px;align-items:center;margin-top:9px;}
 .rf-done{font-size:12px;font-weight:700;color:var(--ok);}

@@ -76,6 +76,11 @@ import {
   type ReflectionsState,
 } from "./lib/reflections";
 import {
+  descriptorWords,
+  experienceRatings,
+  improvementRequests,
+} from "./lib/reflection-insights";
+import {
   advanceStreak,
   cohortTag,
   computeSkillsPassport,
@@ -2086,6 +2091,13 @@ app.get("/portal/reflections", async (c) => {
         .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
         .slice(0, 40),
       rawCount: recent.length,
+      /* Voice of the learner: word families, experience ratings and
+       * verbatim asks, all counted from these same scoped answers. */
+      insights: {
+        descriptors: descriptorWords(recent),
+        experience: experienceRatings(recent),
+        requests: improvementRequests(recent),
+      },
       scoped: access.tag,
       builtAt: state.builtAt,
     });
