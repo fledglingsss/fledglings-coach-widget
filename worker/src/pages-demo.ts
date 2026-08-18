@@ -11,7 +11,7 @@ import { esc } from "./pages";
 import { BIRD_MARK, WORDMARK_DARK } from "./brand";
 
 const DEMO_CSS = `
-:root{--navy:#05253C;--navy2:#0A3452;--orange:#D9452B;--mango:#ED9249;--blue:#13507F;--off:#ECE7E6;--ok:#1B7A4B;--ink:#22333f;--mut:#7d8a93;--hair:#DCD5D2;}
+:root{--navy:#05253C;--navy2:#0A3452;--orange:#D9452B;--mango:#ED9249;--blue:#13507F;--off:#ECE7E6;--ok:#1A7649;--ink:#22333f;--mut:#7d8a93;--hair:#DCD5D2;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
 body{background:#F6F3F1;color:var(--navy);}
 .keyline{height:4px;background:linear-gradient(90deg,var(--orange),var(--mango) 55%,var(--orange));}
@@ -63,7 +63,7 @@ body{background:#F6F3F1;color:var(--navy);}
   font-size:15px;border-radius:12px;padding:15px 28px;position:relative;}
 .cta a:hover{background:#c23a22;}
 .foot{border-top:1px solid var(--hair);color:var(--mut);font-size:12.5px;text-align:center;padding:22px;}
-.foot b{color:var(--orange);}
+.foot b{color:#B93A22;}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 `;
 

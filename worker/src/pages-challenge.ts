@@ -45,7 +45,7 @@ body{background:#ECE7E6;color:#05253C;-webkit-font-smoothing:antialiased;}
 .ccount small{font-size:12px;color:#7d8a93;font-weight:600;display:block;text-align:right;}
 .empty{padding:26px 0;color:#7d8a93;font-size:14.5px;line-height:1.7;}
 .foot{border-top:1px solid #ECE7E6;padding:16px 34px;font-size:12px;color:#7d8a93;line-height:1.6;}
-.foot b{color:#D9452B;}
+.foot b{color:#B93A22;}
 @media(max-width:600px){.hero{padding:22px 20px 26px;}.race{padding:22px 20px;}.hero h1{font-size:25px;}
   .crow{grid-template-columns:36px 1fr auto;gap:10px;}.cpos{width:34px;height:34px;font-size:13px;}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;}}

@@ -229,7 +229,7 @@ if(reduce||document.hidden||!window.requestAnimationFrame){el.textContent=to+suf
 var start=performance.now(),dur=600;
 (function tick(now){var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);
 el.textContent=Math.round(to*p)+suffix;if(p<1)requestAnimationFrame(tick);})(start);}
-function band(s){return s>=70?'#1B7A4B':s>=50?'#B96A16':'#D9452B'}
+function band(s){return s>=70?'#1A7649':s>=50?'#9A5812':'#B93A22'}
 var DATA=null,view='home',cohortFilter=null,search='';
 /* ---------- navigation ---------- */
 var TITLES={home:['Home','Outcomes, progress and attention — at a glance'],
@@ -286,7 +286,7 @@ countUp($('k-learners'),k.learners);$('k-learners-bar').parentElement.style.disp
 var enrolled=DATA.learners.reduce(function(s,r){return s+r.learning.enrolled},0);
 countUp($('k-modules'),k.modulesCompleted);
 $('k-modules-bar').style.width=(enrolled?Math.round(k.modulesCompleted*100/enrolled):0)+'%';
-$('k-modules-bar').style.background='#1B7A4B';
+$('k-modules-bar').style.background='#1A7649';
 countUp($('k-engaged'),k.engaged);
 $('k-engaged-bar').style.width=(k.learners?Math.round(k.engaged*100/k.learners):0)+'%';
 if(k.avgCv!==null){countUp($('k-avgcv'),k.avgCv);$('k-avgcv-bar').style.width=k.avgCv+'%';
@@ -298,7 +298,7 @@ $('k-avgcv-bar').parentElement.style.display='none';}
 var fu=DATA.funnel||[];var scopeN=(fu[0]&&fu[0].n)||1;
 $('funnel').innerHTML=fu.map(function(st,i){
 var pct=Math.round(st.n*100/Math.max(1,scopeN));
-var c=i===0?'#05253C':i<4?'#13507F':i===4?'#ED9249':'#1B7A4B';
+var c=i===0?'#05253C':i<4?'#13507F':i===4?'#ED9249':'#1A7649';
 return "<div class='fu-row'><span class='fu-l'>"+esc2(st.stage)+"</span>"+
 "<div class='fu-t' role='img' aria-label='"+esc2(st.stage)+": "+st.n+" learners ("+pct+"%)'><i style='width:"+pct+"%;background:"+c+"'></i></div>"+
 "<span class='fu-v' aria-hidden='true'>"+st.n+"<i>"+pct+"%</i></span></div>";}).join('');
@@ -329,7 +329,7 @@ $('s-body').innerHTML=rows.map(function(r){var e=r.employability;var lg=r.learni
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
 "<td>"+r.tags.slice(0,2).map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+"</td>"+
-"<td><span class='ms'>"+lg.completed+"/"+lg.enrolled+"</span><i class='msb'><b style='width:"+modPct+"%;background:#1B7A4B'></b></i></td>"+
+"<td><span class='ms'>"+lg.completed+"/"+lg.enrolled+"</span><i class='msb'><b style='width:"+modPct+"%;background:#1A7649'></b></i></td>"+
 "<td>"+miniScore(e.cv.latest)+"</td><td>"+miniScore(e.linkedin.latest)+"</td><td>"+miniScore(e.interview.latest)+"</td>"+
 "<td>"+e.cover.attempts+"</td><td>"+r.tasksDone+"/7</td>"+
 "<td>"+miniScore(r.readiness)+"</td></tr>";}).join('');
@@ -367,7 +367,7 @@ $('prof-body').innerHTML=
 r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
 "<span class='dr-ready' style='color:"+(r.readiness===null?'#7C7573':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></div>"+
 "<div class='kpigrid'>"+
-statCard(lg.completed+"<small style='font-size:16px;color:#6D777F'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress',modPct,'#1B7A4B')+
+statCard(lg.completed+"<small style='font-size:16px;color:#6D777F'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress',modPct,'#1A7649')+
 statCard(lg.minutes?fmtMins(lg.minutes):'—','Study time','across their modules',null)+
 statCard("<span id='prof-rf-n'>…</span>",'Reflection answers','in their own words',null)+
 statCard(esc2(loginNote),'Last active','on the platform',null)+
@@ -378,7 +378,7 @@ statCard(esc2(loginNote),'Last active','on the platform',null)+
 ((lg.modules&&lg.modules.length)?"<div class='dr-mods' style='grid-template-columns:1fr'>"+lg.modules.map(function(m){
 return "<div class='dr-mod'><span class='dr-mt"+(m.done?' done':'')+"' title='"+esc2(m.t)+"'>"+
 (m.done?'✓ ':'')+esc2(m.t)+"</span>"+
-"<i class='msb'><b style='width:"+m.p+"%;background:"+(m.done?'#1B7A4B':m.p>0?'#13507F':'#D8D2CE')+"'></b></i>"+
+"<i class='msb'><b style='width:"+m.p+"%;background:"+(m.done?'#1A7649':m.p>0?'#13507F':'#D8D2CE')+"'></b></i>"+
 "<span class='dr-mp'>"+(m.mins?m.mins+'m':m.p+'%')+"</span></div>";}).join('')+"</div>"
 :"<div class='dempty'>No module data yet.</div>")+"</div>"+
 "<div class='dcard'><h3>Career tools</h3><div class='dr-tools' style='grid-template-columns:1fr 1fr'>"+
@@ -439,7 +439,7 @@ var mp=me?Math.round(mc*100/me):0;
 return "<div class='dcard cocard'><div class='co-t'>"+esc2(t.tag)+"</div>"+
 "<div class='co-n'>"+members.length+"</div><div class='kpi-s'>learners</div>"+
 "<div class='co-row'><span>Modules completed</span><b>"+mc+"/"+me+"</b></div>"+
-"<i class='msb wide'><b style='width:"+mp+"%;background:#1B7A4B'></b></i>"+
+"<i class='msb wide'><b style='width:"+mp+"%;background:#1A7649'></b></i>"+
 "<div class='co-row'><span>Avg job-ready</span><b style='color:"+(avg===null?'#6D777F':band(avg))+"'>"+(avg===null?'—':avg)+"</b></div>"+
 "<div class='co-row'><span>Career journey done</span><b>"+done+"</b></div>"+
 "<button type='button' class='dbtn ghost co-view' data-cohort='"+esc2(t.tag)+"'>View students →</button></div>";}).join('');
@@ -530,7 +530,7 @@ var pre=s.preAvgPct===null?0:s.preAvgPct,post=s.postAvgPct===null?0:s.postAvgPct
 var up=s.shift!==null&&s.shift>=0;
 return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"+esc2(s.courseTitle)+"</span>"+
 "<div class='sh-t'><i class='sh-pre' style='width:"+pre+"%'></i>"+
-"<i class='sh-post' style='width:"+post+"%"+(s.shift!==null&&s.shift<0?";background:#B96A16":"")+"'></i>"+
+"<i class='sh-post' style='width:"+post+"%"+(s.shift!==null&&s.shift<0?";background:#9A5812":"")+"'></i>"+
 (s.preAvgPct===null?'':"<b class='sh-mark' style='left:"+pre+"%'></b>")+"</div>"+
 "<span class='sh-v'>"+(s.preAvgPct===null?'—':s.preAvgPct+'%')+" → "+(s.postAvgPct===null?'—':s.postAvgPct+'%')+
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
@@ -555,7 +555,7 @@ document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.oncl
 rfShow(flags.length>0?rfSecs.indexOf($('rf-flags-card')):0);}
 function renderAnalytics(){chips($('a-chips'),renderAnalytics);
 var rows=scoped();
-var TIER_ORDER=[['ok','Engaged','#1B7A4B'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#B96A16'],['high','Needs contact','#D9452B']];
+var TIER_ORDER=[['ok','Engaged','#1A7649'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#9A5812'],['high','Needs contact','#B93A22']];
 var tiers=TIER_ORDER.map(function(t){
 return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).length,c:t[2]};})
 .filter(function(x){return x.v>0});
@@ -567,7 +567,7 @@ $('ch-tiers').innerHTML=tiers.length?hbar(tiers,rows.length||1):"<div class='dem
 $('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
 var courses=(DATA.analytics&&DATA.analytics.courses)||[];
 $('ch-courses').innerHTML=courses.length?hbar(courses.map(function(cs){
-return {l:cs.title,v:cs.pct,r:cs.completed+'/'+cs.enrolled,c:'#1B7A4B'};}),100)
+return {l:cs.title,v:cs.pct,r:cs.completed+'/'+cs.enrolled,c:'#1A7649'};}),100)
 :"<div class='dempty'>No module enrolments in this scope yet.</div>";
 var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
 $('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
@@ -589,7 +589,7 @@ tried('cv').forEach(function(r){buckets[Math.min(4,Math.floor((r.employability.c
 /* Score buckets ARE quality bands — colour them so red only ever
  * appears under genuinely low scores. */
 $('ch-dist').innerHTML=tried('cv').length?colChart(buckets,['0-19','20-39','40-59','60-79','80+'],
-['#D9452B','#B96A16','#ED9249','#13507F','#1B7A4B'])
+['#B93A22','#9A5812','#ED9249','#13507F','#1A7649'])
 :"<div class='dempty'>Scores appear here after the first CV reviews.</div>";
 var act=(DATA.analytics&&DATA.analytics.activity)||[];
 var anyAct=act.some(function(a){return a.events>0});
@@ -621,7 +621,7 @@ var el=$('ch-stalls');if(!el)return;
 var reps=(d&&d.reports)||[];
 if(!reps.length){el.innerHTML="<div class='dempty'>"+(d&&d.status==='building'?'Still measuring — check back shortly.':'No stall data yet.')+"</div>";return;}
 el.innerHTML=hbar(reps.slice(0,8).map(function(rep){
-return {l:rep.title,v:rep.retention,r:rep.retention+'% finish'+(rep.stallUnit?' · stalls at “'+rep.stallUnit+'”':''),c:rep.retention>=60?'#1B7A4B':rep.retention>=35?'#ED9249':'#D9452B'};}),100);})
+return {l:rep.title,v:rep.retention,r:rep.retention+'% finish'+(rep.stallUnit?' · stalls at “'+rep.stallUnit+'”':''),c:rep.retention>=60?'#1A7649':rep.retention>=35?'#ED9249':'#B93A22'};}),100);})
 .catch(function(){var el=$('ch-stalls');if(el)el.innerHTML='';});}
 /* ---------- evidence: narrative + inspector link ---------- */
 var evidenceLoaded=false;
@@ -680,7 +680,7 @@ const DASH_CSS = `
  * white at 4.34, still under AA. So the text darkens instead, to the
  * shade the palette already uses for the button's hover state. */
 --orange-deep:#B93A22;
-  --ink:#25394B;--mut:#5C6B78;--line:#E3DDDA;--ok:#1B7A4B;}
+  --ink:#25394B;--mut:#5C6A76;--line:#E3DDDA;--ok:#1A7649;}
 [hidden]{display:none!important;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
 body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
@@ -736,7 +736,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   text-decoration:none;}
 .dbtn:hover{background:var(--orange-deep);}
 .dbtn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line);}
-.dbtn.ghost:hover{border-color:var(--orange);color:var(--orange);}
+.dbtn.ghost:hover{border-color:#B93A22;color:#B93A22;}
 .dtablewrap{overflow-x:auto;}
 .dtable{width:100%;border-collapse:collapse;font-size:13px;}
 .dtable th{text-align:left;padding:9px 10px;border-bottom:2px solid var(--off);font-size:11px;color:var(--mut);
@@ -799,7 +799,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dr-ready i{display:block;font-style:normal;font-size:10px;color:var(--mut);font-weight:700;}
 .dr-learn{border:1.5px solid #CBE3D4;background:#F3FAF6;border-radius:12px;padding:12px;margin-top:14px;}
 .dr-learn .dmut{display:block;margin-top:5px;}
-.livedot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#1B7A4B;margin-left:6px;
+.livedot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#1A7649;margin-left:6px;
   animation:pulse 2s ease-in-out infinite;vertical-align:1px;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @media(prefers-reduced-motion:reduce){.livedot{animation:none;}}
@@ -808,7 +808,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .feedrow>span{font-size:15px;flex:none;}
 .dr-reflect{margin-top:14px;}
 .dr-flagbox{border:1.5px solid #F3C9C0;background:#FDF6F4;border-radius:12px;padding:12px;margin-bottom:12px;}
-.dr-flagbox>b{color:var(--orange);font-size:13px;}
+.dr-flagbox>b{color:#B93A22;font-size:13px;}
 .dr-flag{margin-top:8px;font-size:12.5px;}
 .dr-fa{margin-top:3px;line-height:1.5;}
 .dr-rflist{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;margin-top:8px;}
@@ -818,7 +818,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dr-mods{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:7px 18px;}
 .dr-mod{display:grid;grid-template-columns:1fr 56px 34px;gap:8px;align-items:center;}
 .dr-mt{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dr-mt.done{color:#1B7A4B;}
+.dr-mt.done{color:#1A7649;}
 .dr-mp{font-size:11px;font-weight:700;color:var(--mut);text-align:right;font-variant-numeric:tabular-nums;}
 .dr-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;}
 .dbtn.sm{padding:8px 13px;font-size:12.5px;}
@@ -849,12 +849,12 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .sh-t{position:relative;height:14px;border-radius:999px;background:var(--off);overflow:hidden;}
 .sh-t i{position:absolute;left:0;top:0;height:100%;border-radius:999px;display:block;transition:width .7s cubic-bezier(.2,.7,.3,1);}
 .sh-pre{background:#B9C8D6;}
-.sh-post{background:#1B7A4B;opacity:.85;}
+.sh-post{background:#1A7649;opacity:.85;}
 .sh-mark{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1px;border-radius:2px;
   background:var(--navy);display:block;}
 .sh-v{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.sh-v b.up{color:#1B7A4B;}
-.sh-v b.down{color:var(--orange);}
+.sh-v b.up{color:#1A7649;}
+.sh-v b.down{color:#B93A22;}
 @media(max-width:760px){.sh-row{grid-template-columns:1fr 90px;grid-auto-flow:dense;}
 .sh-t{grid-column:1/-1;}
 /* On a phone the answers ARE the content — stack each response as a
@@ -870,7 +870,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 #att-body td{display:block;padding:2px 0;border:none;}}
 .dlogin{max-width:420px;}
 .dlogin p{font-size:13.5px;color:var(--mut);margin:6px 0 14px;}
-.derr{color:var(--orange)!important;font-weight:700;}
+.derr{color:#B93A22!important;font-weight:700;}
 .dlogin input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-family:inherit;
   font-size:14px;margin-bottom:12px;}
 .dnote{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.5;}

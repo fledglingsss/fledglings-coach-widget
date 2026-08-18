@@ -234,7 +234,7 @@ $('id-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('id-sa
 /* Must strip ?t= as well — a plain reload would re-adopt the token
  * sitting in the URL and sign the same learner straight back in. */
 $('id-change').onclick=flSignOutHere;
-function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#D9452B'}
+function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#B93A22'}
 function ago(at){if(!at)return '';var d=Math.floor((Date.now()/1000-at)/86400);
 return d<=0?'today':d===1?'yesterday':d+' days ago';}
 var LABELS={cv:'CV review',linkedin:'LinkedIn review',interview:'Mock interview',cover:'Cover letter'};
@@ -253,7 +253,7 @@ if(d.learning&&d.learning.enrolled>0){var L=d.learning;
 var lp=Math.round(L.completed*100/L.enrolled);
 $('lr-box').hidden=false;$('lr-sub').textContent=L.completed+'/'+L.enrolled+' modules completed';
 flCountUp($('lr-pct'),lp);
-var lc=lp>=70?'#1B7A4B':'#13507F';$('lr-pct').style.color=lc;
+var lc=lp>=70?'#1A7649':'#13507F';$('lr-pct').style.color=lc;
 $('lr-ring').style.background='conic-gradient('+lc+' 0deg '+Math.round(lp*3.6)+'deg,#E7EAF0 '+Math.round(lp*3.6)+'deg)';
 if(email&&L.completed<L.enrolled){
 fetch('/api/next-step',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -275,14 +275,14 @@ if(ts.latest===null){metaEl.textContent='';}
 else if(t==='cover'){metaEl.textContent=ts.attempts+' letter'+(ts.attempts===1?'':'s')+' created · last '+ago(ts.lastAt);}
 else{var delta=ts.delta===null?'':(ts.delta>=0?' ▲'+ts.delta:' ▼'+Math.abs(ts.delta));
 metaEl.innerHTML="Latest score <b style='color:"+band(ts.latest)+"'>"+ts.latest+"</b>"+
-(delta?"<b style='color:"+(ts.delta>=0?'#1B9E5A':'#D9452B')+"'>"+delta+"</b>":"")+
+(delta?"<b style='color:"+(ts.delta>=0?'#1B9E5A':'#B93A22')+"'>"+delta+"</b>":"")+
 " · "+esc2(ts.attempts+' attempt'+(ts.attempts===1?'':'s'));}
 var st=$('jstep-'+t);if(st){if(ts.latest!==null)st.classList.add('done');
 if(s.next&&s.next.tool===t)st.classList.add('now');}});
 /* career readiness + job-ready rings */
 if(typeof s.careerReadiness==='number'){
 flCountUp($('cr-pct'),s.careerReadiness);
-var cc=s.careerReadiness>=70?'#1B7A4B':'#D9452B';
+var cc=s.careerReadiness>=70?'#1A7649':'#B93A22';
 $('cr-ring').style.background='conic-gradient('+cc+' 0deg '+Math.round(s.careerReadiness*3.6)+'deg,#E7EAF0 '+Math.round(s.careerReadiness*3.6)+'deg)';
 $('cr-tasks').textContent=s.tasksDone+'/'+s.tasks.length+' tasks done';}
 if(s.readiness!==null){$('jr-box').hidden=false;var jc=band(s.readiness);
@@ -341,8 +341,8 @@ const HUB_CSS = `
 .jlabel i{font-style:normal;font-size:11.5px;}
 .jstep.done .jicon{background:var(--navy);border-color:var(--navy);color:#fff;}
 .jstep.done .jlabel b{color:var(--navy);font-weight:700;}
-.jstep.now .jicon{border-color:var(--pri);color:var(--pri);box-shadow:0 0 0 4px rgba(61,92,245,.14);}
-.jstep.now .jlabel b{color:var(--pri);font-weight:700;}
+.jstep.now .jicon{border-color:#B93A22;color:#B93A22;box-shadow:0 0 0 4px rgba(61,92,245,.14);}
+.jstep.now .jlabel b{color:#B93A22;font-weight:700;}
 .jstep.now.done .jicon{background:var(--navy);border-color:var(--navy);color:#fff;}
 .jline{flex:1;min-width:34px;border-top:2px dashed #C9D0DB;margin:24px 8px 0;}
 .hubgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px;}
@@ -352,12 +352,12 @@ const HUB_CSS = `
   display:flex;flex-direction:column;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;}
 .tcard:hover{transform:translateY(-3px);box-shadow:0 12px 26px -14px rgba(14,36,56,.28);}
 .tcard.rec{outline:2px solid var(--pri);outline-offset:-2px;}
-.tc-flag{position:absolute;top:0;left:0;background:linear-gradient(90deg,#D9452B,#ED9249);color:#fff;
+.tc-flag{position:absolute;top:0;left:0;background:linear-gradient(90deg,#B93A22,#A66633);color:#fff;
   border-radius:0 0 10px 0;padding:5px 12px;font-size:10.5px;font-weight:800;letter-spacing:.03em;z-index:2;}
 .tc-head{background:linear-gradient(180deg,#FDF3EC 0%,#FFF9F4 100%);display:flex;align-items:center;justify-content:center;
   padding:30px 0 26px;}
 .tc-icon{width:74px;height:74px;border-radius:50%;background:#fff;box-shadow:0 4px 14px rgba(14,36,56,.10);
-  display:flex;align-items:center;justify-content:center;color:var(--pri);}
+  display:flex;align-items:center;justify-content:center;color:#B93A22;}
 .tc-icon svg{width:30px;height:30px;}
 .tc-band{text-align:center;font-size:12.5px;font-weight:700;padding:7px 10px;color:#fff;}
 .tc-band.part{background:var(--amber);}
@@ -371,7 +371,7 @@ const HUB_CSS = `
 .recentgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:16px;}
 .recard{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:14px;
   padding:14px 16px;text-decoration:none;color:var(--ink);font-size:13.5px;transition:border-color .12s;}
-.recard:hover{border-color:var(--pri);}
+.recard:hover{border-color:#B93A22;}
 .re-l{font-weight:600;flex:1;}
 .re-s{font-weight:800;font-size:15px;}
 .re-a{color:var(--mut);font-size:11.5px;}
@@ -385,15 +385,15 @@ const HUB_CSS = `
 .nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
 .nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;margin-bottom:6px;}
 .nextstep div:nth-child(2){font-size:15.5px;line-height:1.6;font-weight:500;}
-.nextstep a.btn{text-decoration:none;background:#fff;color:var(--pri);}
+.nextstep a.btn{text-decoration:none;background:#fff;color:#B93A22;}
 .idcard{font-size:14px;line-height:1.6;color:var(--mut);padding:16px 22px;}
 .idcard b{color:var(--navy);}
 .id-sub{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;}
-.idlink{border:none;background:none;color:var(--pri);font-family:inherit;font-size:12.5px;font-weight:700;
+.idlink{border:none;background:none;color:#B93A22;font-family:inherit;font-size:12.5px;font-weight:700;
   cursor:pointer;text-decoration:underline;padding:0;margin-top:6px;}
 .idrow{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
 .idrow input{flex:1;min-width:220px;}
-.id-err{color:var(--orange);font-weight:600;font-size:12.5px;margin-top:8px;}
+.id-err{color:#B93A22;font-weight:600;font-size:12.5px;margin-top:8px;}
 .idbtns{display:flex;gap:18px;flex-wrap:wrap;}
 /* device link code — meant to be read off one screen and typed on another */
 .linkbox{margin-top:14px;padding:14px 16px;border:1.5px dashed var(--pri);border-radius:14px;
