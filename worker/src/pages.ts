@@ -266,7 +266,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   color:var(--ink);font-size:14.5px;font-weight:500;transition:background .12s;}
 .sn-link svg{width:20px;height:20px;flex:none;color:var(--mut);}
 .sn-link:hover{background:var(--off);}
-.sn-link.on{background:var(--pri-soft);color:var(--pri);font-weight:700;}
+.sn-link.on{background:var(--pri-soft);color:var(--pri-dark);font-weight:700;}
 .sn-link.on svg{color:var(--pri);}
 .snav-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:4px;}
 .smain{flex:1;min-width:0;display:flex;flex-direction:column;}

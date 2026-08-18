@@ -270,8 +270,8 @@ var c=Array.isArray(color)?(color[i]||'#13507F'):(color||'#13507F');
 if(v>0){var h=Math.max(3,(v/max)*maxH);var y=base-h;
 s+="<rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='4' fill='"+c+"'/>";
 s+="<text x='"+(x+bw/2)+"' y='"+(y-5)+"' text-anchor='middle' font-size='10' font-weight='700' fill='#68788A'>"+v+"</text>";}
-else{s+="<text x='"+(x+bw/2)+"' y='"+(base-6)+"' text-anchor='middle' font-size='10' fill='#B9AFAB'>0</text>";}
-s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#8a97a1'>"+esc2(labels[i]||'')+"</text>";});
+else{s+="<text x='"+(x+bw/2)+"' y='"+(base-6)+"' text-anchor='middle' font-size='10' fill='#7C7573'>0</text>";}
+s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#6D777F'>"+esc2(labels[i]||'')+"</text>";});
 return s+"</svg>";}
 function miniScore(v){if(v===null||v===undefined)return "<span class='ms none'>—</span>";
 return "<span class='ms' style='color:"+band(v)+"'>"+v+"</span><i class='msb'><b style='width:"+v+"%;background:"+band(v)+"'></b></i>";}
@@ -307,7 +307,7 @@ $('att-empty').hidden=att.length>0;
 $('att-body').innerHTML=att.map(function(a){
 return "<tr><td><b>"+esc2(a.name)+"</b><br><span class='dmut'>"+esc2(a.email)+"</span></td>"+
 "<td><span class='dtag warn'>"+esc2(a.issue||'')+"</span></td>"+
-"<td><span style='color:"+(a.readiness===null?'#B9AFAB':band(a.readiness))+";font-weight:800'>"+(a.readiness===null?'—':a.readiness)+"</span></td>"+
+"<td><span style='color:"+(a.readiness===null?'#7C7573':band(a.readiness))+";font-weight:800'>"+(a.readiness===null?'—':a.readiness)+"</span></td>"+
 "<td>"+a.tasksDone+"/7</td>"+
 "<td><button type='button' class='dlink' data-drill='"+esc2(a.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
@@ -365,9 +365,9 @@ function statCard(v,l,s,barPct,barCol){return "<div class='kpi'><div class='kpi-
 $('prof-body').innerHTML=
 "<div class='dcard dr-head'><div><b style='font-size:19px'>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
 r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
-"<span class='dr-ready' style='color:"+(r.readiness===null?'#B9AFAB':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></div>"+
+"<span class='dr-ready' style='color:"+(r.readiness===null?'#7C7573':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></div>"+
 "<div class='kpigrid'>"+
-statCard(lg.completed+"<small style='font-size:16px;color:#8a97a1'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress',modPct,'#1B7A4B')+
+statCard(lg.completed+"<small style='font-size:16px;color:#6D777F'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress',modPct,'#1B7A4B')+
 statCard(lg.minutes?fmtMins(lg.minutes):'—','Study time','across their modules',null)+
 statCard("<span id='prof-rf-n'>…</span>",'Reflection answers','in their own words',null)+
 statCard(esc2(loginNote),'Last active','on the platform',null)+
@@ -440,7 +440,7 @@ return "<div class='dcard cocard'><div class='co-t'>"+esc2(t.tag)+"</div>"+
 "<div class='co-n'>"+members.length+"</div><div class='kpi-s'>learners</div>"+
 "<div class='co-row'><span>Modules completed</span><b>"+mc+"/"+me+"</b></div>"+
 "<i class='msb wide'><b style='width:"+mp+"%;background:#1B7A4B'></b></i>"+
-"<div class='co-row'><span>Avg job-ready</span><b style='color:"+(avg===null?'#8a97a1':band(avg))+"'>"+(avg===null?'—':avg)+"</b></div>"+
+"<div class='co-row'><span>Avg job-ready</span><b style='color:"+(avg===null?'#6D777F':band(avg))+"'>"+(avg===null?'—':avg)+"</b></div>"+
 "<div class='co-row'><span>Career journey done</span><b>"+done+"</b></div>"+
 "<button type='button' class='dbtn ghost co-view' data-cohort='"+esc2(t.tag)+"'>View students →</button></div>";}).join('');
 document.querySelectorAll('[data-cohort]').forEach(function(b){b.onclick=function(){
@@ -560,7 +560,7 @@ var tiers=TIER_ORDER.map(function(t){
 return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).length,c:t[2]};})
 .filter(function(x){return x.v>0});
 var untiered=rows.filter(function(r){return !r.engagement.tier}).length;
-if(untiered)tiers.push({l:'Not assessed',v:untiered,c:'#B9AFAB'});
+if(untiered)tiers.push({l:'Not assessed',v:untiered,c:'#7C7573'});
 $('ch-tiers').innerHTML=tiers.length?hbar(tiers,rows.length||1):"<div class='dempty'>No learners in this filter.</div>";
 /* Learning charts come from the server rollup over the whole scope —
  * flag that honestly when a cohort chip narrows the other charts. */
@@ -675,6 +675,11 @@ const DASH_CSS = `
  * the same orange. The brand colour itself is untouched: as text on a
  * pale tint, and in the logo, it is unchanged. */
 --orange-btn:#D2432A;
+/* Brand orange as TEXT on the pale tint. #D9452B reads 3.72:1 there,
+ * and no amount of lightening the tint can fix it — the ceiling is
+ * white at 4.34, still under AA. So the text darkens instead, to the
+ * shade the palette already uses for the button's hover state. */
+--orange-deep:#B93A22;
   --ink:#25394B;--mut:#5C6B78;--line:#E3DDDA;--ok:#1B7A4B;}
 [hidden]{display:none!important;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
@@ -688,8 +693,8 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   font-family:inherit;font-size:14px;font-weight:500;color:var(--ink);cursor:pointer;text-decoration:none;text-align:left;}
 .dn svg{width:19px;height:19px;color:var(--mut);flex:none;}
 .dn:hover{background:var(--off);}
-.dn.on{background:#FBEAE6;color:var(--orange);font-weight:700;}
-.dn.on svg{color:var(--orange);}
+.dn.on{background:#FBEAE6;color:var(--orange-deep);font-weight:700;}
+.dn.on svg{color:var(--orange-deep);}
 .dfoot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px;}
 .dscope{font-size:12px;font-weight:700;color:var(--blue);padding:0 10px;}
 .dout{font-size:12px;color:var(--mut);text-decoration:underline;padding:0 10px;}
@@ -729,7 +734,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--orange-btn);color:#fff;
   border:none;border-radius:11px;padding:11px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;
   text-decoration:none;}
-.dbtn:hover{background:#B93A22;}
+.dbtn:hover{background:var(--orange-deep);}
 .dbtn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line);}
 .dbtn.ghost:hover{border-color:var(--orange);color:var(--orange);}
 .dtablewrap{overflow-x:auto;}
@@ -742,7 +747,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dmut{color:var(--mut);font-size:11.5px;}
 .dtag{display:inline-block;background:var(--off);color:var(--blue);border-radius:999px;padding:2px 9px;
   font-size:10.5px;font-weight:700;}
-.dtag.warn{background:#FBEAE6;color:var(--orange);white-space:nowrap;}
+.dtag.warn{background:#FBEAE6;color:var(--orange-deep);white-space:nowrap;}
 .dlink{border:none;background:none;color:var(--blue);font-family:inherit;font-size:12.5px;font-weight:700;
   cursor:pointer;text-decoration:underline;}
 .dempty{color:var(--mut);font-size:13.5px;padding:16px 4px;}
@@ -770,7 +775,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .chip.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 .chip.on i{color:#CFE0EE;}
 .ms{font-weight:800;font-variant-numeric:tabular-nums;}
-.ms.none{color:#B9AFAB;}
+.ms.none{color:#7C7573;}
 .msb{display:block;width:56px;height:5px;border-radius:999px;background:var(--off);overflow:hidden;margin-top:3px;}
 .msb.wide{width:100%;margin-top:6px;}
 .msb b{display:block;height:100%;border-radius:999px;}
