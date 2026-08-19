@@ -761,8 +761,8 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   font-size:10.5px;font-weight:700;}
 .dtag.warn{background:#FBEAE6;color:var(--orange-deep);white-space:nowrap;}
 .dlink{border:none;background:none;color:var(--blue);font-family:inherit;font-size:12.5px;font-weight:700;
-  cursor:pointer;text-decoration:underline;}
-.dempty{color:var(--mut);font-size:13.5px;padding:16px 4px;}
+  cursor:pointer;text-decoration:underline;padding:5px 2px;min-height:24px;}
+.dempty{color:var(--mut);font-size:13.5px;padding:16px 4px;overflow-wrap:anywhere;}
 .cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
 .modscroll{max-height:330px;overflow-y:auto;padding-right:6px;}
 .fu-row{display:grid;grid-template-columns:200px 1fr 92px;gap:12px;align-items:center;padding:7px 0;}
@@ -894,4 +894,19 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dn span,.dsec,.dscope,.dout,.dlogo{display:none;}
 .dn{justify-content:center;}
 .dmain{padding:18px 14px 50px;}}
+/* Last in the sheet so it beats the base 13.5px/14px sizing: a field
+ * under 16px makes iOS zoom the page the moment it is focused. */
+@media (max-width:768px){
+.dbar input,.dlogin input,input[type=text],input[type=password],select,textarea{font-size:16px;}
+}
+/* Grid items default to min-width:auto, so a card could not shrink
+ * below its own content and the single-column layout still pushed the
+ * page sideways on a 320px screen. The bar labels are the widest
+ * thing in there, so they give way first. */
+.dsplit>*{min-width:0;}
+@media(max-width:420px){
+.hb-l{width:96px;white-space:normal;}
+.hb-v{min-width:38px;}
+#ch-courses .hb-l,#ch-curriculum .hb-l{width:96px;}
+}
 `;

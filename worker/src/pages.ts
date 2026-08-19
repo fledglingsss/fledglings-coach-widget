@@ -366,6 +366,13 @@ const APP_OVERRIDES = `
 .hc-flag,.tc-flag{background:linear-gradient(90deg,#B93A22,#A66633);}
 .passport{border-top-color:#B93A22;}
 .hero-tag{background:#FBEAE6;color:#B93A22;}
+/* iOS zooms the page when a focused field is under 16px, which throws
+ * the layout out and needs a pinch to undo. Small screens only, so the
+ * desktop sizing is untouched. Lives at the end of the overrides so it
+ * wins on source order against the 14.5px base rule. */
+@media (max-width:768px){
+textarea,input[type=text],input[type=email],input[type=password],input[type=search],select{font-size:16px;}
+}
 `;
 
 export function appShell(opts: {

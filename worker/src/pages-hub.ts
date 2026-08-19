@@ -390,7 +390,7 @@ const HUB_CSS = `
 .idcard b{color:var(--navy);}
 .id-sub{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;}
 .idlink{border:none;background:none;color:#B93A22;font-family:inherit;font-size:12.5px;font-weight:700;
-  cursor:pointer;text-decoration:underline;padding:0;margin-top:6px;}
+  cursor:pointer;text-decoration:underline;padding:5px 0;margin-top:6px;min-height:24px;}
 .idrow{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
 .idrow input{flex:1;min-width:220px;}
 .id-err{color:#B93A22;font-weight:600;font-size:12.5px;margin-top:8px;}
