@@ -64,19 +64,19 @@ export function renderDashboardPage(): string {
     kpi("k-engaged", "⚡", "Using career tools", "tried at least one") +
     kpi("k-avgcv", "📄", "Avg CV score", "latest per learner") +
     "</div>" +
-    "<div class='dcard'><h3>Learner pipeline <span class='dmut' style='font-weight:500'>from enrolment to job-ready — learning and career progress in one picture</span></h3>" +
+    "<div class='dcard'><h2>Learner pipeline <span class='dmut' style='font-weight:500'>from enrolment to job-ready — learning and career progress in one picture</span></h2>" +
     "<div id='funnel'></div></div>" +
     "<div class='dsplit'>" +
-    "<div><div class='dcard'><h3>Live activity <span class='livedot' aria-hidden='true'></span></h3>" +
+    "<div><div class='dcard'><h2>Live activity <span class='livedot' aria-hidden='true'></span></h2>" +
     "<div id='feed-list'><div class='dempty'>Listening…</div></div></div>" +
-    "<div class='dcard'><h3>Quick actions</h3><div class='qacts'>" +
+    "<div class='dcard'><h2>Quick actions</h2><div class='qacts'>" +
     "<button type='button' class='dbtn ghost' data-view='students'>👥 Students</button>" +
     "<button type='button' class='dbtn ghost' data-view='analytics'>📊 Analytics</button>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ Download CSV</a>" +
     "</div></div></div>" + // closes quick-actions card + the left column
-    "<div class='dcard'><h3>Students needing attention <span class='dtag' id='att-count'></span></h3>" +
-    "<div class='dtablewrap'><table class='dtable' id='att-table'>" +
-    "<thead><tr><th>Student</th><th>Issue</th><th>Job-ready</th><th>Journey</th><th></th></tr></thead>" +
+    "<div class='dcard'><h2>Students needing attention <span class='dtag' id='att-count'></span></h2>" +
+    "<div class='dtablewrap'><table class='dtable' id='att-table' aria-label='Students needing attention'>" +
+    "<thead><tr><th scope='col'>Student</th><th scope='col'>Issue</th><th scope='col'>Job-ready</th><th scope='col'>Journey</th><th scope='col'></th></tr></thead>" +
     "<tbody id='att-body'></tbody></table>" +
     "<div class='dempty' id='att-empty' hidden>🎉 No one flagged — scores and journeys look healthy.</div></div></div>" +
     "</div></section>" +
@@ -87,8 +87,8 @@ export function renderDashboardPage(): string {
     "<div class='dbar'><input type='text' id='s-search' aria-label='Search students by name or email' placeholder='🔍 Search students…'>" +
     "<div class='chips' id='s-chips'></div>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
-    "<div class='dcard'><div class='dtablewrap'><table class='dtable'>" +
-    "<thead><tr><th>Student</th><th>Cohort</th><th>Modules</th><th>CV</th><th>LinkedIn</th><th>Interview</th><th>Letters</th><th>Journey</th><th>Job-ready</th></tr></thead>" +
+    "<div class='dcard'><div class='dtablewrap'><table class='dtable' aria-label='Every student in your scope'>" +
+    "<thead><tr><th scope='col'>Student</th><th scope='col'>Cohort</th><th scope='col'>Modules</th><th scope='col'>CV</th><th scope='col'>LinkedIn</th><th scope='col'>Interview</th><th scope='col'>Letters</th><th scope='col'>Journey</th><th scope='col'>Job-ready</th></tr></thead>" +
     "<tbody id='s-body'></tbody></table>" +
     "<div class='dempty' id='s-empty' hidden>No learners match.</div></div></div>" +
     "</section>" +
@@ -109,7 +109,7 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-reflections' hidden>" +
     "<div class='dcard' id='rf-loading'><div class='dempty'>Loading reflections…</div></div>" +
     /* plan-gated state */
-    "<div class='dcard rf-gate' id='rf-gate' hidden><h3 id='rf-gate-title'>Reflection insights are on their way</h3>" +
+    "<div class='dcard rf-gate' id='rf-gate' hidden><h2 id='rf-gate-title'>Reflection insights are on their way</h2>" +
     "<p class='rf-p' id='rf-gate-body'>Learners already answer a written self-reflection before and after every module. " +
     "Reading those answers into this dashboard is being switched on — check back soon.</p>" +
     /* Whole-school codes see the actionable supplier ask; scoped
@@ -120,7 +120,7 @@ export function renderDashboardPage(): string {
     "</div>" +
     "<p class='dmut' id='rf-coverage-note'></p></div>" +
     /* building state */
-    "<div class='dcard' id='rf-building' hidden><h3>Reading reflections…</h3>" +
+    "<div class='dcard' id='rf-building' hidden><h2>Reading reflections…</h2>" +
     "<p class='rf-p' id='rf-progress'></p><div class='msb wide'><b id='rf-progress-bar' style='background:#13507F'></b></div></div>" +
     /* ready: stats + charts + raw */
     "<div id='rf-ready' hidden>" +
@@ -130,25 +130,25 @@ export function renderDashboardPage(): string {
     kpi("rf-raw", "💬", "Answers on record", "raw question-and-answer pairs") +
     "</div>" +
     "<div class='chips' id='rf-deck-chips' style='margin-bottom:14px'></div>" +
-    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h3>⚠ Wellbeing flags <span class='dtag warn' id='rf-flags-count'></span></h3>" +
+    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing flags <span class='dtag warn' id='rf-flags-count'></span></h2>" +
     "<p class='rf-p'>Answers whose wording matched the same crisis patterns that guard the coach. Read them yourself — this is a prompt to check in, not a verdict.</p>" +
     "<div id='rf-flags'></div></div>" +
-    "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h3>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h3>" +
+    "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h2>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h2>" +
     "<div id='rf-shifts'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
-    "<h3>How learners describe the modules <span class='dmut' style='font-weight:500'>their own words, counted — spellings of one word grouped together</span></h3>" +
+    "<h2>How learners describe the modules <span class='dmut' style='font-weight:500'>their own words, counted — spellings of one word grouped together</span></h2>" +
     "<div id='rf-words'></div>" +
-    "<h3 style='margin-top:22px'>How the learning felt <span class='dmut' style='font-weight:500'>average of learners' own ratings</span></h3>" +
+    "<h2 style='margin-top:22px'>How the learning felt <span class='dmut' style='font-weight:500'>average of learners' own ratings</span></h2>" +
     "<div id='rf-experience'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='💡 What they asked for' id='rf-asks-card' hidden>" +
-    "<h3>What learners asked for <span class='dtag' id='rf-asks-count'></span></h3>" +
+    "<h2>What learners asked for <span class='dtag' id='rf-asks-count'></span></h2>" +
     "<p class='rf-p'>Answers to “what would you add or change”, in the learner's own words and not attributed to them — this is what the modules are missing, straight from the people taking them.</p>" +
     "<div id='rf-asks'></div>" +
     "<p class='dmut' id='rf-asks-more' hidden></p>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download every reflection (CSV)</a></div></div>" +
-    "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h3>Latest answers, verbatim</h3>" +
+    "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h2>Latest answers, verbatim</h2>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download raw reflections (CSV)</a></div>" +
-    "<div class='dtablewrap'><table class='dtable'><thead><tr><th>Student</th><th>Module</th><th>When</th><th>Question</th><th>Answer</th></tr></thead>" +
+    "<div class='dtablewrap'><table class='dtable' aria-label='Latest reflection answers'><thead><tr><th scope='col'>Student</th><th scope='col'>Module</th><th scope='col'>When</th><th scope='col'>Question</th><th scope='col'>Answer</th></tr></thead>" +
     "<tbody id='rf-recent'></tbody></table>" +
     "<div class='dempty' id='rf-recent-empty' hidden>No answers read yet.</div></div></div>" +
     "</div></section>" +
@@ -156,31 +156,31 @@ export function renderDashboardPage(): string {
     /* ---------- analytics ---------- */
     "<section class='dview' id='v-analytics' hidden>" +
     "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='a-chips'></div></div>" +
-    "<div class='dcard'><div class='cardhead'><h3>Learning — every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h3>" +
+    "<div class='dcard'><div class='cardhead'><h2>Learning — every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
-    "<div class='dcard'><h3>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h3><div id='ch-curriculum'></div></div>" +
+    "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
     "<div class='dsplit even'>" +
-    "<div class='dcard'><h3>Engagement mix</h3><div id='ch-tiers'></div></div>" +
-    "<div class='dcard'><h3>Career tool adoption</h3><div id='ch-adopt'></div></div>" +
+    "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
+    "<div class='dcard'><h2>Career tool adoption</h2><div id='ch-adopt'></div></div>" +
     "</div>" +
-    "<div class='dcard'><h3>CV score distribution</h3><div id='ch-dist'></div></div>" +
-    "<div class='dcard'><h3>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up — whole school</span></h3>" +
-    "<div id='ch-stalls'><div class='dempty'>Loading module health…</div></div></div>" +
-    "<div class='dcard'><h3>Career tool activity — last 12 weeks</h3><div id='ch-activity'></div></div>" +
-    "<div class='dcard'><h3>Average job-ready score by cohort</h3><div id='ch-cohorts'></div></div>" +
+    "<div class='dcard'><h2>CV score distribution</h2><div id='ch-dist'></div></div>" +
+    "<div class='dcard'><h2>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up — whole school</span></h2>" +
+    "<div id='ch-stalls' aria-live='polite'><div class='dempty'>Loading module health…</div></div></div>" +
+    "<div class='dcard'><h2>Career tool activity — last 12 weeks</h2><div id='ch-activity'></div></div>" +
+    "<div class='dcard'><h2>Average job-ready score by cohort</h2><div id='ch-cohorts'></div></div>" +
     "</section>" +
 
     /* ---------- evidence (SAR narrative + inspector link) ---------- */
     "<section class='dview' id='v-evidence' hidden>" +
-    "<div class='dcard'><h3>Evidence narrative</h3>" +
+    "<div class='dcard'><h2>Evidence narrative</h2>" +
     "<p class='dmut'>Three short paragraphs drafted from your live aggregate figures — ready to paste into a self-assessment " +
     "report or personal development evidence. Honest about what the data can and cannot claim; no learner is ever named.</p>" +
-    "<div class='evnarr' id='ev-narr'><div class='dempty' id='ev-narr-wait'>Drafting from your live figures — this takes a few seconds…</div></div>" +
+    "<div class='evnarr' id='ev-narr' aria-live='polite'><div class='dempty' id='ev-narr-wait'>Drafting from your live figures — this takes a few seconds…</div></div>" +
     "<div class='dbar' style='margin-top:12px'>" +
     "<button type='button' class='dbtn ghost' id='ev-copy' hidden>📋 Copy narrative</button>" +
     "<span class='dtag' id='ev-copied' hidden>Copied ✓</span></div></div>" +
-    "<div class='dcard'><h3>Inspector link</h3>" +
+    "<div class='dcard'><h2>Inspector link</h2>" +
     "<p class='dmut'>A read-only evidence snapshot you can hand to an inspector or governor — aggregate figures and the narrative " +
     "only, no learner names or emails anywhere on it. Each link works for 7 days; create a fresh one any time.</p>" +
     "<div class='dbar'><button type='button' class='dbtn' id='ev-link-make'>🔗 Create inspector link (7 days)</button></div>" +
@@ -239,8 +239,12 @@ reflections:['Self-Reflections','What learners say before and after each module 
 analytics:['Analytics','Adoption, scores and activity — visual first'],
 evidence:['Evidence','Inspection-ready narrative and a shareable read-only snapshot'],
 profile:['Learner profile','Their full record — modules, time, reflections, career tools']};
+var userActed=false;
+['pointerdown','keydown'].forEach(function(t){addEventListener(t,function(){userActed=true},true)});
 function go(v){view=v;
-document.querySelectorAll('.dn[data-view]').forEach(function(b){b.classList.toggle('on',b.dataset.view===v)});
+document.querySelectorAll('.dn[data-view]').forEach(function(b){var on=b.dataset.view===v;
+b.classList.toggle('on',on);
+if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
 document.querySelectorAll('.dview').forEach(function(s){s.hidden=true});
 var sec=$('v-'+v);sec.hidden=false;
 if(!reduce){sec.classList.remove('din');void sec.offsetWidth;sec.classList.add('din');}
@@ -249,7 +253,13 @@ if(v==='students')renderStudents();
 if(v==='cohorts')renderCohorts();
 if(v==='reflections')loadReflections();
 if(v==='analytics'){renderAnalytics();loadStalls();}
-if(v==='evidence')loadEvidence();}
+if(v==='evidence')loadEvidence();
+/* After the current tick, so a profile view has overwritten the
+ * heading with the learner's name before it is announced. Not on the
+ * first render — nobody has asked to go anywhere yet. */
+if(userActed)setTimeout(function(){var t=$('dh-title');if(!t)return;
+if(t.getAttribute('tabindex')===null)t.setAttribute('tabindex','-1');
+try{t.focus()}catch(e){}},0);}
 document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){go(b.dataset.view)})});
 $('prof-back').addEventListener('click',function(){go('students')});
 /* ---------- charts (inline SVG) ---------- */
@@ -312,8 +322,8 @@ return "<tr><td><b>"+esc2(a.name)+"</b><br><span class='dmut'>"+esc2(a.email)+"<
 "<td><button type='button' class='dlink' data-drill='"+esc2(a.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
 function chips(el,onPick){var tags=DATA.tags||[];
-el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' data-chip=''>All in scope</button>"+
-tags.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('');
+el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' aria-pressed='"+(cohortFilter?'false':'true')+"' data-chip=''>All in scope</button>"+
+tags.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' aria-pressed='"+(cohortFilter===t.tag?'true':'false')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('');
 el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.chip||null;onPick();};});}
 function renderStudents(){chips($('s-chips'),renderStudents);
@@ -374,20 +384,20 @@ statCard(esc2(loginNote),'Last active','on the platform',null)+
 "</div>"+
 "<div id='prof-flags'></div>"+
 "<div class='dsplit'>"+
-"<div class='dcard'><h3>Their modules</h3>"+
+"<div class='dcard'><h2>Their modules</h2>"+
 ((lg.modules&&lg.modules.length)?"<div class='dr-mods' style='grid-template-columns:1fr'>"+lg.modules.map(function(m){
 return "<div class='dr-mod'><span class='dr-mt"+(m.done?' done':'')+"' title='"+esc2(m.t)+"'>"+
 (m.done?'✓ ':'')+esc2(m.t)+"</span>"+
 "<i class='msb'><b style='width:"+m.p+"%;background:"+(m.done?'#1A7649':m.p>0?'#13507F':'#D8D2CE')+"'></b></i>"+
 "<span class='dr-mp'>"+(m.mins?m.mins+'m':m.p+'%')+"</span></div>";}).join('')+"</div>"
 :"<div class='dempty'>No module data yet.</div>")+"</div>"+
-"<div class='dcard'><h3>Career tools</h3><div class='dr-tools' style='grid-template-columns:1fr 1fr'>"+
+"<div class='dcard'><h2>Career tools</h2><div class='dr-tools' style='grid-template-columns:1fr 1fr'>"+
 toolRow('CV review',e.cv)+toolRow('LinkedIn',e.linkedin)+
 toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
 "<div class='dr-journey' style='margin-top:12px'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
 "<i class='msb wide'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></div></div>"+
 "</div>"+
-"<div class='dcard'><h3>Their self-reflections <span class='dtag' id='prof-rf-count'></span></h3>"+
+"<div class='dcard'><h2>Their self-reflections <span class='dtag' id='prof-rf-count'></span></h2>"+
 "<div id='prof-rf-trend'></div><div id='prof-rf-list'><span class='dmut'>Loading their answers…</span></div></div>"+
 "<div class='dr-acts'>"+
 "<a class='dbtn ghost sm' href='/hub?e="+b64u(r.email)+"&view=1' target='_blank' rel='noopener'>Open their hub view</a>"+
@@ -546,10 +556,11 @@ return "<tr><td class='dmut'>"+esc2(r.email)+"</td><td>"+esc2(r.courseTitle)+"</
 var rfSecs=Array.prototype.filter.call(document.querySelectorAll('.rf-sec'),function(s){
 return s.id!=='rf-flags-card'||flags.length>0});
 function rfShow(i){rfSecs.forEach(function(c,j){c.hidden=j!==i});
-document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,j){ch.classList.toggle('on',j===i)});}
+document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,j){ch.classList.toggle('on',j===i);
+ch.setAttribute('aria-pressed',j===i?'true':'false');});}
 $('rf-deck-chips').innerHTML=rfSecs.map(function(s){
 var lbl=s.dataset.rfl;if(s.id==='rf-flags-card'&&flags.length)lbl+=' ('+flags.length+')';
-return "<button type='button' class='chip'>"+esc2(lbl)+"</button>"}).join('');
+return "<button type='button' class='chip' aria-pressed='false'>"+esc2(lbl)+"</button>"}).join('');
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.onclick=function(){rfShow(i)}});
 /* wellbeing first when flags exist — duty of care leads */
 rfShow(flags.length>0?rfSecs.indexOf($('rf-flags-card')):0);}
@@ -702,6 +713,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dskip{position:absolute;left:-9999px;top:0;z-index:100;background:#05253C;color:#fff;padding:10px 16px;border-radius:0 0 10px 0;font-weight:600;}
 .dskip:focus{left:0;}
 .dmain:focus{outline:none;}
+#dh-title:focus{outline:none;}
 .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
 .dhead h1{font-size:24px;letter-spacing:-.01em;}
 .dhead p{font-size:13.5px;color:var(--mut);margin-top:3px;}
@@ -714,7 +726,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .din{animation:din .3s cubic-bezier(.2,.7,.3,1) both;}
 .dcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;
   box-shadow:0 1px 3px rgba(5,37,60,.05);}
-.dcard h3{font-size:15px;margin-bottom:12px;}
+.dcard h2{font-size:15px;margin-bottom:12px;}
 .kpigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px;}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;position:relative;
   box-shadow:0 1px 3px rgba(5,37,60,.05);}
