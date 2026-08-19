@@ -25,7 +25,7 @@ export function renderLinkedInPage(): string {
     /* guided upload flow: aim -> get the PDF -> drop it */
     "<div id='u-card'>" +
     "<div class='clsteps' aria-hidden='true'>" +
-    "<span class='clstep on' id='lis-1'><i>1</i>What you're aiming at</span><span class='clsep'></span>" +
+    "<span class='clstep on' id='lis-1' aria-current='step'><i>1</i>What you're aiming at</span><span class='clsep'></span>" +
     "<span class='clstep' id='lis-2'><i>2</i>Your profile PDF</span><span class='clsep'></span>" +
     "<span class='clstep' id='lis-3'><i>3</i>Your score</span></div>" +
     /* step 1: target */
@@ -33,7 +33,7 @@ export function renderLinkedInPage(): string {
     "<h3>🎯 What are you aiming at?</h3>" +
     "<p class='kw-note' style='margin-bottom:4px'>Name the role — or paste an advert — and every section gets scored " +
     "against it. You can also skip this.</p>" +
-    "<input type='text' id='target' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
+    "<input type='text' id='target' aria-label='Role or advert you are aiming at' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
     "<div class='btnrow' style='margin-top:14px'>" +
     "<button type='button' class='btn' id='li-n1'>Next: your profile →</button>" +
     "<button type='button' class='btn ghost' id='li-skip'>Skip — just score it</button></div></div>" +
@@ -45,11 +45,11 @@ export function renderLinkedInPage(): string {
     "<div class='drop' id='drop' tabindex='0' role='button' aria-label='Upload your LinkedIn PDF'>" +
     "<input type='file' id='file' accept='.pdf,application/pdf' hidden>" +
     "<div id='d-idle'><div class='drop-ico' aria-hidden='true'>" +
-    "<svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     "<path d='M12 16V4m0 0l-4 4m4-4l4 4'/><path d='M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'/></svg></div>" +
     "<div class='drop-big'>Drop your LinkedIn PDF here</div>" +
     "<div class='drop-hint'>or click to choose a file · PDF only · max 10&nbsp;MB</div></div>" +
-    "<div id='d-err' class='drop-err' hidden></div>" +
+    "<div id='d-err' class='drop-err' role='alert' hidden></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='li-b2'>← Back</button>" +
     "<span class='hero-note' id='li-aim-note'></span></div></div>" +
     /* closes step 2 then #u-card itself — report/spinner must be
@@ -57,7 +57,7 @@ export function renderLinkedInPage(): string {
     "</div></div>" +
     /* analysing */
     "<div class='card centre' id='a-card' hidden>" +
-    "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<div class='pulse' aria-hidden='true'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     "<path d='M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z'/><line x1='16' y1='8' x2='2' y2='22'/><line x1='17.5' y1='15' x2='9' y2='15'/></svg></div>" +
     "<h3 id='a-msg' aria-live='polite'>Reading your PDF…</h3>" +
     "<p class='sub' style='margin:6px 0 0'>Scoring all eight sections. Usually 15–30 seconds.</p></div>" +
@@ -133,7 +133,8 @@ export function renderLinkedInPage(): string {
     "(function(){var j=document.getElementById('li-journey'),t=flToken();" +
     "if(j&&t)j.href='/interview?t='+encodeURIComponent(t);})();" +
     "function dots(a,b,c){[['lis-1',a],['lis-2',b],['lis-3',c]].forEach(function(p){" +
-    "$(p[0]).className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');});}" +
+    "var e2=$(p[0]);e2.className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');" +
+    "if(p[1]==='on')e2.setAttribute('aria-current','step');else e2.removeAttribute('aria-current');});}" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
     "if(card==='a-card')dots('done','done','on');" +
     "else if(card==='r-card')dots('done','done','done');" +

@@ -53,7 +53,7 @@ export function renderCoverLetterPage(): string {
     /* inputs — a guided three-step flow, one focus per screen */
     "<div id='s-in'>" +
     "<div class='clsteps no-print' aria-hidden='true'>" +
-    "<span class='clstep on' id='cls-1'><i>1</i>Who it's for</span><span class='clsep'></span>" +
+    "<span class='clstep on' id='cls-1' aria-current='step'><i>1</i>Who it's for</span><span class='clsep'></span>" +
     "<span class='clstep' id='cls-2'><i>2</i>The advert</span><span class='clsep'></span>" +
     "<span class='clstep' id='cls-3'><i>3</i>Your experience</span></div>" +
     /* step 1 */
@@ -104,7 +104,7 @@ export function renderCoverLetterPage(): string {
 
     /* analysing */
     "<div class='card centre' id='s-wait' hidden>" +
-    "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<div class='pulse' aria-hidden='true'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     "<path d='M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z'/><line x1='16' y1='8' x2='2' y2='22'/><line x1='17.5' y1='15' x2='9' y2='15'/></svg></div>" +
     "<h3 id='waitmsg'>Drafting your letter…</h3>" +
     "<p class='sub' style='margin:6px 0 0'>Grounded in your real experience only. Usually under half a minute.</p></div>" +
@@ -162,7 +162,8 @@ function show(id){['s-in','s-wait','s-msg','s-out'].forEach(function(k){$(k).hid
 /* guided steps */
 function clGo(n){[1,2,3].forEach(function(i){
 $('st-'+i).hidden=i!==n;
-$('cls-'+i).className='clstep'+(i<n?' done':i===n?' on':'');});
+var el=$('cls-'+i);el.className='clstep'+(i<n?' done':i===n?' on':'');
+if(i===n)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
 window.scrollTo({top:0,behavior:'smooth'});}
 $('cl-n1').onclick=function(){clGo(2)};
 $('cl-b2').onclick=function(){clGo(1)};

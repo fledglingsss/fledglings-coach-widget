@@ -686,7 +686,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     "<button class='ltab' data-v='evidence' role='tab' aria-selected='false'>Evidence pack</button>" +
     "</nav>" +
     "<main class='content'>" +
-    "<div class='err' id='p-err' hidden></div>" +
+    "<div class='err' id='p-err' role='alert' hidden></div>" +
     /* ---- TODAY ---- */
     "<div class='lview on' id='lv-overview'>" +
     "<div id='alerts'></div>" +

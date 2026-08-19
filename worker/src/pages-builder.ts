@@ -74,7 +74,7 @@ export function renderBuilderPage(): string {
     "<div class='docgrid'>" +
     /* review + tips rail */
     "<div class='revcol no-print'>" +
-    "<div class='card revpanel' id='scorepanel' hidden>" +
+    "<div class='card revpanel' id='scorepanel' role='status' hidden>" +
     "<div class='rv-head'><div class='rv-t'>Resume Review</div>" +
     "<button type='button' class='rv-refresh' id='refreshbtn' aria-label='Re-check score' title='Re-check score'>⟳</button></div>" +
     "<div class='rv-scorerow'><span class='rv-score' id='b-score'>0</span><span class='rv-of'>/100</span>" +
@@ -250,7 +250,7 @@ return {c:'mk-ok',i:'✓',t:'Strong line'};}
  * what gets scored and printed. Editable fields carry data-b paths;
  * structural controls (add/remove) are contenteditable=false islands. */
 function ed(bind,cls,ph,val,tag){tag=tag||'span';
-return "<"+tag+" class='"+cls+"' contenteditable='true' spellcheck='true' data-b='"+bind+"' data-ph='"+esc2(ph)+"'>"+esc2(val||'')+"</"+tag+">";}
+return "<"+tag+" class='"+cls+"' contenteditable='true' spellcheck='true' role='textbox' aria-label='"+esc2(ph)+"' data-b='"+bind+"' data-ph='"+esc2(ph)+"'>"+esc2(val||'')+"</"+tag+">";}
 function docHtml(d,editable){
 var E=editable;var h='';
 var initials=((d.name||'').trim().split(/\s+/).map(function(w){return w.charAt(0)}).join('').slice(0,2).toUpperCase())||'??';

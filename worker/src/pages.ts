@@ -228,14 +228,14 @@ if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibli
  * ------------------------------------------------------------------ */
 
 export const NAV_ICONS: Record<string, string> = {
-  home: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/><path d='M10 21v-6h4v6'/></svg>",
-  builder: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M7 3h7l5 5v13H7z'/><path d='M14 3v5h5'/><path d='M10 13h6M10 17h6'/></svg>",
-  cv: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11l3 3 8-8'/><path d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/></svg>",
-  cover: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg>",
-  linkedin: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg>",
-  interview: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg>",
-  privacy: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z'/><path d='m9 12 2 2 4-4'/></svg>",
-  account: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg>",
+  home: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/><path d='M10 21v-6h4v6'/></svg>",
+  builder: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M7 3h7l5 5v13H7z'/><path d='M14 3v5h5'/><path d='M10 13h6M10 17h6'/></svg>",
+  cv: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11l3 3 8-8'/><path d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/></svg>",
+  cover: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg>",
+  linkedin: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg>",
+  interview: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg>",
+  privacy: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z'/><path d='m9 12 2 2 4-4'/></svg>",
+  account: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg>",
 };
 
 export const APP_NAV: Array<{ id: string; icon: string; label: string; href: string }> = [
@@ -260,6 +260,10 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   padding:22px 14px;position:sticky;top:0;height:100vh;}
 .snav-logo{padding:2px 10px 6px;}
 .snav-logo svg{height:30px;width:auto;display:block;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+.sn-skip{position:absolute;left:-9999px;top:0;z-index:200;background:#05253C;color:#fff;padding:10px 16px;border-radius:0 0 10px 0;font-weight:600;text-decoration:none;}
+.sn-skip:focus{left:0;}
+.smain:focus{outline:none;}
 .snav-slogan{font-size:10.5px;color:#B93A22;font-weight:600;letter-spacing:.05em;padding:0 10px 18px;}
 .snav nav{display:flex;flex-direction:column;gap:4px;}
 .sn-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;text-decoration:none;
@@ -383,6 +387,7 @@ export function appShell(opts: {
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
     "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'>" +
     `<style>${APP_CSS}${opts.extraCss ?? ""}${APP_OVERRIDES}</style></head><body>` +
+    "<a class='sn-skip' href='#smain-content'>Skip to content</a>" +
     "<aside class='snav'>" +
     `<div class='snav-logo'>${WORDMARK_LIGHT}</div>` +
     "<div class='snav-slogan'>Where Growth Takes Flight</div>" +
@@ -391,7 +396,8 @@ export function appShell(opts: {
     `<a class='sn-link' data-nav href='/ai-privacy'>${NAV_ICONS.privacy}<span>AI &amp; Privacy</span></a>` +
     `<a class='sn-link' data-nav href='/hub#account'>${NAV_ICONS.account}<span>Account</span></a>` +
     "</div></aside>" +
-    "<div class='smain'>" +
+    "<div class='smain' id='smain-content' tabindex='-1'>" +
+    `<h1 class='sr-only'>${esc(opts.title)}</h1>` +
     `<script>${IDENTITY_JS}</script>` +
     opts.bodyHtml +
     "<div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div>" +
@@ -404,6 +410,16 @@ export function appShell(opts: {
     /* Liveness layer: animate anything that becomes visible, and give
      * pages a count-up for their big score reveals. */
     "var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;" +
+    "var flActed=false;['pointerdown','keydown'].forEach(function(t){" +
+    "addEventListener(t,function(){flActed=true},true)});" +
+    "if(window.MutationObserver){new MutationObserver(function(muts){" +
+    "muts.forEach(function(m){var el=m.target;" +
+    "if(m.attributeName!=='hidden'||el.nodeType!==1||el.hidden||!flActed)return;" +
+    "var h=el.querySelector('h1,h2,h3');if(!h)return;" +
+    "if(!el.getBoundingClientRect().width)return;" +
+    "if(h.getAttribute('tabindex')===null)h.setAttribute('tabindex','-1');" +
+    "setTimeout(function(){try{h.focus()}catch(e){}},60);});" +
+    "}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}" +
     "if(!reduce&&window.MutationObserver){new MutationObserver(function(muts){" +
     "muts.forEach(function(m){var el=m.target;" +
     "if(m.attributeName==='hidden'&&el.nodeType===1&&!el.hidden){" +
@@ -465,7 +481,7 @@ export function renderToolsPage(): string {
     /* guided upload flow: aim first, then the PDF */
     "<div id='u-card'>" +
     "<div class='clsteps' aria-hidden='true'>" +
-    "<span class='clstep on' id='cvs-1'><i>1</i>What you're aiming at</span><span class='clsep'></span>" +
+    "<span class='clstep on' id='cvs-1' aria-current='step'><i>1</i>What you're aiming at</span><span class='clsep'></span>" +
     "<span class='clstep' id='cvs-2'><i>2</i>Your CV</span><span class='clsep'></span>" +
     "<span class='clstep' id='cvs-3'><i>3</i>Your score</span></div>" +
     /* step 1: target */
@@ -473,7 +489,7 @@ export function renderToolsPage(): string {
     "<h3>🎯 What are you aiming at?</h3>" +
     "<p class='kw-note' style='margin-bottom:4px'>Name the role — or paste the whole advert — and the scoring gets " +
     "much sharper: keyword matching, tailoring, the lot. You can also skip this.</p>" +
-    "<input type='text' id='target' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
+    "<input type='text' id='target' aria-label='Job title or advert you are aiming at' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
     "<div class='btnrow' style='margin-top:14px'>" +
     "<button type='button' class='btn' id='cv-n1'>Next: your CV →</button>" +
     "<button type='button' class='btn ghost' id='cv-skip'>Skip — just score it</button></div></div>" +
@@ -481,13 +497,13 @@ export function renderToolsPage(): string {
     "<div class='card' id='cvst-2' hidden>" +
     "<h3 id='u-step-title'>📄 Upload your CV</h3>" +
     "<div class='drop' id='drop' tabindex='0' role='button' aria-label='Upload a PDF to review'>" +
-    "<input type='file' id='file' accept='.pdf,application/pdf' hidden>" +
+    "<input type='file' id='file' aria-label='Choose your CV file' accept='.pdf,application/pdf' hidden>" +
     "<div id='d-idle'><div class='drop-ico' aria-hidden='true'>" +
-    "<svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     "<path d='M12 16V4m0 0l-4 4m4-4l4 4'/><path d='M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'/></svg></div>" +
     "<div class='drop-big' id='d-title'>Drop your CV here</div>" +
     "<div class='drop-hint' id='d-hint'>or click to choose a file · PDF only · max 10&nbsp;MB</div></div>" +
-    "<div id='d-err' class='drop-err' hidden></div>" +
+    "<div id='d-err' class='drop-err' role='alert' hidden></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cv-b2'>← Back</button>" +
     "<span class='hero-note' id='aim-note'></span></div></div>" +
     /* one close for step 2, one for #u-card itself — the spinner and
@@ -497,7 +513,7 @@ export function renderToolsPage(): string {
     "</div></div>" +
     /* analysing card */
     "<div class='card centre' id='a-card' hidden>" +
-    "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<div class='pulse' aria-hidden='true'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     "<path d='M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z'/><line x1='16' y1='8' x2='2' y2='22'/><line x1='17.5' y1='15' x2='9' y2='15'/></svg></div>" +
     "<h3 id='a-msg' aria-live='polite'>Reading your PDF…</h3>" +
     "<p class='sub' style='margin:6px 0 0'>Usually 15–30 seconds. Fledge is being thorough, not slow.</p></div>" +
@@ -617,7 +633,8 @@ export function renderToolsPage(): string {
     "var hubEmail=flResolveEmail();flIdentityInit(lid);" +
     "var tabCv=$('tab-cv'),tabLi=$('tab-li');" +
     "function dots(a,b,c){[['cvs-1',a],['cvs-2',b],['cvs-3',c]].forEach(function(p){" +
-    "$(p[0]).className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');});}" +
+    "var e2=$(p[0]);e2.className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');" +
+    "if(p[1]==='on')e2.setAttribute('aria-current','step');else e2.removeAttribute('aria-current');});}" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
     "if(card==='a-card')dots('done','done','on');" +
     "else if(card==='r-card')dots('done','done','done');" +

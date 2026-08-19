@@ -31,7 +31,7 @@ export function renderInterviewPage(): string {
     "<div id='s-home'>" +
     "<div class='ivtabs' role='tablist'>" +
     "<button type='button' class='ivtab on' id='tab-practice' role='tab'>Practice</button>" +
-    "<button type='button' class='ivtab' id='tab-recs' role='tab'>My recordings <span class='ivcount' id='rec-count' hidden></span></button>" +
+    "<button type='button' class='ivtab' id='tab-recs' role='tab'>My recordings <span class='ivcount' id='rec-count' role='status' hidden></span></button>" +
     "<button type='button' class='ivtab' id='tab-learn' role='tab'>Learning</button></div>" +
     /* learning: prep tracks, module cards, question bank by role */
     "<div id='home-learn' hidden>" +
@@ -72,7 +72,7 @@ export function renderInterviewPage(): string {
     "<button type='button' class='srchead' aria-expanded='true'><span class='srcico' style='background:#EAF2FA'>📋</span>" +
     "<span class='srctxt'><b>From a job description</b><i>Paste an advert to get questions tailored to that exact role</i></span>" +
     "<span class='srcchev'>▾</span></button>" +
-    "<div class='srcbody' id='src-jd'><textarea id='jd' rows='4' maxlength='3000' placeholder='Paste the job advert here…'></textarea></div></div>" +
+    "<div class='srcbody' id='src-jd'><textarea id='jd' aria-label='Paste the job advert' rows='4' maxlength='3000' placeholder='Paste the job advert here…'></textarea></div></div>" +
     "<div class='srccard closed' data-src='cv'>" +
     "<button type='button' class='srchead' aria-expanded='false'><span class='srcico' style='background:#FDF3EC'>📄</span>" +
     "<span class='srctxt'><b>From your CV</b><i>Questions that dig into your genuine experience — great for “walk me through your CV”</i></span>" +
@@ -87,7 +87,7 @@ export function renderInterviewPage(): string {
     "<textarea id='gen-course' rows='2' maxlength='3000' style='margin-top:10px' placeholder='Course description (optional — sharpens the questions)'></textarea>" +
     "<textarea id='gen-adm-cv' rows='2' maxlength='9000' style='margin-top:10px' placeholder='Your CV or personal statement (optional)'></textarea></div></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn' id='genbtn'>Generate AI interview</button>" +
-    "<span class='hero-note' id='genstate'>Up to 5 custom interviews a day</span></div></div>" +
+    "<span class='hero-note' id='genstate' role='status'>Up to 5 custom interviews a day</span></div></div>" +
     "</div>" +
     "</div>" +
 
@@ -100,7 +100,7 @@ export function renderInterviewPage(): string {
     "than how you sit.</div>" +
     "<div class='card'>" +
     "<div class='setupgrid'>" +
-    "<div class='setupvid'><video id='setup-video' autoplay playsinline muted></video></div>" +
+    "<div class='setupvid'><video id='setup-video' aria-label='Live camera preview' autoplay playsinline muted></video></div>" +
     "<div class='setupchecks'><h3>Camera &amp; mic check</h3><ul class='checks' id='setup-list'>" +
     "<li id='ck-cam'><i>…</i><div><b>Camera</b><span id='ck-cam-d'>Asking for permission…</span></div></li>" +
     "<li id='ck-mic'><i>…</i><div><b>Microphone</b><span id='ck-mic-d'>Asking for permission…</span></div></li>" +
@@ -120,9 +120,9 @@ export function renderInterviewPage(): string {
     "<h3 class='qtext' id='qtext'></h3>" +
     /* video capture area */
     "<div class='card vidcard' id='vidcard'>" +
-    "<div class='vidwrap'><video id='live-video' autoplay playsinline muted></video>" +
+    "<div class='vidwrap'><video id='live-video' aria-label='Live camera preview while recording' autoplay playsinline muted></video>" +
     "<div class='vover' id='think-over'><div class='think-l'>Think time</div>" +
-    "<div class='think-n' id='think-n'>30</div>" +
+    "<div class='think-n' id='think-n' role='status' aria-live='polite'>30</div>" +
     "<button type='button' class='btn rec' id='rec-now'>● Start recording</button></div>" +
     "<div class='recbar' id='recbar' hidden><span class='recdot'></span>Recording <b id='rec-t'>0:00</b> / 3:00" +
     "<button type='button' class='btn rec small' id='rec-stop'>■ Stop</button></div></div>" +
@@ -131,10 +131,10 @@ export function renderInterviewPage(): string {
     "<div class='card' id='voicecard' hidden>" +
     "<div class='micwrap'>" +
     "<button type='button' class='mic' id='mic' aria-label='Tap to answer out loud'>" +
-    "<svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     "<rect x='9' y='2.5' width='6' height='11' rx='3'/><path d='M5 11a7 7 0 0 0 14 0M12 18v3.5M8.5 21.5h7'/></svg>" +
     "</button>" +
-    "<div class='micstate' id='micstate'>Tap to answer out loud</div></div>" +
+    "<div class='micstate' id='micstate' role='status'>Tap to answer out loud</div></div>" +
     "<div class='transcript' id='transcript' aria-live='polite'></div></div>" +
     "<details class='typefall' id='typefall'><summary>Prefer to type (or fix the transcript)?</summary>" +
     "<textarea id='typed' rows='4' maxlength='2000' placeholder='Type your answer instead…'></textarea></details>" +
@@ -156,13 +156,13 @@ export function renderInterviewPage(): string {
 
     /* ---------- stage: analysing ---------- */
     "<div class='card centre' id='s-wait' hidden>" +
-    "<div class='pulse' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
+    "<div class='pulse' aria-hidden='true'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='#fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" +
     "<path d='M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z'/><line x1='16' y1='8' x2='2' y2='22'/><line x1='17.5' y1='15' x2='9' y2='15'/></svg></div>" +
     "<h3 id='waitmsg'>Fledge is scoring your interview…</h3>" +
     "<p class='sub' style='margin:6px 0 0'>Like a fair interviewer, not a harsh one. Usually under half a minute.</p></div>" +
 
     /* ---------- stage: message ---------- */
-    "<div class='card' id='s-msg' hidden><div class='result' id='msgtext'></div>" +
+    "<div class='card' id='s-msg' hidden><div class='result' id='msgtext' role='status'></div>" +
     "<div class='btnrow'><button type='button' class='btn ghost' id='msgback'>Back</button></div></div>" +
 
     /* ---------- stage: report ---------- */
