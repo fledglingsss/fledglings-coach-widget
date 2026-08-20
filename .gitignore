@@ -2,3 +2,9 @@ node_modules/
 .wrangler/
 .dev.vars
 *.log
+
+# QA scratch artefacts — never committed
+worker/qa2/
+worker/qa/
+worker/*.jar
+worker/r*.json
