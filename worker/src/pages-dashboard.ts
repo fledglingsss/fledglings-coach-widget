@@ -964,4 +964,28 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .sc-tools{display:flex;flex-wrap:wrap;gap:6px;}
 .sc-tool{font-size:11.5px;font-weight:600;color:var(--mut);background:var(--canvas);border-radius:999px;padding:4px 10px;}
 .sc-tool b{font-weight:800;}
+/* Phone layout for the shell. The 74px icon rail was taking almost a
+ * quarter of a 320px screen and still only showed icons. Below 560px
+ * it becomes a horizontal strip across the top — the same shape the
+ * learner pages already use — so the content gets the full width and
+ * the labels come back. It stays pinned while the page scrolls, and
+ * nothing is dropped: the scope and sign-out ride along at the end of
+ * the strip rather than being hidden. Must sit after the 820px rule,
+ * which switches those labels off for the rail. */
+@media(max-width:560px){
+body{display:block;}
+.dside{width:100%;height:auto;flex-direction:row;align-items:center;gap:6px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  position:sticky;top:0;z-index:30;background:#fff;
+  border-right:none;border-bottom:1px solid var(--line);padding:9px 12px;}
+.dlogo,.dsec{display:none;}
+.dn{flex:none;justify-content:flex-start;white-space:nowrap;padding:9px 12px;font-size:13.5px;}
+.dn span{display:inline;}
+.dfoot{margin-top:0;border-top:none;padding-top:0;flex:none;
+  flex-direction:row;align-items:center;gap:12px;}
+.dscope,.dout{display:inline-flex;align-items:center;min-height:24px;white-space:nowrap;padding:0;}
+.dmain{padding:16px 14px 50px;max-width:none;}
+#dh-title,.dhead{scroll-margin-top:68px;}
+.dview{scroll-margin-top:68px;}
+}
 `;
