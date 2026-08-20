@@ -265,7 +265,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .sn-skip:focus{left:0;}
 .smain:focus{outline:none;}
 .snav-slogan{font-size:10.5px;color:#B93A22;font-weight:600;letter-spacing:.05em;padding:0 10px 18px;}
-.snav nav{display:flex;flex-direction:column;gap:4px;}
+.snav nav{display:flex;flex-direction:column;gap:4px;flex:1;}
 .sn-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;text-decoration:none;
   color:var(--ink);font-size:14.5px;font-weight:500;transition:background .12s;}
 .sn-link svg{width:20px;height:20px;flex:none;color:var(--mut);}
@@ -330,7 +330,12 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
   .snav-logo svg{height:24px;}
   .snav nav{flex-direction:row;overflow-x:auto;gap:6px;-webkit-overflow-scrolling:touch;}
   .sn-link{white-space:nowrap;padding:9px 12px;font-size:13.5px;}
-  .snav-foot{display:none;}
+  /* Was display:none, which left AI & Privacy and Account with no
+   * route at all on a phone. They now sit at the end of the same
+   * scrolling strip as everything else. */
+  .snav-foot{display:flex;flex-direction:row;gap:6px;flex:none;
+    margin-top:0;border-top:none;padding-top:0;margin-left:6px;
+    border-left:1px solid var(--line);padding-left:6px;}
   .wrap{padding:22px 16px 60px;}
 }
 @media print{.snav,.btn,.tabs,.footer,.no-print{display:none!important;}
@@ -398,11 +403,11 @@ export function appShell(opts: {
     "<aside class='snav'>" +
     `<div class='snav-logo'>${WORDMARK_LIGHT}</div>` +
     "<div class='snav-slogan'>Where Growth Takes Flight</div>" +
-    `<nav aria-label='Employability tools'>${nav}</nav>` +
-    "<div class='snav-foot'>" +
+    `<nav aria-label='Employability tools'>${nav}` +
+    "<span class='snav-foot'>" +
     `<a class='sn-link' data-nav href='/ai-privacy'>${NAV_ICONS.privacy}<span>AI &amp; Privacy</span></a>` +
     `<a class='sn-link' data-nav href='/hub#account'>${NAV_ICONS.account}<span>Account</span></a>` +
-    "</div></aside>" +
+    "</span></nav></aside>" +
     "<div class='smain' id='smain-content' tabindex='-1'>" +
     `<h1 class='sr-only'>${esc(opts.title)}</h1>` +
     `<script>${IDENTITY_JS}</script>` +
