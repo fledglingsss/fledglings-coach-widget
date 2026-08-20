@@ -90,6 +90,10 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><div class='dtablewrap'><table class='dtable' aria-label='Every student in your scope'>" +
     "<thead><tr><th scope='col'>Student</th><th scope='col'>Cohort</th><th scope='col'>Modules</th><th scope='col'>CV</th><th scope='col'>LinkedIn</th><th scope='col'>Interview</th><th scope='col'>Letters</th><th scope='col'>Journey</th><th scope='col'>Job-ready</th></tr></thead>" +
     "<tbody id='s-body'></tbody></table>" +
+    /* Same learners, laid out for a phone. Which one shows is a CSS
+     * decision, so there is no breakpoint logic in JS and rotating the
+     * handset needs no re-render. */
+    "<div class='scards' id='s-cards'></div>" +
     "<div class='dempty' id='s-empty' hidden>No learners match.</div></div></div>" +
     "</section>" +
 
@@ -283,6 +287,9 @@ s+="<text x='"+(x+bw/2)+"' y='"+(y-5)+"' text-anchor='middle' font-size='10' fon
 else{s+="<text x='"+(x+bw/2)+"' y='"+(base-6)+"' text-anchor='middle' font-size='10' fill='#7C7573'>0</text>";}
 s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#6D777F'>"+esc2(labels[i]||'')+"</text>";});
 return s+"</svg>";}
+function toolChip(label,v,isCount){
+if(isCount)return "<span class='sc-tool'>"+label+" <b>"+v+"</b></span>";
+return "<span class='sc-tool'>"+label+" <b style='color:"+(v===null?'#7C7573':band(v))+"'>"+(v===null?'—':v)+"</b></span>";}
 function miniScore(v){if(v===null||v===undefined)return "<span class='ms none'>—</span>";
 return "<span class='ms' style='color:"+band(v)+"'>"+v+"</span><i class='msb'><b style='width:"+v+"%;background:"+band(v)+"'></b></i>";}
 /* ---------- renders ---------- */
@@ -343,6 +350,25 @@ return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)
 "<td>"+miniScore(e.cv.latest)+"</td><td>"+miniScore(e.linkedin.latest)+"</td><td>"+miniScore(e.interview.latest)+"</td>"+
 "<td>"+e.cover.attempts+"</td><td>"+r.tasksDone+"/7</td>"+
 "<td>"+miniScore(r.readiness)+"</td></tr>";}).join('');
+/* The whole card is the control, so the tap target is the card rather
+ * than a 16px link inside it. Its text is left to be read out: a
+ * screen reader gets the same facts a sighted provider sees. */
+$('s-cards').innerHTML=rows.map(function(r){var e=r.employability;var lg=r.learning;
+var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
+return "<button type='button' class='scard' data-drill='"+esc2(r.email)+"'>"+
+"<span class='sc-top'><span class='sc-id'><b>"+esc2(r.name)+"</b>"+
+"<span class='sc-mail'>"+esc2(r.email)+"</span></span>"+
+"<span class='sc-jr' style='color:"+(r.readiness===null?'#7C7573':band(r.readiness))+"'>"+
+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></span>"+
+(r.tags.length?"<span class='sc-tags'>"+r.tags.slice(0,2).map(function(t){
+return "<span class='dtag'>"+esc2(t)+"</span>"}).join('')+"</span>":'')+
+"<span class='sc-line'><span class='sc-k'>Modules</span><span class='sc-v'>"+lg.completed+"/"+lg.enrolled+"</span>"+
+"<i class='msb'><b style='width:"+modPct+"%;background:#1A7649'></b></i></span>"+
+"<span class='sc-line'><span class='sc-k'>Journey</span><span class='sc-v'>"+r.tasksDone+"/7</span>"+
+"<i class='msb'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></span>"+
+"<span class='sc-tools'>"+toolChip('CV',e.cv.latest)+toolChip('LinkedIn',e.linkedin.latest)+
+toolChip('Interview',e.interview.latest)+toolChip('Letters',e.cover.attempts,true)+"</span>"+
+"<span class='sr-only'>Open profile</span></button>";}).join('');
 wireDrills();}
 function wireDrills(){document.querySelectorAll('[data-drill]').forEach(function(el){
 el.onclick=function(){var r=DATA.learners.find(function(x){return x.email===el.dataset.drill});
@@ -909,4 +935,33 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .hb-v{min-width:38px;}
 #ch-courses .hb-l,#ch-curriculum .hb-l{width:96px;}
 }
+/* Students on a phone. The nine-column table stays for wide screens;
+ * below 560px it is replaced by one card per learner, so a provider
+ * triaging on a handset reads down instead of sideways. Only one of
+ * the two is ever displayed, which also keeps the hidden one out of
+ * the accessibility tree. */
+.scards{display:none;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+@media(max-width:560px){
+#v-students .dtable{display:none;}
+.scards{display:grid;gap:10px;}
+}
+.scard{width:100%;text-align:left;font-family:inherit;color:var(--ink);cursor:pointer;
+  background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 14px;
+  display:grid;gap:9px;}
+.scard:hover{border-color:var(--mango);}
+.scard:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+.sc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.sc-id{display:flex;flex-direction:column;min-width:0;gap:2px;}
+.sc-id b{font-size:15.5px;color:var(--navy);line-height:1.25;}
+.sc-mail{font-size:12px;color:var(--mut);overflow-wrap:anywhere;}
+.sc-jr{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-size:23px;font-weight:800;line-height:1;}
+.sc-jr i{font-style:normal;font-size:9.5px;font-weight:700;color:var(--mut);letter-spacing:.05em;text-transform:uppercase;margin-top:3px;}
+.sc-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.sc-line{display:grid;grid-template-columns:62px auto 1fr;align-items:center;gap:9px;font-size:12.5px;}
+.sc-k{color:var(--mut);font-weight:600;}
+.sc-v{font-weight:800;font-variant-numeric:tabular-nums;color:var(--navy);}
+.sc-tools{display:flex;flex-wrap:wrap;gap:6px;}
+.sc-tool{font-size:11.5px;font-weight:600;color:var(--mut);background:var(--canvas);border-radius:999px;padding:4px 10px;}
+.sc-tool b{font-weight:800;}
 `;
