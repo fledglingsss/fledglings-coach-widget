@@ -31,7 +31,13 @@ import { cors } from "hono/cors";
 
 import { isOriginAllowed } from "./lib/origin";
 import { checkAndIncrement, hashLearnerId, limits } from "./lib/rate-limit";
-import { crisisHeuristic, guardReply, neutraliseAngles, sanitiseText } from "./lib/safety";
+import {
+  crisisHeuristic,
+  crisisInRawRequest,
+  guardReply,
+  neutraliseAngles,
+  sanitiseText,
+} from "./lib/safety";
 import {
   CAPS,
   EMAIL_PATTERN,
@@ -733,6 +739,11 @@ app.post("/api/coach", async (c) => {
     return c.json({ error: "invalid_json" }, 400);
   }
 
+  /* Screened before validation: a disclosure must reach help even
+   * when the request itself is malformed or too short. */
+  if (crisisInRawRequest(parsedBody)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
   const validated = validateCoachRequest(parsedBody);
   if (!validated.ok) {
     return c.json({ error: "invalid_request", detail: validated.error }, 400);
@@ -940,6 +951,11 @@ app.post("/api/review", async (c) => {
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
     return c.json({ error: "invalid_request" }, 400);
   }
+  /* Screened before validation: a disclosure must reach help even
+   * when the request itself is malformed or too short. */
+  if (crisisInRawRequest(body)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
   const validated = validateReviewRequest(body);
   if ("error" in validated) {
     return c.json({ error: "invalid_review", detail: validated.error }, 400);
@@ -1078,6 +1094,11 @@ app.post("/api/improve-line", async (c) => {
   /* sanitiseText BEFORE the crisis screen — zero-width characters
    * would otherwise smuggle distress phrasing past the keyword rail. */
   const line = sanitiseText(body.line, 260);
+  /* Before the length check, so a short disclosure is answered with
+   * signposting rather than a validation error. */
+  if (crisisInRawRequest(body)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
   if (!ID_PATTERN.test(learnerId) || line.length < 8) {
     return c.json({ error: "invalid_request" }, 400);
   }
@@ -1130,6 +1151,11 @@ app.post("/api/linkedin-rewrite", async (c) => {
   if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  /* Screened before validation: a disclosure must reach help even
+   * when the request itself is malformed or too short. */
+  if (crisisInRawRequest(body)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
   const validated = validateLinkedInRequest(body);
   if ("error" in validated) return c.json({ error: "invalid_review", detail: validated.error }, 400);
   if (await coachDisabled(c.env)) return c.json({ reply: FALLBACK_REPLY, kind: "fallback" });
@@ -1286,6 +1312,11 @@ app.post("/api/linkedin", async (c) => {
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
     return c.json({ error: "invalid_request" }, 400);
   }
+  /* Screened before validation: a disclosure must reach help even
+   * when the request itself is malformed or too short. */
+  if (crisisInRawRequest(body)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
   const validated = validateLinkedInRequest(body);
   if ("error" in validated) {
     return c.json({ error: "invalid_review", detail: validated.error }, 400);
@@ -1397,6 +1428,11 @@ app.post("/api/cover-letter", async (c) => {
   const sessionId = typeof body.session_id === "string" ? body.session_id : "";
   if (!ID_PATTERN.test(learnerId) || !ID_PATTERN.test(sessionId)) {
     return c.json({ error: "invalid_request" }, 400);
+  }
+  /* Screened before validation: a disclosure must reach help even
+   * when the request itself is malformed or too short. */
+  if (crisisInRawRequest(body)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
   }
   const validated = validateCoverLetterRequest(body);
   if ("error" in validated) {
@@ -2173,6 +2209,11 @@ app.post("/api/interview-questions", async (c) => {
   if (body === null) return c.json({ error: "invalid_json" }, 400);
   const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
   if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  /* Screened before validation: a disclosure must reach help even
+   * when the request itself is malformed or too short. */
+  if (crisisInRawRequest(body)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
+  }
   const validated = validateQuestionGenRequest(body);
   if ("error" in validated) {
     return c.json({ error: "invalid_jd", detail: validated.error }, 400);
@@ -2282,6 +2323,11 @@ app.post("/api/interview", async (c) => {
       ));
     if (!genuine) return c.json({ error: "invalid_questions" }, 400);
     customQuestions = questions;
+  }
+  /* Screened before validation: a disclosure must reach help even
+   * when the request itself is malformed or too short. */
+  if (crisisInRawRequest(body)) {
+    return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
   }
   const validated = validateInterviewRequest(body, customQuestions);
   if ("error" in validated) {

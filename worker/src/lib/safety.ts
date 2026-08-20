@@ -108,3 +108,41 @@ export function guardReply(
   if (LEAK_MARKERS.some((re) => re.test(cleaned))) return null;
   return cleaned;
 }
+
+/** Keys that only ever hold machine values — skipping them keeps the
+ * raw scan to text a learner actually typed. */
+const NON_TEXT_KEYS = new Set([
+  "learner_id",
+  "session_id",
+  "token",
+  "device",
+  "sig",
+  "signature",
+  "kind",
+  "mode",
+]);
+
+const RAW_SCAN_MAX_DEPTH = 3;
+
+/** Crisis language anywhere in a request, checked BEFORE the request
+ * is validated.
+ *
+ * Every other screen in the worker runs on the validated request, so a
+ * disclosure typed into a field that then fails validation — a couple
+ * of words in the CV box, which is rejected as too short — never
+ * reached signposting and came back as a validation error instead. The
+ * shape of the request should never decide whether someone is offered
+ * help. */
+export function crisisInRawRequest(value: unknown, depth = 0): boolean {
+  if (typeof value === "string") return crisisHeuristic(value);
+  if (depth >= RAW_SCAN_MAX_DEPTH) return false;
+  if (Array.isArray(value)) {
+    return value.some((v) => crisisInRawRequest(v, depth + 1));
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).some(
+      ([k, v]) => !NON_TEXT_KEYS.has(k) && crisisInRawRequest(v, depth + 1),
+    );
+  }
+  return false;
+}

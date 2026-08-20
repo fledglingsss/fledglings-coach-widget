@@ -1,0 +1,516 @@
+<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><meta name='robots' content='noindex'><title>Fledglings — Employability Hub</title><link rel='preconnect' href='https://fonts.googleapis.com'><link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'><style>
+:root{--navy:#05253C;--pri:#D9452B;--pri-dark:#B93A22;--pri-soft:#FBEAE6;--orange:#D9452B;--mango:#ED9249;
+--pri-btn:#D2432A;
+  --blue:#13507F;--ink:#25394B;--mut:#5C6A76;--line:#E3DDDA;--off:#ECE7E6;--canvas:#F4F1EF;--ok:#1A7649;--amber:#9A5812;}
+/* The HTML hidden attribute must ALWAYS win, even against components
+ * that set their own display (flex overlays, bars, chips). */
+[hidden]{display:none!important;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
+body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
+.snav{width:236px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;
+  padding:22px 14px;position:sticky;top:0;height:100vh;}
+.snav-logo{padding:2px 10px 6px;}
+.snav-logo svg{height:30px;width:auto;display:block;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+.sn-skip{position:absolute;left:-9999px;top:0;z-index:200;background:#05253C;color:#fff;padding:10px 16px;border-radius:0 0 10px 0;font-weight:600;text-decoration:none;}
+.sn-skip:focus{left:0;}
+.smain:focus{outline:none;}
+.snav-slogan{font-size:10.5px;color:#B93A22;font-weight:600;letter-spacing:.05em;padding:0 10px 18px;}
+.snav nav{display:flex;flex-direction:column;gap:4px;flex:1;}
+.sn-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;text-decoration:none;
+  color:var(--ink);font-size:14.5px;font-weight:500;transition:background .12s;}
+.sn-link svg{width:20px;height:20px;flex:none;color:var(--mut);}
+.sn-link:hover{background:var(--off);}
+.sn-link.on{background:var(--pri-soft);color:var(--pri-dark);font-weight:700;}
+.sn-link.on svg{color:#B93A22;}
+.snav-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:4px;}
+.smain{flex:1;min-width:0;display:flex;flex-direction:column;}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding:30px 30px 70px;flex:1;}
+h2.page{font-size:25px;margin-bottom:6px;letter-spacing:-.01em;}
+.sub{color:var(--mut);margin-bottom:22px;font-size:14.5px;line-height:1.55;max-width:52em;}
+.card{background:#fff;border-radius:16px;border:1px solid var(--line);padding:22px;margin-bottom:16px;
+  box-shadow:0 1px 3px rgba(5,37,60,.05);}
+.card h3{font-size:16px;margin-bottom:10px;font-weight:600;}
+textarea,input[type=text],input[type=email]{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;
+  font-size:14.5px;font-family:inherit;color:var(--navy);background:#fff;}
+textarea{resize:vertical;line-height:1.55;}
+textarea:focus,input:focus{outline:none;border-color:var(--mango);box-shadow:0 0 0 3px rgba(237,146,73,.2);}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px;}
+label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
+.counter{font-size:12px;color:var(--mut);text-align:right;margin-top:4px;}
+.btn{background:var(--pri-btn);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:15px;
+  font-weight:600;cursor:pointer;min-height:46px;transition:background .15s ease,transform .15s ease;}
+.btn:hover{background:var(--pri-dark);transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:default;transform:none;}
+.btn:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
+.btn.quiet{background:var(--blue);}
+.btn.quiet:hover{background:#0e3c60;}
+.btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line);}
+.btn.ghost:hover{background:var(--off);}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.tab{border:1.5px solid var(--mango);background:#fff;color:var(--navy);border-radius:999px;padding:10px 18px;
+  font-weight:600;font-size:14px;cursor:pointer;min-height:42px;}
+.tab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.tab:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+.badge{display:inline-block;background:var(--off);color:var(--mut);border-radius:99px;padding:3px 10px;
+  font-size:11.5px;font-weight:600;}
+.notice{background:#FFF6F0;border-left:4px solid var(--orange);border-radius:10px;padding:12px 14px;
+  font-size:13.5px;line-height:1.5;margin-bottom:18px;}
+.result{line-height:1.7;font-size:14.5px;}
+.result p{margin-bottom:8px;white-space:pre-wrap;}
+.footer{padding:14px 20px;text-align:center;font-size:12px;color:var(--mut);}
+.cheer{display:flex;gap:14px;align-items:flex-start;background:#F3FBF6;border:1px solid #CBE9D6;}
+.cheer-ico{font-size:22px;line-height:1;}
+.cheer-tx{font-size:15px;line-height:1.65;font-weight:500;color:#14532D;}
+.fbrow{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--mut);margin:2px 0 18px;min-height:38px;}
+.fbbtn{border:1.5px solid var(--line);background:#fff;border-radius:999px;width:38px;height:38px;font-size:16px;
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+.fbbtn:hover{border-color:#B93A22;transform:translateY(-1px);}
+/* Liveness: every stage that appears rises in; every progress bar
+ * fills smoothly. Killed wholesale under prefers-reduced-motion. */
+@keyframes flIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.fl-in{animation:flIn .34s cubic-bezier(.2,.7,.3,1) both;}
+.tk-bar i,.rv-bar i,.meter i,.fillbar i,.pr-pctbar i,.dim-tk i,.bar i{transition:width .7s cubic-bezier(.2,.7,.3,1);}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+@media (max-width:880px){
+  body{flex-direction:column;}
+  .snav{width:100%;height:auto;position:static;flex-direction:column;padding:12px 14px;border-right:none;
+    border-bottom:1px solid var(--line);}
+  .snav-logo{padding:2px 4px 10px;}
+  .snav-logo svg{height:24px;}
+  .snav nav{flex-direction:row;overflow-x:auto;gap:6px;-webkit-overflow-scrolling:touch;}
+  .sn-link{white-space:nowrap;padding:9px 12px;font-size:13.5px;}
+  /* Was display:none, which left AI & Privacy and Account with no
+   * route at all on a phone. They now sit at the end of the same
+   * scrolling strip as everything else. */
+  .snav-foot{display:flex;flex-direction:row;gap:6px;flex:none;
+    margin-top:0;border-top:none;padding-top:0;margin-left:6px;
+    border-left:1px solid var(--line);padding-left:6px;}
+  .wrap{padding:22px 16px 60px;}
+}
+@media print{.snav,.btn,.tabs,.footer,.no-print{display:none!important;}
+  body{background:#fff;}.card{box-shadow:none;border:1px solid #ddd;}}
+
+.learnband{display:flex;align-items:center;gap:18px;border-left:4px solid #13507F;margin-bottom:18px;}
+.lb-body{flex:1;min-width:0;}
+.lb-label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;color:#13507F;margin-bottom:3px;}
+.learnband b{font-size:15px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lb-bar{height:7px;border-radius:999px;background:#ECE7E6;overflow:hidden;margin-top:8px;}
+.lb-bar i{display:block;height:100%;border-radius:999px;background:#13507F;width:0;transition:width .7s cubic-bezier(.2,.7,.3,1);}
+.learnband .btn{flex:none;}
+@media(max-width:560px){.learnband{flex-direction:column;align-items:stretch;}}
+.hubhead{display:flex;gap:22px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:24px;}
+.hubhead>div:first-child{flex:1;min-width:260px;}
+.statrow{display:flex;gap:12px;flex-wrap:wrap;}
+.crbox{display:flex;align-items:center;gap:14px;background:#fff;border-radius:14px;padding:12px 16px;
+  border:1px solid var(--line);box-shadow:0 1px 3px rgba(14,36,56,.04);}
+.cr-t b{display:block;font-size:13.5px;}
+.cr-t span{font-size:11.5px;color:var(--mut);}
+.cr-ring{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;
+  background:conic-gradient(#E7EAF0 0deg,#E7EAF0 360deg);}
+.cr-ring .in{width:42px;height:42px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;}
+.cr-ring .pc{font-size:15px;font-weight:800;}
+.journey{display:flex;align-items:flex-start;padding:26px 10px 30px;overflow-x:auto;margin-bottom:8px;}
+.jstep{display:flex;flex-direction:column;align-items:center;gap:9px;flex:none;min-width:96px;}
+.jicon{width:48px;height:48px;border-radius:50%;background:#fff;border:1.5px solid #C9D0DB;color:var(--mut);
+  display:flex;align-items:center;justify-content:center;}
+.jicon svg{width:21px;height:21px;}
+.jlabel{font-size:13px;color:var(--mut);text-align:center;white-space:nowrap;}
+.jlabel b{color:var(--ink);font-weight:600;}
+.jlabel i{font-style:normal;font-size:11.5px;}
+.jstep.done .jicon{background:var(--navy);border-color:var(--navy);color:#fff;}
+.jstep.done .jlabel b{color:var(--navy);font-weight:700;}
+.jstep.now .jicon{border-color:#B93A22;color:#B93A22;box-shadow:0 0 0 4px rgba(61,92,245,.14);}
+.jstep.now .jlabel b{color:#B93A22;font-weight:700;}
+.jstep.now.done .jicon{background:var(--navy);border-color:var(--navy);color:#fff;}
+.jline{flex:1;min-width:34px;border-top:2px dashed #C9D0DB;margin:24px 8px 0;}
+.hubgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px;}
+@media(max-width:1080px){.hubgrid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.hubgrid{grid-template-columns:1fr;}}
+.tcard{background:#fff;border-radius:16px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(14,36,56,.04);
+  display:flex;flex-direction:column;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;}
+.tcard:hover{transform:translateY(-3px);box-shadow:0 12px 26px -14px rgba(14,36,56,.28);}
+.tcard.rec{outline:2px solid var(--pri);outline-offset:-2px;}
+.tc-flag{position:absolute;top:0;left:0;background:linear-gradient(90deg,#B93A22,#A66633);color:#fff;
+  border-radius:0 0 10px 0;padding:5px 12px;font-size:10.5px;font-weight:800;letter-spacing:.03em;z-index:2;}
+.tc-head{background:linear-gradient(180deg,#FDF3EC 0%,#FFF9F4 100%);display:flex;align-items:center;justify-content:center;
+  padding:30px 0 26px;}
+.tc-icon{width:74px;height:74px;border-radius:50%;background:#fff;box-shadow:0 4px 14px rgba(14,36,56,.10);
+  display:flex;align-items:center;justify-content:center;color:#B93A22;}
+.tc-icon svg{width:30px;height:30px;}
+.tc-band{text-align:center;font-size:12.5px;font-weight:700;padding:7px 10px;color:#fff;}
+.tc-band.part{background:var(--amber);}
+.tc-band.full{background:var(--ok);}
+.tc-body{padding:18px;display:flex;flex-direction:column;flex:1;}
+.tc-body h3{font-size:15px;font-weight:600;line-height:1.4;text-align:center;margin-bottom:8px;flex:1;}
+.tc-meta{font-size:12px;color:var(--mut);text-align:center;min-height:16px;margin-bottom:12px;}
+.tc-meta b{margin-left:4px;}
+.tc-btn{text-align:center;text-decoration:none;display:block;padding:12px 16px;min-height:44px;font-size:14px;}
+.sec-title{font-size:19px;margin:26px 0 12px;}
+.recentgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:16px;}
+.recard{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;text-decoration:none;color:var(--ink);font-size:13.5px;transition:border-color .12s;}
+.recard:hover{border-color:#B93A22;}
+.re-l{font-weight:600;flex:1;}
+.re-s{font-weight:800;font-size:15px;}
+.re-a{color:var(--mut);font-size:11.5px;}
+.tasklist{list-style:none;columns:2;column-gap:28px;}
+@media(max-width:640px){.tasklist{columns:1;}}
+.tasklist li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:13.5px;color:var(--mut);break-inside:avoid;}
+.tasklist li i{width:22px;height:22px;border-radius:50%;background:var(--off);color:var(--mut);font-style:normal;font-weight:800;
+  font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+.tasklist li.done{color:var(--navy);}
+.tasklist li.done i{background:#E3F4EA;color:var(--ok);}
+.nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
+.nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;margin-bottom:6px;}
+.nextstep div:nth-child(2){font-size:15.5px;line-height:1.6;font-weight:500;}
+.nextstep a.btn{text-decoration:none;background:#fff;color:#B93A22;}
+.idcard{font-size:14px;line-height:1.6;color:var(--mut);padding:16px 22px;}
+.idcard b{color:var(--navy);}
+.id-sub{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;}
+.idlink{border:none;background:none;color:#B93A22;font-family:inherit;font-size:12.5px;font-weight:700;
+  cursor:pointer;text-decoration:underline;padding:5px 0;margin-top:6px;min-height:24px;}
+.idrow{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.idrow input{flex:1;min-width:220px;}
+.id-err{color:#B93A22;font-weight:600;font-size:12.5px;margin-top:8px;}
+.idbtns{display:flex;gap:18px;flex-wrap:wrap;}
+/* device link code — meant to be read off one screen and typed on another */
+.linkbox{margin-top:14px;padding:14px 16px;border:1.5px dashed var(--pri);border-radius:14px;
+  background:rgba(19,80,127,.04);}
+.lc-code{font-size:34px;font-weight:800;letter-spacing:.16em;color:var(--navy);margin:8px 0 6px;
+  font-variant-numeric:tabular-nums;user-select:all;}
+.lc-alt{margin-top:14px;border-top:1px solid var(--off);padding-top:12px;}
+#lc-input{text-transform:uppercase;letter-spacing:.14em;font-weight:700;}
+
+[hidden]{display:none!important;}
+.drop-ico,.pulse,.mic{background:linear-gradient(135deg,#A66633,#B93A22)!important;}
+.drop{border-color:var(--blue);background:rgba(19,80,127,.04);}
+.drop:hover,.drop.over{border-color:#B93A22;background:rgba(217,69,43,.06);}
+.drop.mini{border-color:var(--blue);background:rgba(19,80,127,.04);color:var(--blue);}
+.drop.mini:hover,.drop.mini.over{border-color:#B93A22;background:rgba(217,69,43,.06);}
+.qnum{color:#B93A22;}
+.qrole{background:var(--off);color:var(--blue);}
+.rolebtn:hover{border-color:#B93A22;}
+.tpl.on{border-color:#B93A22;box-shadow:0 0 0 2px rgba(217,69,43,.18);}
+.tpl:hover{border-color:var(--mango);}
+.nextstep{background:#fff;border-left:4px solid var(--orange);}
+.nextstep .ns-label{color:#B93A22;}
+.r-head{border-top-color:#B93A22;}
+.ready{border-top-color:#B93A22;}
+.hero{border-top-color:#B93A22;}
+.step.on{border-color:var(--mango);}
+.step.on i{background:linear-gradient(135deg,#A66633,#B93A22);}
+.addbtn{border-color:var(--blue);background:rgba(19,80,127,.04);color:var(--blue);}
+.addbtn:hover{border-color:#B93A22;color:#B93A22;}
+.trust{background:var(--off);color:var(--blue);}
+/* These flags carry white text, so the ramp stays dark enough for it
+ * along its whole length — the bright mango end read 2.38:1. */
+.hc-flag,.tc-flag{background:linear-gradient(90deg,#B93A22,#A66633);}
+.passport{border-top-color:#B93A22;}
+.hero-tag{background:#FBEAE6;color:#B93A22;}
+/* iOS zooms the page when a focused field is under 16px, which throws
+ * the layout out and needs a pinch to undo. Small screens only, so the
+ * desktop sizing is untouched. Lives at the end of the overrides so it
+ * wins on source order against the 14.5px base rule. */
+@media (max-width:768px){
+textarea,input[type=text],input[type=email],input[type=password],input[type=search],select{font-size:16px;}
+}
+</style></head><body><a class='sn-skip' href='#smain-content'>Skip to content</a><aside class='snav'><div class='snav-logo'><svg viewBox="0 0 2000 519" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fledglings"><path d="M175.148 228.581C172.771 227.321 169.852 227.715 167.916 229.58C158.683 238.067 105.63 278.895 86.6966 291.454C108.212 261.462 123.533 228.425 132.249 193.153C152.659 110.576 130.163 39.4427 114.891 4.32939L114.875 4.20407C113.697 0.934598 110.141 -0.797967 106.869 0.359271C106.037 0.671355 105.425 1.04181 104.852 1.55594C101.632 4.38079 25.6316 72.2792 4.55426 217.7C3.12095 226.2 -8.86688 303.588 13.0568 404.074C13.4228 405.704 14.3952 407.091 15.7977 408.003C17.0363 408.786 18.4727 409.1 19.8303 408.936C20.0182 408.913 20.2062 408.891 20.4125 408.845L20.9974 408.774C40.2212 402.664 58.7838 394.409 76.1232 384.266C84.3769 379.436 103.736 368.118 123.887 348.78C182.494 292.514 178.557 235.417 178.489 234.853C178.109 231.699 176.988 229.609 175.132 228.625L175.148 228.581Z" fill="#D9452B"/><path d="M74.3134 414.425C45.5535 417.892 25.0521 443.99 28.5139 472.708C31.9757 501.426 58.0916 521.904 86.8514 518.437C115.611 514.97 136.113 488.873 132.651 460.155C129.189 431.436 103.073 410.958 74.3134 414.425Z" fill="#D9452B"/><path d="M307.266 405.997V144.198H479.872V190.901H361.671V247.372H455.93V294.464H361.671V405.997H307.266Z" fill="#05253C"/><path d="M513.547 405.997V144.198H563.961V405.997H513.547Z" fill="#05253C"/><path d="M726.008 344.083H775.304C771.654 363.619 761.873 379.317 745.912 391.175C729.95 402.984 710.728 408.913 688.246 408.913C659 408.913 636.031 399.436 619.34 380.483C602.648 361.53 594.327 339.515 594.327 314.389C594.327 289.264 602.113 267.103 617.734 248.49C633.306 229.926 655.642 220.595 684.645 220.595C713.648 220.595 736.86 229.537 752.092 247.372C767.323 265.257 774.915 286.008 774.915 309.675C774.915 315.216 774.671 320.659 774.185 325.956H642.941C644.888 338.98 649.754 349.186 657.637 356.573C665.472 363.96 675.691 367.604 688.295 367.604C709.317 367.604 721.872 359.78 726.008 344.083ZM684.694 257.578C661.482 257.578 647.807 269.776 643.72 294.173H724.597C723.867 283.53 720.023 274.782 713.016 267.929C706.008 261.029 696.568 257.627 684.742 257.627L684.694 257.578Z" fill="#05253C"/><path d="M889.467 408.913C862.897 408.913 841.826 400.408 826.4 383.399C810.974 366.39 803.188 343.5 803.188 314.778C803.188 286.057 810.876 263.507 826.205 246.352C841.534 229.197 862.41 220.644 888.737 220.644C911.462 220.644 928.397 228.031 939.492 242.756V144.247H989.907V406.046H939.492V386.121C928.591 401.332 911.949 408.913 889.467 408.913ZM865.573 351.519C873.797 360.801 884.552 365.466 897.837 365.466C911.122 365.466 921.876 360.801 930.1 351.519C938.324 342.236 942.412 329.99 942.412 314.778C942.412 299.567 938.373 286.98 930.246 277.649C922.119 268.367 911.316 263.702 897.788 263.702C884.26 263.702 873.457 268.367 865.33 277.649C857.252 286.932 853.164 299.324 853.164 314.778C853.164 330.233 857.252 342.236 865.476 351.519H865.573Z" fill="#05253C"/><path d="M1159.25 223.51H1210.01V416.882C1210.01 435.933 1203.73 451.241 1191.18 462.711C1178.62 474.18 1161.93 479.914 1141.15 479.914H1049.03V440.453H1133.17C1140.91 440.453 1147.23 437.731 1152.2 432.288C1157.16 426.845 1159.64 419.896 1159.64 411.488V387.578C1155.07 394.333 1148.25 399.582 1139.35 403.324C1130.4 407.066 1120.52 408.912 1109.62 408.912C1082.8 408.912 1061.68 400.408 1046.35 383.398C1030.98 366.389 1023.34 343.499 1023.34 314.778C1023.34 286.056 1031.03 263.166 1046.35 246.157C1061.68 229.148 1082.56 220.643 1108.89 220.643C1131.37 220.643 1148.16 227.641 1159.3 241.637V223.51H1159.25ZM1085.09 351.712C1093.17 360.897 1104.02 365.466 1117.55 365.466C1131.08 365.466 1141.98 360.897 1150.2 351.712C1158.42 342.527 1162.51 330.232 1162.51 314.778C1162.51 299.323 1158.42 286.979 1150.2 277.649C1141.98 268.366 1131.13 263.701 1117.55 263.701C1103.97 263.701 1093.22 268.366 1085.09 277.649C1076.96 286.931 1072.92 299.323 1072.92 314.778C1072.92 330.232 1076.96 342.527 1085.09 351.712Z" fill="#05253C"/><path d="M1252.78 405.997V144.198H1303.2V405.997H1252.78Z" fill="#05253C"/><path d="M1368.26 144.198H1368.6C1383.3 144.198 1395.27 156.105 1395.27 170.83C1395.27 185.507 1383.35 197.462 1368.6 197.462H1368.26C1353.56 197.462 1341.59 185.555 1341.59 170.83C1341.59 156.154 1353.52 144.198 1368.26 144.198ZM1343.05 405.997V223.511H1393.81V405.997H1343.05Z" fill="#05253C"/><path d="M1430.79 405.997V223.51H1481.55V248.878C1492.45 230.071 1510.94 220.643 1537.02 220.643C1557.56 220.643 1574.05 227.301 1586.51 240.568C1598.97 253.835 1605.2 271.088 1605.2 292.325V406.045H1554.44V303.551C1554.44 292.471 1551.18 283.335 1544.66 276.191C1538.14 269.095 1529.67 265.499 1519.26 265.499C1508.12 265.499 1499.07 269.29 1492.06 276.92C1485.05 284.501 1481.55 294.221 1481.55 306.079V405.997H1430.79Z" fill="#05253C"/><path d="M1771.63 223.51H1822.38V416.882C1822.38 435.933 1816.1 451.241 1803.55 462.711C1790.99 474.18 1774.3 479.914 1753.52 479.914H1661.4V440.453H1745.54C1753.28 440.453 1759.61 437.731 1764.57 432.288C1769.53 426.845 1772.01 419.896 1772.01 411.488V387.578C1767.44 394.333 1760.63 399.582 1751.72 403.324C1742.77 407.066 1732.89 408.912 1721.99 408.912C1695.18 408.912 1674.06 400.408 1658.73 383.398C1643.35 366.389 1635.71 343.499 1635.71 314.778C1635.71 286.056 1643.4 263.166 1658.73 246.157C1674.06 229.148 1694.93 220.643 1721.26 220.643C1743.74 220.643 1760.53 227.641 1771.67 241.637V223.51H1771.63ZM1697.51 351.712C1705.59 360.897 1716.44 365.466 1729.97 365.466C1743.5 365.466 1754.4 360.897 1762.62 351.712C1770.85 342.527 1774.93 330.232 1774.93 314.778C1774.93 299.323 1770.85 286.979 1762.62 277.649C1754.4 268.366 1743.55 263.701 1729.97 263.701C1716.39 263.701 1705.64 268.366 1697.51 277.649C1689.39 286.931 1685.35 299.323 1685.35 314.778C1685.35 330.232 1689.39 342.527 1697.51 351.712Z" fill="#05253C"/><path d="M1929 408.913C1906.52 408.913 1888.32 403.081 1874.45 391.369C1860.53 379.657 1853.14 364.008 1852.16 344.472H1895.67C1896.64 352.685 1900.1 359.149 1905.98 363.863C1911.92 368.577 1919.56 370.909 1929 370.909C1936.74 370.909 1943.06 369.208 1948.03 365.855C1952.99 362.502 1955.47 358.274 1955.47 353.171C1955.47 346.416 1952.07 341.459 1945.3 338.349C1938.54 335.19 1930.31 333.003 1920.63 331.642C1910.95 330.33 1901.36 328.337 1891.82 325.664C1882.28 322.991 1874.11 317.597 1867.35 309.384C1860.58 301.171 1857.17 289.945 1857.17 275.705C1857.17 259.765 1863.35 246.595 1875.67 236.244C1887.98 225.844 1903.6 220.692 1922.43 220.692C1944.43 220.692 1962.24 226.135 1975.91 236.973C1989.59 247.81 1996.89 262.195 1997.86 280.079H1953.96C1952.99 272.595 1949.54 266.763 1943.65 262.535C1937.71 258.307 1931.14 256.218 1923.89 256.218C1916.64 256.218 1910.85 257.773 1906.47 260.932C1902.14 264.09 1899.95 268.416 1899.95 273.956C1899.95 280.711 1903.4 285.474 1910.27 288.244C1917.18 291.014 1925.5 292.909 1935.28 293.881C1945.06 294.853 1954.84 296.554 1964.67 298.935C1974.45 301.365 1982.82 306.905 1989.68 315.605C1996.59 324.304 2000 336.259 2000 351.47C2000 368.868 1993.53 382.816 1980.58 393.313C1967.64 403.81 1950.41 409.059 1928.9 409.059L1929 408.913Z" fill="#05253C"/></svg></div><div class='snav-slogan'>Where Growth Takes Flight</div><nav aria-label='Employability tools'><a class='sn-link on' data-nav href='/hub'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/><path d='M10 21v-6h4v6'/></svg><span>Home</span></a><a class='sn-link' data-nav href='/builder'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M7 3h7l5 5v13H7z'/><path d='M14 3v5h5'/><path d='M10 13h6M10 17h6'/></svg><span>Resume Builder</span></a><a class='sn-link' data-nav href='/tools'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11l3 3 8-8'/><path d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/></svg><span>CV Review</span></a><a class='sn-link' data-nav href='/cover-letter'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg><span>Cover Letter</span></a><a class='sn-link' data-nav href='/linkedin'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg><span>LinkedIn Review</span></a><a class='sn-link' data-nav href='/interview'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg><span>Interview Practice</span></a><span class='snav-foot'><a class='sn-link' data-nav href='/ai-privacy'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z'/><path d='m9 12 2 2 4-4'/></svg><span>AI &amp; Privacy</span></a><a class='sn-link' data-nav href='/hub#account'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg><span>Account</span></a></span></nav></aside><div class='smain' id='smain-content' tabindex='-1'><h1 class='sr-only'>Fledglings — Employability Hub</h1><script>
+function flViewOnly(){try{return new URLSearchParams(location.search).get('view')==='1'}catch(e){return false}}
+/* Stable per-browser ids, even where storage is blocked (private mode,
+ * or a cross-site iframe with partitioned storage). An in-memory
+ * fallback keeps the id constant for the life of the page instead of
+ * minting a fresh one on every read. */
+var FL_IDS={};
+function flStoredId(st,k){var v='';
+try{v=st.getItem(k)||''}catch(e){}
+if(!v)v=FL_IDS[k]||'';
+if(!v)v=Math.random().toString(16).slice(2)+Date.now().toString(16);
+FL_IDS[k]=v;
+try{st.setItem(k,v)}catch(e){}
+return v;}
+function flLs(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
+function flLsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function flLsDel(k){try{localStorage.removeItem(k)}catch(e){}}
+/* Read the claims out of a token WITHOUT trusting them — display only;
+ * the signature is what the worker checks on every call. */
+function flTokenClaims(tok){try{var dot=String(tok||'').indexOf('.');if(dot<1)return null;
+var b=tok.slice(0,dot).replace(/-/g,'+').replace(/_/g,'/');
+var json=decodeURIComponent(atob(b).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));
+var cl=JSON.parse(json);
+if(!cl||typeof cl.e!=='string'||typeof cl.exp!=='number')return null;
+if(cl.exp*1000<=Date.now())return null;
+return cl;}catch(e){return null}}
+/* The live token for this browser: ?t= (a link from another surface)
+ * wins, else whatever is stored. Expired tokens are dropped. */
+function flToken(){var tok='';
+try{tok=new URLSearchParams(location.search).get('t')||''}catch(e){}
+if(tok&&flTokenClaims(tok)){if(!flViewOnly())flLsSet('fl_hub_token_v1',tok);return tok;}
+tok=flLs('fl_hub_token_v1');
+if(tok&&flTokenClaims(tok))return tok;
+if(tok)flLsDel('fl_hub_token_v1');
+return '';}
+/* The email this device is signed in as — read from the token only. */
+function flResolveEmail(){var cl=flTokenClaims(flToken());return cl?String(cl.e||''):'';}
+/* Exchange an email for a signed token (the ONLY way to gain an
+ * identity). Resolves {ok:true,email} or {ok:false,reason}. */
+function flLinkEmail(em,learnerId){em=String(em||'').trim().toLowerCase();
+if(em.indexOf('@')===-1||em.length<6||em.length>80)return Promise.resolve({ok:false,reason:'bad_email'});
+return fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:learnerId,email:em})})
+.then(function(r){return r.json()}).then(function(d){
+if(d&&d.ok&&d.token){if(!flViewOnly())flLsSet('fl_hub_token_v1',d.token);
+/* Storage can be blocked (private mode, or a cross-site iframe with
+ * third-party storage partitioned off). Report whether the token
+ * actually persisted so callers carry it in the URL instead of
+ * re-minting on every load. */
+return {ok:true,email:d.email||em,token:d.token,persisted:flLs('fl_hub_token_v1')===d.token};}
+return {ok:false,reason:(d&&d.reason)||'unavailable'};})
+.catch(function(){return {ok:false,reason:'offline'}});}
+/* The raw ?e= address on the URL — a request for identity, never
+ * identity itself. Only the embed exchange and the provider's
+ * read-only view (authorised by their portal session) read it. */
+function flEmbedEmail(){var em='';
+try{var p=new URLSearchParams(location.search).get('e');
+if(p){em=decodeURIComponent(atob(p.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(e){}
+em=String(em||'').trim().toLowerCase();
+return em.indexOf('@')===-1?'':em;}
+/* The Liquid email in an embed is a REQUEST for a token, not proof —
+ * exchange it once per browser, then the token does the work. */
+/* Owns the navigation itself: callers must never have to decide, or a
+ * truthy-but-failed result turns into a reload loop (it did — an
+ * unlinked visitor to /hub reloaded for ever, 2026-08-11). */
+function flAdoptEmbedEmail(learnerId){var em=flEmbedEmail();
+if(!em||flViewOnly())return Promise.resolve({ok:false});
+/* Already this learner — nothing to exchange, so never re-navigate. */
+if(flResolveEmail()===em)return Promise.resolve({ok:false});
+return flLinkEmail(em,learnerId).then(function(r){
+if(r&&r.ok)flReloadWithToken(r.token);
+return r;});}
+/* Handing the device to someone else: drop the identity AND the work
+ * saved on this browser. /ai-privacy promises exactly this, and a
+ * shared Chromebook would otherwise show the next learner the last
+ * one's CVs, letters and interview recordings. */
+function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');
+['fl_builder_cvs_v1','fl_letters_v1','fl_iv_learn_v1'].forEach(flLsDel);
+try{if(window.indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('fl_interview_v1');}catch(e){}}
+/* Leave the current page as nobody — strips identity from the URL too,
+ * or the ?t= we just cleared would sign us straight back in. */
+function flSignOutHere(){flClearEmail();
+try{var u=new URL(location.href);u.searchParams.delete('t');u.searchParams.delete('e');
+location.href=u.pathname+u.search;}catch(e){location.href='/hub';}}
+/* One call per tool page: show who we are saving as, and — when the
+ * page was opened from a LearnWorlds embed carrying ?e= — exchange
+ * that address for a token, then re-render as the signed-in learner.
+ *
+ * Reloads via ?t= rather than a bare reload: if storage is blocked the
+ * URL is the only place identity can live, and a plain reload would
+ * mint again on every load (an endless loop on a locked-down device). */
+function flIdentityInit(learnerId){flIdentityChip();
+try{flAdoptEmbedEmail(learnerId);}catch(e){}}
+function flReloadWithToken(token){try{var u=new URL(location.href);
+u.searchParams.delete('e');
+if(token)u.searchParams.set('t',token);
+location.replace(u.pathname+u.search+u.hash);}catch(e){}}
+/* Carry identity between surfaces as the token itself. */
+function flEmailParam(){return flToken();}
+function flHubLink(){var t=flToken();return '/hub'+(t?'?t='+encodeURIComponent(t):'');}
+function flAddHubBackLink(){var bk=document.createElement('a');bk.href=flHubLink();
+bk.textContent='← Your Employability Hub';
+bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
+var hh=document.querySelector('h2.page');if(hh)hh.parentNode.insertBefore(bk,hh);}
+/* Small "who is this saving as" chip under the page title — the
+ * guard against shared-device cross-contamination: the current email
+ * is always visible and one tap away from being cleared. */
+function flIdentityChip(){var em=flResolveEmail();if(!em)return;
+var chip=document.createElement('div');
+chip.style.cssText='display:inline-flex;gap:8px;align-items:center;margin:-8px 0 16px;font-size:12.5px;color:#68788A;';
+var who=document.createElement('span');who.textContent='Saving progress as '+em;
+var not=document.createElement('button');not.type='button';not.textContent='Not you?';
+not.style.cssText='border:none;background:none;color:#13507F;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;';
+not.onclick=flSignOutHere;
+chip.appendChild(who);chip.appendChild(not);
+var hh=document.querySelector('h2.page');
+if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}</script><main class='wrap'><div class='hubhead'><div><h2 class='page' id='hub-hi'>Let's kickstart your career journey</h2><p class='sub' style='margin-bottom:0'>We've got your back — with tools to help you build a strong CV, prep for interviews, and stand out confidently.</p></div><div class='statrow'><div class='crbox'><div class='cr-t'><b>Career Readiness (%)</b><span id='cr-tasks'>0/7 tasks done</span></div><div class='cr-ring' id='cr-ring'><div class='in'><div class='pc' id='cr-pct'>0</div></div></div></div><div class='crbox' id='jr-box' hidden><div class='cr-t'><b>Job-ready score</b><span>quality of your latest scores</span></div><div class='cr-ring' id='jr-ring'><div class='in'><div class='pc' id='jr-pct'>–</div></div></div></div><div class='crbox' id='lr-box' hidden><div class='cr-t'><b>Your learning</b><span id='lr-sub'>modules completed</span></div><div class='cr-ring' id='lr-ring'><div class='in'><div class='pc' id='lr-pct'>0</div></div></div></div></div></div><div class='journey'><span class='jstep' id='jstep-cv'><span class='jicon' id='jicon-cv'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11l3 3 8-8'/><path d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/></svg></span><span class='jlabel'><b>CV</b> <i>(2 tasks)</i></span></span><span class='jline' aria-hidden='true'></span><span class='jstep' id='jstep-linkedin'><span class='jicon' id='jicon-linkedin'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg></span><span class='jlabel'><b>LinkedIn</b> <i>(2 tasks)</i></span></span><span class='jline' aria-hidden='true'></span><span class='jstep' id='jstep-interview'><span class='jicon' id='jicon-interview'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg></span><span class='jlabel'><b>Interview</b> <i>(2 tasks)</i></span></span><span class='jline' aria-hidden='true'></span><span class='jstep' id='jstep-cover'><span class='jicon' id='jicon-cover'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg></span><span class='jlabel'><b>Cover Letter</b> <i>(1 task)</i></span></span></div><div class='card learnband' id='learn-card' hidden><div class='lb-body'><span class='lb-label'>CONTINUE YOUR LEARNING</span><b id='learn-title'></b><div class='lb-bar'><i id='learn-bar'></i></div></div><a class='btn' id='learn-btn' href='#' target='_top'>Continue →</a></div><div class='hubgrid'><div class='tcard' id='card-cv'><span class='tc-flag' id='hc-flag-cv' hidden>Recommended Step</span><div class='tc-head'><span class='tc-icon'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11l3 3 8-8'/><path d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/></svg></span></div><div class='tc-band' id='tc-band-cv' hidden></div><div class='tc-body'><h3>Get your CV scored like a recruiter would</h3><div class='tc-meta' id='hc-meta-cv'></div><a class='btn ghost tc-btn' data-tool='cv' id='hc-btn-cv' href='/tools'>Review my CV</a></div></div><div class='tcard' id='card-linkedin'><span class='tc-flag' id='hc-flag-linkedin' hidden>Recommended Step</span><div class='tc-head'><span class='tc-icon'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg></span></div><div class='tc-band' id='tc-band-linkedin' hidden></div><div class='tc-body'><h3>Optimise your LinkedIn to impress recruiters</h3><div class='tc-meta' id='hc-meta-linkedin'></div><a class='btn ghost tc-btn' data-tool='linkedin' id='hc-btn-linkedin' href='/linkedin'>Review LinkedIn</a></div></div><div class='tcard' id='card-interview'><span class='tc-flag' id='hc-flag-interview' hidden>Recommended Step</span><div class='tc-head'><span class='tc-icon'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg></span></div><div class='tc-band' id='tc-band-interview' hidden></div><div class='tc-body'><h3>Practise interviews with real-time feedback</h3><div class='tc-meta' id='hc-meta-interview'></div><a class='btn ghost tc-btn' data-tool='interview' id='hc-btn-interview' href='/interview'>Take interview</a></div></div><div class='tcard' id='card-cover'><span class='tc-flag' id='hc-flag-cover' hidden>Recommended Step</span><div class='tc-head'><span class='tc-icon'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg></span></div><div class='tc-band' id='tc-band-cover' hidden></div><div class='tc-body'><h3>Create a cover letter based on a job advert</h3><div class='tc-meta' id='hc-meta-cover'></div><a class='btn ghost tc-btn' data-tool='cover' id='hc-btn-cover' href='/cover-letter'>Create cover letter</a></div></div></div><div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div><div id='next-reason'></div><div class='btnrow' style='margin-top:14px'><a class='btn' id='next-btn' href='/tools'>Open</a></div></div><h3 class='sec-title' id='recent-title' hidden>Recent</h3><div class='recentgrid' id='recent-list'></div><div class='card' id='tasks-card' hidden><h3>Your seven tasks</h3><ul class='tasklist' id='task-list'></ul></div><div class='card idcard' id='account'><div id='id-known' hidden>💾 <b>Progress saving as <span id='id-email'></span></b><span class='id-sub'>Your scores follow this email — here, standalone, and inside your Fledglings courses.</span><div class='idbtns'><button type='button' class='idlink' id='id-adddevice'>Link another device</button><button type='button' class='idlink' id='id-change'>Use a different email</button></div><div class='linkbox' id='lc-box' hidden><b>Type this code on your other device</b><div class='lc-code' id='lc-code'>------</div><span class='id-sub'>On that device open the Hub, choose <b>I already use Fledglings</b> and enter the code. It works once and expires in <span id='lc-left'>10:00</span>.</span><div class='id-err' id='lc-err' hidden></div></div></div><div id='id-anon' hidden><b>Keep your scores?</b><span class='id-sub'>Enter the email you use with Fledglings and your progress follows you on any device or page. It's only used as the key for your scores — no password, nothing else stored.</span><div class='idrow'><input type='email' id='id-input' maxlength='80' placeholder='you@example.com' aria-label='Your email'><button type='button' class='btn' id='id-save'>Save my progress</button></div><div class='id-err' id='id-err' hidden>That doesn't look like an email — check it and try again.</div><div class='lc-alt'><button type='button' class='idlink' id='lc-show'>I already use Fledglings on another device</button><div id='lc-enter' hidden><span class='id-sub'>On your other device: Hub → <b>Link another device</b>. Type the code it shows here.</span><div class='idrow'><input type='text' id='lc-input' maxlength='12' placeholder='ABC-234' autocomplete='off' autocapitalize='characters' spellcheck='false' aria-label='Your link code'><button type='button' class='btn' id='lc-go'>Link this device</button></div><div class='id-err' id='lc-enter-err' hidden></div></div></div></div></div><p class='sub' style='font-size:12.5px;margin-top:8px'>Scores stay for six months so you can watch them climb. Daily limits: 5 reviews, 3 mock interviews, 3 cover letters. If anything you write or say worries Fledge about your wellbeing, it points you to real support instead of scoring.</p></main><script>(function(){
+function stored(st,k){return flStoredId(st,k)}
+var lid=stored(localStorage,'fl_coach_learner_v1');
+var $=function(id){return document.getElementById(id)};
+function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+var viewOnly=flViewOnly();
+/* Normally identity comes from the signed token. In a provider view
+ * the address rides on the URL and the SERVER authorises the read
+ * against their portal session — nothing is stored on this device. */
+var email=viewOnly?flEmbedEmail():flResolveEmail();
+/* Carry the signed token between surfaces — never a bare address. */
+function toolHref(base){if(viewOnly)return base;
+var ev=flToken();
+return base+(base.indexOf('?')>-1?'&':'?')+(ev?'t='+encodeURIComponent(ev)+'&':'')+'hub=1';}
+document.querySelectorAll('a[data-tool]').forEach(function(a){a.href=toolHref(a.getAttribute('href'));});
+/* identity card */
+function renderIdentity(){if(viewOnly){
+/* Hide, never destroy — later code binds handlers to these nodes. */
+$('id-known').hidden=true;$('id-anon').hidden=true;
+var b=document.createElement('div');
+b.innerHTML="<b>👁 Provider view</b><span class='id-sub'>You are looking at the journey for "+esc2(email)+" — nothing here saves to your device.</span>";
+$('account').appendChild(b);
+return;}
+var known=email.length>0;
+$('id-known').hidden=!known;$('id-anon').hidden=known;
+if(known)$('id-email').textContent=email;}
+renderIdentity();
+/* Opened inside a LearnWorlds course with ?e=? Exchange that address
+ * for a signed token once, then re-render as the linked learner. */
+if(!viewOnly&&!email){try{flAdoptEmbedEmail(lid);}catch(e){}}
+/* Linking an email asks the worker for a signed token; it can say no
+ * (address already in use on another device, or not a Fledglings
+ * learner) and the learner gets told plainly what to do instead. */
+var ID_REFUSALS={
+claimed_elsewhere:"That email is already linked to another device — that's your protection working. Open the Hub on that device, tap “Link another device” and type the code it gives you below.",
+cannot_link:"We couldn't link that email — check it's the address you use with Fledglings. You can carry on without linking; your scores still save on this device.",
+too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it, or carry on without linking — your scores still save on this device.",
+unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking — your scores still save on this device.",
+bad_email:"That doesn't look like an email — check it and try again.",
+rate_limited:"That's a lot of linking attempts for one day. Try again tomorrow.",
+offline:"Couldn't reach Fledglings just now — check your connection and try again.",
+unavailable:"Linking is unavailable right now — your scores still save on this device."};
+$('id-save').onclick=function(){var btn=this;
+var raw=$('id-input').value;
+$('id-err').hidden=true;btn.disabled=true;btn.textContent='Linking…';
+flLinkEmail(raw,lid).then(function(r){
+if(r.ok){location.reload();return;}
+btn.disabled=false;btn.textContent='Save my progress';
+$('id-err').textContent=ID_REFUSALS[r.reason]||ID_REFUSALS.unavailable;
+$('id-err').hidden=false;
+/* Already in use elsewhere? The code path is the way through — open
+ * it for them rather than leaving a dead end. */
+if(r.reason==='claimed_elsewhere'){$('lc-enter').hidden=false;$('lc-show').hidden=true;
+$('lc-input').focus();}});};
+
+/* ---- device link codes ---- */
+var lcTimer=null;
+function lcCountdown(until){if(lcTimer)clearInterval(lcTimer);
+function tick(){var left=Math.max(0,Math.round(until-Date.now()/1000));
+var m=Math.floor(left/60),s=left%60;
+$('lc-left').textContent=m+':'+(s<10?'0':'')+s;
+if(left<=0){clearInterval(lcTimer);lcTimer=null;
+$('lc-code').textContent='------';
+$('lc-err').textContent='That code has expired — tap “Link another device” for a fresh one.';
+$('lc-err').hidden=false;}}
+tick();lcTimer=setInterval(tick,1000);}
+$('id-adddevice').onclick=function(){var btn=this;
+btn.disabled=true;btn.textContent='Getting a code…';$('lc-err').hidden=true;
+fetch('/api/identity/link-code',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,token:flToken()})})
+.then(function(r){return r.json()}).then(function(d){
+btn.disabled=false;btn.textContent='Link another device';
+if(d&&d.ok&&d.code){$('lc-box').hidden=false;
+$('lc-code').textContent=d.display||d.code;
+lcCountdown(d.expires_at);return;}
+$('lc-box').hidden=false;$('lc-code').textContent='------';
+$('lc-err').textContent=(d&&d.reason==='rate_limited')
+?'That is a lot of codes for one day — try again tomorrow.'
+:'Could not get a code just now — try again in a minute.';
+$('lc-err').hidden=false;})
+.catch(function(){btn.disabled=false;btn.textContent='Link another device';
+$('lc-box').hidden=false;$('lc-err').textContent='Could not reach Fledglings — check your connection.';
+$('lc-err').hidden=false;});};
+$('lc-show').onclick=function(){$('lc-enter').hidden=false;this.hidden=true;$('lc-input').focus();};
+var LC_REFUSALS={
+bad_code:"That code didn't work — check it, or get a fresh one on your other device (they last ten minutes and work once).",
+too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it.",
+rate_limited:"Too many tries for one day — have another go tomorrow.",
+offline:"Couldn't reach Fledglings just now — check your connection and try again."};
+$('lc-go').onclick=function(){var btn=this;
+$('lc-enter-err').hidden=true;btn.disabled=true;btn.textContent='Linking…';
+fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,code:$('lc-input').value})})
+.then(function(r){return r.json()}).then(function(d){
+if(d&&d.ok&&d.token){try{localStorage.setItem('fl_hub_token_v1',d.token)}catch(e){}
+location.replace('/hub?t='+encodeURIComponent(d.token));return;}
+btn.disabled=false;btn.textContent='Link this device';
+$('lc-enter-err').textContent=LC_REFUSALS[d&&d.reason]||LC_REFUSALS.bad_code;
+$('lc-enter-err').hidden=false;})
+.catch(function(){btn.disabled=false;btn.textContent='Link this device';
+$('lc-enter-err').textContent=LC_REFUSALS.offline;$('lc-enter-err').hidden=false;});};
+$('lc-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('lc-go').click();});
+$('id-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('id-save').click();});
+/* Must strip ?t= as well — a plain reload would re-adopt the token
+ * sitting in the URL and sign the same learner straight back in. */
+$('id-change').onclick=flSignOutHere;
+function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#B93A22'}
+function ago(at){if(!at)return '';var d=Math.floor((Date.now()/1000-at)/86400);
+return d<=0?'today':d===1?'yesterday':d+' days ago';}
+var LABELS={cv:'CV review',linkedin:'LinkedIn review',interview:'Mock interview',cover:'Cover letter'};
+var HREFS={cv:'/tools',linkedin:'/linkedin',interview:'/interview',cover:'/cover-letter'};
+/* Tasks per tool (mirrors the server's seven-task model). */
+var TOOL_TASKS={cv:['cv-reviewed','cv-strong'],linkedin:['li-reviewed','li-strong'],interview:['iv-done','iv-strong'],cover:['cl-created']};
+var hubReq={learner_id:lid,token:flToken()};
+if(viewOnly&&email)hubReq={learner_id:lid,view_email:email};
+fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify(hubReq)})
+.then(function(r){return r.json()}).then(function(d){
+if(!d||!d.ok||!d.summary)return;var s=d.summary;
+if(d.name)$('hub-hi').textContent="Let's kickstart your career journey, "+d.name;
+/* learning ring + continue-learning band (only when the account is known) */
+if(d.learning&&d.learning.enrolled>0){var L=d.learning;
+var lp=Math.round(L.completed*100/L.enrolled);
+$('lr-box').hidden=false;$('lr-sub').textContent=L.completed+'/'+L.enrolled+' modules completed';
+flCountUp($('lr-pct'),lp);
+var lc=lp>=70?'#1A7649':'#13507F';$('lr-pct').style.color=lc;
+$('lr-ring').style.background='conic-gradient('+lc+' 0deg '+Math.round(lp*3.6)+'deg,#E7EAF0 '+Math.round(lp*3.6)+'deg)';
+if(email&&L.completed<L.enrolled){
+fetch('/api/next-step',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,token:flToken()})})
+.then(function(r){return r.json()}).then(function(ns){
+if(!ns||!ns.ok||!ns.url)return;
+$('learn-card').hidden=false;$('learn-title').textContent=ns.title;
+$('learn-bar').style.width=(ns.percent||0)+'%';
+$('learn-btn').href=ns.url;}).catch(function(){});}}
+var taskState={};(s.tasks||[]).forEach(function(t){taskState[t.id]=t.done});
+/* tool cards: status band + meta + stepper state */
+['cv','linkedin','interview','cover'].forEach(function(t){var ts=s[t];
+var ids=TOOL_TASKS[t];var done=ids.filter(function(id){return taskState[id]}).length;
+var bandEl=$('tc-band-'+t);
+if(done===ids.length&&done>0){bandEl.hidden=false;bandEl.className='tc-band full';bandEl.textContent='✓ Completed';}
+else if(done>0){bandEl.hidden=false;bandEl.className='tc-band part';bandEl.textContent=done+'/'+ids.length+' tasks completed';}
+var metaEl=$('hc-meta-'+t);
+if(ts.latest===null){metaEl.textContent='';}
+else if(t==='cover'){metaEl.textContent=ts.attempts+' letter'+(ts.attempts===1?'':'s')+' created · last '+ago(ts.lastAt);}
+else{var delta=ts.delta===null?'':(ts.delta>=0?' ▲'+ts.delta:' ▼'+Math.abs(ts.delta));
+metaEl.innerHTML="Latest score <b style='color:"+band(ts.latest)+"'>"+ts.latest+"</b>"+
+(delta?"<b style='color:"+(ts.delta>=0?'#1B9E5A':'#B93A22')+"'>"+delta+"</b>":"")+
+" · "+esc2(ts.attempts+' attempt'+(ts.attempts===1?'':'s'));}
+var st=$('jstep-'+t);if(st){if(ts.latest!==null)st.classList.add('done');
+if(s.next&&s.next.tool===t)st.classList.add('now');}});
+/* career readiness + job-ready rings */
+if(typeof s.careerReadiness==='number'){
+flCountUp($('cr-pct'),s.careerReadiness);
+var cc=s.careerReadiness>=70?'#1A7649':'#B93A22';
+$('cr-ring').style.background='conic-gradient('+cc+' 0deg '+Math.round(s.careerReadiness*3.6)+'deg,#E7EAF0 '+Math.round(s.careerReadiness*3.6)+'deg)';
+$('cr-tasks').textContent=s.tasksDone+'/'+s.tasks.length+' tasks done';}
+if(s.readiness!==null){$('jr-box').hidden=false;var jc=band(s.readiness);
+flCountUp($('jr-pct'),s.readiness);$('jr-pct').style.color=jc;
+$('jr-ring').style.background='conic-gradient('+jc+' 0deg '+Math.round(s.readiness*3.6)+'deg,#E7EAF0 '+Math.round(s.readiness*3.6)+'deg)';}
+/* tasks checklist */
+if(s.tasks&&s.tasks.length){$('tasks-card').hidden=false;
+$('task-list').innerHTML=s.tasks.map(function(t){
+return "<li class='"+(t.done?'done':'')+"'><i>"+(t.done?'✓':'○')+"</i>"+esc2(t.label)+"</li>"}).join('');}
+/* recent activity across all tools */
+var rows=[];['cv','linkedin','interview','cover'].forEach(function(t){var ts=s[t];
+if(ts.latest!==null)rows.push({t:t,score:ts.latest,at:ts.lastAt||0});});
+rows.sort(function(a,b){return b.at-a.at});
+if(rows.length){$('recent-title').hidden=false;
+$('recent-list').innerHTML=rows.map(function(r){
+return "<a class='recard' href='"+toolHref(HREFS[r.t])+"'><span class='re-l'>"+esc2(LABELS[r.t])+"</span>"+
+"<span class='re-s' style='color:"+(r.t==='cover'?'#1B9E5A':band(r.score))+"'>"+(r.t==='cover'?'✓ created':r.score)+"</span>"+
+"<span class='re-a'>"+esc2(ago(r.at))+"</span></a>"}).join('');}
+/* next step */
+var nc=$('next-card');nc.hidden=false;$('next-reason').textContent=s.next.reason;
+$('next-btn').href=toolHref(HREFS[s.next.tool]||'/tools');
+$('next-btn').textContent=s.next.tool==='interview'?'Practise now':s.next.tool==='cover'?'Create it now':'Review now';
+var flag=$('hc-flag-'+s.next.tool);if(flag)flag.hidden=false;
+var card=$('card-'+s.next.tool);if(card)card.classList.add('rec');
+var btn=$('hc-btn-'+s.next.tool);if(btn)btn.className='btn tc-btn';
+}).catch(function(){});
+})();</script><div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div></div><script>(function(){var ev=flToken();if(ev){var evq=encodeURIComponent(ev);document.querySelectorAll('a[data-nav]').forEach(function(a){var href=a.getAttribute('href');if(href.indexOf('http')===0)return;var hash='';var hi=href.indexOf('#');if(hi>-1){hash=href.slice(hi);href=href.slice(0,hi);}a.href=href+(href.indexOf('?')>-1?'&':'?')+'t='+evq+hash;});}var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;var flActed=false;['pointerdown','keydown'].forEach(function(t){addEventListener(t,function(){flActed=true},true)});if(window.MutationObserver){new MutationObserver(function(muts){muts.forEach(function(m){var el=m.target;if(m.attributeName!=='hidden'||el.nodeType!==1||el.hidden||!flActed)return;var h=el.querySelector('h1,h2,h3');if(!h)return;if(!el.getBoundingClientRect().width)return;if(h.getAttribute('tabindex')===null)h.setAttribute('tabindex','-1');setTimeout(function(){try{h.focus()}catch(e){}},60);});}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}if(!reduce&&window.MutationObserver){new MutationObserver(function(muts){muts.forEach(function(m){var el=m.target;if(m.attributeName==='hidden'&&el.nodeType===1&&!el.hidden){el.classList.remove('fl-in');void el.offsetWidth;el.classList.add('fl-in');}});}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}window.flCountUp=function(el,to,suffix){if(!el)return;suffix=suffix||'';to=Math.round(to);if(reduce||document.hidden||!window.requestAnimationFrame){el.textContent=to+suffix;return;}var start=performance.now(),dur=650,done=false;function tick(now){if(done)return;var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);el.textContent=Math.round(to*p)+suffix;if(p<1)requestAnimationFrame(tick);else done=true;}requestAnimationFrame(tick);setTimeout(function(){if(!done){done=true;el.textContent=to+suffix;}},dur+120);};})();</script></body></html>

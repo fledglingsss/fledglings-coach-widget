@@ -1,0 +1,779 @@
+<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><meta name='robots' content='noindex'><title>Fledglings — Resume Builder</title><link rel='preconnect' href='https://fonts.googleapis.com'><link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'><style>
+:root{--navy:#05253C;--pri:#D9452B;--pri-dark:#B93A22;--pri-soft:#FBEAE6;--orange:#D9452B;--mango:#ED9249;
+--pri-btn:#D2432A;
+  --blue:#13507F;--ink:#25394B;--mut:#5C6A76;--line:#E3DDDA;--off:#ECE7E6;--canvas:#F4F1EF;--ok:#1A7649;--amber:#9A5812;}
+/* The HTML hidden attribute must ALWAYS win, even against components
+ * that set their own display (flex overlays, bars, chips). */
+[hidden]{display:none!important;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
+body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
+.snav{width:236px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;
+  padding:22px 14px;position:sticky;top:0;height:100vh;}
+.snav-logo{padding:2px 10px 6px;}
+.snav-logo svg{height:30px;width:auto;display:block;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+.sn-skip{position:absolute;left:-9999px;top:0;z-index:200;background:#05253C;color:#fff;padding:10px 16px;border-radius:0 0 10px 0;font-weight:600;text-decoration:none;}
+.sn-skip:focus{left:0;}
+.smain:focus{outline:none;}
+.snav-slogan{font-size:10.5px;color:#B93A22;font-weight:600;letter-spacing:.05em;padding:0 10px 18px;}
+.snav nav{display:flex;flex-direction:column;gap:4px;flex:1;}
+.sn-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;text-decoration:none;
+  color:var(--ink);font-size:14.5px;font-weight:500;transition:background .12s;}
+.sn-link svg{width:20px;height:20px;flex:none;color:var(--mut);}
+.sn-link:hover{background:var(--off);}
+.sn-link.on{background:var(--pri-soft);color:var(--pri-dark);font-weight:700;}
+.sn-link.on svg{color:#B93A22;}
+.snav-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:4px;}
+.smain{flex:1;min-width:0;display:flex;flex-direction:column;}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding:30px 30px 70px;flex:1;}
+h2.page{font-size:25px;margin-bottom:6px;letter-spacing:-.01em;}
+.sub{color:var(--mut);margin-bottom:22px;font-size:14.5px;line-height:1.55;max-width:52em;}
+.card{background:#fff;border-radius:16px;border:1px solid var(--line);padding:22px;margin-bottom:16px;
+  box-shadow:0 1px 3px rgba(5,37,60,.05);}
+.card h3{font-size:16px;margin-bottom:10px;font-weight:600;}
+textarea,input[type=text],input[type=email]{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;
+  font-size:14.5px;font-family:inherit;color:var(--navy);background:#fff;}
+textarea{resize:vertical;line-height:1.55;}
+textarea:focus,input:focus{outline:none;border-color:var(--mango);box-shadow:0 0 0 3px rgba(237,146,73,.2);}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px;}
+label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
+.counter{font-size:12px;color:var(--mut);text-align:right;margin-top:4px;}
+.btn{background:var(--pri-btn);color:#fff;border:none;border-radius:12px;padding:13px 24px;font-size:15px;
+  font-weight:600;cursor:pointer;min-height:46px;transition:background .15s ease,transform .15s ease;}
+.btn:hover{background:var(--pri-dark);transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:default;transform:none;}
+.btn:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
+.btn.quiet{background:var(--blue);}
+.btn.quiet:hover{background:#0e3c60;}
+.btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line);}
+.btn.ghost:hover{background:var(--off);}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.tab{border:1.5px solid var(--mango);background:#fff;color:var(--navy);border-radius:999px;padding:10px 18px;
+  font-weight:600;font-size:14px;cursor:pointer;min-height:42px;}
+.tab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.tab:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+.badge{display:inline-block;background:var(--off);color:var(--mut);border-radius:99px;padding:3px 10px;
+  font-size:11.5px;font-weight:600;}
+.notice{background:#FFF6F0;border-left:4px solid var(--orange);border-radius:10px;padding:12px 14px;
+  font-size:13.5px;line-height:1.5;margin-bottom:18px;}
+.result{line-height:1.7;font-size:14.5px;}
+.result p{margin-bottom:8px;white-space:pre-wrap;}
+.footer{padding:14px 20px;text-align:center;font-size:12px;color:var(--mut);}
+.cheer{display:flex;gap:14px;align-items:flex-start;background:#F3FBF6;border:1px solid #CBE9D6;}
+.cheer-ico{font-size:22px;line-height:1;}
+.cheer-tx{font-size:15px;line-height:1.65;font-weight:500;color:#14532D;}
+.fbrow{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--mut);margin:2px 0 18px;min-height:38px;}
+.fbbtn{border:1.5px solid var(--line);background:#fff;border-radius:999px;width:38px;height:38px;font-size:16px;
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+.fbbtn:hover{border-color:#B93A22;transform:translateY(-1px);}
+/* Liveness: every stage that appears rises in; every progress bar
+ * fills smoothly. Killed wholesale under prefers-reduced-motion. */
+@keyframes flIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.fl-in{animation:flIn .34s cubic-bezier(.2,.7,.3,1) both;}
+.tk-bar i,.rv-bar i,.meter i,.fillbar i,.pr-pctbar i,.dim-tk i,.bar i{transition:width .7s cubic-bezier(.2,.7,.3,1);}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+@media (max-width:880px){
+  body{flex-direction:column;}
+  .snav{width:100%;height:auto;position:static;flex-direction:column;padding:12px 14px;border-right:none;
+    border-bottom:1px solid var(--line);}
+  .snav-logo{padding:2px 4px 10px;}
+  .snav-logo svg{height:24px;}
+  .snav nav{flex-direction:row;overflow-x:auto;gap:6px;-webkit-overflow-scrolling:touch;}
+  .sn-link{white-space:nowrap;padding:9px 12px;font-size:13.5px;}
+  /* Was display:none, which left AI & Privacy and Account with no
+   * route at all on a phone. They now sit at the end of the same
+   * scrolling strip as everything else. */
+  .snav-foot{display:flex;flex-direction:row;gap:6px;flex:none;
+    margin-top:0;border-top:none;padding-top:0;margin-left:6px;
+    border-left:1px solid var(--line);padding-left:6px;}
+  .wrap{padding:22px 16px 60px;}
+}
+@media print{.snav,.btn,.tabs,.footer,.no-print{display:none!important;}
+  body{background:#fff;}.card{box-shadow:none;border:1px solid #ddd;}}
+
+.listhead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap;}
+.listhead h3{margin-bottom:0;}
+.cvgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.cvempty{color:var(--mut);font-size:14px;padding:18px 0;}
+.cvitem{border:1.5px solid var(--line);border-radius:14px;padding:16px;}
+.cvi-name{font-weight:700;font-size:15px;}
+.cvi-meta{font-size:12px;color:var(--mut);margin:4px 0 12px;}
+.cvi-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.cvi-btns .btn{padding:8px 14px;min-height:36px;font-size:13px;}
+.fieldtip{font-size:12.5px;color:var(--blue);line-height:1.5;}
+.buildbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:8px;z-index:5;}
+.titlein{max-width:190px;border:2px solid transparent;font-weight:700;font-size:15.5px;padding:8px 10px;}
+.titlein:hover{border-color:var(--off);}
+.savestate{font-size:12px;color:var(--mut);}
+.cur-wrap{font-size:13px;}
+.cur-design{font-weight:800;color:#B93A22;}
+/* ---- starter picker ---- */
+.startgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+.startcard{position:relative;border:1.5px solid var(--line);border-radius:14px;padding:16px;background:#fff;
+  font-family:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+  transition:transform .12s,border-color .12s,box-shadow .12s;}
+.startcard:hover{transform:translateY(-2px);border-color:#B93A22;box-shadow:0 10px 22px -12px rgba(5,37,60,.3);}
+.startcard:focus-visible{outline:3px solid var(--navy);outline-offset:2px;}
+.startcard b{font-size:14.5px;color:var(--navy);}
+.startcard p{font-size:12.5px;color:var(--mut);line-height:1.5;flex:1;margin:0;}
+.tagats{align-self:flex-start;background:#EFF7F1;color:#1A7649;border:1px solid #CBE3D3;border-radius:999px;
+  padding:3px 10px;font-size:10.5px;font-weight:800;letter-spacing:.03em;}
+.startgo{color:#B93A22;font-weight:700;font-size:12.5px;}
+.exguard{background:#FCEFEC;border:1.5px solid #F0CFC7;border-radius:12px;padding:12px 16px;
+  font-size:13px;line-height:1.55;color:#7a2f1f;margin-bottom:12px;}
+.exguard i{font-style:normal;font-weight:700;}
+/* ---- design gallery ---- */
+.designgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;}
+.dcard{display:flex;flex-direction:column;gap:7px;border:1.5px solid var(--line);border-radius:16px;padding:14px;
+  background:#fff;transition:transform .12s,border-color .12s,box-shadow .12s;}
+.dcard:hover{transform:translateY(-3px);border-color:#B93A22;box-shadow:0 14px 30px -14px rgba(5,37,60,.3);}
+.dcard b{font-size:15px;}
+.dcard p{font-size:12px;color:var(--mut);line-height:1.5;flex:1;margin:0;}
+.dthumb{width:100%;height:300px;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:#fff;position:relative;}
+.dscale{width:720px;transform:scale(.315);transform-origin:top left;}
+.dthumb .cvpaper{box-shadow:none;border:none;border-radius:0;min-height:0;width:720px;padding:38px 42px;pointer-events:none;}
+.dthumb .mk{display:none!important;}
+.dthumb::after{content:'';position:absolute;inset:0;}
+.dselect{padding:10px 16px;min-height:40px;font-size:13.5px;}
+/* ---- builder layout: review rail + document ---- */
+.docgrid{display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start;}
+@media(max-width:980px){.docgrid{grid-template-columns:1fr;}}
+.revcol{position:sticky;top:86px;max-height:calc(100vh - 100px);overflow-y:auto;}
+@media(max-width:980px){.revcol{position:static;max-height:none;}}
+.tipscard h3{font-size:14.5px;}
+.tipslist{list-style:none;font-size:12.5px;color:var(--mut);line-height:1.55;}
+.tipslist li{margin-bottom:8px;padding-left:2px;}
+.tipslist b{color:var(--navy);}
+/* ---- review sidebar ---- */
+.revpanel{padding:16px 18px;}
+.rv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.rv-t{font-size:14.5px;font-weight:700;}
+.rv-refresh{border:1.5px solid var(--line);background:#fff;border-radius:10px;width:34px;height:34px;font-size:16px;
+  cursor:pointer;color:var(--blue);}
+.rv-refresh:hover{border-color:#B93A22;color:#B93A22;}
+.rv-scorerow{display:flex;align-items:center;gap:10px;margin:4px 0 8px;}
+.rv-score{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
+.rv-of{font-size:14px;color:var(--mut);font-weight:700;}
+.rv-bar{flex:1;height:9px;border-radius:999px;background:var(--off);overflow:hidden;}
+.rv-bar i{display:block;height:100%;border-radius:999px;width:0;}
+.rv-fair{font-size:11.5px;color:var(--blue);background:rgba(19,80,127,.06);border-radius:999px;
+  padding:5px 12px;display:inline-block;margin-bottom:10px;}
+.stale-note{background:#FBF0E2;border:1.5px solid #EAD3AE;border-radius:10px;padding:10px 14px;
+  font-size:13px;color:#8a5b16;margin:0 0 10px;}
+.rvcat{border:1.5px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;}
+.rvcat.open{border-color:#C9C1BD;}
+.rvcat-h{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:none;background:#fff;
+  font-family:inherit;cursor:pointer;text-align:left;}
+.rvcat-h:hover{background:#FBFAF9;}
+.rvc-ic{width:22px;height:22px;border-radius:50%;font-weight:800;font-size:12px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;}
+.rvc-ic.good{background:#E3F4EA;color:#1A7649;}
+.rvc-ic.warn{background:#FBF0E2;color:#9A5812;}
+.rvc-ic.bad{background:#FCE9E5;color:#B93A22;}
+.rvc-l{flex:1;font-size:13.5px;font-weight:600;}
+.rvc-s{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink);}
+.rvc-ch{color:var(--mut);font-size:11px;transition:transform .15s;}
+.rvcat.open .rvc-ch{transform:rotate(180deg);}
+.rvcat-b{padding:4px 12px 10px;border-top:1px solid var(--off);}
+.rv-send{width:100%;margin-top:6px;}
+.ck{display:flex;gap:12px;padding:9px 0;}
+.ck-i{width:24px;height:24px;border-radius:50%;font-weight:800;font-size:13px;flex:none;
+  display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.ck.pass .ck-i{background:#E3F4EA;color:var(--ok);}
+.ck.warn .ck-i{background:#FBF0E2;color:#9A5812;}
+.ck.fail .ck-i{background:#FCE9E5;color:#B93A22;}
+.ck-l{font-weight:700;font-size:14px;}
+.ck-d{font-size:13px;color:#4a5b66;line-height:1.5;margin-top:2px;}
+.ck-e{font-size:12.5px;color:#616A71;font-style:italic;margin-top:4px;border-left:3px solid var(--off);padding-left:10px;}
+/* ==================================================================
+ * THE DOCUMENT — editable, and six structurally distinct designs
+ * ================================================================== */
+.cvpaper{background:#fff;border-radius:6px;box-shadow:0 6px 28px -10px rgba(5,37,60,.25);
+  padding:38px 42px;line-height:1.55;color:#1c2b36;min-height:520px;font-size:13px;}
+@media(max-width:900px){.cvpaper{padding:26px 22px;}}
+[contenteditable]{outline:none;border-radius:3px;transition:background .12s,box-shadow .12s;min-width:12px;display:inline-block;}
+[contenteditable]:hover{background:rgba(237,146,73,.10);}
+[contenteditable]:focus{background:#FFF9F2;box-shadow:0 0 0 2px rgba(237,146,73,.45);}
+[contenteditable]:empty::before{content:attr(data-ph);color:#A9B2BB;font-style:italic;font-weight:400;}
+.cp-sum,.cp-extraedit,.cp-skilledit{display:block;white-space:pre-wrap;}
+.cp-dash{font-style:normal;color:#616A71;margin:0 4px;}
+.cp-head{margin-bottom:16px;display:flex;gap:16px;align-items:center;}
+.cp-headmain{flex:1;min-width:0;}
+.cp-mono{display:none;width:52px;height:52px;border-radius:50%;flex:none;align-items:center;justify-content:center;
+  font-weight:800;font-size:18px;background:linear-gradient(135deg,#A66633,#B93A22);color:#fff;}
+.cp-name{font-size:24px;font-weight:700;}
+.cp-contact{font-size:11.5px;color:#5c6b75;margin-top:3px;}
+.cp-contact b{font-weight:400;color:#B9AFAB;margin:0 5px;}
+.cp-sec{margin-bottom:14px;}
+.cp-sec h4{font-size:12px;letter-spacing:.09em;text-transform:uppercase;border-bottom:1.5px solid #1c2b36;
+  padding-bottom:3px;margin-bottom:8px;}
+.cp-entry{margin-bottom:10px;position:relative;}
+.cp-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;align-items:baseline;flex-wrap:wrap;}
+.cp-row span{color:#5c6b75;font-size:11.5px;white-space:nowrap;}
+.cp-loc{font-size:11.5px;color:#5c6b75;}
+.cp-sec ul{margin:4px 0 0 2px;list-style:none;}
+.cp-sec li{margin-bottom:4px;display:flex;gap:8px;align-items:baseline;}
+.cp-sec li .bl{flex:1;}
+.cp-skills{margin:0!important;}
+.cp-chips{display:none;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.cp-chips span{border:1px solid #C9C1BD;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;}
+.mk{font-weight:800;font-size:10px;width:16px;height:16px;border-radius:50%;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;position:relative;top:1px;}
+.mk-ok{background:#E3F4EA;color:#1A7649;}
+.mk-warn{background:#FBF0E2;color:#9A5812;}
+.mk-bad{background:#FCE9E5;color:#B93A22;}
+.mk-off{background:#F0EBE8;color:#B9AFAB;}
+.ilb{border:none;background:none;font-size:12px;cursor:pointer;opacity:0;transition:opacity .12s;padding:0 2px;flex:none;}
+li:hover .ilb,li:focus-within .ilb{opacity:1;}
+@media(hover:none){.ilb{opacity:1;}}
+.ilb:disabled{cursor:default;}
+.ctl{display:flex;gap:8px;margin-top:2px;opacity:0;transition:opacity .12s;}
+.cp-entry:hover .ctl,.cp-entry:focus-within .ctl{opacity:1;}
+@media(hover:none){.ctl{opacity:1;}}
+.ctlbtn{border:none;background:none;color:#616A71;font-family:'Outfit',Arial,sans-serif;font-size:11px;font-weight:700;
+  cursor:pointer;text-decoration:underline;padding:2px 0;}
+.ctlbtn:hover{color:#B93A22;}
+.addline{display:block;width:100%;border:1.5px dashed #C9C1BD;background:none;border-radius:10px;padding:8px;
+  font-family:'Outfit',Arial,sans-serif;font-size:12px;font-weight:700;color:#616A71;cursor:pointer;margin-top:4px;}
+.addline:hover{border-color:#B93A22;color:#B93A22;}
+.cp-cols{display:block;}
+/* ---- 1 · CLASSIC — centred serif masthead, double rules ---- */
+.cvpaper.classic{font-family:Georgia,'Times New Roman',serif;}
+.cvpaper.classic .cp-head{display:block;text-align:center;border-bottom:3px double #1c2b36;padding-bottom:12px;}
+.cvpaper.classic .cp-name{letter-spacing:.02em;font-size:26px;}
+.cvpaper.classic .cp-sec h4{border-bottom:none;text-align:center;letter-spacing:.22em;font-size:11px;position:relative;}
+.cvpaper.classic .cp-sec h4::after{content:'';display:block;width:44px;height:1px;background:#1c2b36;margin:5px auto 0;}
+/* ---- 2 · EXECUTIVE — navy masthead, tabbed headings ---- */
+.cvpaper.executive{padding-top:0;overflow:hidden;}
+.cvpaper.executive .cp-head{background:#05253C;color:#fff;margin:0 -42px 20px;padding:28px 42px 22px;}
+@media(max-width:900px){.cvpaper.executive .cp-head{margin:0 -22px 16px;padding:20px 22px;}}
+.cvpaper.executive .cp-name{font-size:27px;}
+.cvpaper.executive .cp-contact{color:#CFE0EE;}
+.cvpaper.executive .cp-contact b{color:#5A7A94;}
+.cvpaper.executive .cp-sec h4{border-bottom:none;background:#05253C;color:#fff;display:inline-block;
+  padding:3px 12px;border-radius:3px;letter-spacing:.1em;font-size:10.5px;}
+.cvpaper.executive .cp-entry{border-left:2px solid #ECE7E6;padding-left:12px;}
+/* ---- 3 · MODERN — energy bar, chip skills ---- */
+.cvpaper.modern .cp-name{font-size:31px;letter-spacing:-.02em;}
+.cvpaper.modern .cp-head{border-bottom:none;padding-bottom:14px;position:relative;}
+.cvpaper.modern .cp-head::after{content:'';position:absolute;left:0;bottom:0;height:5px;width:100%;
+  background:linear-gradient(90deg,#D9452B 0 30%,#ED9249 30% 55%,#05253C 55% 100%);border-radius:3px;}
+.cvpaper.modern .cp-sec h4{border-bottom:none;position:relative;padding-bottom:6px;color:#05253C;}
+.cvpaper.modern .cp-sec h4::after{content:'';position:absolute;left:0;bottom:0;width:34px;height:3.5px;
+  background:#D9452B;border-radius:2px;}
+.cvpaper.modern .cp-chips{display:flex;}
+.cvpaper.modern .cp-skills{display:none;}
+.cvpaper.modern .cp-skilledit{font-size:11px;color:#616A71;}
+/* ---- 4 · MONOGRAM — medallion + warm spine ---- */
+.cvpaper.accent{border-left:8px solid;border-image:linear-gradient(180deg,#ED9249,#D9452B) 1;}
+.cvpaper.accent .cp-mono{display:flex;}
+.cvpaper.accent .cp-sec h4{border-bottom:1px solid #E3DDDA;color:#13507F;letter-spacing:.12em;position:relative;padding-left:14px;}
+.cvpaper.accent .cp-sec h4::before{content:'';position:absolute;left:0;top:3px;width:7px;height:7px;border-radius:50%;background:#ED9249;}
+/* ---- 5 · SIDEBAR — navy panel column ---- */
+.cvpaper.sidebar{padding:0;overflow:hidden;}
+.cvpaper.sidebar .cp-head{padding:30px 34px 6px;margin-bottom:0;}
+.cvpaper.sidebar .cp-cols{display:flex;align-items:stretch;}
+.cvpaper.sidebar .cp-main{flex:1;min-width:0;padding:10px 34px 34px;}
+.cvpaper.sidebar .cp-side{width:32%;flex:none;background:#05253C;color:#E8EEF4;padding:18px 18px 26px;}
+.cvpaper.sidebar .cp-side .cp-sec h4{color:#ED9249;border-bottom-color:#1B3A54;}
+.cvpaper.sidebar .cp-side [contenteditable]:hover{background:rgba(237,146,73,.18);}
+.cvpaper.sidebar .cp-side [contenteditable]:focus{background:#0B3252;box-shadow:0 0 0 2px rgba(237,146,73,.6);color:#fff;}
+.cvpaper.sidebar .cp-side [contenteditable]:empty::before{color:#7A93A8;}
+@media(max-width:640px){.cvpaper.sidebar .cp-cols{display:block;}
+.cvpaper.sidebar .cp-side{width:auto;}}
+/* ---- 6 · LEDGER — label-column headings, hairlines ---- */
+.cvpaper.compact{font-size:11.5px;padding:30px 34px;line-height:1.5;}
+.cvpaper.compact .cp-name{font-size:21px;}
+.cvpaper.compact .cp-sec{display:grid;grid-template-columns:110px 1fr;gap:4px 16px;
+  border-top:1px solid #E3DDDA;padding-top:10px;margin-bottom:10px;}
+.cvpaper.compact .cp-sec h4{border-bottom:none;font-size:10px;color:#616A71;
+  letter-spacing:.14em;margin-bottom:0;padding-top:2px;grid-column:1;}
+.cvpaper.compact .cp-sec>*:not(h4){grid-column:2;}
+@media(max-width:560px){.cvpaper.compact .cp-sec{grid-template-columns:1fr;}
+.cvpaper.compact .cp-sec>*:not(h4){grid-column:1;}}
+@media print{
+  body{background:#fff!important;}
+  .snav,.footer,h2.page,.sub,.no-print,.revcol{display:none!important;}
+  .wrap{padding:0;max-width:none;}
+  .docgrid{display:block;}
+  .cvpaper{box-shadow:none;border-radius:0;padding:8mm 6mm;min-height:0;}
+  .mk,.ctl,.addline{display:none!important;}
+  [contenteditable]:empty{display:none;}
+}
+
+[hidden]{display:none!important;}
+.drop-ico,.pulse,.mic{background:linear-gradient(135deg,#A66633,#B93A22)!important;}
+.drop{border-color:var(--blue);background:rgba(19,80,127,.04);}
+.drop:hover,.drop.over{border-color:#B93A22;background:rgba(217,69,43,.06);}
+.drop.mini{border-color:var(--blue);background:rgba(19,80,127,.04);color:var(--blue);}
+.drop.mini:hover,.drop.mini.over{border-color:#B93A22;background:rgba(217,69,43,.06);}
+.qnum{color:#B93A22;}
+.qrole{background:var(--off);color:var(--blue);}
+.rolebtn:hover{border-color:#B93A22;}
+.tpl.on{border-color:#B93A22;box-shadow:0 0 0 2px rgba(217,69,43,.18);}
+.tpl:hover{border-color:var(--mango);}
+.nextstep{background:#fff;border-left:4px solid var(--orange);}
+.nextstep .ns-label{color:#B93A22;}
+.r-head{border-top-color:#B93A22;}
+.ready{border-top-color:#B93A22;}
+.hero{border-top-color:#B93A22;}
+.step.on{border-color:var(--mango);}
+.step.on i{background:linear-gradient(135deg,#A66633,#B93A22);}
+.addbtn{border-color:var(--blue);background:rgba(19,80,127,.04);color:var(--blue);}
+.addbtn:hover{border-color:#B93A22;color:#B93A22;}
+.trust{background:var(--off);color:var(--blue);}
+/* These flags carry white text, so the ramp stays dark enough for it
+ * along its whole length — the bright mango end read 2.38:1. */
+.hc-flag,.tc-flag{background:linear-gradient(90deg,#B93A22,#A66633);}
+.passport{border-top-color:#B93A22;}
+.hero-tag{background:#FBEAE6;color:#B93A22;}
+/* iOS zooms the page when a focused field is under 16px, which throws
+ * the layout out and needs a pinch to undo. Small screens only, so the
+ * desktop sizing is untouched. Lives at the end of the overrides so it
+ * wins on source order against the 14.5px base rule. */
+@media (max-width:768px){
+textarea,input[type=text],input[type=email],input[type=password],input[type=search],select{font-size:16px;}
+}
+</style></head><body><a class='sn-skip' href='#smain-content'>Skip to content</a><aside class='snav'><div class='snav-logo'><svg viewBox="0 0 2000 519" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fledglings"><path d="M175.148 228.581C172.771 227.321 169.852 227.715 167.916 229.58C158.683 238.067 105.63 278.895 86.6966 291.454C108.212 261.462 123.533 228.425 132.249 193.153C152.659 110.576 130.163 39.4427 114.891 4.32939L114.875 4.20407C113.697 0.934598 110.141 -0.797967 106.869 0.359271C106.037 0.671355 105.425 1.04181 104.852 1.55594C101.632 4.38079 25.6316 72.2792 4.55426 217.7C3.12095 226.2 -8.86688 303.588 13.0568 404.074C13.4228 405.704 14.3952 407.091 15.7977 408.003C17.0363 408.786 18.4727 409.1 19.8303 408.936C20.0182 408.913 20.2062 408.891 20.4125 408.845L20.9974 408.774C40.2212 402.664 58.7838 394.409 76.1232 384.266C84.3769 379.436 103.736 368.118 123.887 348.78C182.494 292.514 178.557 235.417 178.489 234.853C178.109 231.699 176.988 229.609 175.132 228.625L175.148 228.581Z" fill="#D9452B"/><path d="M74.3134 414.425C45.5535 417.892 25.0521 443.99 28.5139 472.708C31.9757 501.426 58.0916 521.904 86.8514 518.437C115.611 514.97 136.113 488.873 132.651 460.155C129.189 431.436 103.073 410.958 74.3134 414.425Z" fill="#D9452B"/><path d="M307.266 405.997V144.198H479.872V190.901H361.671V247.372H455.93V294.464H361.671V405.997H307.266Z" fill="#05253C"/><path d="M513.547 405.997V144.198H563.961V405.997H513.547Z" fill="#05253C"/><path d="M726.008 344.083H775.304C771.654 363.619 761.873 379.317 745.912 391.175C729.95 402.984 710.728 408.913 688.246 408.913C659 408.913 636.031 399.436 619.34 380.483C602.648 361.53 594.327 339.515 594.327 314.389C594.327 289.264 602.113 267.103 617.734 248.49C633.306 229.926 655.642 220.595 684.645 220.595C713.648 220.595 736.86 229.537 752.092 247.372C767.323 265.257 774.915 286.008 774.915 309.675C774.915 315.216 774.671 320.659 774.185 325.956H642.941C644.888 338.98 649.754 349.186 657.637 356.573C665.472 363.96 675.691 367.604 688.295 367.604C709.317 367.604 721.872 359.78 726.008 344.083ZM684.694 257.578C661.482 257.578 647.807 269.776 643.72 294.173H724.597C723.867 283.53 720.023 274.782 713.016 267.929C706.008 261.029 696.568 257.627 684.742 257.627L684.694 257.578Z" fill="#05253C"/><path d="M889.467 408.913C862.897 408.913 841.826 400.408 826.4 383.399C810.974 366.39 803.188 343.5 803.188 314.778C803.188 286.057 810.876 263.507 826.205 246.352C841.534 229.197 862.41 220.644 888.737 220.644C911.462 220.644 928.397 228.031 939.492 242.756V144.247H989.907V406.046H939.492V386.121C928.591 401.332 911.949 408.913 889.467 408.913ZM865.573 351.519C873.797 360.801 884.552 365.466 897.837 365.466C911.122 365.466 921.876 360.801 930.1 351.519C938.324 342.236 942.412 329.99 942.412 314.778C942.412 299.567 938.373 286.98 930.246 277.649C922.119 268.367 911.316 263.702 897.788 263.702C884.26 263.702 873.457 268.367 865.33 277.649C857.252 286.932 853.164 299.324 853.164 314.778C853.164 330.233 857.252 342.236 865.476 351.519H865.573Z" fill="#05253C"/><path d="M1159.25 223.51H1210.01V416.882C1210.01 435.933 1203.73 451.241 1191.18 462.711C1178.62 474.18 1161.93 479.914 1141.15 479.914H1049.03V440.453H1133.17C1140.91 440.453 1147.23 437.731 1152.2 432.288C1157.16 426.845 1159.64 419.896 1159.64 411.488V387.578C1155.07 394.333 1148.25 399.582 1139.35 403.324C1130.4 407.066 1120.52 408.912 1109.62 408.912C1082.8 408.912 1061.68 400.408 1046.35 383.398C1030.98 366.389 1023.34 343.499 1023.34 314.778C1023.34 286.056 1031.03 263.166 1046.35 246.157C1061.68 229.148 1082.56 220.643 1108.89 220.643C1131.37 220.643 1148.16 227.641 1159.3 241.637V223.51H1159.25ZM1085.09 351.712C1093.17 360.897 1104.02 365.466 1117.55 365.466C1131.08 365.466 1141.98 360.897 1150.2 351.712C1158.42 342.527 1162.51 330.232 1162.51 314.778C1162.51 299.323 1158.42 286.979 1150.2 277.649C1141.98 268.366 1131.13 263.701 1117.55 263.701C1103.97 263.701 1093.22 268.366 1085.09 277.649C1076.96 286.931 1072.92 299.323 1072.92 314.778C1072.92 330.232 1076.96 342.527 1085.09 351.712Z" fill="#05253C"/><path d="M1252.78 405.997V144.198H1303.2V405.997H1252.78Z" fill="#05253C"/><path d="M1368.26 144.198H1368.6C1383.3 144.198 1395.27 156.105 1395.27 170.83C1395.27 185.507 1383.35 197.462 1368.6 197.462H1368.26C1353.56 197.462 1341.59 185.555 1341.59 170.83C1341.59 156.154 1353.52 144.198 1368.26 144.198ZM1343.05 405.997V223.511H1393.81V405.997H1343.05Z" fill="#05253C"/><path d="M1430.79 405.997V223.51H1481.55V248.878C1492.45 230.071 1510.94 220.643 1537.02 220.643C1557.56 220.643 1574.05 227.301 1586.51 240.568C1598.97 253.835 1605.2 271.088 1605.2 292.325V406.045H1554.44V303.551C1554.44 292.471 1551.18 283.335 1544.66 276.191C1538.14 269.095 1529.67 265.499 1519.26 265.499C1508.12 265.499 1499.07 269.29 1492.06 276.92C1485.05 284.501 1481.55 294.221 1481.55 306.079V405.997H1430.79Z" fill="#05253C"/><path d="M1771.63 223.51H1822.38V416.882C1822.38 435.933 1816.1 451.241 1803.55 462.711C1790.99 474.18 1774.3 479.914 1753.52 479.914H1661.4V440.453H1745.54C1753.28 440.453 1759.61 437.731 1764.57 432.288C1769.53 426.845 1772.01 419.896 1772.01 411.488V387.578C1767.44 394.333 1760.63 399.582 1751.72 403.324C1742.77 407.066 1732.89 408.912 1721.99 408.912C1695.18 408.912 1674.06 400.408 1658.73 383.398C1643.35 366.389 1635.71 343.499 1635.71 314.778C1635.71 286.056 1643.4 263.166 1658.73 246.157C1674.06 229.148 1694.93 220.643 1721.26 220.643C1743.74 220.643 1760.53 227.641 1771.67 241.637V223.51H1771.63ZM1697.51 351.712C1705.59 360.897 1716.44 365.466 1729.97 365.466C1743.5 365.466 1754.4 360.897 1762.62 351.712C1770.85 342.527 1774.93 330.232 1774.93 314.778C1774.93 299.323 1770.85 286.979 1762.62 277.649C1754.4 268.366 1743.55 263.701 1729.97 263.701C1716.39 263.701 1705.64 268.366 1697.51 277.649C1689.39 286.931 1685.35 299.323 1685.35 314.778C1685.35 330.232 1689.39 342.527 1697.51 351.712Z" fill="#05253C"/><path d="M1929 408.913C1906.52 408.913 1888.32 403.081 1874.45 391.369C1860.53 379.657 1853.14 364.008 1852.16 344.472H1895.67C1896.64 352.685 1900.1 359.149 1905.98 363.863C1911.92 368.577 1919.56 370.909 1929 370.909C1936.74 370.909 1943.06 369.208 1948.03 365.855C1952.99 362.502 1955.47 358.274 1955.47 353.171C1955.47 346.416 1952.07 341.459 1945.3 338.349C1938.54 335.19 1930.31 333.003 1920.63 331.642C1910.95 330.33 1901.36 328.337 1891.82 325.664C1882.28 322.991 1874.11 317.597 1867.35 309.384C1860.58 301.171 1857.17 289.945 1857.17 275.705C1857.17 259.765 1863.35 246.595 1875.67 236.244C1887.98 225.844 1903.6 220.692 1922.43 220.692C1944.43 220.692 1962.24 226.135 1975.91 236.973C1989.59 247.81 1996.89 262.195 1997.86 280.079H1953.96C1952.99 272.595 1949.54 266.763 1943.65 262.535C1937.71 258.307 1931.14 256.218 1923.89 256.218C1916.64 256.218 1910.85 257.773 1906.47 260.932C1902.14 264.09 1899.95 268.416 1899.95 273.956C1899.95 280.711 1903.4 285.474 1910.27 288.244C1917.18 291.014 1925.5 292.909 1935.28 293.881C1945.06 294.853 1954.84 296.554 1964.67 298.935C1974.45 301.365 1982.82 306.905 1989.68 315.605C1996.59 324.304 2000 336.259 2000 351.47C2000 368.868 1993.53 382.816 1980.58 393.313C1967.64 403.81 1950.41 409.059 1928.9 409.059L1929 408.913Z" fill="#05253C"/></svg></div><div class='snav-slogan'>Where Growth Takes Flight</div><nav aria-label='Employability tools'><a class='sn-link' data-nav href='/hub'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10.5 12 3l9 7.5'/><path d='M5 9.5V21h14V9.5'/><path d='M10 21v-6h4v6'/></svg><span>Home</span></a><a class='sn-link on' data-nav href='/builder'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M7 3h7l5 5v13H7z'/><path d='M14 3v5h5'/><path d='M10 13h6M10 17h6'/></svg><span>Resume Builder</span></a><a class='sn-link' data-nav href='/tools'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 11l3 3 8-8'/><path d='M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9'/></svg><span>CV Review</span></a><a class='sn-link' data-nav href='/cover-letter'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/></svg><span>Cover Letter</span></a><a class='sn-link' data-nav href='/linkedin'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg><span>LinkedIn Review</span></a><a class='sn-link' data-nav href='/interview'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg><span>Interview Practice</span></a><span class='snav-foot'><a class='sn-link' data-nav href='/ai-privacy'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z'/><path d='m9 12 2 2 4-4'/></svg><span>AI &amp; Privacy</span></a><a class='sn-link' data-nav href='/hub#account'><svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg><span>Account</span></a></span></nav></aside><div class='smain' id='smain-content' tabindex='-1'><h1 class='sr-only'>Fledglings — Resume Builder</h1><script>
+function flViewOnly(){try{return new URLSearchParams(location.search).get('view')==='1'}catch(e){return false}}
+/* Stable per-browser ids, even where storage is blocked (private mode,
+ * or a cross-site iframe with partitioned storage). An in-memory
+ * fallback keeps the id constant for the life of the page instead of
+ * minting a fresh one on every read. */
+var FL_IDS={};
+function flStoredId(st,k){var v='';
+try{v=st.getItem(k)||''}catch(e){}
+if(!v)v=FL_IDS[k]||'';
+if(!v)v=Math.random().toString(16).slice(2)+Date.now().toString(16);
+FL_IDS[k]=v;
+try{st.setItem(k,v)}catch(e){}
+return v;}
+function flLs(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
+function flLsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function flLsDel(k){try{localStorage.removeItem(k)}catch(e){}}
+/* Read the claims out of a token WITHOUT trusting them — display only;
+ * the signature is what the worker checks on every call. */
+function flTokenClaims(tok){try{var dot=String(tok||'').indexOf('.');if(dot<1)return null;
+var b=tok.slice(0,dot).replace(/-/g,'+').replace(/_/g,'/');
+var json=decodeURIComponent(atob(b).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));
+var cl=JSON.parse(json);
+if(!cl||typeof cl.e!=='string'||typeof cl.exp!=='number')return null;
+if(cl.exp*1000<=Date.now())return null;
+return cl;}catch(e){return null}}
+/* The live token for this browser: ?t= (a link from another surface)
+ * wins, else whatever is stored. Expired tokens are dropped. */
+function flToken(){var tok='';
+try{tok=new URLSearchParams(location.search).get('t')||''}catch(e){}
+if(tok&&flTokenClaims(tok)){if(!flViewOnly())flLsSet('fl_hub_token_v1',tok);return tok;}
+tok=flLs('fl_hub_token_v1');
+if(tok&&flTokenClaims(tok))return tok;
+if(tok)flLsDel('fl_hub_token_v1');
+return '';}
+/* The email this device is signed in as — read from the token only. */
+function flResolveEmail(){var cl=flTokenClaims(flToken());return cl?String(cl.e||''):'';}
+/* Exchange an email for a signed token (the ONLY way to gain an
+ * identity). Resolves {ok:true,email} or {ok:false,reason}. */
+function flLinkEmail(em,learnerId){em=String(em||'').trim().toLowerCase();
+if(em.indexOf('@')===-1||em.length<6||em.length>80)return Promise.resolve({ok:false,reason:'bad_email'});
+return fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:learnerId,email:em})})
+.then(function(r){return r.json()}).then(function(d){
+if(d&&d.ok&&d.token){if(!flViewOnly())flLsSet('fl_hub_token_v1',d.token);
+/* Storage can be blocked (private mode, or a cross-site iframe with
+ * third-party storage partitioned off). Report whether the token
+ * actually persisted so callers carry it in the URL instead of
+ * re-minting on every load. */
+return {ok:true,email:d.email||em,token:d.token,persisted:flLs('fl_hub_token_v1')===d.token};}
+return {ok:false,reason:(d&&d.reason)||'unavailable'};})
+.catch(function(){return {ok:false,reason:'offline'}});}
+/* The raw ?e= address on the URL — a request for identity, never
+ * identity itself. Only the embed exchange and the provider's
+ * read-only view (authorised by their portal session) read it. */
+function flEmbedEmail(){var em='';
+try{var p=new URLSearchParams(location.search).get('e');
+if(p){em=decodeURIComponent(atob(p.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(e){}
+em=String(em||'').trim().toLowerCase();
+return em.indexOf('@')===-1?'':em;}
+/* The Liquid email in an embed is a REQUEST for a token, not proof —
+ * exchange it once per browser, then the token does the work. */
+/* Owns the navigation itself: callers must never have to decide, or a
+ * truthy-but-failed result turns into a reload loop (it did — an
+ * unlinked visitor to /hub reloaded for ever, 2026-08-11). */
+function flAdoptEmbedEmail(learnerId){var em=flEmbedEmail();
+if(!em||flViewOnly())return Promise.resolve({ok:false});
+/* Already this learner — nothing to exchange, so never re-navigate. */
+if(flResolveEmail()===em)return Promise.resolve({ok:false});
+return flLinkEmail(em,learnerId).then(function(r){
+if(r&&r.ok)flReloadWithToken(r.token);
+return r;});}
+/* Handing the device to someone else: drop the identity AND the work
+ * saved on this browser. /ai-privacy promises exactly this, and a
+ * shared Chromebook would otherwise show the next learner the last
+ * one's CVs, letters and interview recordings. */
+function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');
+['fl_builder_cvs_v1','fl_letters_v1','fl_iv_learn_v1'].forEach(flLsDel);
+try{if(window.indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('fl_interview_v1');}catch(e){}}
+/* Leave the current page as nobody — strips identity from the URL too,
+ * or the ?t= we just cleared would sign us straight back in. */
+function flSignOutHere(){flClearEmail();
+try{var u=new URL(location.href);u.searchParams.delete('t');u.searchParams.delete('e');
+location.href=u.pathname+u.search;}catch(e){location.href='/hub';}}
+/* One call per tool page: show who we are saving as, and — when the
+ * page was opened from a LearnWorlds embed carrying ?e= — exchange
+ * that address for a token, then re-render as the signed-in learner.
+ *
+ * Reloads via ?t= rather than a bare reload: if storage is blocked the
+ * URL is the only place identity can live, and a plain reload would
+ * mint again on every load (an endless loop on a locked-down device). */
+function flIdentityInit(learnerId){flIdentityChip();
+try{flAdoptEmbedEmail(learnerId);}catch(e){}}
+function flReloadWithToken(token){try{var u=new URL(location.href);
+u.searchParams.delete('e');
+if(token)u.searchParams.set('t',token);
+location.replace(u.pathname+u.search+u.hash);}catch(e){}}
+/* Carry identity between surfaces as the token itself. */
+function flEmailParam(){return flToken();}
+function flHubLink(){var t=flToken();return '/hub'+(t?'?t='+encodeURIComponent(t):'');}
+function flAddHubBackLink(){var bk=document.createElement('a');bk.href=flHubLink();
+bk.textContent='← Your Employability Hub';
+bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
+var hh=document.querySelector('h2.page');if(hh)hh.parentNode.insertBefore(bk,hh);}
+/* Small "who is this saving as" chip under the page title — the
+ * guard against shared-device cross-contamination: the current email
+ * is always visible and one tap away from being cleared. */
+function flIdentityChip(){var em=flResolveEmail();if(!em)return;
+var chip=document.createElement('div');
+chip.style.cssText='display:inline-flex;gap:8px;align-items:center;margin:-8px 0 16px;font-size:12.5px;color:#68788A;';
+var who=document.createElement('span');who.textContent='Saving progress as '+em;
+var not=document.createElement('button');not.type='button';not.textContent='Not you?';
+not.style.cssText='border:none;background:none;color:#13507F;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0;';
+not.onclick=flSignOutHere;
+chip.appendChild(who);chip.appendChild(not);
+var hh=document.querySelector('h2.page');
+if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}</script><main class='wrap' style='max-width:1180px'><h2 class='page'>Resume Builder</h2><p class='sub'>Type straight onto your CV — no forms, no boxes. Pick a design, click any line and write; every bullet gets a live quality marker and the review updates as you go. Saved in your browser as you type, prints straight to PDF.</p><div id='s-list'><div class='card'><div class='listhead'><h3>My CVs</h3><button type='button' class='btn' id='newcv'>+ Create a new CV</button></div><div id='cvlist' class='cvgrid'></div><p class='sub' style='font-size:12.5px;margin:14px 0 0'>Stored only in this browser — nothing is uploaded. Clearing your browsing data clears your CVs, so download a PDF when you're happy.</p></div></div><div id='s-design' hidden><div class='card'><div class='listhead'><div><h3 style='margin-bottom:2px'>Choose a design</h3><p class='fieldtip' style='margin:0'>Six genuinely different layouts, all ATS-safe, shown exactly as they print. Change any time — your content never changes with the design.</p></div><button type='button' class='btn ghost' id='designback'>← Back</button></div><div class='designgrid' id='designgrid'></div></div></div><div id='s-pick' hidden><div class='card'><div class='listhead'><h3>Choose your starting point</h3><button type='button' class='btn ghost' id='pickback'>← Design</button></div><p class='fieldtip'>An example start shows you the standard — then make every line true about <b>you</b>: the example names and numbers are scaffolding to replace, never content to submit.</p><div class='startgrid'><button type='button' class='startcard' data-starter=''><b>Blank CV</b><p>Start from nothing — placeholders guide every section.</p><span class='startgo'>Start blank →</span></button><button type='button' class='startcard' data-starter='retail'><span class='tagats'>ATS-ready example</span><b>Retail &amp; customer service</b><p>Tills, shop floor, weekend jobs — shows customer impact with numbers.</p><span class='startgo'>Use this →</span></button><button type='button' class='startcard' data-starter='warehouse'><span class='tagats'>ATS-ready example</span><b>Warehouse &amp; logistics</b><p>Picking, packing, safety — the practical language adverts scan for.</p><span class='startgo'>Use this →</span></button><button type='button' class='startcard' data-starter='office'><span class='tagats'>ATS-ready example</span><b>Office &amp; admin</b><p>Organisation, accuracy and systems — for admin apprenticeships.</p><span class='startgo'>Use this →</span></button><button type='button' class='startcard' data-starter='hospitality'><span class='tagats'>ATS-ready example</span><b>Hospitality</b><p>Cafés, kitchens, front of house — pace and service under pressure.</p><span class='startgo'>Use this →</span></button><button type='button' class='startcard' data-starter='care'><span class='tagats'>ATS-ready example</span><b>Care &amp; support</b><p>Patience, reliability and safeguarding awareness, evidenced properly.</p><span class='startgo'>Use this →</span></button><button type='button' class='startcard' data-starter='first-cv'><span class='tagats'>ATS-ready example</span><b>My first CV (no work history)</b><p>School, volunteering and projects count — proof without a payslip.</p><span class='startgo'>Use this →</span></button></div></div></div><div id='s-build' hidden><div class='card buildbar no-print'><button type='button' class='btn ghost' id='backbtn'>← My CVs</button><input type='text' id='cvtitle' class='titlein' maxlength='40' aria-label='CV name'><span class='savestate' id='savestate'>Saved</span><span style='flex:1'></span><span class='cur-wrap'>🎨 <span class='cur-design' id='cur-design'>Classic</span></span><button type='button' class='btn ghost' id='switchdesign'>Switch design</button><button type='button' class='btn' onclick='window.print()'>Download PDF</button></div><div class='exguard no-print' id='exguard' hidden>⚠️ <b>Example content is still in this CV.</b> Everything marked <i>(example)</i> is scaffolding — swap it for your real experience before you download or send this anywhere. Employers can tell, and your real story is the one that gets you hired.</div><div class='docgrid'><div class='revcol no-print'><div class='card revpanel' id='scorepanel' role='status' hidden><div class='rv-head'><div class='rv-t'>Resume Review</div><button type='button' class='rv-refresh' id='refreshbtn' aria-label='Re-check score' title='Re-check score'>⟳</button></div><div class='rv-scorerow'><span class='rv-score' id='b-score'>0</span><span class='rv-of'>/100</span><div class='rv-bar'><i id='rv-bar-i'></i></div></div><div class='rv-fair'>🛡️ Fair scoring — deterministic rules, the same result every run</div><div class='stale-note' id='stale-note' hidden>✎ Edited since the last check — tap ⟳ for a fresh score.</div><div id='rv-cats'></div><button type='button' class='btn rv-send' id='sendreview'>Send to full AI review →</button></div><div class='card tipscard'><h3>💡 Writing tips</h3><ul class='tipslist'><li><b>Everything counts.</b> Shops, sport, school events, caring for family — real proof beats a payslip.</li><li><b>Lead with a doing word.</b> Served, organised, trained — not “responsible for”.</li><li><b>Add a number.</b> How many, how often, how much — honestly.</li><li><b>Watch the markers.</b> ✓ strong line · ! could be stronger · ✗ weak opener.</li></ul></div></div><div class='doccol'><div class='cvpaper classic' id='paper'></div></div></div></div><p class='sub no-print' style='font-size:12.5px;margin-top:18px'>The builder never invents anything for you — and neither should you. Real, small and specific beats impressive and vague, every time.</p></main><script>var FL_STARTERS={"retail":{"label":"Retail & customer service","data":{"name":"","phone":"","email":"","town":"","linkedin":"","summary":"Customer-focused [college student / school leaver] with [1 year] serving customers in a busy shop, aiming for [the role you want]. Known for staying calm at peak times and turning complaints into thank-yous.","experience":[{"role":"Sales Assistant","org":"Highstreet Store (example)","location":"Your town","from":"Jun 2025","to":"Present","bullets":["Served 60+ customers per shift on the till, keeping queue waits under 4 minutes at peak","Resolved 5-10 customer queries a day, escalating only 1 in 10 to a manager","Organised weekly deliveries of 30+ boxes, keeping the stockroom audit-ready"]}],"education":[{"school":"Your school or college (example)","quals":"GCSEs: English (6), Maths (5) — 8 subjects","from":"2021","to":"2026","detail":"Add anything notable: prefect, sports team, attendance award"}],"skills":["Till operation","Card & cash handling","Stock rotation","Complaint handling"],"extras":["Won employee of the month after 8 weeks (example — replace with yours)"]}},"warehouse":{"label":"Warehouse & logistics","data":{"name":"","phone":"","email":"","town":"","linkedin":"","summary":"Reliable [school leaver / college student] aiming for a warehouse operative role. Comfortable with physical, fast-paced work and following safety procedures exactly — [add one real proof, e.g. never missed a shift].","experience":[{"role":"Picker / General Assistant","org":"Local Depot (example)","location":"Your town","from":"Mar 2025","to":"Present","bullets":["Picked and packed 150+ items per shift, scanning each against the order sheet with 99% accuracy","Maintained clear walkways and safe stacking across a 20-aisle floor, following manual handling training","Delivered every timed dispatch target for 6 months straight"]}],"education":[{"school":"Your school or college (example)","quals":"GCSEs: English (6), Maths (5) — 8 subjects","from":"2021","to":"2026","detail":"Add anything notable: prefect, sports team, attendance award"}],"skills":["Picking & packing","Manual handling awareness","Scanner operation","Timed targets"],"extras":["Completed a manual handling awareness course (example — replace with yours)"]}},"office":{"label":"Office & admin","data":{"name":"","phone":"","email":"","town":"","linkedin":"","summary":"Organised [college student] aiming for a business administration apprenticeship. Strong on accuracy and follow-through — [add one real proof, e.g. ran the sign-up sheet for a whole term].","experience":[{"role":"Office Assistant (work experience)","org":"Local Company (example)","location":"Your town","from":"Jul 2025","to":"Aug 2025","bullets":["Organised 200+ customer records into a consistent spreadsheet format, fixing 40 duplicates","Handled 15-20 incoming calls a day, taking messages and routing them to the right person","Created a shared filing checklist adopted by the whole 6-person office"]}],"education":[{"school":"Your school or college (example)","quals":"GCSEs: English (6), Maths (5) — 8 subjects","from":"2021","to":"2026","detail":"Add anything notable: prefect, sports team, attendance award"}],"skills":["Microsoft Word & Excel","Data entry","Telephone manner","Diary management"],"extras":["Ran the ticketing spreadsheet for the school show (example — replace with yours)"]}},"hospitality":{"label":"Hospitality","data":{"name":"","phone":"","email":"","town":"","linkedin":"","summary":"Energetic [school leaver] aiming for a hospitality role. Thrives in busy services and keeps standards up when it's slammed — [add one real proof, e.g. worked every Saturday for a year].","experience":[{"role":"Front of House / Team Member","org":"Riverside Café (example)","location":"Your town","from":"Sep 2025","to":"Present","bullets":["Served 40+ covers per service, taking orders accurately and clearing within 3 minutes of guests leaving","Prepared 25+ hot drinks an hour at peak while keeping the counter spotless","Trained 2 new starters on the till and food hygiene basics"]}],"education":[{"school":"Your school or college (example)","quals":"GCSEs: English (6), Maths (5) — 8 subjects","from":"2021","to":"2026","detail":"Add anything notable: prefect, sports team, attendance award"}],"skills":["Food hygiene basics","Till & card payments","Table service","Allergen awareness"],"extras":["Level 2 Food Hygiene certificate (example — replace with yours)"]}},"care":{"label":"Care & support","data":{"name":"","phone":"","email":"","town":"","linkedin":"","summary":"Patient and dependable [college student] aiming for a care assistant role. Experienced in supporting people who need extra time and attention — [add one real proof, e.g. helps care for a family member].","experience":[{"role":"Volunteer Befriender","org":"Community Centre (example)","location":"Your town","from":"Jan 2025","to":"Present","bullets":["Supported 6 older visitors each week with conversation, games and refreshments over 40+ sessions","Planned a weekly quiz that doubled regular attendance from 8 to 16 people","Reported wellbeing concerns promptly to the session leader, following safeguarding guidance"]}],"education":[{"school":"Your school or college (example)","quals":"GCSEs: English (6), Maths (5) — 8 subjects","from":"2021","to":"2026","detail":"Add anything notable: prefect, sports team, attendance award"}],"skills":["Active listening","Safeguarding awareness","Reliability","Basic first aid"],"extras":["St John Ambulance first aid course (example — replace with yours)"]}},"first-cv":{"label":"My first CV (no work history)","data":{"name":"","phone":"","email":"","town":"","linkedin":"","summary":"[Year 11 / college] student writing a first CV, aiming for [a part-time job / an apprenticeship in …]. No paid work yet — plenty of proof: [pick your best example from below].","experience":[{"role":"Volunteer","org":"School Summer Fair (example)","location":"Your school","from":"Jul 2025","to":"Jul 2025","bullets":["Ran a stall serving 100+ visitors across the day, handling cash and keeping a float balanced to the penny","Set up and packed down the pitch with a team of 4, finishing 20 minutes ahead of schedule"]},{"role":"Team Captain","org":"Local Football Club (example)","location":"Your town","from":"Sep 2024","to":"Present","bullets":["Organised weekly training for a squad of 14, planning drills and chasing availability","Led the side to 3rd place from 9th the season before"]}],"education":[{"school":"Your school or college (example)","quals":"GCSEs: English (6), Maths (5) — 8 subjects","from":"2021","to":"2026","detail":"Add anything notable: prefect, sports team, attendance award"}],"skills":["Teamwork","Cash handling","Punctuality","Organising people"],"extras":["Duke of Edinburgh Bronze award (example — replace with yours)"]}}};</script><script>(function(){
+function stored(st,k){return flStoredId(st,k)}
+var lid=stored(localStorage,'fl_coach_learner_v1');
+var $=function(id){return document.getElementById(id)};
+function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+var params=new URLSearchParams(location.search);
+flIdentityInit(lid);
+
+/* ---------------- storage ---------------- */
+var KEY='fl_builder_cvs_v1';
+function loadAll(){try{var d=JSON.parse(localStorage.getItem(KEY)||'{}');return Array.isArray(d.cvs)?d.cvs:[]}catch(e){return []}}
+function saveAll(cvs){try{localStorage.setItem(KEY,JSON.stringify({cvs:cvs}));return true}catch(e){return false}}
+function blankCv(){return {name:'',phone:'',email:'',town:'',linkedin:'',summary:'',
+experience:[blankExp()],education:[blankEdu()],skills:'',extras:''}}
+function blankExp(){return {role:'',org:'',location:'',from:'',to:'',bullets:''}}
+function blankEdu(){return {school:'',quals:'',from:'',to:'',detail:''}}
+var cvs=loadAll(),current=null,saveTimer=null,lastText='';
+
+/* ---------------- my CVs list ---------------- */
+function renderList(){var out='';
+if(!cvs.length){out="<div class='cvempty'>No CVs yet — create your first one. It takes about ten minutes.</div>";}
+cvs.forEach(function(c){out+="<div class='cvitem'><div class='cvi-name'>"+esc2(c.title||'Untitled CV')+"</div>"+
+"<div class='cvi-meta'>"+esc2(designName(c.tpl||'classic'))+" · updated "+new Date(c.updated).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+"</div>"+
+"<div class='cvi-btns'><button type='button' class='btn' data-open='"+c.id+"'>Open</button>"+
+"<button type='button' class='btn ghost' data-copy='"+c.id+"'>Duplicate</button>"+
+"<button type='button' class='btn ghost' data-del='"+c.id+"'>Delete</button></div></div>";});
+$('cvlist').innerHTML=out;
+document.querySelectorAll('[data-open]').forEach(function(b){b.onclick=function(){openCv(b.dataset.open)}});
+document.querySelectorAll('[data-copy]').forEach(function(b){b.onclick=function(){
+var src=cvs.find(function(c){return c.id===b.dataset.copy});if(!src)return;
+var copy=JSON.parse(JSON.stringify(src));copy.id=Math.random().toString(16).slice(2);
+copy.title=(src.title||'Untitled CV')+' (copy)';copy.updated=Date.now();cvs.unshift(copy);saveAll(cvs);renderList();}});
+document.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+if(!confirm('Delete this CV? This cannot be undone.'))return;
+cvs=cvs.filter(function(c){return c.id!==b.dataset.del});saveAll(cvs);renderList();}});}
+
+/* ---------------- designs ---------------- */
+var DESIGNS=[
+{id:'classic',label:'Classic',blurb:'Timeless serif with a centred masthead and double rules — suits every application.'},
+{id:'executive',label:'Executive',blurb:'Full navy masthead with your contact inside it, tabbed headings. Lands with authority.'},
+{id:'modern',label:'Modern',blurb:'Big name, orange energy bar, skills as chips — contemporary without shouting.'},
+{id:'accent',label:'Monogram',blurb:'Your initials in a warm medallion beside a spine of colour. Personal and polished.'},
+{id:'sidebar',label:'Sidebar',blurb:'A navy panel carries contact, skills and achievements beside your story.'},
+{id:'compact',label:'Ledger',blurb:'Headings in their own label column, hairline rules — dense, calm, one page.'}];
+var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.com',town:'Leeds',linkedin:'',
+summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
+experience:[{role:'Volunteer',org:'Community Shop',location:'Leeds',from:'Jun 2025',to:'Present',
+bullets:['Served 50+ customers per shift on the till','Organised donations, halving sorting time']}],
+education:[{school:'City College',quals:'GCSEs: English (6), Maths (5) — 8 subjects',from:'2021',to:'2026',detail:''}],
+skills:['Till operation','Teamwork','Punctuality'],extras:['First aid basics course']};
+var designMode='create',pendingTpl='classic';
+function designName(id){var d=DESIGNS.find(function(x){return x.id===id});return d?d.label:'Classic';}
+function renderDesignGallery(){var h='';
+DESIGNS.forEach(function(d){
+h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
+"<div class='cvpaper "+d.id+"'>"+docHtml(DESIGN_SAMPLE,false)+"</div></div></div>"+
+"<b>"+esc2(d.label)+"</b><p>"+esc2(d.blurb)+"</p>"+
+"<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
+$('designgrid').innerHTML=h;
+document.querySelectorAll('.dselect').forEach(function(b){b.onclick=function(){
+var id=b.dataset.design;
+if(designMode==='create'){pendingTpl=id;$('s-design').hidden=true;$('s-pick').hidden=false;window.scrollTo({top:0});}
+else{applyTpl(id);if(current){current.tpl=id;scheduleSaveQuiet();}
+$('s-design').hidden=true;$('s-build').hidden=false;window.scrollTo({top:0});}};});}
+$('designback').onclick=function(){$('s-design').hidden=true;
+if(designMode==='create'){$('s-list').hidden=false;}else{$('s-build').hidden=false;}};
+$('switchdesign').onclick=function(){designMode='switch';renderDesignGallery();
+$('s-build').hidden=true;$('s-design').hidden=false;window.scrollTo({top:0});};
+function applyTpl(t){$('paper').className='cvpaper '+t;$('cur-design').textContent=designName(t);}
+
+/* ---------------- create flow ---------------- */
+$('newcv').onclick=function(){designMode='create';renderDesignGallery();
+$('s-list').hidden=true;$('s-design').hidden=false;window.scrollTo({top:0});};
+$('pickback').onclick=function(){$('s-pick').hidden=true;$('s-design').hidden=false;};
+function seedToModel(seed){var d=blankCv();
+d.summary=seed.summary||'';
+d.experience=(seed.experience||[]).map(function(e){return {role:e.role||'',org:e.org||'',location:e.location||'',
+from:e.from||'',to:e.to||'',bullets:(e.bullets||[]).join('\n')};});
+if(!d.experience.length)d.experience=[blankExp()];
+d.education=(seed.education||[]).map(function(e){return {school:e.school||'',quals:e.quals||'',
+from:e.from||'',to:e.to||'',detail:e.detail||''};});
+if(!d.education.length)d.education=[blankEdu()];
+d.skills=(seed.skills||[]).join(', ');
+d.extras=(seed.extras||[]).join('\n');
+return d;}
+document.querySelectorAll('.startcard').forEach(function(b){b.onclick=function(){
+var sid=b.dataset.starter;var title='My CV';var data;
+if(sid&&FL_STARTERS[sid]){title=FL_STARTERS[sid].label+' CV';data=seedToModel(FL_STARTERS[sid].data);}
+else{data=blankCv();}
+var c={id:Math.random().toString(16).slice(2),title:title,updated:Date.now(),tpl:pendingTpl,data:data};
+cvs.unshift(c);saveAll(cvs);openCv(c.id);};});
+function openCv(id){current=cvs.find(function(c){return c.id===id});if(!current)return;
+$('cvtitle').value=current.title||'My CV';
+$('s-list').hidden=true;$('s-pick').hidden=true;$('s-design').hidden=true;$('s-build').hidden=false;
+applyTpl(current.tpl||'classic');
+renderDoc();$('scorepanel').hidden=true;runCheck(true);window.scrollTo({top:0});}
+$('backbtn').onclick=function(){$('s-build').hidden=true;$('s-list').hidden=false;renderList();};
+$('cvtitle').oninput=function(){if(current){current.title=$('cvtitle').value;scheduleSaveQuiet();}};
+
+/* ---------------- saving ---------------- */
+function markSaved(state){$('savestate').textContent=state;}
+var checkTimer=null;
+function scheduleSave(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
+lastText='';if(!$('scorepanel').hidden)$('stale-note').hidden=false;
+saveTimer=setTimeout(function(){current.updated=Date.now();
+markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser — download a PDF so you don’t lose it')},500);
+/* Hiration-style: the review re-scores itself shortly after you stop
+ * typing — deterministic and free, so no button-hunting needed. */
+if(checkTimer)clearTimeout(checkTimer);
+checkTimer=setTimeout(function(){runCheck(true)},2500);}
+function scheduleSaveQuiet(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
+saveTimer=setTimeout(function(){current.updated=Date.now();
+markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser — download a PDF so you don’t lose it')},400);}
+
+/* ---------------- structured payload ---------------- */
+function lines(t){return String(t||'').split('\n').map(function(l){return l.trim()}).filter(Boolean)}
+function payload(){var d=current.data;
+return {name:d.name,phone:d.phone,email:d.email,town:d.town,linkedin:d.linkedin,summary:d.summary,
+experience:d.experience.map(function(e){return {role:e.role,org:e.org,location:e.location,from:e.from,to:e.to,bullets:lines(e.bullets)}}),
+education:d.education.map(function(e){return {school:e.school,quals:e.quals,from:e.from,to:e.to,detail:e.detail}}),
+skills:String(d.skills||'').split(',').map(function(s){return s.trim()}).filter(Boolean),
+extras:lines(d.extras)};}
+
+/* ---------------- per-bullet quality marks ---------------- */
+var MK_WEAK=/^(assisted|helped|worked on|was responsible for|responsible for|involved in|participated in|tasked with|duties included)\b/i;
+var MK_ACTION=/^(led|built|created|designed|organised|organized|delivered|improved|increased|reduced|launched|ran|managed|taught|trained|raised|won|achieved|volunteered|founded|set up|coordinated|planned|presented|resolved|handled|served|greeted|maintained|supported|picked|packed|prepared|scanned|reported)\b/i;
+function bulletMark(b){b=b.trim();
+if(!b)return {c:'mk-off',i:'·',t:'Write the line first'};
+var words=b.split(/\s+/).filter(Boolean).length;
+if(MK_WEAK.test(b))return {c:'mk-bad',i:'✗',t:'Weak opener — lead with what YOU did'};
+if(words>30)return {c:'mk-warn',i:'!',t:'Long — aim under 30 words'};
+if(!MK_ACTION.test(b))return {c:'mk-warn',i:'!',t:'Start with a doing word'};
+if(!/(\d|%|£)/.test(b))return {c:'mk-warn',i:'!',t:'Add a number that proves scale'};
+return {c:'mk-ok',i:'✓',t:'Strong line'};}
+
+/* ---------------- the document ----------------
+ * One generator serves the editable document, the read-only gallery
+ * miniatures and (via payload) the checks — so what you see is always
+ * what gets scored and printed. Editable fields carry data-b paths;
+ * structural controls (add/remove) are contenteditable=false islands. */
+function ed(bind,cls,ph,val,tag){tag=tag||'span';
+return "<"+tag+" class='"+cls+"' contenteditable='true' spellcheck='true' role='textbox' aria-label='"+esc2(ph)+"' data-b='"+bind+"' data-ph='"+esc2(ph)+"'>"+esc2(val||'')+"</"+tag+">";}
+function docHtml(d,editable){
+var E=editable;var h='';
+var initials=((d.name||'').trim().split(/\s+/).map(function(w){return w.charAt(0)}).join('').slice(0,2).toUpperCase())||'??';
+h+="<div class='cp-head'><span class='cp-mono' aria-hidden='true'>"+esc2(initials)+"</span><div class='cp-headmain'>";
+h+=E?ed('f:name','cp-name','Your Name',d.name,'div'):"<div class='cp-name'>"+(esc2(d.name)||'Your Name')+"</div>";
+h+="<div class='cp-contact'>";
+if(E){h+=ed('f:town','cpc','Town','' +d.town)+"<b>·</b>"+ed('f:phone','cpc','Phone',d.phone)+"<b>·</b>"+
+ed('f:email','cpc','Email',d.email)+"<b>·</b>"+ed('f:linkedin','cpc','LinkedIn (optional)',d.linkedin);}
+else{var contact=[d.town,d.phone,d.email,d.linkedin].filter(Boolean).map(esc2).join(' · ');
+h+=contact||'town · phone · email';}
+h+="</div></div></div>";
+h+="<div class='cp-cols'><div class='cp-main'>";
+/* personal statement */
+if(E||d.summary){h+="<div class='cp-sec sec-summary'><h4>Personal statement</h4>"+
+(E?ed('f:summary','cp-sum','Two or three lines: what you are doing now, what you are aiming for, and one thing that proves you are serious.',d.summary,'p'):"<p>"+esc2(d.summary)+"</p>")+"</div>";}
+/* work */
+var exps=E?d.experience:d.experience.filter(function(e){return e.role||e.org||(e.bullets&&e.bullets.length)});
+if(E||exps.length){h+="<div class='cp-sec sec-work'><h4>Work &amp; volunteering</h4>";
+exps.forEach(function(e,i){
+var bl=E?String(e.bullets||'').split('\n'):(e.bullets||[]);
+if(E&&bl.length===0)bl=[''];
+h+="<div class='cp-entry' data-entry='"+i+"'><div class='cp-row'><b>"+
+(E?ed('xp:'+i+':role','cpe','Job or role title',e.role)+"<i class='cp-dash'>—</i>"+ed('xp:'+i+':org','cpe','Organisation',e.org)
+:esc2([e.role,e.org].filter(Boolean).join(' — ')))+"</b><span>"+
+(E?ed('xp:'+i+':from','cpe','From',e.from)+"<i class='cp-dash'>–</i>"+ed('xp:'+i+':to','cpe','To',e.to)
+:esc2([e.from,e.to].filter(Boolean).join(' – ')))+"</span></div>";
+if(E||e.location)h+="<div class='cp-loc'>"+(E?ed('xp:'+i+':location','cpe','Location (optional)',e.location):esc2(e.location))+"</div>";
+h+="<ul>";
+bl.forEach(function(b,j){var m=bulletMark(b);
+h+="<li><span class='mk "+m.c+"' title='"+esc2(m.t)+"' contenteditable='false'>"+m.i+"</span>"+
+(E?ed('xb:'+i+':'+j,'bl','What you did — start with a doing word, add a number',b):"<span class='bl'>"+esc2(b)+"</span>")+
+(E?"<button type='button' class='ilb' contenteditable='false' data-il='"+i+":"+j+"' title='Improve this line with AI — uses only what it already says'>✨</button>":"")+
+"</li>";});
+h+="</ul>";
+if(E)h+="<div class='ctl' contenteditable='false'><button type='button' class='ctlbtn' data-addbullet='"+i+"'>+ point</button>"+
+"<button type='button' class='ctlbtn' data-delentry='"+i+"'>remove role</button></div>";
+h+="</div>";});
+if(E)h+="<button type='button' class='addline' contenteditable='false' id='addrole'>+ Add a role</button>";
+h+="</div>";}
+/* education */
+var edus=E?d.education:d.education.filter(function(e){return e.school||e.quals});
+if(E||edus.length){h+="<div class='cp-sec sec-edu'><h4>Education</h4>";
+edus.forEach(function(e,i){
+h+="<div class='cp-entry' data-eentry='"+i+"'><div class='cp-row'><b>"+
+(E?ed('edn:'+i+':school','cpe','School or college',e.school):esc2(e.school))+"</b><span>"+
+(E?ed('edn:'+i+':from','cpe','From',e.from)+"<i class='cp-dash'>–</i>"+ed('edn:'+i+':to','cpe','To',e.to)
+:esc2([e.from,e.to].filter(Boolean).join(' – ')))+"</span></div>"+
+"<div>"+(E?ed('edn:'+i+':quals','cpe','Qualifications, e.g. GCSEs: English (6), Maths (5)',e.quals):esc2(e.quals))+"</div>"+
+((E||e.detail)?"<div class='cp-loc'>"+(E?ed('edn:'+i+':detail','cpe','Anything notable (optional)',e.detail):esc2(e.detail))+"</div>":"");
+if(E)h+="<div class='ctl' contenteditable='false'><button type='button' class='ctlbtn' data-deledu='"+i+"'>remove</button></div>";
+h+="</div>";});
+if(E)h+="<button type='button' class='addline' contenteditable='false' id='addedu'>+ Add education</button>";
+h+="</div>";}
+h+="</div><div class='cp-side'>";
+/* skills */
+var skills=E?null:d.skills;
+if(E){h+="<div class='cp-sec sec-skills'><h4>Skills</h4>"+
+ed('f:skills','cp-skilledit','Comma-separated, specific: Till operation, Rota planning…',d.skills,'p')+
+"<div class='cp-chips' id='skill-chips'></div></div>";}
+else if(skills&&skills.length){h+="<div class='cp-sec sec-skills'><h4>Skills</h4><ul class='cp-skills'>"+
+skills.map(function(s){return "<li>"+esc2(s)+"</li>"}).join('')+"</ul></div>";}
+/* extras */
+if(E){h+="<div class='cp-sec sec-extras'><h4>Achievements</h4>"+
+ed('f:extras','cp-extraedit','One per line: awards, certificates, positions of responsibility',d.extras,'p')+"</div>";}
+else if(d.extras&&d.extras.length){h+="<div class='cp-sec sec-extras'><h4>Achievements</h4><ul>"+
+d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";}
+h+="</div></div>";
+return h;}
+
+/* skills chips shadow the comma line so chip designs stay live */
+function renderSkillChips(){var el=$('skill-chips');if(!el)return;
+var sk=String(current.data.skills||'').split(',').map(function(s){return s.trim()}).filter(Boolean);
+el.innerHTML=sk.map(function(s){return "<span>"+esc2(s)+"</span>"}).join('');}
+
+function renderDoc(){$('paper').innerHTML=docHtml(current.data,true);renderSkillChips();updateGuard();
+$('paper').querySelectorAll('[data-addbullet]').forEach(function(b){b.onclick=function(){
+var i=+b.dataset.addbullet;var e=current.data.experience[i];
+e.bullets=(e.bullets?e.bullets+'\n':'');renderDoc();focusBind('xb:'+i+':'+(String(e.bullets).split('\n').length-1));scheduleSave();};});
+$('paper').querySelectorAll('[data-delentry]').forEach(function(b){b.onclick=function(){
+current.data.experience.splice(+b.dataset.delentry,1);
+if(!current.data.experience.length)current.data.experience=[blankExp()];
+renderDoc();scheduleSave();};});
+$('paper').querySelectorAll('[data-deledu]').forEach(function(b){b.onclick=function(){
+current.data.education.splice(+b.dataset.deledu,1);
+if(!current.data.education.length)current.data.education=[blankEdu()];
+renderDoc();scheduleSave();};});
+$('paper').querySelectorAll('[data-il]').forEach(function(b){b.onclick=function(){
+var p=b.dataset.il.split(':');var e=current.data.experience[+p[0]];
+var bl=String(e.bullets||'').split('\n');var line=(bl[+p[1]]||'').trim();
+if(line.length<8){alert('Write the line first — the improver sharpens your words, it never invents them.');return;}
+b.disabled=true;b.textContent='…';
+fetch('/api/improve-line',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,line:line})})
+.then(function(r){return r.json()}).then(function(d){b.disabled=false;b.textContent='✨';
+if(!d||!d.line){alert((d&&d.reply)||'Could not improve that line just now.');return;}
+/* Only apply if the bullet is untouched since the request went out —
+ * never clobber keystrokes typed while the improver was thinking. */
+var freshBl=String(e.bullets||'').split('\n');
+if((freshBl[+p[1]]||'').trim()!==line){return;}
+freshBl[+p[1]]=d.line;e.bullets=freshBl.join('\n');renderDoc();scheduleSave();})
+.catch(function(){b.disabled=false;b.textContent='✨';});};});
+var ar=$('addrole');if(ar)ar.onclick=function(){current.data.experience.push(blankExp());renderDoc();
+focusBind('xp:'+(current.data.experience.length-1)+':role');scheduleSave();};
+var ae=$('addedu');if(ae)ae.onclick=function(){current.data.education.push(blankEdu());renderDoc();
+focusBind('edn:'+(current.data.education.length-1)+':school');scheduleSave();};}
+function focusBind(b){var el=$('paper').querySelector("[data-b='"+b+"']");if(el){el.focus();
+try{var r=document.createRange();r.selectNodeContents(el);r.collapse(false);
+var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}}}
+function updateGuard(){$('exguard').hidden=JSON.stringify(current.data).toLowerCase().indexOf('example')===-1;}
+
+/* ---- inline editing: write-through without re-render (caret-safe) ---- */
+function writeBind(el){var b=(el.dataset.b||'').split(':');var v=el.textContent.replace(/\n/g,' ');
+if(b[0]==='f'){current.data[b[1]]=b[1]==='summary'||b[1]==='extras'?el.textContent:v;
+if(b[1]==='skills')renderSkillChips();
+if(b[1]==='name'){var mono=$('paper').querySelector('.cp-mono');
+if(mono){var ini=v.trim().split(/\s+/).map(function(w){return w.charAt(0)}).join('').slice(0,2).toUpperCase();
+mono.textContent=ini||'??';}}}
+else if(b[0]==='xp'){current.data.experience[+b[1]][b[2]]=v;}
+else if(b[0]==='edn'){current.data.education[+b[1]][b[2]]=v;}
+else if(b[0]==='xb'){var e=current.data.experience[+b[1]];var bl=String(e.bullets||'').split('\n');
+bl[+b[2]]=v;e.bullets=bl.join('\n');
+var mk=el.parentElement.querySelector('.mk');if(mk){var m=bulletMark(v);
+mk.className='mk '+m.c;mk.textContent=m.i;mk.title=m.t;}}}
+$('paper').addEventListener('input',function(ev){var el=ev.target.closest?ev.target.closest('[data-b]'):null;
+if(!el||!current)return;writeBind(el);updateGuard();scheduleSave();});
+/* Enter in a bullet = new bullet; Backspace on an empty one removes it */
+$('paper').addEventListener('keydown',function(ev){var el=ev.target.closest?ev.target.closest('[data-b]'):null;
+if(!el)return;var b=(el.dataset.b||'').split(':');
+if(b[0]==='xb'){
+if(ev.key==='Enter'){ev.preventDefault();var e=current.data.experience[+b[1]];
+var bl=String(e.bullets||'').split('\n');bl.splice(+b[2]+1,0,'');e.bullets=bl.join('\n');
+renderDoc();focusBind('xb:'+b[1]+':'+(+b[2]+1));scheduleSave();}
+else if(ev.key==='Backspace'&&el.textContent.trim()===''){var e2=current.data.experience[+b[1]];
+var bl2=String(e2.bullets||'').split('\n');
+if(bl2.length>1){ev.preventDefault();bl2.splice(+b[2],1);e2.bullets=bl2.join('\n');
+renderDoc();focusBind('xb:'+b[1]+':'+Math.max(0,+b[2]-1));scheduleSave();}}}
+else if(ev.key==='Enter'&&b[1]!=='summary'&&b[1]!=='extras'){ev.preventDefault();el.blur();}});
+/* paste as plain text */
+$('paper').addEventListener('paste',function(ev){var el=ev.target.closest?ev.target.closest('[data-b]'):null;
+if(!el)return;ev.preventDefault();
+var t=(ev.clipboardData||window.clipboardData).getData('text').replace(/\r/g,'');
+document.execCommand('insertText',false,t);});
+
+/* ---------------- the review sidebar ---------------- */
+function stateIcon(st){return st==='good'?'✓':st==='warn'?'!':'✗'}
+function renderReview(rv){
+var col=rv.total>=70?'#1A7649':rv.total>=50?'#9A5812':'#B93A22';
+flCountUp($('b-score'),rv.total);$('b-score').style.color=col;
+$('rv-bar-i').style.width=rv.total+'%';$('rv-bar-i').style.background=col;
+var h='';rv.categories.forEach(function(c,i){
+h+="<div class='rvcat'><button type='button' class='rvcat-h' data-cat='"+i+"' aria-expanded='false'>"+
+"<span class='rvc-ic "+c.state+"'>"+stateIcon(c.state)+"</span>"+
+"<span class='rvc-l'>"+esc2(c.label)+"</span>"+
+"<span class='rvc-s'>"+c.score+"/"+c.max+"</span><span class='rvc-ch'>▾</span></button>"+
+"<div class='rvcat-b' id='rvb-"+i+"' hidden>";
+c.items.forEach(function(it){var ic=it.status==='pass'?'✓':it.status==='warn'?'!':'✗';
+h+="<div class='ck "+it.status+"'><span class='ck-i'>"+ic+"</span><div><div class='ck-l'>"+esc2(it.label)+"</div>"+
+"<div class='ck-d'>"+esc2(it.detail)+"</div>"+
+(it.evidence?"<div class='ck-e'>“"+esc2(it.evidence)+"”</div>":"")+"</div></div>";});
+h+="</div></div>";});
+$('rv-cats').innerHTML=h;
+document.querySelectorAll('.rvcat-h').forEach(function(b){b.onclick=function(){
+var body=$('rvb-'+b.dataset.cat);var open=body.hidden;
+body.hidden=!open;b.setAttribute('aria-expanded',String(open));
+b.parentElement.classList.toggle('open',open);};});}
+function runCheck(auto){
+fetch('/api/builder-check',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,cv:payload()})})
+.then(function(r){return r.json()}).then(function(d){
+if(!d||!d.review){if(!auto)alert((d&&d.reply)||'Add a bit more content first, then check again.');return;}
+lastText=d.text||'';$('stale-note').hidden=true;
+renderReview(d.review);$('scorepanel').hidden=false;})
+.catch(function(){if(!auto)alert('Could not reach the checker — try again in a minute.');});}
+$('refreshbtn').onclick=function(){runCheck(false)};
+$('sendreview').onclick=function(){
+if(!lastText){alert('Tap ⟳ for a fresh check first — the review reads that exact text.');return;}
+try{sessionStorage.setItem('fl_builder_cv_text',lastText)}catch(e){}
+/* The identity is a TOKEN — it must ride as t=, never as the e=
+ * embed-email param (which /tools decodes with atob and would drop). */
+var q=['from=builder'];var ev=flToken();if(ev)q.push('t='+encodeURIComponent(ev));
+location.href='/tools?'+q.join('&');};
+
+renderList();
+})();</script><div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div></div><script>(function(){var ev=flToken();if(ev){var evq=encodeURIComponent(ev);document.querySelectorAll('a[data-nav]').forEach(function(a){var href=a.getAttribute('href');if(href.indexOf('http')===0)return;var hash='';var hi=href.indexOf('#');if(hi>-1){hash=href.slice(hi);href=href.slice(0,hi);}a.href=href+(href.indexOf('?')>-1?'&':'?')+'t='+evq+hash;});}var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;var flActed=false;['pointerdown','keydown'].forEach(function(t){addEventListener(t,function(){flActed=true},true)});if(window.MutationObserver){new MutationObserver(function(muts){muts.forEach(function(m){var el=m.target;if(m.attributeName!=='hidden'||el.nodeType!==1||el.hidden||!flActed)return;var h=el.querySelector('h1,h2,h3');if(!h)return;if(!el.getBoundingClientRect().width)return;if(h.getAttribute('tabindex')===null)h.setAttribute('tabindex','-1');setTimeout(function(){try{h.focus()}catch(e){}},60);});}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}if(!reduce&&window.MutationObserver){new MutationObserver(function(muts){muts.forEach(function(m){var el=m.target;if(m.attributeName==='hidden'&&el.nodeType===1&&!el.hidden){el.classList.remove('fl-in');void el.offsetWidth;el.classList.add('fl-in');}});}).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});}window.flCountUp=function(el,to,suffix){if(!el)return;suffix=suffix||'';to=Math.round(to);if(reduce||document.hidden||!window.requestAnimationFrame){el.textContent=to+suffix;return;}var start=performance.now(),dur=650,done=false;function tick(now){if(done)return;var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);el.textContent=Math.round(to*p)+suffix;if(p<1)requestAnimationFrame(tick);else done=true;}requestAnimationFrame(tick);setTimeout(function(){if(!done){done=true;el.textContent=to+suffix;}},dur+120);};})();</script></body></html>
