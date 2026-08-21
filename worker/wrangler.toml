@@ -12,7 +12,7 @@ compatibility_flags = ["nodejs_compat"]
 # rolling roster: a handful of learners refreshed per tick, so the
 # dashboard reads a warm store and the API never sees a burst.
 [triggers]
-crons = ["10 3 * * *", "*/5 * * * *"]
+crons = ["10 3 * * *", "0 * * * *"]
 
 [vars]
 # Kill switch — set to "true" to make the coach return its authored

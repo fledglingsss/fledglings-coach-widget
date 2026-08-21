@@ -3,9 +3,9 @@
  *
  * Instead of bursting one API call per learner whenever a dashboard
  * cache goes cold (which brushes the platform's ~30 req/10s limit as
- * cohorts grow), a 5-minute cron refreshes the STALEST few learners
- * each tick. A full cycle covers every account roughly every half
- * hour, activity webhooks mark a learner stale so they refresh within
+ * cohorts grow), an hourly cron refreshes the STALEST few learners
+ * each tick. A full cycle covers every account in about six hours,
+ * activity webhooks mark a learner stale so they refresh within
  * one tick of doing something, and dashboard loads read the snapshot
  * with zero learner-list bursts. */
 
@@ -29,9 +29,12 @@ export interface RosterSnapshot {
 
 export const ROSTER_KV_KEY = "roster:v1";
 
-/** Learners refreshed per 5-minute tick, sized so one full cycle
- * takes about half an hour whatever the roster grows to (6 ticks per
- * cycle), with a small floor so tiny schools still converge quickly. */
+/** Learners refreshed per hourly tick, sized so one full cycle takes
+ * about six hours whatever the roster grows to (6 ticks per cycle),
+ * with a small floor so tiny schools still converge quickly. The slice
+ * is what keeps the burst at ~11 requests against the platform's
+ * ~30 req/10s limit, so it stays tied to roster size, not to the
+ * clock. */
 export function perTickFor(rosterSize: number): number {
   return Math.max(3, Math.ceil(rosterSize / 6));
 }

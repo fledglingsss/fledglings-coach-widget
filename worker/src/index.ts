@@ -4282,7 +4282,7 @@ async function scheduled(
   if (!lwConfigured(env)) return;
   /* The 5-minute tick only rolls the roster; the heavyweight jobs
    * stay nightly. */
-  if (event.cron === "*/5 * * * *") {
+  if (event.cron === "0 * * * *") {
     ctx.waitUntil(
       rosterTick(env).catch((err) =>
         console.error("[coach] roster tick failed:", String(err)),
