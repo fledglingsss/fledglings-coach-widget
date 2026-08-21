@@ -10,7 +10,7 @@
  * evaluation (wpm, fillers) + camera presence, blended 80/10/10. */
 
 import { appShell, esc } from "./pages";
-import { INTERVIEW_ROLES, ROLE_LABELS, questionSet } from "./lib/interview";
+import { INTERVIEW_ROLES, ROLE_LABELS, questionSet, ANSWER_RUBRIC } from "./lib/interview";
 
 export function renderInterviewPage(): string {
   const roleButtons = INTERVIEW_ROLES.map(
@@ -775,6 +775,17 @@ prStat('Eye contact',PR_ICONS.eye,m.eyeContact||null,noKp);}
 else{$('pr-card').hidden=true;}
 /* Per-question: Hiration-style assessment (left) + guidance (right) */
 var out='';r.answers.forEach(function(a,i){var c=band(a.score);
+/* the marking scheme, from the same constant the prompt was built
+ * from — a learner sees what the score judged and what the band above
+ * asks for */
+var FL_IV_RUBRIC=${JSON.stringify(ANSWER_RUBRIC)};
+function ivLadder(score){var rb=FL_IV_RUBRIC;var here=null;
+for(var bi=0;bi<rb.bands.length;bi++){if(score>=rb.bands[bi].min){here=rb.bands[bi];break}}
+var rows=rb.bands.slice().reverse().map(function(b){var on=here&&b.min===here.min;
+return "<div class='rb-row"+(on?" on":"")+"'><span class='rb-band' style='"+(on?"background:"+band(score)+";color:#fff":"")+"'>"+esc2(b.label)+"</span>"+
+"<span class='rb-means'>"+esc2(b.means)+"</span>"+(on?"<span class='rb-you'>you</span>":"")+"</div>"}).join('');
+return "<details class='rb'><summary><span>How this answer is marked</span></summary>"+
+"<p class='rb-m'>"+esc2(rb.measures)+"</p>"+rows+"</details>"}
 out+="<div class='card qrep' id='qrep-"+i+"'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
 "<span class='qc-q'>"+esc2(answers[i]?answers[i].question:'')+"</span>"+
 "<span class='qchip' style='background:"+c+"'>"+a.score+" · "+scoreLabel(a.score)+"</span></div>";
@@ -786,7 +797,7 @@ out+="<div class='qcols'>"+
 /* Blank when the praise didn't quote what they actually said — the
  * server drops it rather than showing words they never used. */
 (a.strength?"<div class='panel pgood'><b>What went well</b>"+esc2(a.strength)+"</div>":"")+
-"<div class='panel pbad'><b>What needs improvement</b>"+esc2(a.improve)+"</div></div>"+
+"<div class='panel pbad'><b>What needs improvement</b>"+esc2(a.improve)+"</div>"+ivLadder(a.score)+"</div>"+
 "<div class='qcol'><div class='qcol-t'>ANSWER GUIDANCE</div>"+
 (a.impress?"<div class='panel pinfo'><b>What would have impressed the interviewer</b>"+esc2(a.impress)+"</div>":"")+
 (a.sharper?"<div class='panel prefined'><b>Refined answer: putting it all together</b>"+esc2(a.sharper)+"</div>":"")+"</div>"+

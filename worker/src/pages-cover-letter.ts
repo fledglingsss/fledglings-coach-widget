@@ -128,6 +128,14 @@ export function renderCoverLetterPage(): string {
     "<p class='edit-hint no-print'>✏️ The letter is editable — click any paragraph and make it yours. " +
     "Everything in <span class='ph' style='padding:1px 6px'>orange brackets</span> needs your words before you send it.</p>" +
     "<div class='card no-print' id='pers-card'><h3>Make it yours before sending</h3><ul class='goods' id='pers-list'></ul></div>" +
+    /* No score is invented here — the tool drafts, it does not judge.
+     * These are the checks that ARE real: deterministic, re-run live
+     * as the learner edits, against what a first letter is expected
+     * to do. */
+    "<div class='card no-print' id='clchk-card'><h3>Send-ready checks <span class='badge' id='clchk-count'></span></h3>" +
+    "<div id='clchk-list' role='status'></div>" +
+    "<p class='kw-note' style='margin:10px 0 0'>One rule this tool never breaks: the letter only uses what you told it. " +
+    "Anything it could not know is a <mark class='ph'>[bracket]</mark> for you to fill — nothing is invented on your behalf.</p></div>" +
     "<div class='card no-print' id='tips-card'><h3>Tips from Fledge</h3><ul class='goods' id='tips-list'></ul></div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this draft helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
@@ -263,6 +271,26 @@ if(!confirm('Delete this letter?'))return;
 lettersSave(lettersAll().filter(function(x){return x.id!==b.dataset.dell}));renderLetterList();};});}
 renderLetterList();
 
+function clWordCount(){return ($('lp-body').innerText||'').trim().split(/\s+/).filter(Boolean).length}
+function clChecks(){
+var body=($('lp-body').innerText||'');var low=body.toLowerCase();
+var role=$('cl-role').value.trim().toLowerCase(),co=$('cl-company').value.trim().toLowerCase();
+var named=(role&&low.indexOf(role)>-1)||(co&&low.indexOf(co)>-1);
+var words=clWordCount();
+var lenOk=words>=120&&words<=350;
+var lenNote=words<120?words+' words — a first letter usually needs 120+ to land an example':
+words>350?words+' words — over ~350 stops getting read; trim to your strongest example':
+words+' words — right length for a skim-read';
+var ph=(body.match(/\[[^\]\n]{1,80}\]/g)||[]).length;
+var rows=[
+{ok:named,label:'Named for the job',note:named?'Mentions '+esc2((role&&low.indexOf(role)>-1)?$('cl-role').value.trim():$('cl-company').value.trim()):'Neither the role nor the company you gave appears — add one so it cannot read as sent-to-everyone'},
+{ok:lenOk,label:'Right length',note:lenNote},
+{ok:ph===0,label:'Placeholders filled',note:ph===0?'Nothing left to fill in':ph+' [bracket]'+(ph===1?'':'s')+' still to replace with your own detail'}];
+var done=rows.filter(function(r){return r.ok}).length;
+$('clchk-count').textContent=done+' of '+rows.length;
+$('clchk-list').innerHTML=rows.map(function(r){
+return "<div class='clchk"+(r.ok?' ok':'')+"'><span class='clchk-i'>"+(r.ok?'✓':'✎')+"</span>"+
+"<div><b>"+r.label+"</b><span class='clchk-n'>"+r.note+"</span></div></div>"}).join('');}
 function renderLetter(d,skipSave){
 var name=$('cl-name').value.trim()||'[Your name]';
 $('lp-name').textContent=name;$('lp-signname').textContent=name;
@@ -275,7 +303,9 @@ $('pers-card').hidden=d.personalise.length===0;
 $('pers-list').innerHTML=d.personalise.map(function(x){return "<li><span class='tick' style='color:#B93A22'>✎</span>"+markPh(x)+"</li>"}).join('');
 $('tips-card').hidden=d.tips.length===0;
 $('tips-list').innerHTML=d.tips.map(function(x){return "<li><span class='tick'>✓</span>"+esc2(x)+"</li>"}).join('');
+clChecks();
 if(!skipSave)saveLetter(d);}
+$('lp-body').addEventListener('input',function(){clChecks()});
 
 $('copybtn').addEventListener('click',function(){
 var parts=[$('lp-name').textContent,'',$('lp-date').textContent,'',$('lp-body').innerText.trim(),'',
@@ -346,6 +376,14 @@ const COVER_LETTER_CSS = `
 .li-main span{font-size:12px;color:#616A71;}
 .letteritem .btn{padding:8px 14px;min-height:36px;font-size:13px;}
 .ph{background:#FCEBD9;color:#9F5B13;border-radius:4px;padding:0 3px;font-weight:600;}
+.clchk{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:10px;font-size:13px;}
+.clchk+.clchk{margin-top:4px;}
+.clchk.ok{background:#F1F7F3;}
+.clchk-i{flex:none;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;background:#FCEBD9;color:#9F5B13;}
+.clchk.ok .clchk-i{background:#1A7649;color:#fff;}
+.clchk b{display:block;font-size:13px;color:var(--navy);}
+.clchk-n{font-size:12.5px;color:var(--mut);line-height:1.5;}
 .edit-hint{font-size:13px;color:var(--blue);margin:-6px 0 16px;line-height:1.5;}
 .goods{list-style:none;line-height:1.65;font-size:14px;}
 .goods li{margin-bottom:8px;}
