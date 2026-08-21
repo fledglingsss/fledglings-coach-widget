@@ -84,7 +84,8 @@ export function renderHubPage(): string {
     "<span class='bb-chip'>Google's XYZ CV formula</span>" +
     "<span class='bb-chip'>Civil Service STAR interviews</span>" +
     "<span class='bb-chip'>LinkedIn's own profile guidance</span>" +
-    "<span class='bb-chip'>Real ATS screening rules</span></div>" +
+    "<span class='bb-chip'>Real ATS screening rules</span>" +
+    "<span class='bb-chip'>UCAS &amp; National Careers Service advice</span></div>" +
     /* guided next step */
     "<div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div>" +
     "<div id='next-reason'></div>" +

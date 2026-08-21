@@ -129,7 +129,7 @@ export const CV_RUBRIC: RubricDimension[] = [
     measures:
       "Whether this reads as written for the role you are aiming at, rather than sent to everyone.",
     source:
-      "The most-cited rejection reason on employers’ own hiring pages: an application that could have been sent anywhere usually goes nowhere.",
+      "UCAS and the National Careers Service publish the same first rule: tailor every application to the role — the one that could have been sent anywhere is the one that gets rejected.",
     bands: [
       {
         min: 70,
