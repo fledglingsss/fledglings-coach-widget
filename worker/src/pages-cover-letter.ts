@@ -231,7 +231,7 @@ applyClTpl(b.dataset.tpl);
 var det=b.closest('details');if(det)det.open=false;});});
 
 /* highlight [brackets] */
-function markPh(text){return esc2(text).replace(/\[([^\]\n]{1,80})\]/g,"<mark class='ph'>[$1]</mark>");}
+function markPh(text){return esc2(text).replace(/\[([^\]\n]{1,200})\]/g,"<mark class='ph'>[$1]</mark>");}
 
 $('cl-go').addEventListener('click',function(){
 var jd=$('cl-jd').value.trim();
@@ -281,7 +281,7 @@ var lenOk=words>=120&&words<=350;
 var lenNote=words<120?words+' words — a first letter usually needs 120+ to land an example':
 words>350?words+' words — over ~350 stops getting read; trim to your strongest example':
 words+' words — right length for a skim-read';
-var ph=(body.match(/\[[^\]\n]{1,80}\]/g)||[]).length;
+var ph=(body.match(/\[[^\]\n]{1,200}\]/g)||[]).length;
 var rows=[
 {ok:named,label:'Named for the job',note:named?'Mentions '+esc2((role&&low.indexOf(role)>-1)?$('cl-role').value.trim():$('cl-company').value.trim()):'Neither the role nor the company you gave appears — add one so it cannot read as sent-to-everyone'},
 {ok:lenOk,label:'Right length',note:lenNote},

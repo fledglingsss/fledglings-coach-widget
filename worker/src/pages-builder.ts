@@ -2,7 +2,8 @@
  * straight onto the styled CV (contenteditable fields on the rendered
  * document — Enter adds a bullet, Backspace on an empty one removes
  * it, every line carries a live quality marker), with the Resume
- * Review sidebar alongside. Six structurally distinct, ATS-safe
+ * Review sidebar alongside. Six structurally distinct designs —
+ * five single-column ATS-safe, one two-column labelled in-person —
  * designs chosen from a gallery of real rendered miniatures.
  * Everything lives in the learner's browser (localStorage, autosave);
  * the worker only sees the sections when a check runs, and forgets
@@ -146,13 +147,17 @@ if(!confirm('Delete this CV? This cannot be undone.'))return;
 cvs=cvs.filter(function(c){return c.id!==b.dataset.del});saveAll(cvs);renderList();}});}
 
 /* ---------------- designs ---------------- */
+/* ats:true = single-column flow that parses cleanly through screening
+ * software. The Sidebar is the one true two-column layout, which many
+ * parsers read out of order — the gallery says so instead of letting a
+ * learner find out from a silent rejection. */
 var DESIGNS=[
-{id:'classic',label:'Classic',blurb:'Timeless serif with a centred masthead and double rules — suits every application.'},
-{id:'executive',label:'Executive',blurb:'Full navy masthead with your contact inside it, tabbed headings. Lands with authority.'},
-{id:'modern',label:'Modern',blurb:'Big name, orange energy bar, skills as chips — contemporary without shouting.'},
-{id:'accent',label:'Monogram',blurb:'Your initials in a warm medallion beside a spine of colour. Personal and polished.'},
-{id:'sidebar',label:'Sidebar',blurb:'A navy panel carries contact, skills and achievements beside your story.'},
-{id:'compact',label:'Ledger',blurb:'Headings in their own label column, hairline rules — dense, calm, one page.'}];
+{id:'classic',label:'Classic',ats:true,blurb:'Timeless serif with a centred masthead and double rules — suits every application.'},
+{id:'executive',label:'Executive',ats:true,blurb:'Full navy masthead with your contact inside it, tabbed headings. Lands with authority.'},
+{id:'modern',label:'Modern',ats:true,blurb:'Big name, orange energy bar, skills as chips — contemporary without shouting.'},
+{id:'accent',label:'Monogram',ats:true,blurb:'Your initials in a warm medallion beside a spine of colour. Personal and polished.'},
+{id:'sidebar',label:'Sidebar',ats:false,blurb:'A navy panel carries contact, skills and achievements beside your story.'},
+{id:'compact',label:'Ledger',ats:true,blurb:'Headings in their own label column, hairline rules — dense, calm, one page.'}];
 var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.com',town:'Leeds',linkedin:'',
 summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
 experience:[{role:'Volunteer',org:'Community Shop',location:'Leeds',from:'Jun 2025',to:'Present',
@@ -165,7 +170,8 @@ function renderDesignGallery(){var h='';
 DESIGNS.forEach(function(d){
 h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
 "<div class='cvpaper "+d.id+"'>"+docHtml(DESIGN_SAMPLE,false)+"</div></div></div>"+
-"<b>"+esc2(d.label)+"</b><p>"+esc2(d.blurb)+"</p>"+
+"<b>"+esc2(d.label)+(d.ats?" <span class='atsbadge ok'>ATS-safe</span>":" <span class='atsbadge'>in-person</span>")+"</b><p>"+esc2(d.blurb)+
+(d.ats?'':" <span class='atsnote'>Two columns look great handed over in person — for online applications pick an ATS-safe design, because screening software reads columns out of order.</span>")+"</p>"+
 "<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
 $('designgrid').innerHTML=h;
 document.querySelectorAll('.dselect').forEach(function(b){b.onclick=function(){
@@ -481,6 +487,10 @@ const BUILDER_CSS = `
 .dthumb .mk{display:none!important;}
 .dthumb::after{content:'';position:absolute;inset:0;}
 .dselect{padding:10px 16px;min-height:40px;font-size:13.5px;}
+.atsbadge{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;
+  padding:3px 8px;background:#FCEBD9;color:#9A5812;vertical-align:2px;}
+.atsbadge.ok{background:#E8F2EC;color:#1A7649;}
+.atsnote{display:block;margin-top:5px;font-size:11.5px;color:#9A5812;line-height:1.5;}
 /* ---- builder layout: review rail + document ---- */
 .docgrid{display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start;}
 @media(max-width:980px){.docgrid{grid-template-columns:1fr;}}
