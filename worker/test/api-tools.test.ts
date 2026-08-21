@@ -100,7 +100,7 @@ describe("POST /api/review", () => {
     const res = await app.request(post("/api/review", body), undefined, makeEnv());
     const out = await res.json();
     expect(out.kind).toBe("review");
-    expect(out.report.overall).toBe(64);
+    expect(out.report.overall).toBe(62); // weighted sum of the four dimensions
     expect(out.report.dimensions.length).toBe(4);
     expect(out.report.verdict).toContain("Solid start");
     expect(generateMock).toHaveBeenCalledTimes(1);
@@ -312,6 +312,6 @@ describe("verbatim enforcement on /api/review", () => {
     ).json();
     expect(out.kind).toBe("review");
     expect(out.report.strengths).toEqual([]);
-    expect(out.report.overall).toBe(64); // the rest of the review survives
+    expect(out.report.overall).toBe(61); // the rest of the review survives
   });
 });

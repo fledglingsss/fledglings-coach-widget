@@ -82,15 +82,49 @@ describe("parseReviewReport", () => {
     next_step: "Rewrite your first bullet to lead with a result.",
   };
 
-  it("parses a valid report and clamps scores", () => {
-    const r = parseReviewReport(JSON.stringify({ ...good, overall: 162.7 }));
+  it("parses a valid report", () => {
+    const r = parseReviewReport(JSON.stringify(good));
     expect(r).not.toBeNull();
     expect(r).not.toBe("crisis");
     if (r && r !== "crisis") {
-      expect(r.overall).toBe(100);
       expect(r.dimensions.length).toBe(4);
       expect(r.verdict).toBe("Solid start, needs sharpening");
     }
+  });
+
+  /* The headline is the weighted sum of the dimensions. Before this it
+   * was a separate number the model chose, so the ring could disagree
+   * with the bars underneath it — and a learner would be right not to
+   * trust either. */
+  it("derives the headline from the dimensions and their weights", () => {
+    const r = parseReviewReport(JSON.stringify(good), "cv");
+    if (!r || r === "crisis") throw new Error("expected a report");
+    /* Impact 55 x35 + ATS 60 x25 + Clarity 70 x20 + Tailoring 62 x20 */
+    expect(r.overall).toBe(Math.round((55 * 35 + 60 * 25 + 70 * 20 + 62 * 20) / 100));
+  });
+
+  it("ignores an overall the model made up, however extreme", () => {
+    const honest = parseReviewReport(JSON.stringify(good), "cv");
+    for (const invented of [162.7, 0, 99]) {
+      const r = parseReviewReport(JSON.stringify({ ...good, overall: invented }), "cv");
+      if (!r || r === "crisis" || !honest || honest === "crisis") throw new Error("expected reports");
+      expect(r.overall).toBe(honest.overall);
+    }
+  });
+
+  it("scores a LinkedIn review against the LinkedIn weights", () => {
+    const li = {
+      ...good,
+      dimensions: [
+        { label: "Headline", score: 40, tip: "Say where you are heading." },
+        { label: "About section", score: 60, tip: "Add a real example." },
+        { label: "Experience detail", score: 80, tip: "Good detail." },
+        { label: "Starter habits", score: 20, tip: "Add your skills." },
+      ],
+    };
+    const r = parseReviewReport(JSON.stringify(li), "linkedin");
+    if (!r || r === "crisis") throw new Error("expected a report");
+    expect(r.overall).toBe(Math.round((40 * 30 + 60 * 25 + 80 * 25 + 20 * 20) / 100));
   });
 
   it("tolerates prose around the JSON", () => {

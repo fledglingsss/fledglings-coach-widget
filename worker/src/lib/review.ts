@@ -1,3 +1,11 @@
+import {
+  CV_RUBRIC,
+  LINKEDIN_RUBRIC,
+  dimensionBrief,
+  overallFrom,
+  rubricFor,
+} from "./rubric";
+
 /* #3 — AI employability tools: ATS CV review and LinkedIn profile
  * review. Pure validation + prompt construction; the model call is
  * made by the route using the same hardened pipeline as the coach.
@@ -75,12 +83,12 @@ The "rewrite" field teaches the XYZ/STAR pattern — accomplished X, measured by
 const CV_SYSTEM = `You are Fledge, the Fledglings employability coach, reviewing a young person's (16-24) CV. Fledglings is a UK life-skills platform.
 ${SHARED_RULES}
 ${JSON_SHAPE}
-The four dimensions for a CV, in order: "Impact" (do their bullet points show what they achieved, not just what they did), "Clarity & structure" (layout order, sections, length, scannability), "ATS readiness" (standard headings, plain formatting, keywords — if a job advert was provided, judge against its exact wording where the learner genuinely has that experience), "Tailoring" (how well it speaks to the target role; if no target was given, judge how clearly it signals any direction).`;
+${dimensionBrief(CV_RUBRIC)}`;
 
 const LINKEDIN_SYSTEM = `You are Fledge, the Fledglings employability coach, reviewing a young person's (16-24) LinkedIn profile (usually a "Save to PDF" export: headline, about, experience, education, skills). Fledglings is a UK life-skills platform.
 ${SHARED_RULES}
 ${JSON_SHAPE}
-The four dimensions for a LinkedIn profile, in order: "Headline" (does it say what they are and where they're heading, not just a job title), "About section" (voice, specifics, a reason to connect), "Experience detail" (entries that show what they actually did), "Starter habits" (skills listed, activity, connections — judged fairly for someone starting out).`;
+${dimensionBrief(LINKEDIN_RUBRIC)}`;
 
 export function reviewSystemPrompt(kind: ReviewKind): string {
   return kind === "cv" ? CV_SYSTEM : LINKEDIN_SYSTEM;
@@ -115,7 +123,10 @@ function asString(v: unknown, max = 600): string | null {
 
 /** Parse the model's JSON report. Returns the report, "crisis" if the
  * model flagged a disclosure, or null when the output is unusable. */
-export function parseReviewReport(raw: string): ReviewReport | "crisis" | null {
+export function parseReviewReport(
+  raw: string,
+  kind: ReviewKind = "cv",
+): ReviewReport | "crisis" | null {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start === -1 || end <= start) return null;
@@ -129,10 +140,10 @@ export function parseReviewReport(raw: string): ReviewReport | "crisis" | null {
   const p = parsed as Record<string, unknown>;
   if (p.crisis === true) return "crisis";
 
-  const overall = clampScore(p.overall);
+  const statedOverall = clampScore(p.overall);
   const verdict = asString(p.verdict, 80);
   const next = asString(p.next_step);
-  if (overall === null || !verdict || !next) return null;
+  if (!verdict || !next) return null;
 
   const dimensions = (Array.isArray(p.dimensions) ? p.dimensions : [])
     .map((d) => {
@@ -191,6 +202,14 @@ export function parseReviewReport(raw: string): ReviewReport | "crisis" | null {
       .filter((s): s is string => s !== null)
       .slice(0, 15);
   const keywords = { matched: kwList(kw.matched), missing: kwList(kw.missing) };
+
+  /* The headline is the weighted sum of the dimensions, not a number
+   * the model picked separately. It used to be possible for the ring
+   * to read 65 over bars averaging 40 — the learner would be right not
+   * to trust either. Falls back to the stated score only if none of
+   * the returned labels match the rubric. */
+  const overall = overallFrom(dimensions, rubricFor(kind)) ?? statedOverall;
+  if (overall === null) return null;
 
   return {
     overall,

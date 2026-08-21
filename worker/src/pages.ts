@@ -4,6 +4,7 @@
  * caller via esc() before reaching a template. */
 
 import { WORDMARK_DARK, WORDMARK_LIGHT } from "./brand";
+import { CV_RUBRIC, LINKEDIN_RUBRIC } from "./lib/rubric";
 import type { PassportData } from "./lib/passport";
 
 export function esc(t: string): string {
@@ -552,7 +553,9 @@ export function renderToolsPage(): string {
     "<div class='rpanel' id='rp-overview'>" +
     "<div class='glance' id='r-glance'></div>" +
     "<div class='ov2'>" +
-    "<div class='card'><h3>Your score in context</h3><div id='r-scale'></div><div id='r-compare' class='r-compare'></div></div>" +
+    "<div class='card'><h3>Your score in context</h3><div id='r-scale'></div><div id='r-compare' class='r-compare'></div>" +
+    "<p class='kw-note' style='margin:8px 0 0'>Your score is the weighted total of the four dimensions — " +
+    "open <b>How this is marked</b> under any of them on the Feedback tab to see what it is judged on.</p></div>" +
     "<div class='card'><h3>The shape of your CV</h3><div id='r-radar'></div>" +
     "<p class='kw-note' style='margin:8px 0 0'>Solid shape = this CV. The dashed line is the interview-ready mark (70) — " +
     "every corner pushed past it is genuinely competitive.</p></div>" +
@@ -636,6 +639,10 @@ export function renderToolsPage(): string {
     "if anything in your document worries Fledge about your wellbeing, it will point you to real support instead of reviewing.</p>" +
     "</main>" +
     "<script>(function(){var kind='cv';var lastName='';" +
+    /* The marking scheme, shipped to the page from the same module the
+     * review was scored against — a learner can see what each score is
+     * judged on and what the next band up actually asks for. */
+    "var FL_RUBRIC=" + JSON.stringify({ cv: CV_RUBRIC, linkedin: LINKEDIN_RUBRIC }) + ";" +
     "function stored(st,k){return flStoredId(st,k)}" +
     "var lid=stored(localStorage,'fl_coach_learner_v1'),sid=stored(sessionStorage,'fl_coach_session_v1');" +
     "var $=function(id){return document.getElementById(id)};" +
@@ -858,12 +865,24 @@ export function renderToolsPage(): string {
     "function flNextHref(p){var t=flToken();return p+(t?'?t='+encodeURIComponent(t):'');}" +
     "if(kind==='cv'){$('r-journey').href=flNextHref('/linkedin');$('r-journey-t').textContent='LinkedIn review — get your profile to match this CV';}" +
     "else{$('r-journey').href=flNextHref('/interview');$('r-journey-t').textContent='Mock interview — practise saying it out loud';}" +
-    "var dims='';r.dimensions.forEach(function(d,i){var c=band(d.score);" +
+    "function rubricOf(label){var rr=(FL_RUBRIC[kind]||[]);" +
+    "for(var i=0;i<rr.length;i++){if(rr[i].label.toLowerCase()===String(label).trim().toLowerCase())return rr[i]}return null}" +
+    /* the three bands as a ladder: where they are, and what the rung
+     * above actually asks for — the answer to 'so what do I do?' */
+    "function ladder(rb,score){if(!rb)return '';" +
+    "var here=null;for(var i=0;i<rb.bands.length;i++){if(score>=rb.bands[i].min){here=rb.bands[i];break}}" +
+    "var rows=rb.bands.slice().reverse().map(function(b){var on=here&&b.min===here.min;" +
+    "return \"<div class='rb-row\"+(on?' on':'')+\"'><span class='rb-band' style='\"+(on?'background:'+band(score)+';color:#fff':'')+\"'>\"+esc(b.label)+\"</span>\"+" +
+    "\"<span class='rb-means'>\"+esc(b.means)+\"</span>\"+(on?\"<span class='rb-you'>you</span>\":'')+\"</div>\"}).join('');" +
+    "return \"<details class='rb'><summary><span>How this is marked</span>\"+" +
+    "\"<i class='rb-w'>worth \"+rb.weight+\" of 100</i></summary>\"+" +
+    "\"<p class='rb-m'>\"+esc(rb.measures)+\"</p>\"+rows+\"</details>\"}" +
+    "var dims='';r.dimensions.forEach(function(d,i){var c=band(d.score);var rb=rubricOf(d.label);" +
     "var word=d.score>=70?'Strong':d.score>=50?'Getting there':'Needs work';" +
     "dims+=\"<div class='dim'><div class='dim-r'><span>\"+esc(d.label)+\" <i class='dim-word' style='background:\"+c+\"'>\"+word+\"</i></span><b style='color:\"+c+\"'>\"+d.score+\"</b></div>\"+" +
     "\"<div class='dim-tk'><i style='width:\"+d.score+\"%;background:\"+c+\";animation-delay:.\"+i+\"s'></i></div>\"+" +
     "\"<div class='dim-tip'>\"+esc(d.tip)+\"</div>\"+" +
-    "(d.evidence?\"<div class='dim-ev'>“\"+esc(d.evidence)+\"”</div>\":'')+\"</div>\"});" +
+    "(d.evidence?\"<div class='dim-ev'>“\"+esc(d.evidence)+\"”</div>\":'')+ladder(rb,d.score)+\"</div>\"});" +
     "$('r-dims').innerHTML=dims;" +
     /* at-a-glance: one tap-card per section, so the overview answers
      * 'where do I look first?' without any scrolling */
@@ -1020,6 +1039,28 @@ export function renderToolsPage(): string {
 .dim-tk i{display:block;height:100%;border-radius:999px;transform-origin:left;animation:flFill .9s both;}
 @keyframes flFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .dim-tip{font-size:13px;color:var(--blue);margin-top:5px;line-height:1.5;}
+/* The marking scheme, folded away by default so the score stays the
+ * headline, one tap from the answer to "what would move this up?".
+ * The learner's own band is filled in; the rung above it is the ask. */
+.rb{margin-top:9px;border-top:1px dashed var(--line,#E3DDDA);padding-top:8px;}
+.rb summary{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  cursor:pointer;font-size:12px;font-weight:700;color:var(--blue);list-style:none;
+  min-height:28px;padding:3px 0;}
+.rb summary::-webkit-details-marker{display:none;}
+.rb summary::after{content:'▾';font-size:11px;color:var(--mut);transition:transform .18s;}
+.rb[open] summary::after{transform:rotate(180deg);}
+.rb-w{font-style:normal;font-size:11px;font-weight:700;color:var(--mut);
+  background:var(--canvas,#F4F1EF);border-radius:999px;padding:3px 9px;white-space:nowrap;}
+.rb-m{font-size:12.5px;color:var(--ink);line-height:1.55;margin:9px 0 8px;}
+.rb-row{display:grid;grid-template-columns:96px 1fr auto;gap:9px;align-items:start;
+  padding:7px 8px;border-radius:9px;font-size:12px;}
+.rb-row+.rb-row{margin-top:3px;}
+.rb-row.on{background:var(--canvas,#F4F1EF);}
+.rb-band{font-weight:800;font-size:11px;text-align:center;border-radius:999px;padding:3px 8px;
+  background:var(--off,#ECE7E6);color:var(--mut);white-space:nowrap;}
+.rb-means{color:var(--ink);line-height:1.5;}
+.rb-you{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);}
+@media(max-width:560px){.rb-row{grid-template-columns:84px 1fr;}.rb-you{display:none;}}
 .goods{list-style:none;line-height:1.65;font-size:14.5px;}
 .goods li{margin-bottom:10px;padding-left:2px;}
 .goods .tick{color:var(--ok);font-weight:700;margin-right:8px;}

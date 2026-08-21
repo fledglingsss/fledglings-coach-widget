@@ -1013,7 +1013,7 @@ app.post("/api/review", async (c) => {
       reviewUserMessage(validated) + checksNote,
       REVIEW_MAX_TOKENS,
     );
-    const report = parseReviewReport(raw);
+    const report = parseReviewReport(raw, validated.kind);
     if (report === "crisis") {
       console.log("[coach] kind=review outcome=model_crisis");
       return c.json({ reply: CRISIS_REPLY, kind: "crisis" });
