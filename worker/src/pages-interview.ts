@@ -785,7 +785,8 @@ var rows=rb.bands.slice().reverse().map(function(b){var on=here&&b.min===here.mi
 return "<div class='rb-row"+(on?" on":"")+"'><span class='rb-band' style='"+(on?"background:"+band(score)+";color:#fff":"")+"'>"+esc2(b.label)+"</span>"+
 "<span class='rb-means'>"+esc2(b.means)+"</span>"+(on?"<span class='rb-you'>you</span>":"")+"</div>"}).join('');
 return "<details class='rb'><summary><span>How this answer is marked</span></summary>"+
-"<p class='rb-m'>"+esc2(rb.measures)+"</p>"+rows+"</details>"}
+"<p class='rb-m'>"+esc2(rb.measures)+"</p>"+
+(rb.source?"<p class='rb-src'>"+esc2(rb.source)+"</p>":"")+rows+"</details>"}
 out+="<div class='card qrep' id='qrep-"+i+"'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
 "<span class='qc-q'>"+esc2(answers[i]?answers[i].question:'')+"</span>"+
 "<span class='qchip' style='background:"+c+"'>"+a.score+" · "+scoreLabel(a.score)+"</span></div>";

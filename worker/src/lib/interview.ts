@@ -157,6 +157,8 @@ export function validateInterviewRequest(
 export const ANSWER_RUBRIC = {
   measures:
     "Scored like a fair first-job interviewer: structure (situation, what you did, how it turned out), specificity (real details, names and numbers), and attitude. Vocabulary and accent are not marked.",
+  source:
+    "That situation-action-result shape is the STAR structure the Civil Service and the NHS tell their own candidates to use — and structured scoring like this is how employers such as Google run interviews.",
   bands: [
     {
       min: 70,

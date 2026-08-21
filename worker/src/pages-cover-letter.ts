@@ -134,6 +134,8 @@ export function renderCoverLetterPage(): string {
      * to do. */
     "<div class='card no-print' id='clchk-card'><h3>Send-ready checks <span class='badge' id='clchk-count'></span></h3>" +
     "<div id='clchk-list' role='status'></div>" +
+    "<p class='rb-src'>The length band and name-the-employer rule come straight from National Careers Service " +
+    "cover-letter guidance — the same advice careers advisers give, checked for you live.</p>" +
     "<p class='kw-note' style='margin:10px 0 0'>One rule this tool never breaks: the letter only uses what you told it. " +
     "Anything it could not know is a <mark class='ph'>[bracket]</mark> for you to fill — nothing is invented on your behalf.</p></div>" +
     "<div class='card no-print' id='tips-card'><h3>Tips from Fledge</h3><ul class='goods' id='tips-list'></ul></div>" +

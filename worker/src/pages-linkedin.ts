@@ -229,7 +229,9 @@ export function renderLinkedInPage(): string {
     /* Same marking scheme the score came from, so a learner can see
      * what each section is judged on and what the band above asks for. */
     "var FL_LI_RUBRIC=" + JSON.stringify(
-      Object.fromEntries(LINKEDIN_SECTIONS.map((d) => [d.id, { measures: d.measures, bands: d.bands }])),
+      Object.fromEntries(
+        LINKEDIN_SECTIONS.map((d) => [d.id, { measures: d.measures, source: d.source, bands: d.bands }]),
+      ),
     ) + ";" +
     "function liLadder(id,pct){var rb=FL_LI_RUBRIC[id];if(!rb)return '';" +
     "var here=null;for(var i=0;i<rb.bands.length;i++){if(pct>=rb.bands[i].min){here=rb.bands[i];break}}" +
@@ -237,7 +239,8 @@ export function renderLinkedInPage(): string {
     "return \"<div class='rb-row\"+(on?' on':'')+\"'><span class='rb-band' style='\"+(on?'background:'+band(pct)+';color:#fff':'')+\"'>\"+esc2(b.label)+\"</span>\"+" +
     "\"<span class='rb-means'>\"+esc2(b.means)+\"</span>\"+(on?\"<span class='rb-you'>you</span>\":'')+\"</div>\"}).join('');" +
     "return \"<details class='rb'><summary><span>How this section is marked</span></summary>\"+" +
-    "\"<p class='rb-m'>\"+esc2(rb.measures)+\"</p>\"+rows+\"</details>\"}" +
+    "\"<p class='rb-m'>\"+esc2(rb.measures)+\"</p>\"+" +
+    "(rb.source?\"<p class='rb-src'>\"+esc2(rb.source)+\"</p>\":'')+rows+\"</details>\"}" +
     "var panels='';r.sections.forEach(function(s){" +
     "var pct=s.weight?Math.round(s.score*100/s.weight):0;var c=band(pct);" +
     "var chip=$('chip-score-'+s.id);if(chip){chip.textContent=s.score+'/'+s.weight;chip.style.color=c;}" +

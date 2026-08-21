@@ -402,6 +402,9 @@ textarea,input[type=text],input[type=email],input[type=password],input[type=sear
 .rb-band{font-weight:800;font-size:11px;text-align:center;border-radius:999px;padding:3px 8px;
   background:var(--off,#ECE7E6);color:var(--mut);white-space:nowrap;}
 .rb-means{color:var(--ink);line-height:1.5;}
+/* provenance: the published hiring practice a standard comes from */
+.rb-src{font-size:12px;color:#13507F;background:#F0F5FA;border-left:3px solid #13507F;
+  border-radius:0 8px 8px 0;padding:7px 10px;margin:0 0 9px;line-height:1.5;font-weight:600;}
 .rb-you{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);}
 @media(max-width:560px){.rb-row{grid-template-columns:84px 1fr;}.rb-you{display:none;}}
 `;
@@ -628,6 +631,8 @@ export function renderToolsPage(): string {
     "<div class='card fb-slide' data-fbl='📐 Method' id='r-method'><h3>📐 The method behind strong bullets</h3>" +
     "<p class='kw-note'>Recruiters trust lines that prove something. Two frameworks do the proving — use XYZ for " +
     "CV bullets, STAR when you talk about the same story in an interview.</p>" +
+    "<p class='rb-src'>These are not our inventions: XYZ is Google's own published CV formula, and STAR is the " +
+    "structure the Civil Service and the NHS tell their candidates to answer with. Learn them once, use them everywhere.</p>" +
     "<div class='xyz'>" +
     "<div class='xyz-seg x'><b>Accomplished [X]</b><span>the achievement</span><i>“Served 200+ customers per shift”</i></div>" +
     "<span class='xyz-arrow'>→</span>" +
@@ -901,7 +906,8 @@ export function renderToolsPage(): string {
     "\"<span class='rb-means'>\"+esc(b.means)+\"</span>\"+(on?\"<span class='rb-you'>you</span>\":'')+\"</div>\"}).join('');" +
     "return \"<details class='rb'><summary><span>How this is marked</span>\"+" +
     "\"<i class='rb-w'>worth \"+rb.weight+\" of 100</i></summary>\"+" +
-    "\"<p class='rb-m'>\"+esc(rb.measures)+\"</p>\"+rows+\"</details>\"}" +
+    "\"<p class='rb-m'>\"+esc(rb.measures)+\"</p>\"+" +
+    "(rb.source?\"<p class='rb-src'>\"+esc(rb.source)+\"</p>\":'')+rows+\"</details>\"}" +
     "var dims='';r.dimensions.forEach(function(d,i){var c=band(d.score);var rb=rubricOf(d.label);" +
     "var word=d.score>=70?'Strong':d.score>=50?'Getting there':'Needs work';" +
     "dims+=\"<div class='dim'><div class='dim-r'><span>\"+esc(d.label)+\" <i class='dim-word' style='background:\"+c+\"'>\"+word+\"</i></span><b style='color:\"+c+\"'>\"+d.score+\"</b></div>\"+" +

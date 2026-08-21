@@ -15,6 +15,9 @@ export interface LinkedInSectionDef {
   weight: number;
   /** What this section is judged on, in the learner's terms. */
   measures: string;
+  /** Published real-world practice this standard comes from, where one
+   * exists — shown to the learner, never an invented endorsement. */
+  source?: string;
   /** Highest band first; min is a percentage of the section's weight,
    * so the ladder reads the same whether a section is worth 5 or 25. */
   bands: Array<{ min: number; label: string; means: string }>;
@@ -39,6 +42,7 @@ export const LINKEDIN_SECTIONS: LinkedInSectionDef[] = [
     label: "Profile URL",
     weight: 5,
     measures: "Whether your profile link is tidy enough to put on a CV or an email signature.",
+    source: "LinkedIn's own guidance: claim your custom URL — it is the version they tell members to share.",
     bands: [
       { min: 70, label: "Strong", means: "A custom link — linkedin.com/in/your-name — with no random numbers on the end." },
       { min: 50, label: "Getting there", means: "A working link, but still carrying the digits LinkedIn generated for you." },
@@ -50,6 +54,7 @@ export const LINKEDIN_SECTIONS: LinkedInSectionDef[] = [
     label: "Headline",
     weight: 10,
     measures: "The line under your name — the only thing most people read before deciding to click.",
+    source: "LinkedIn's published profile tips: the headline is your search result, not your job title.",
     bands: [
       { min: 70, label: "Strong", means: "Says what you do and where you are heading, in your own words." },
       { min: 50, label: "Getting there", means: "States your current role or course, but nothing about your direction." },
@@ -72,6 +77,7 @@ export const LINKEDIN_SECTIONS: LinkedInSectionDef[] = [
     label: "About",
     weight: 20,
     measures: "Your few paragraphs to sound like a person worth talking to, with specifics rather than adjectives.",
+    source: "Straight from LinkedIn's profile guidance — specifics and voice over adjectives.",
     bands: [
       { min: 70, label: "Strong", means: "Written in your voice, names real things you have done, and ends with a reason to get in touch." },
       { min: 50, label: "Getting there", means: "Something is there, but it leans on words like “hardworking” instead of examples." },
@@ -105,6 +111,7 @@ export const LINKEDIN_SECTIONS: LinkedInSectionDef[] = [
     label: "Skills",
     weight: 15,
     measures: "The keywords recruiters search on — LinkedIn matches candidates on these before reading a word.",
+    source: "LinkedIn publishes this itself: skills listed means appearing in far more recruiter searches.",
     bands: [
       { min: 70, label: "Strong", means: "A solid list covering the skills your target roles ask for." },
       { min: 50, label: "Getting there", means: "A few added, but not enough to show up in most searches." },

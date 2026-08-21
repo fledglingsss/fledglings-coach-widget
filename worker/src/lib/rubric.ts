@@ -27,6 +27,9 @@ export interface RubricDimension {
   weight: number;
   /** One line: what this dimension is judging. */
   measures: string;
+  /** Where this standard comes from in the real hiring world — a
+   * published, checkable practice, never an invented endorsement. */
+  source: string;
   /** Highest band first. */
   bands: RubricBand[];
 }
@@ -42,6 +45,8 @@ export const CV_RUBRIC: RubricDimension[] = [
     weight: 35,
     measures:
       "Whether your lines prove what changed because you were there — not just what you were told to do.",
+    source:
+      "This is the “accomplished X, measured by Y, by doing Z” formula from Google’s own published CV guidance — you are marked the way Google tells its candidates to write.",
     bands: [
       {
         min: 70,
@@ -69,6 +74,8 @@ export const CV_RUBRIC: RubricDimension[] = [
     weight: 25,
     measures:
       "Whether screening software can read it: standard headings, plain formatting, and the words the advert actually uses.",
+    source:
+      "Employers’ own application guidance and the National Careers Service say the same thing: single column, standard headings, the advert’s wording where it is true of you.",
     bands: [
       {
         min: 70,
@@ -94,6 +101,8 @@ export const CV_RUBRIC: RubricDimension[] = [
     label: "Clarity & structure",
     weight: 20,
     measures: "Whether a recruiter skimming for six seconds finds the important things first.",
+    source:
+      "Recruiter eye-tracking studies put the first skim at 6–8 seconds — this dimension marks what that first skim actually finds.",
     bands: [
       {
         min: 70,
@@ -119,6 +128,8 @@ export const CV_RUBRIC: RubricDimension[] = [
     weight: 20,
     measures:
       "Whether this reads as written for the role you are aiming at, rather than sent to everyone.",
+    source:
+      "The most-cited rejection reason on employers’ own hiring pages: an application that could have been sent anywhere usually goes nowhere.",
     bands: [
       {
         min: 70,
@@ -147,6 +158,8 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     weight: 30,
     measures:
       "The one line under your name — whether it says what you are and where you are heading.",
+    source:
+      "LinkedIn’s own profile guidance: your headline is your search result, not your job title.",
     bands: [
       {
         min: 70,
@@ -171,6 +184,8 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     label: "About section",
     weight: 25,
     measures: "Whether it sounds like a person worth talking to, with specifics rather than adjectives.",
+    source:
+      "Straight from LinkedIn’s published profile tips — real examples and your own voice, not a list of adjectives.",
     bands: [
       {
         min: 70,
@@ -191,6 +206,8 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     label: "Experience detail",
     weight: 25,
     measures: "Whether each entry shows what you actually did, not just where you were.",
+    source:
+      "The same standard as your CV — recruiters search LinkedIn by the words in your entries, so a bare job title is invisible.",
     bands: [
       {
         min: 70,
@@ -211,6 +228,8 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     weight: 20,
     measures:
       "The things that make a new profile look alive — skills, a photo, some activity. Judged fairly for someone starting out.",
+    source:
+      "LinkedIn publishes this itself: profiles with skills listed and a photo show up in far more recruiter searches.",
     bands: [
       {
         min: 70,

@@ -77,6 +77,14 @@ export function renderHubPage(): string {
     "<a class='btn' id='learn-btn' href='#' target='_top'>Continue →</a></div>" +
     /* tool cards */
     `<div class='hubgrid'>${cards}</div>` +
+    /* Every claim here is a published, checkable practice — the point
+     * is that a 17-year-old in Leeds is marked against the same
+     * standards as a Google applicant, and should know it. */
+    "<div class='backedby no-print'><span class='bb-lead'>⚡ Marked the way the real world marks</span>" +
+    "<span class='bb-chip'>Google's XYZ CV formula</span>" +
+    "<span class='bb-chip'>Civil Service STAR interviews</span>" +
+    "<span class='bb-chip'>LinkedIn's own profile guidance</span>" +
+    "<span class='bb-chip'>Real ATS screening rules</span></div>" +
     /* guided next step */
     "<div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div>" +
     "<div id='next-reason'></div>" +
@@ -346,6 +354,12 @@ const HUB_CSS = `
 .jstep.now.done .jicon{background:var(--navy);border-color:var(--navy);color:#fff;}
 .jline{flex:1;min-width:34px;border-top:2px dashed #C9D0DB;margin:24px 8px 0;}
 .hubgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px;}
+.backedby{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:2px 0 20px;
+  background:linear-gradient(120deg,#05253C,#13507F);border-radius:14px;padding:12px 16px;}
+.bb-lead{font-size:13px;font-weight:800;color:#fff;margin-right:4px;}
+.bb-chip{font-size:12px;font-weight:700;color:#E8EEF4;background:rgba(255,255,255,.14);
+  border-radius:999px;padding:5px 12px;white-space:nowrap;}
+@media(max-width:560px){.backedby{padding:11px 13px;}.bb-chip{white-space:normal;}}
 @media(max-width:1080px){.hubgrid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.hubgrid{grid-template-columns:1fr;}}
 .tcard{background:#fff;border-radius:16px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(14,36,56,.04);
