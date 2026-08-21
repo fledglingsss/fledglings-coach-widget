@@ -226,13 +226,25 @@ export function renderLinkedInPage(): string {
     /* overview bars jump into the sections tab at that section */
     "document.querySelectorAll('.secbar').forEach(function(row,idx){row.onclick=function(){" +
     "rpGo('sections');secShow(idx);};});" +
+    /* Same marking scheme the score came from, so a learner can see
+     * what each section is judged on and what the band above asks for. */
+    "var FL_LI_RUBRIC=" + JSON.stringify(
+      Object.fromEntries(LINKEDIN_SECTIONS.map((d) => [d.id, { measures: d.measures, bands: d.bands }])),
+    ) + ";" +
+    "function liLadder(id,pct){var rb=FL_LI_RUBRIC[id];if(!rb)return '';" +
+    "var here=null;for(var i=0;i<rb.bands.length;i++){if(pct>=rb.bands[i].min){here=rb.bands[i];break}}" +
+    "var rows=rb.bands.slice().reverse().map(function(b){var on=here&&b.min===here.min;" +
+    "return \"<div class='rb-row\"+(on?' on':'')+\"'><span class='rb-band' style='\"+(on?'background:'+band(pct)+';color:#fff':'')+\"'>\"+esc2(b.label)+\"</span>\"+" +
+    "\"<span class='rb-means'>\"+esc2(b.means)+\"</span>\"+(on?\"<span class='rb-you'>you</span>\":'')+\"</div>\"}).join('');" +
+    "return \"<details class='rb'><summary><span>How this section is marked</span></summary>\"+" +
+    "\"<p class='rb-m'>\"+esc2(rb.measures)+\"</p>\"+rows+\"</details>\"}" +
     "var panels='';r.sections.forEach(function(s){" +
     "var pct=s.weight?Math.round(s.score*100/s.weight):0;var c=band(pct);" +
     "var chip=$('chip-score-'+s.id);if(chip){chip.textContent=s.score+'/'+s.weight;chip.style.color=c;}" +
     "var bar=$('chip-bar-'+s.id);if(bar){bar.style.background=c;}" +
     "panels+=\"<div class='card secpanel' id='sec-\"+s.id+\"'>\"+" +
     "\"<div class='sec-head'><h3>\"+esc2(s.label)+\" review</h3>\"+" +
-    "\"<span class='sec-score' style='color:\"+c+\"'>\"+s.score+\"<i>/\"+s.weight+'</i></span></div>';" +
+    "\"<span class='sec-score' style='color:\"+c+\"'>\"+s.score+\"<i>/\"+s.weight+'</i></span></div>'+liLadder(s.id,pct);" +
     "if(s.right.length){panels+=\"<div class='sec-h ok'>Things you got right</div><ul class='goods'>\"+" +
     "s.right.map(function(x){return \"<li><span class='tick'>✓</span>\"+esc2(x)+'</li>'}).join('')+'</ul>';}" +
     "if(s.improve.length){panels+=\"<div class='sec-h miss'>What to improve</div>\";" +

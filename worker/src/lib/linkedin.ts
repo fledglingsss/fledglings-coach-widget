@@ -13,6 +13,11 @@ export interface LinkedInSectionDef {
   id: LinkedInSectionId;
   label: string;
   weight: number;
+  /** What this section is judged on, in the learner's terms. */
+  measures: string;
+  /** Highest band first; min is a percentage of the section's weight,
+   * so the ladder reads the same whether a section is worth 5 or 25. */
+  bands: Array<{ min: number; label: string; means: string }>;
 }
 
 export type LinkedInSectionId =
@@ -29,14 +34,94 @@ export type LinkedInSectionId =
  * About 20 / Experience 20+ / Education 10 / Skills 15) and sum to 100
  * so the overall doubles as the hub's /100 LinkedIn score. */
 export const LINKEDIN_SECTIONS: LinkedInSectionDef[] = [
-  { id: "url", label: "Profile URL", weight: 5 },
-  { id: "headline", label: "Headline", weight: 10 },
-  { id: "location", label: "Location", weight: 5 },
-  { id: "about", label: "About", weight: 20 },
-  { id: "experience", label: "Experience", weight: 25 },
-  { id: "education", label: "Education", weight: 10 },
-  { id: "skills", label: "Skills", weight: 15 },
-  { id: "extras", label: "Certifications & extras", weight: 10 },
+  {
+    id: "url",
+    label: "Profile URL",
+    weight: 5,
+    measures: "Whether your profile link is tidy enough to put on a CV or an email signature.",
+    bands: [
+      { min: 70, label: "Strong", means: "A custom link — linkedin.com/in/your-name — with no random numbers on the end." },
+      { min: 50, label: "Getting there", means: "A working link, but still carrying the digits LinkedIn generated for you." },
+      { min: 0, label: "Needs work", means: "No profile URL found, so there is nothing to paste onto an application." },
+    ],
+  },
+  {
+    id: "headline",
+    label: "Headline",
+    weight: 10,
+    measures: "The line under your name — the only thing most people read before deciding to click.",
+    bands: [
+      { min: 70, label: "Strong", means: "Says what you do and where you are heading, in your own words." },
+      { min: 50, label: "Getting there", means: "States your current role or course, but nothing about your direction." },
+      { min: 0, label: "Needs work", means: "Empty, or the job title LinkedIn filled in automatically." },
+    ],
+  },
+  {
+    id: "location",
+    label: "Location",
+    weight: 5,
+    measures: "Whether recruiters filtering by area can actually find you.",
+    bands: [
+      { min: 70, label: "Strong", means: "A real town or city set, so you appear in local searches." },
+      { min: 50, label: "Getting there", means: "Something set, but vague enough to miss local filters." },
+      { min: 0, label: "Needs work", means: "No location, so you are invisible to anyone searching by area." },
+    ],
+  },
+  {
+    id: "about",
+    label: "About",
+    weight: 20,
+    measures: "Your few paragraphs to sound like a person worth talking to, with specifics rather than adjectives.",
+    bands: [
+      { min: 70, label: "Strong", means: "Written in your voice, names real things you have done, and ends with a reason to get in touch." },
+      { min: 50, label: "Getting there", means: "Something is there, but it leans on words like “hardworking” instead of examples." },
+      { min: 0, label: "Needs work", means: "Blank, or a line or two that would fit anybody." },
+    ],
+  },
+  {
+    id: "experience",
+    label: "Experience",
+    weight: 25,
+    measures: "Whether each role shows what you actually did and what came of it — the heaviest section, as it is on a CV.",
+    bands: [
+      { min: 70, label: "Strong", means: "Every role has a few lines showing the work and a result, not just a title and dates." },
+      { min: 50, label: "Getting there", means: "Roles are listed with some detail, but at least one is a title and dates only." },
+      { min: 0, label: "Needs work", means: "Job titles with nothing underneath them, or no experience listed at all." },
+    ],
+  },
+  {
+    id: "education",
+    label: "Education",
+    weight: 10,
+    measures: "Whether your studies are listed clearly enough to be believed and searched.",
+    bands: [
+      { min: 70, label: "Strong", means: "Course, place and dates all present, with anything notable added." },
+      { min: 50, label: "Getting there", means: "Listed, but missing dates or the qualification level." },
+      { min: 0, label: "Needs work", means: "Nothing here, so a recruiter cannot tell what you have studied." },
+    ],
+  },
+  {
+    id: "skills",
+    label: "Skills",
+    weight: 15,
+    measures: "The keywords recruiters search on — LinkedIn matches candidates on these before reading a word.",
+    bands: [
+      { min: 70, label: "Strong", means: "A solid list covering the skills your target roles ask for." },
+      { min: 50, label: "Getting there", means: "A few added, but not enough to show up in most searches." },
+      { min: 0, label: "Needs work", means: "No skills listed, so you are missing from the searches that matter." },
+    ],
+  },
+  {
+    id: "extras",
+    label: "Certifications & extras",
+    weight: 10,
+    measures: "Certificates, volunteering, projects — the things that show effort beyond the day job.",
+    bands: [
+      { min: 70, label: "Strong", means: "Certificates or projects listed, giving evidence beyond your job history." },
+      { min: 50, label: "Getting there", means: "One or two things added, with room for more." },
+      { min: 0, label: "Needs work", means: "Nothing here yet — this is the quickest section to improve." },
+    ],
+  },
 ];
 
 export const LINKEDIN_WEIGHT_TOTAL = LINKEDIN_SECTIONS.reduce(

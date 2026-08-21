@@ -379,6 +379,31 @@ const APP_OVERRIDES = `
 @media (max-width:768px){
 textarea,input[type=text],input[type=email],input[type=password],input[type=search],select{font-size:16px;}
 }
+/* The rubric ladder is shared: the CV review and the LinkedIn
+ * Optimizer both show a learner what they were marked against, so
+ * it lives in the shell rather than in one page's own CSS. */
+/* The marking scheme, folded away by default so the score stays the
+ * headline, one tap from the answer to "what would move this up?".
+ * The learner's own band is filled in; the rung above it is the ask. */
+.rb{margin-top:9px;border-top:1px dashed var(--line,#E3DDDA);padding-top:8px;}
+.rb summary{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  cursor:pointer;font-size:12px;font-weight:700;color:var(--blue);list-style:none;
+  min-height:28px;padding:3px 0;}
+.rb summary::-webkit-details-marker{display:none;}
+.rb summary::after{content:'▾';font-size:11px;color:var(--mut);transition:transform .18s;}
+.rb[open] summary::after{transform:rotate(180deg);}
+.rb-w{font-style:normal;font-size:11px;font-weight:700;color:var(--mut);
+  background:var(--canvas,#F4F1EF);border-radius:999px;padding:3px 9px;white-space:nowrap;}
+.rb-m{font-size:12.5px;color:var(--ink);line-height:1.55;margin:9px 0 8px;}
+.rb-row{display:grid;grid-template-columns:96px 1fr auto;gap:9px;align-items:start;
+  padding:7px 8px;border-radius:9px;font-size:12px;}
+.rb-row+.rb-row{margin-top:3px;}
+.rb-row.on{background:var(--canvas,#F4F1EF);}
+.rb-band{font-weight:800;font-size:11px;text-align:center;border-radius:999px;padding:3px 8px;
+  background:var(--off,#ECE7E6);color:var(--mut);white-space:nowrap;}
+.rb-means{color:var(--ink);line-height:1.5;}
+.rb-you{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);}
+@media(max-width:560px){.rb-row{grid-template-columns:84px 1fr;}.rb-you{display:none;}}
 `;
 
 export function appShell(opts: {
@@ -1039,28 +1064,6 @@ export function renderToolsPage(): string {
 .dim-tk i{display:block;height:100%;border-radius:999px;transform-origin:left;animation:flFill .9s both;}
 @keyframes flFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .dim-tip{font-size:13px;color:var(--blue);margin-top:5px;line-height:1.5;}
-/* The marking scheme, folded away by default so the score stays the
- * headline, one tap from the answer to "what would move this up?".
- * The learner's own band is filled in; the rung above it is the ask. */
-.rb{margin-top:9px;border-top:1px dashed var(--line,#E3DDDA);padding-top:8px;}
-.rb summary{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  cursor:pointer;font-size:12px;font-weight:700;color:var(--blue);list-style:none;
-  min-height:28px;padding:3px 0;}
-.rb summary::-webkit-details-marker{display:none;}
-.rb summary::after{content:'▾';font-size:11px;color:var(--mut);transition:transform .18s;}
-.rb[open] summary::after{transform:rotate(180deg);}
-.rb-w{font-style:normal;font-size:11px;font-weight:700;color:var(--mut);
-  background:var(--canvas,#F4F1EF);border-radius:999px;padding:3px 9px;white-space:nowrap;}
-.rb-m{font-size:12.5px;color:var(--ink);line-height:1.55;margin:9px 0 8px;}
-.rb-row{display:grid;grid-template-columns:96px 1fr auto;gap:9px;align-items:start;
-  padding:7px 8px;border-radius:9px;font-size:12px;}
-.rb-row+.rb-row{margin-top:3px;}
-.rb-row.on{background:var(--canvas,#F4F1EF);}
-.rb-band{font-weight:800;font-size:11px;text-align:center;border-radius:999px;padding:3px 8px;
-  background:var(--off,#ECE7E6);color:var(--mut);white-space:nowrap;}
-.rb-means{color:var(--ink);line-height:1.5;}
-.rb-you{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);}
-@media(max-width:560px){.rb-row{grid-template-columns:84px 1fr;}.rb-you{display:none;}}
 .goods{list-style:none;line-height:1.65;font-size:14.5px;}
 .goods li{margin-bottom:10px;padding-left:2px;}
 .goods .tick{color:var(--ok);font-weight:700;margin-right:8px;}
