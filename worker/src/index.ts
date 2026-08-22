@@ -417,6 +417,26 @@ app.use(
   }),
 );
 
+/* Hardening headers on every response. Each one closes a specific
+ * door: nosniff stops a browser re-interpreting a JSON or CSV body as
+ * script; the referrer policy keeps signed passport and inspector
+ * links out of third-party server logs when a learner clicks away;
+ * the permissions policy allows camera and microphone only for the
+ * interview's own origin and switches off capabilities nothing here
+ * uses; HSTS pins the browser to HTTPS for a year so a downgrade on
+ * hostile wifi cannot strip the signed identity token. Frame-ancestors
+ * stays on the tool pages' own CSP because only those are embedded. */
+app.use("*", async (c, next) => {
+  await next();
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header(
+    "Permissions-Policy",
+    "camera=(self), microphone=(self), clipboard-write=(self), geolocation=(), payment=(), usb=(), interest-cohort=()",
+  );
+  c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+});
+
 /* Origin allowlist on the API — runs after CORS so preflights still
  * get a CORS response. */
 app.use("/api/*", async (c, next) => {

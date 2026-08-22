@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.62.0",
-    "hono": "^4.6.0"
+    "hono": "^4.13.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260714.1",
