@@ -417,6 +417,66 @@ app.use(
   }),
 );
 
+/* The full content policy, built from what the pages actually load:
+ *
+ *   cdnjs        pdf.js, so a learner's CV PDF is read on their own
+ *                device instead of being uploaded anywhere
+ *   jsdelivr     MediaPipe vision bundle + its wasm, for the on-device
+ *                face checks during a mock interview
+ *   googleapis   the BlazeFace model file those checks need
+ *   gstatic      the brand font files
+ *   blob:        MediaRecorder video the learner plays back, and the
+ *                pdf.js worker — both created and consumed locally
+ *
+ * 'unsafe-inline' is unavoidable for now: every script and style on
+ * these pages is inline, so removing it would take a nonce on ~25
+ * blocks. It still buys the thing that matters most — a strict
+ * connect-src, so injected script cannot post a learner's CV, answers
+ * or reflections to an attacker's server.
+ *
+ * Enforced, after every legitimate load was verified against it in a
+ * real browser: pdf.js on /tools, the MediaPipe module and the model
+ * file and blob video playback on /interview, the CV editor on
+ * /builder, and all six dashboard views — zero violations on any of
+ * them, while a test POST to an outside host was correctly caught by
+ * connect-src. getUserMedia itself is governed by Permissions-Policy,
+ * not by this, so the camera prompt is unaffected.
+ *
+ * report-uri stays on in enforcing mode: if a browser or an embed
+ * context trips something these tests could not reach, it says so. */
+const CSP_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "worker-src 'self' blob:",
+  "connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com",
+  "report-uri /csp-report",
+].join("; ");
+
+/* Violations land here so the allowlist is corrected from evidence
+ * rather than guesswork. Unauthenticated by necessity — browsers post
+ * these without credentials — so it only ever logs, never stores. */
+app.post("/csp-report", async (c) => {
+  try {
+    const body = (await c.req.json()) as Record<string, unknown>;
+    const r = (body["csp-report"] ?? body) as Record<string, unknown>;
+    console.log(
+      `[coach] kind=csp-violation directive=${String(r["violated-directive"] ?? r["effectiveDirective"] ?? "?")} ` +
+        `blocked=${String(r["blocked-uri"] ?? r["blockedURL"] ?? "?").slice(0, 120)} ` +
+        `doc=${String(r["document-uri"] ?? r["documentURL"] ?? "?").slice(0, 120)}`,
+    );
+  } catch {
+    console.log("[coach] kind=csp-violation unparsable");
+  }
+  return c.body(null, 204);
+});
+
 /* Hardening headers on every response. Each one closes a specific
  * door: nosniff stops a browser re-interpreting a JSON or CSV body as
  * script; the referrer policy keeps signed passport and inspector
@@ -435,6 +495,21 @@ app.use("*", async (c, next) => {
     "camera=(self), microphone=(self), clipboard-write=(self), geolocation=(), payment=(), usb=(), interest-cohort=()",
   );
   c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  /* MERGE, never replace. The tool pages set their own CSP carrying
+   * frame-ancestors — the allowlist of sites permitted to embed them.
+   * Setting this header outright dropped that directive and quietly
+   * made every page framable by anyone, which is how a clickjacking
+   * overlay steals a click. Their directive is carried through, and
+   * anything not embedded (the dashboard, the ops console) falls back
+   * to 'self'. */
+  const existing = c.res.headers.get("Content-Security-Policy") ?? "";
+  const frameAncestors =
+    existing
+      .split(";")
+      .map((d) => d.trim())
+      .find((d) => d.toLowerCase().startsWith("frame-ancestors")) ??
+    "frame-ancestors 'self'";
+  c.header("Content-Security-Policy", `${CSP_POLICY}; ${frameAncestors}`);
 });
 
 /* Origin allowlist on the API — runs after CORS so preflights still
