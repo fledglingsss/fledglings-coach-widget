@@ -282,8 +282,10 @@ td.barcell .mbar{margin:0;}
 .opsrow input{flex:1 1 180px;border:1.5px solid var(--hair);border-radius:10px;padding:11px 13px;
   font-size:13.5px;font-family:inherit;color:var(--navy);}
 .opsrow input:focus{outline:none;border-color:var(--blue);}
-.coderow{display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;
+.coderow{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:14px;align-items:center;
   padding:9px 0;border-bottom:1px solid #F1ECE8;font-size:13px;}
+.opsflag{font-size:10px;font-weight:800;letter-spacing:.06em;background:#B93A22;color:#fff;
+  border-radius:999px;padding:3px 9px;}
 .coderow:last-child{border-bottom:none;}
 .coderow code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--off);
   border-radius:7px;padding:4px 9px;overflow-wrap:anywhere;}
@@ -502,6 +504,9 @@ export function renderOpsPage(label: string): string {
     "var rows='';(s.codes||[]).forEach(function(cd){" +
     "rows+=\"<div class='coderow'><code>\"+esc(cd.code)+'</code><span>'+esc(cd.label)+'</span>'+" +
     "'<span class=muted>'+(cd.tag?esc(cd.tag):'whole school')+'</span>'+" +
+    /* Ops rights are the keys to the platform — never let one hide in
+     * a list that otherwise looks like ordinary provider access. */
+    "(cd.ops?\"<span class='opsflag'>OPS</span>\":'')+" +
     "\"<button class='abtn2' data-c='\"+esc(cd.code)+\"'>Revoke</button></div>\"});" +
     "$('codes-list').innerHTML=rows||'<p class=muted>No codes minted yet.</p>';" +
     "document.querySelectorAll('#codes-list .abtn2').forEach(function(b){b.onclick=function(){" +

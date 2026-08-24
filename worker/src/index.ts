@@ -1651,6 +1651,12 @@ const PORTAL_SESSION_SECS = 8 * 3600;
 interface PortalAccess {
   label: string;
   tag: string | null;
+  /** Ops console rights — minting and revoking provider codes, the
+   * coach kill switch, cache busting. Granted explicitly per code,
+   * never inferred from scope: a whole-school provider needs to see
+   * every learner, which is not the same as holding the kill switch
+   * for the entire platform. */
+  ops: boolean;
 }
 
 async function portalCodeMeta(c: { env: Env }, code: string): Promise<PortalAccess | null> {
@@ -1658,11 +1664,18 @@ async function portalCodeMeta(c: { env: Env }, code: string): Promise<PortalAcce
   const raw = await c.env.RATE_LIMITS.get(`portal:code:${code}`);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as { label?: string; tag?: string };
-    return { label: parsed.label ?? "Provider", tag: parsed.tag?.trim() || null };
+    const parsed = JSON.parse(raw) as { label?: string; tag?: string; ops?: unknown };
+    return {
+      label: parsed.label ?? "Provider",
+      tag: parsed.tag?.trim() || null,
+      /* Strictly true, never truthy: a stray "false" or 0 in a hand-
+       * edited record must not hand over the kill switch. */
+      ops: parsed.ops === true,
+    };
   } catch {
-    /* Legacy plain-string codes: the value IS the label. */
-    return { label: raw.trim() || "Provider", tag: null };
+    /* Legacy plain-string codes: the value IS the label, and they
+     * carry no ops rights. */
+    return { label: raw.trim() || "Provider", tag: null, ops: false };
   }
 }
 
@@ -3750,7 +3763,7 @@ async function opsSession(c: {
   req: { header: (n: string) => string | undefined };
 }) {
   const access = await portalSession(c);
-  return access && access.tag === null ? access : null;
+  return access && access.ops ? access : null;
 }
 
 app.get("/ops", async (c) => {
@@ -3807,21 +3820,25 @@ app.get("/ops/roles", async (c) => {
 app.get("/ops/status", async (c) => {
   if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
   const kv = c.env.RATE_LIMITS;
-  const codes: Array<{ code: string; label: string; tag: string | null }> = [];
+  const codes: Array<{ code: string; label: string; tag: string | null; ops: boolean }> = [];
   try {
     const list = await kv.list({ prefix: "portal:code:" });
     for (const key of list.keys) {
       const raw = (await kv.get(key.name)) || "";
       let label = raw;
       let tag: string | null = null;
+      let ops = false;
       try {
-        const parsed = JSON.parse(raw) as { label?: string; tag?: string };
+        const parsed = JSON.parse(raw) as { label?: string; tag?: string; ops?: unknown };
         label = parsed.label ?? raw;
         tag = parsed.tag ?? null;
+        ops = parsed.ops === true;
       } catch {
         /* legacy plain-string code */
       }
-      codes.push({ code: key.name.slice("portal:code:".length), label, tag });
+      /* Surfaced so it is obvious which codes carry ops rights — a key
+       * you cannot see is a key you forget you handed out. */
+      codes.push({ code: key.name.slice("portal:code:".length), label, tag, ops });
     }
   } catch {
     /* list is best-effort */
@@ -3866,11 +3883,21 @@ app.post("/ops/action", async (c) => {
       const rand = crypto.getRandomValues(new Uint8Array(6));
       const hex = Array.from(rand, (b) => b.toString(16).padStart(2, "0")).join("");
       const code = `${(tag || label).toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10) || "provider"}-${hex}`;
+      /* Ops rights are opt-in and deliberate. A code minted for a
+       * provider — whole-school or not — gets none, so handing out a
+       * whole-school code can never hand over the kill switch. */
+      const grantOps = body.ops === true;
       await kv.put(
         `portal:code:${code}`,
-        JSON.stringify(tag ? { label, tag } : { label }),
+        JSON.stringify({
+          label,
+          ...(tag ? { tag } : {}),
+          ...(grantOps ? { ops: true } : {}),
+        }),
       );
-      console.log(`[coach] kind=ops op=mint_code label=${label} tag=${tag || "-"}`);
+      console.log(
+        `[coach] kind=ops op=mint_code label=${label} tag=${tag || "-"} ops=${grantOps}`,
+      );
       return c.json({ ok: true, code });
     }
     if (op === "revoke_code") {
