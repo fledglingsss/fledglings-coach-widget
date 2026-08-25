@@ -1278,8 +1278,25 @@ HARD RULES
 4. If a target role was provided, angle the wording toward it honestly.
 5. If anything suggests distress or risk, respond with exactly {"crisis":true} and nothing else.
 6. STRICT JSON only.
+WHAT GOOD LOOKS LIKE (from LinkedIn's own published profile guidance —
+these are their rules, not ours):
+- The HEADLINE is not a job title. LinkedIn says it carries the most
+  weight in their search, so it needs the words a recruiter would
+  actually type, plus where the person is heading. The working shape is
+  what you are | what you can do | where you are going, e.g.
+  "Customer service apprentice candidate | Retail and tills | Level 2
+  Business Admin, Leeds". For someone with no job yet, what they are
+  studying and what they are looking for beats an empty line.
+- The ABOUT section is first person, opens with the strongest real
+  thing rather than a wind-up, and carries the keywords of the roles
+  they want. LinkedIn's limit is 2,600 characters; aim far shorter —
+  three short paragraphs a person will actually read. No "hardworking
+  and passionate" opener: name a real thing they did instead.
+- SKILLS are what recruiters search on, so any rewrite should use the
+  plain words a job advert uses, never invented job-title jargon.
+
 Output exactly:
-{"headline": "<a ready-to-paste headline under 220 chars>", "about": "<a ready-to-paste About section, 3 short paragraphs, using only their real facts + [brackets]>", "experience_tip": "<their weakest experience entry rewritten as 2-3 bullet lines with [brackets] where numbers are missing>", "next": "<one sentence on what to do after pasting>"}`,
+{"headline": "<a ready-to-paste headline under 220 chars, in the shape above>", "about": "<a ready-to-paste About section, 3 short paragraphs, first person, opening on their strongest real fact, using only their real facts + [brackets]>", "experience_tip": "<their weakest experience entry rewritten as 2-3 bullet lines with [brackets] where numbers are missing>", "next": "<one sentence on what to do after pasting>"}`,
       linkedinUserMessage(validated, analyseLinkedInFacts(validated.text)),
       1600,
     );

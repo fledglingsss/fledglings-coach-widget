@@ -815,7 +815,14 @@ body:'Most first-job hiring runs in rounds: a short phone or video screen (are y
 moves:['Phone screen: stand up, smile, have your dates and travel plan ready','Face-to-face: three prepared stories beat twenty memorised answers','Trial shift: ask what good looks like, then visibly do it']},
 {id:'star',track:'fast',title:'The STAR shape',mins:4,
 body:'Almost every behavioural question wants the same shape: the Situation you were in, the Task in front of you, the Action YOU took, and the Result. Most people stop at action — the result is where the interviewer decides.',
-moves:['One sentence of situation — resist the backstory','Say "I", not "we" — your part is the answer','End with what changed: a number, a thank-you, a habit that stuck']},
+moves:['One sentence of situation — resist the backstory','Say "I", not "we" — your part is the answer','End with what changed: a number, a thank-you, a habit that stuck'],
+example:{q:'Tell me about a time you worked with other people to get something done.',
+weak:'We were really busy at Christmas and everyone worked hard, and we got through it as a team. It was stressful but we managed.',
+star:[['Situation','It was the Saturday before Christmas at the garden centre and the queue was out the door.'],
+['Task','I was on the till, and we had two people off sick.'],
+['Action','I asked the supervisor if we could split it — I stayed on the till, one person restocked the bags and cups, and one took card-only customers at the second till.'],
+['Result','We cleared the queue in about twenty minutes and never had to close a till. We used the same split every Saturday after that.']],
+why:'Same story. The first version tells them nothing about you — no "I", no result. The second is 40 seconds and every line is checkable.'}},
 {id:'prep',track:'fast',title:'Prepare like a pro',mins:4,
 body:'Preparation is mostly knowing three things cold: what the company actually does (their website, one recent thing about them), what the advert asks for (reread it the night before), and which three real stories of yours prove you fit it.',
 moves:['Reread the advert and underline the three things they repeat','Pick three stories from work, school or volunteering that map to them','Plan the journey and arrive ten minutes early — reliability is the first test']},
@@ -868,6 +875,12 @@ $('learn-reader').innerHTML="<div class='card reader'>"+
 "<p class='reader-body'>"+esc2(m.body)+"</p>"+
 "<div class='reader-h'>THE MOVES</div><ul class='reader-moves'>"+
 m.moves.map(function(v){return "<li><span class='tick'>✓</span>"+esc2(v)+"</li>"}).join('')+"</ul>"+
+(m.example?"<div class='reader-h'>THE SAME STORY, TOLD TWICE</div>"+
+"<p class='wex-q'>“"+esc2(m.example.q)+"”</p>"+
+"<div class='wex weak'><span class='wex-t'>Most people say</span><p>"+esc2(m.example.weak)+"</p></div>"+
+"<div class='wex good'><span class='wex-t'>In STAR shape</span>"+
+m.example.star.map(function(r){return "<p><b>"+esc2(r[0])+"</b> "+esc2(r[1])+"</p>"}).join('')+"</div>"+
+"<p class='wex-why'>"+esc2(m.example.why)+"</p>":'')+
 "<div class='btnrow' style='margin-top:16px'>"+
 "<button type='button' class='btn ghost' id='reader-back'>← All modules</button>"+
 (idx<LEARN.length-1?"<button type='button' class='btn' id='reader-next'>Next: "+esc2(LEARN[idx+1].title)+" →</button>":"")+
@@ -998,6 +1011,16 @@ const INTERVIEW_CSS = `
 .reader-top{display:flex;gap:14px;align-items:center;margin-bottom:12px;}
 .reader-body{font-size:14.5px;line-height:1.7;color:#3d4c59;max-width:60ch;}
 .reader-h{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--blue);margin:16px 0 8px;}
+.wex-q{font-size:14px;font-weight:700;color:var(--navy);margin:10px 0 10px;}
+.wex{border-radius:12px;padding:11px 13px;margin-bottom:9px;font-size:13.5px;line-height:1.6;}
+.wex-t{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;}
+.wex.weak{background:#FDF6F4;border:1px solid #F3C9C0;}
+.wex.weak .wex-t{color:#B93A22;}
+.wex.good{background:#F1F7F3;border:1px solid #CFE4D8;}
+.wex.good .wex-t{color:#1A7649;}
+.wex.good p{margin:0 0 5px;}
+.wex.good b{color:#1A7649;}
+.wex-why{font-size:12.5px;color:var(--mut);line-height:1.55;margin:0 0 4px;}
 .reader-moves{list-style:none;}
 .reader-moves li{display:flex;gap:10px;padding:8px 12px;background:#F7F4F2;border-radius:10px;margin-bottom:7px;
   font-size:13.5px;line-height:1.55;color:#3d4c59;}
