@@ -156,7 +156,7 @@ var DESIGNS=[
 {id:'executive',label:'Executive',ats:true,blurb:'Full navy masthead with your contact inside it, tabbed headings. Lands with authority.'},
 {id:'modern',label:'Modern',ats:true,blurb:'Big name, orange energy bar, skills as chips — contemporary without shouting.'},
 {id:'accent',label:'Monogram',ats:true,blurb:'Your initials in a warm medallion beside a spine of colour. Personal and polished.'},
-{id:'sidebar',label:'Sidebar',ats:false,blurb:'A navy panel carries contact, skills and achievements beside your story.'},
+{id:'sidebar',label:'Sidebar',ats:true,twoCol:true,blurb:'A navy panel carries contact, skills and achievements beside your story.'},
 {id:'compact',label:'Ledger',ats:true,blurb:'Headings in their own label column, hairline rules — dense, calm, one page.'}];
 var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.com',town:'Leeds',linkedin:'',
 summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
@@ -170,8 +170,8 @@ function renderDesignGallery(){var h='';
 DESIGNS.forEach(function(d){
 h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
 "<div class='cvpaper "+d.id+"'>"+docHtml(DESIGN_SAMPLE,false)+"</div></div></div>"+
-"<b>"+esc2(d.label)+(d.ats?" <span class='atsbadge ok'>ATS-safe</span>":" <span class='atsbadge'>in-person</span>")+"</b><p>"+esc2(d.blurb)+
-(d.ats?'':" <span class='atsnote'>Two columns look great handed over in person — for online applications pick an ATS-safe design, because screening software reads columns out of order.</span>")+"</p>"+
+"<b>"+esc2(d.label)+" <span class='atsbadge ok'>ATS-safe</span>"+"</b><p>"+esc2(d.blurb)+
+(d.twoCol?" <span class='atsnote'>Two columns on screen, one column when you download it — so a parser still reads your CV in the right order.</span>":'')+"</p>"+
 "<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
 $('designgrid').innerHTML=h;
 document.querySelectorAll('.dselect').forEach(function(b){b.onclick=function(){
@@ -323,6 +323,14 @@ if(E){h+="<div class='cp-sec sec-extras'><h4>Achievements</h4>"+
 ed('f:extras','cp-extraedit','One per line: awards, certificates, positions of responsibility',d.extras,'p')+"</div>";}
 else if(d.extras&&d.extras.length){h+="<div class='cp-sec sec-extras'><h4>Achievements</h4><ul>"+
 d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";}
+/* References. The National Careers Service lists it as a CV section
+ * and is explicit that you do not print someone else's contact
+ * details — you say they are available on request. Printed for every
+ * CV, not editable, because there is exactly one correct wording and
+ * a learner guessing at it is how a referee's phone number ends up on
+ * a document handed to strangers. */
+h+="<div class='cp-sec sec-refs'><h4>References</h4>"+
+"<p class='cp-refs'>References are available on request.</p></div>";
 h+="</div></div>";
 return h;}
 
@@ -561,6 +569,7 @@ const BUILDER_CSS = `
 .cp-contact{font-size:11.5px;color:#5c6b75;margin-top:3px;}
 .cp-contact b{font-weight:400;color:#B9AFAB;margin:0 5px;}
 .cp-sec{margin-bottom:14px;}
+.cp-refs{font-size:12.5px;margin:0;}
 .cp-sec h4{font-size:12px;letter-spacing:.09em;text-transform:uppercase;border-bottom:1.5px solid #1c2b36;
   padding-bottom:3px;margin-bottom:8px;}
 .cp-entry{margin-bottom:10px;position:relative;}
@@ -653,6 +662,17 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
   .wrap{padding:0;max-width:none;}
   .docgrid{display:block;}
   .cvpaper{box-shadow:none;border-radius:0;padding:8mm 6mm;min-height:0;}
+  /* The Sidebar design is two columns on screen and one on paper.
+   * Screening software reads a PDF's columns out of order, so the
+   * artefact that reaches an employer has to be a single flow — this
+   * is what makes every design in the gallery genuinely ATS-safe
+   * rather than one of them carrying a warning. Must stay inside this
+   * block, which is last in the sheet: an earlier @media print loses
+   * to the plain two-column rules that follow it. */
+  .cvpaper.sidebar .cp-cols{display:block!important;}
+  .cvpaper.sidebar .cp-side{width:auto!important;background:#fff!important;color:#1c2b36!important;padding:0 0 10px!important;}
+  .cvpaper.sidebar .cp-side h4{color:#1c2b36!important;border-bottom-color:#1c2b36!important;}
+  .cvpaper.sidebar .cp-main{padding:0!important;}
   .mk,.ctl,.addline{display:none!important;}
   [contenteditable]:empty{display:none;}
 }

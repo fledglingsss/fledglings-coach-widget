@@ -362,11 +362,11 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "Customer-focused [college student / school leaver] with [1 year] serving customers in a busy shop, aiming for [the role you want]. Known for staying calm at peak times and turning complaints into thank-yous.",
+        "[College student] with [one year] of weekend work on a busy shop floor — serving customers, working the till and keeping stock tidy. Looking for [the role you want], where I can carry on working with people face to face.",
       experience: [
         {
           role: "Sales Assistant",
-          org: `Highstreet Store ${EXAMPLE_MARKER}`,
+          org: `[Where you worked] ${EXAMPLE_MARKER}`,
           location: "Your town",
           from: "Jun 2025",
           to: "Present",
@@ -393,11 +393,11 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "Reliable [school leaver / college student] aiming for a warehouse operative role. Comfortable with physical, fast-paced work and following safety procedures exactly — [add one real proof, e.g. never missed a shift].",
+        "[School leaver] looking for a warehouse operative role. I have [six months] of picking and packing to timed targets, and I follow safety procedures properly — [add one real proof, e.g. never missed a shift in a year].",
       experience: [
         {
           role: "Picker / General Assistant",
-          org: `Local Depot ${EXAMPLE_MARKER}`,
+          org: `[Where you worked] ${EXAMPLE_MARKER}`,
           location: "Your town",
           from: "Mar 2025",
           to: "Present",
@@ -424,11 +424,11 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "Organised [college student] aiming for a business administration apprenticeship. Strong on accuracy and follow-through — [add one real proof, e.g. ran the sign-up sheet for a whole term].",
+        "[College student] studying [your course], looking for a business administration apprenticeship. I have done [two weeks] of office work experience — records, calls and filing — and I am happiest when a system is kept up to date.",
       experience: [
         {
           role: "Office Assistant (work experience)",
-          org: `Local Company ${EXAMPLE_MARKER}`,
+          org: `[Where you did your work experience] ${EXAMPLE_MARKER}`,
           location: "Your town",
           from: "Jul 2025",
           to: "Aug 2025",
@@ -455,11 +455,11 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "Energetic [school leaver] aiming for a hospitality role. Thrives in busy services and keeps standards up when it's slammed — [add one real proof, e.g. worked every Saturday for a year].",
+        "[School leaver] with [a year] of Saturdays in a café — front of house, drinks and clearing down. Looking for a hospitality role in a busy kitchen or dining room, and happy to start at the bottom and learn the section.",
       experience: [
         {
           role: "Front of House / Team Member",
-          org: `Riverside Café ${EXAMPLE_MARKER}`,
+          org: `[Where you worked] ${EXAMPLE_MARKER}`,
           location: "Your town",
           from: "Sep 2025",
           to: "Present",
@@ -486,11 +486,11 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "Patient and dependable [college student] aiming for a care assistant role. Experienced in supporting people who need extra time and attention — [add one real proof, e.g. helps care for a family member].",
+        "[College student] looking for a care assistant role. I volunteer [weekly] at a community centre supporting older visitors, and I have [helped care for a family member] — so I know the work is about time and patience, not speed.",
       experience: [
         {
           role: "Volunteer Befriender",
-          org: `Community Centre ${EXAMPLE_MARKER}`,
+          org: `[Where you volunteer] ${EXAMPLE_MARKER}`,
           location: "Your town",
           from: "Jan 2025",
           to: "Present",
@@ -517,11 +517,11 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "[Year 11 / college] student writing a first CV, aiming for [a part-time job / an apprenticeship in …]. No paid work yet — plenty of proof: [pick your best example from below].",
+        "[Year 11] student looking for [a part-time job / an apprenticeship in …]. I have not had a paid job yet, so this CV shows what I have actually done instead — [volunteering at the summer fair] and [captaining the football team].",
       experience: [
         {
           role: "Volunteer",
-          org: `School Summer Fair ${EXAMPLE_MARKER}`,
+          org: `[Your school or a local event] ${EXAMPLE_MARKER}`,
           location: "Your school",
           from: "Jul 2025",
           to: "Jul 2025",
@@ -532,7 +532,7 @@ export const CV_STARTERS: CvStarter[] = [
         },
         {
           role: "Team Captain",
-          org: `Local Football Club ${EXAMPLE_MARKER}`,
+          org: `[Your club or team] ${EXAMPLE_MARKER}`,
           location: "Your town",
           from: "Sep 2024",
           to: "Present",
