@@ -15,7 +15,6 @@ const ICONS: Record<string, string> = {
   cohorts: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='m12 4 10 4-10 4L2 8z'/><path d='M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5'/></svg>",
   analytics: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V10M10 20V4M16 20v-7M21 20H3'/></svg>",
   csv: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12m0 0 4-4m-4 4-4-4'/><path d='M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/></svg>",
-  hub: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14 5h5v5M19 5l-8 8'/><path d='M19 14v5H5V5h5'/></svg>",
   reflect: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.5-2.7A8 8 0 1 1 21 12z'/><path d='M9 10h6M9 13.5h4'/></svg>",
   shield: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z'/><path d='m9 12 2 2 4-4.5'/></svg>",
   career: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='7.5' width='18' height='12' rx='2.5'/><path d='M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5'/><path d='M3 12.5h18'/></svg>",
@@ -39,7 +38,6 @@ export function renderDashboardPage(): string {
     nav("evidence", "shield", "Evidence") +
     "<div class='dsec'>Administration</div>" +
     `<a class='dn' href='/dashboard/export.csv'>${ICONS.csv}<span>Download CSV</span></a>` +
-    `<a class='dn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub}<span>Student view</span></a>` +
     "<div class='dfoot'><span class='dscope' id='dscope'>…</span>" +
     "<a href='/portal/logout' class='dout'>Sign out</a></div>" +
     "</nav>" +
@@ -47,8 +45,12 @@ export function renderDashboardPage(): string {
     "<main class='dmain' id='dmain-content' tabindex='-1'>" +
     "<header class='dhead'><div><h1 id='dh-title'>Home</h1>" +
     "<p id='dh-sub'>Outcomes, progress and attention — at a glance</p></div>" +
-    "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span>" +
-    `<a class='dbtn' href='/hub' target='_blank' rel='noopener'>${ICONS.hub} View as Student</a></div></header>` +
+    "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span></div></header>" +
+
+    /* One cohort filter for the whole dashboard — pick a cohort once
+     * and every view follows, so splitting by tag is a single tap. */
+    "<div class='dbar gbar' id='g-bar' hidden><span class='dbarlabel'>Cohort</span>" +
+    "<div class='chips' id='g-chips'></div></div>" +
 
     /* ---------- login (shown on 401) ---------- */
     "<section class='dview' id='v-login' hidden><div class='dcard dlogin'>" +
@@ -88,7 +90,6 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-students' hidden>" +
     "<div class='dstats' id='s-stats'></div>" +
     "<div class='dbar'><input type='text' id='s-search' aria-label='Search students by name or email' placeholder='🔍 Search students…'>" +
-    "<div class='chips' id='s-chips'></div>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
     "<div class='dcard'><div class='dtablewrap'><table class='dtable' aria-label='Every student in your scope'>" +
     "<thead><tr><th scope='col'>Student</th><th scope='col'>Cohort</th><th scope='col'>Modules</th><th scope='col'>Study time</th><th scope='col'>Last active</th><th scope='col'>Status</th></tr></thead>" +
@@ -136,6 +137,7 @@ export function renderDashboardPage(): string {
     kpi("rf-post", "🏁", "Reflected after", "learners who answered a post-module reflection") +
     kpi("rf-raw", "💬", "Answers on record", "raw question-and-answer pairs") +
     "</div>" +
+    "<p class='dmut' id='rf-cohort-note' hidden style='margin:-4px 0 12px'></p>" +
     "<div class='chips' id='rf-deck-chips' style='margin-bottom:14px'></div>" +
     "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing — worrying answers first <span class='dtag' id='rf-flags-count'></span></h2>" +
     "<p class='rf-p'>Every answer is scanned against the same crisis patterns that guard the coach. Anything that matches appears here, first — read it yourself: this is a prompt to check in, not a verdict.</p>" +
@@ -163,7 +165,6 @@ export function renderDashboardPage(): string {
 
     /* ---------- analytics ---------- */
     "<section class='dview' id='v-analytics' hidden>" +
-    "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='a-chips'></div></div>" +
     "<div class='dcard'><div class='cardhead'><h2>Learning — every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
@@ -175,8 +176,7 @@ export function renderDashboardPage(): string {
 
     /* ---------- career tools: every readiness score lives here ---------- */
     "<section class='dview' id='v-career' hidden>" +
-    "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='c-chips'></div>" +
-    "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
+    "<div class='dbar'><a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
     /* Until anyone in scope has used a tool, this section is honestly a
      * COMING-SOON: one inviting card, no empty charts and zero KPIs. */
     "<div class='dcard csoon' id='c-soon' hidden>" +
@@ -185,7 +185,7 @@ export function renderDashboardPage(): string {
     "<p>Alongside their modules, every learner gets Fledge&#39;s career studio: honest CV reviews, a CV builder, " +
     "LinkedIn feedback, filmed interview practice and cover-letter drafting. None of your learners have tried them yet " +
     "— the moment one does, this section fills with adoption, score distributions and a per-student picture.</p>" +
-    "<p class='dmut'>Learners reach the tools any time from <b>fledglings.co</b> — or press <b>Student view</b> in the sidebar to try them yourself.</p>" +
+    "<p class='dmut'>Learners reach the tools any time from <b>fledglings.co</b>.</p>" +
     "</div>" +
     "<div id='c-full'>" +
     "<div class='kpigrid'>" +
@@ -258,7 +258,6 @@ function kpi(id: string, ico: string, label: string, sub: string): string {
 const DASH_JS = String.raw`(function(){
 var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-function b64u(s){try{return btoa(unescape(encodeURIComponent(s))).replace(/[+]/g,'-').replace(/[/]/g,'_').replace(/=+$/,'')}catch(e){return ''}}
 /* liveness: rise-in on view swaps + count-up numbers */
 var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 function countUp(el,to,suffix){suffix=suffix||'';to=Math.round(to);
@@ -279,6 +278,16 @@ evidence:['Evidence','Inspection-ready narrative and a shareable read-only snaps
 profile:['Learner profile','Their full record — modules, time, reflections, career tools']};
 var userActed=false;
 ['pointerdown','keydown'].forEach(function(t){addEventListener(t,function(){userActed=true},true)});
+/* The cohort bar follows the tutor across every data view — one pick,
+ * whole dashboard. It hides where a cohort split has no meaning. */
+var GBAR_VIEWS={home:1,students:1,reflections:1,analytics:1,career:1};
+function renderGlobalChips(){if(!DATA)return;chips($('g-chips'),refresh);}
+function refresh(){renderGlobalChips();
+if(view==='home')renderHome();
+if(view==='students')renderStudents();
+if(view==='reflections')loadReflections();
+if(view==='analytics')renderAnalytics();
+if(view==='career')renderCareer();}
 function go(v){view=v;
 document.querySelectorAll('.dn[data-view]').forEach(function(b){var on=b.dataset.view===v;
 b.classList.toggle('on',on);
@@ -287,6 +296,9 @@ document.querySelectorAll('.dview').forEach(function(s){s.hidden=true});
 var sec=$('v-'+v);sec.hidden=false;
 if(!reduce){sec.classList.remove('din');void sec.offsetWidth;sec.classList.add('din');}
 $('dh-title').textContent=TITLES[v][0];$('dh-sub').textContent=TITLES[v][1];
+$('g-bar').hidden=!GBAR_VIEWS[v]||!DATA;
+if(!$('g-bar').hidden)renderGlobalChips();
+if(v==='home')renderHome();
 if(v==='students')renderStudents();
 if(v==='cohorts')renderCohorts();
 if(v==='reflections')loadReflections();
@@ -325,50 +337,72 @@ return s+"</svg>";}
 function miniScore(v){if(v===null||v===undefined)return "<span class='ms none'>—</span>";
 return "<span class='ms' style='color:"+band(v)+"'>"+v+"</span><i class='msb'><b style='width:"+v+"%;background:"+band(v)+"'></b></i>";}
 /* ---------- renders ---------- */
-function scoped(){var rows=DATA.learners;
+function scoped(withSearch){var rows=DATA.learners;
 if(cohortFilter)rows=rows.filter(function(r){return r.tags.indexOf(cohortFilter)>-1});
-if(search){var q=search.toLowerCase();
+if(withSearch&&search){var q=search.toLowerCase();
 rows=rows.filter(function(r){return (r.name+' '+r.email).toLowerCase().indexOf(q)>-1});}
 return rows;}
-function renderHome(){var k=DATA.kpis;
-countUp($('k-learners'),k.learners);$('k-learners-bar').parentElement.style.display='none';
-var enrolled=DATA.learners.reduce(function(s,r){return s+r.learning.enrolled},0);
-countUp($('k-modules'),k.modulesCompleted);
-$('k-modules-bar').style.width=(enrolled?Math.round(k.modulesCompleted*100/enrolled):0)+'%';
+/* Same maths the server uses for the whole scope, over any cohort. */
+var TOOLS=['cv','linkedin','interview','cover'];
+function funnelFor(rows){return [
+{stage:'In your scope',n:rows.length},
+{stage:'Logged in to Fledglings',n:rows.filter(function(r){return r.engagement.daysSinceLogin!==null}).length},
+{stage:'Learning modules',n:rows.filter(function(r){return r.learning.completed+r.learning.inProgress>0}).length},
+{stage:'Completed a module',n:rows.filter(function(r){return r.learning.completed>0}).length},
+{stage:'Using career tools',n:rows.filter(function(r){return r.readiness!==null||TOOLS.some(function(t){return r.employability[t].attempts>0})}).length},
+{stage:'Job-ready (70+)',n:rows.filter(function(r){return (r.readiness||0)>=70}).length}];}
+function issueOf(r){var en=r.engagement;
+if(en.tier==='high')return en.daysSinceLogin===null?'Never logged in':en.daysSinceLogin+' days since login';
+if(en.tier==='medium')return en.daysSinceLogin===null?'Cooling off':'Cooling off — '+en.daysSinceLogin+' days quiet';
+if(isInactive(r))return 'Inactive — no learning progress';
+return null;}
+var REFLECT_COUNT=null;
+function renderHome(){var rows=scoped(false);
+countUp($('k-learners'),rows.length);$('k-learners-bar').parentElement.style.display='none';
+var enrolled=rows.reduce(function(s,r){return s+r.learning.enrolled},0);
+var modsDone=rows.reduce(function(s,r){return s+r.learning.completed},0);
+countUp($('k-modules'),modsDone);
+$('k-modules-bar').style.width=(enrolled?Math.round(modsDone*100/enrolled):0)+'%';
 $('k-modules-bar').style.background='#1A7649';
-var activeWk=DATA.learners.filter(function(r){
+var activeWk=rows.filter(function(r){
 return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
 countUp($('k-active'),activeWk);
-$('k-active-bar').style.width=(k.learners?Math.round(activeWk*100/k.learners):0)+'%';
-/* Reflection answers: one lazy KV read fills the count; a raw count
- * gets no bar. */
+$('k-active-bar').style.width=(rows.length?Math.round(activeWk*100/rows.length):0)+'%';
+/* Reflection answers: one lazy KV read fills the whole-scope count —
+ * the sub-label says so honestly when a cohort is selected. */
 $('k-reflect-bar').parentElement.style.display='none';
-fetch('/portal/reflections').then(function(x){return x.json()}).then(function(d){
-if(d&&typeof d.rawCount==='number')countUp($('k-reflect'),d.rawCount);
+var reflectSub=$('k-reflect').parentElement.querySelector('.kpi-s');
+if(reflectSub)reflectSub.textContent=cohortFilter?'in their own words · whole scope':'in their own words';
+function fillReflect(){if(REFLECT_COUNT!==null)countUp($('k-reflect'),REFLECT_COUNT);}
+if(REFLECT_COUNT!==null)fillReflect();
+else fetch('/portal/reflections').then(function(x){return x.json()}).then(function(d){
+if(d&&typeof d.rawCount==='number'){REFLECT_COUNT=d.rawCount;fillReflect();}
 else $('k-reflect').textContent='—';})
 .catch(function(){$('k-reflect').textContent='—';});
 /* The pipeline: both systems, one picture. Width = share of scope. */
-var fu=DATA.funnel||[];var scopeN=(fu[0]&&fu[0].n)||1;
+var fu=funnelFor(rows);var scopeN=(fu[0]&&fu[0].n)||1;
 $('funnel').innerHTML=fu.map(function(st,i){
 var pct=Math.round(st.n*100/Math.max(1,scopeN));
 var c=i===0?'#05253C':i<4?'#13507F':i===4?'#ED9249':'#1A7649';
 return "<div class='fu-row'><span class='fu-l'>"+esc2(st.stage)+"</span>"+
 "<div class='fu-t' role='img' aria-label='"+esc2(st.stage)+": "+st.n+" learners ("+pct+"%)'><i style='width:"+pct+"%;background:"+c+"'></i></div>"+
 "<span class='fu-v' aria-hidden='true'>"+st.n+"<i>"+pct+"%</i></span></div>";}).join('');
-var att=DATA.attention||[];$('att-count').textContent=att.length+' flagged';
+/* Attention follows the cohort too — same flags the server raises,
+ * computed over the selected rows. */
+var att=rows.filter(function(r){return issueOf(r)!==null})
+.sort(function(a,b){var da=a.engagement.daysSinceLogin,db=b.engagement.daysSinceLogin;
+return (db===null?Infinity:db)-(da===null?Infinity:da)}).slice(0,8);
+$('att-count').textContent=att.length+' flagged';
 $('att-empty').hidden=att.length>0;
-$('att-body').innerHTML=att.map(function(a){
-/* Learning facts come from the full row — the flag is about their
- * engagement, so modules and recency say more than scores here. */
-var r=DATA.learners.find(function(x){return x.email===a.email});
-var lg=r?r.learning:null,en=r?r.engagement:null;
-var lastIn=!en||en.daysSinceLogin===null?'Never logged in':
+$('att-body').innerHTML=att.map(function(r){
+var lg=r.learning,en=r.engagement;
+var lastIn=en.daysSinceLogin===null?'Never logged in':
 en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';
-return "<tr><td><b>"+esc2(a.name)+"</b><br><span class='dmut'>"+esc2(a.email)+"</span></td>"+
-"<td><span class='dtag warn'>"+esc2(a.issue||'')+"</span></td>"+
-"<td>"+(lg?lg.completed+"/"+lg.enrolled:'—')+"</td>"+
+return "<tr><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
+"<td><span class='dtag warn'>"+esc2(issueOf(r)||'')+"</span></td>"+
+"<td>"+lg.completed+"/"+lg.enrolled+"</td>"+
 "<td class='dmut'>"+esc2(lastIn)+"</td>"+
-"<td><button type='button' class='dlink' data-drill='"+esc2(a.email)+"'>View →</button></td></tr>";}).join('');
+"<td><button type='button' class='dlink' data-drill='"+esc2(r.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
 function chips(el,onPick){var tags=DATA.tags||[];
 el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' aria-pressed='"+(cohortFilter?'false':'true')+"' data-chip=''>All in scope</button>"+
@@ -387,8 +421,8 @@ if(isInactive(r))return "<span class='dtag warn'>Inactive</span>";
 return tierChipFor(r.engagement);}
 function lastInFor(en){if(!en||en.daysSinceLogin===null)return 'Never logged in';
 return en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';}
-function renderStudents(){chips($('s-chips'),renderStudents);
-var rows=scoped();$('s-empty').hidden=rows.length>0;
+function renderStudents(){
+var rows=scoped(true);$('s-empty').hidden=rows.length>0;
 var activeWk=rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
 var inactive=rows.filter(isInactive).length;
 var modsDone=rows.reduce(function(s,r){return s+r.learning.completed},0);
@@ -476,7 +510,6 @@ toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
 "<div class='dcard'><h2>What their reflections say <span class='dtag' id='prof-rf-count'></span></h2>"+
 "<div id='prof-insight' aria-live='polite'><span class='dmut'>Reading their answers…</span></div></div>"+
 "<div class='dr-acts'>"+
-"<a class='dbtn ghost sm' href='/hub?e="+b64u(r.email)+"&view=1' target='_blank' rel='noopener'>Open their hub view</a>"+
 "<a class='dbtn ghost sm' href='"+mailHref+"'>✉ Email"+(en.nudge?' (nudge prefilled)':'')+"</a>"+
 "<a class='dbtn ghost sm' href='/dashboard/reflections.csv'>⬇ All reflections (CSV)</a>"+
 "</div>";
@@ -594,7 +627,15 @@ return "<div class='rf-ask-item'><div class='rf-a'>“"+esc2(a.text)+"”</div>"
 "<div class='dmut'>"+esc2(a.courseTitle)+(a.submittedAt?' · '+new Date(a.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</div></div>";}).join('');
 $('rf-asks-more').hidden=asksTotal<=asks.length;
 $('rf-asks-more').textContent='Newest '+asks.length+' shown here — all '+asksTotal+' are in the CSV.';
-var flags=(d.flags||[]).slice().sort(function(a,b){return (a.acked?1:0)-(b.acked?1:0)});
+/* The cohort filter follows here too: flags and the answer sample are
+ * per-learner (filterable); the counters and charts are scope-wide
+ * aggregates, and the note says so instead of pretending. */
+function inCohortEmail(em){if(!cohortFilter)return true;
+var r=DATA&&DATA.learners.find(function(x){return x.email.toLowerCase()===String(em).toLowerCase()});
+return !!(r&&r.tags.indexOf(cohortFilter)>-1);}
+$('rf-cohort-note').hidden=!cohortFilter;
+if(cohortFilter)$('rf-cohort-note').textContent='Cohort “'+cohortFilter+'” — wellbeing flags and the answer sample below are filtered to this cohort; the three counters and the charts cover your whole scope.';
+var flags=(d.flags||[]).filter(function(f){return inCohortEmail(f.email)}).sort(function(a,b){return (a.acked?1:0)-(b.acked?1:0)});
 var open=flags.filter(function(f){return !f.acked}).length;
 /* Worry leads unconditionally: the card is always in the deck and
  * always opens first — an all-clear is information too. */
@@ -633,7 +674,7 @@ return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"
 :"<div class='dempty'>No scored reflections read yet.</div>";
 /* A sample only — the full record is the Excel download, per the
  * founder: browse a taste here, download everything. */
-var recent=(d.recent||[]).slice(0,10);
+var recent=(d.recent||[]).filter(function(rr){return inCohortEmail(rr.email)}).slice(0,10);
 $('rf-recent-empty').hidden=recent.length>0;
 $('rf-recent-note').textContent=recent.length?('the newest '+recent.length+' of '+(d.rawCount||recent.length)+' — the Excel download has every answer'):'';
 $('rf-recent').innerHTML=recent.map(function(r){
@@ -651,8 +692,8 @@ var lbl=s.dataset.rfl;if(s.id==='rf-flags-card'&&flags.length)lbl+=' ('+flags.le
 return "<button type='button' class='chip' aria-pressed='false'>"+esc2(lbl)+"</button>"}).join('');
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.onclick=function(){rfShow(i)}});
 rfShow(rfSecs.indexOf($('rf-flags-card')));}
-function renderAnalytics(){chips($('a-chips'),renderAnalytics);
-var rows=scoped();
+function renderAnalytics(){
+var rows=scoped(false);
 var TIER_ORDER=[['ok','Engaged','#1A7649'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#9A5812'],['high','Needs contact','#B93A22']];
 var tiers=TIER_ORDER.map(function(t){
 return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).length,c:t[2]};})
@@ -673,8 +714,8 @@ return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
 :"<div class='dempty'>No curriculum data yet.</div>";
 }
 /* ---------- career tools: every readiness score, one pressable place ---------- */
-function renderCareer(){chips($('c-chips'),renderCareer);
-var rows=scoped();$('c-empty').hidden=rows.length>0;
+function renderCareer(){
+var rows=scoped(false);$('c-empty').hidden=rows.length>0;
 function tried(t){return rows.filter(function(r){return r.employability[t].latest!==null||( t==='cover'&&r.employability[t].attempts>0)})}
 /* No usage yet = an honest coming-soon, not a page of empty charts. */
 var anyUse=['cv','linkedin','interview','cover'].some(function(t){return tried(t).length>0});
@@ -792,6 +833,7 @@ $('dsample').textContent=(d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?
 d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled';
 $('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
 renderHome();
+$('g-bar').hidden=false;renderGlobalChips();
 loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
 .catch(function(){$('dh-sub').textContent='Could not reach the dashboard service — refresh to retry.';});
 })();`;
