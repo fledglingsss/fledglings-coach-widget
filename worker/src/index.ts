@@ -3322,7 +3322,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v12:${scopeKey}`;
+  const cacheKey = `dash:v13:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
@@ -3370,12 +3370,15 @@ app.get("/dashboard/data", async (c) => {
           ? "Cooling off"
           : `Cooling off — ${r.engagement.daysSinceLogin} days quiet`;
       }
+      /* Zero learning progress = an inactive learner, per the founder
+       * — nothing completed AND nothing under way (new starters get
+       * grace). Someone mid-module is active, not flagged. */
       if (
-        r.learning.enrolled > 0 &&
         r.learning.completed === 0 &&
+        r.learning.inProgress === 0 &&
         r.engagement.tier !== "new"
       ) {
-        return "No module finished yet";
+        return "Inactive — no learning progress";
       }
       return null;
     };

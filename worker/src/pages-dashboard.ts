@@ -378,17 +378,24 @@ cohortFilter=b.dataset.chip||null;onPick();};});}
 function tierChipFor(en){if(!en||!en.tier)return "<span class='dmut'>—</span>";
 var lbl={high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier;
 return "<span class='dtag"+(en.tier==='high'?' warn':'')+"'>"+esc2(lbl)+"</span>";}
+/* Zero learning progress = inactive, per the founder — nothing
+ * completed and nothing under way. New starters get grace. */
+function isInactive(r){return r.learning.completed===0&&r.learning.inProgress===0&&r.engagement.tier!=='new'}
+function statusChipFor(r){
+if(r.engagement&&r.engagement.tier==='high')return tierChipFor(r.engagement);
+if(isInactive(r))return "<span class='dtag warn'>Inactive</span>";
+return tierChipFor(r.engagement);}
 function lastInFor(en){if(!en||en.daysSinceLogin===null)return 'Never logged in';
 return en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';}
 function renderStudents(){chips($('s-chips'),renderStudents);
 var rows=scoped();$('s-empty').hidden=rows.length>0;
 var activeWk=rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
-var neverIn=rows.filter(function(r){return r.engagement.tier==='high'&&r.engagement.daysSinceLogin===null}).length;
+var inactive=rows.filter(isInactive).length;
 var modsDone=rows.reduce(function(s,r){return s+r.learning.completed},0);
 $('s-stats').innerHTML="<span>👥 Students <b>"+rows.length+"</b></span>"+
 "<span>🎓 Modules completed <b>"+modsDone+"</b></span>"+
 "<span>⚡ Active this week <b>"+activeWk+"</b></span>"+
-"<span>🕐 Never logged in <b>"+neverIn+"</b></span>";
+"<span>😴 Inactive — no progress <b>"+inactive+"</b></span>";
 $('s-body').innerHTML=rows.map(function(r){var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
@@ -396,7 +403,7 @@ return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)
 "<td><span class='ms'>"+lg.completed+"/"+lg.enrolled+"</span><i class='msb'><b style='width:"+modPct+"%;background:#1A7649'></b></i></td>"+
 "<td>"+(lg.minutes?fmtMins(lg.minutes):'—')+"</td>"+
 "<td class='dmut'>"+esc2(lastInFor(en))+"</td>"+
-"<td>"+tierChipFor(en)+"</td></tr>";}).join('');
+"<td>"+statusChipFor(r)+"</td></tr>";}).join('');
 /* The whole card is the control, so the tap target is the card rather
  * than a 16px link inside it. Its text is left to be read out: a
  * screen reader gets the same facts a sighted provider sees. */
@@ -404,7 +411,7 @@ $('s-cards').innerHTML=rows.map(function(r){var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<button type='button' class='scard' data-drill='"+esc2(r.email)+"'>"+
 "<span class='sc-top'><span class='sc-id'><b>"+esc2(r.name)+"</b>"+
-"<span class='sc-mail'>"+esc2(r.email)+"</span></span>"+tierChipFor(en)+"</span>"+
+"<span class='sc-mail'>"+esc2(r.email)+"</span></span>"+statusChipFor(r)+"</span>"+
 (r.tags.length?"<span class='sc-tags'>"+r.tags.slice(0,2).map(function(t){
 return "<span class='dtag'>"+esc2(t)+"</span>"}).join('')+"</span>":'')+
 "<span class='sc-line'><span class='sc-k'>Modules</span><span class='sc-v'>"+lg.completed+"/"+lg.enrolled+"</span>"+
@@ -516,6 +523,7 @@ $('co-grid').innerHTML=tags.map(function(t){
 var members=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
 var activeWk=members.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
 var neverIn=members.filter(function(r){return r.engagement.daysSinceLogin===null}).length;
+var coInactive=members.filter(isInactive).length;
 var mc=members.reduce(function(s,r){return s+r.learning.completed},0);
 var me=members.reduce(function(s,r){return s+r.learning.enrolled},0);
 var mp=me?Math.round(mc*100/me):0;
@@ -525,6 +533,7 @@ return "<div class='dcard cocard'><div class='co-t'>"+esc2(t.tag)+"</div>"+
 "<i class='msb wide'><b style='width:"+mp+"%;background:#1A7649'></b></i>"+
 "<div class='co-row'><span>Active this week</span><b>"+activeWk+"</b></div>"+
 "<div class='co-row'><span>Never logged in</span><b"+(neverIn?" style='color:#B93A22'":"")+">"+neverIn+"</b></div>"+
+"<div class='co-row'><span>Inactive — no progress</span><b"+(coInactive?" style='color:#B93A22'":"")+">"+coInactive+"</b></div>"+
 "<button type='button' class='dbtn ghost co-view' data-cohort='"+esc2(t.tag)+"'>View students →</button></div>";}).join('');
 document.querySelectorAll('[data-cohort]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.cohort;go('students');};});}
