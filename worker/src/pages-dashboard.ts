@@ -18,6 +18,7 @@ const ICONS: Record<string, string> = {
   hub: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M14 5h5v5M19 5l-8 8'/><path d='M19 14v5H5V5h5'/></svg>",
   reflect: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.5-2.7A8 8 0 1 1 21 12z'/><path d='M9 10h6M9 13.5h4'/></svg>",
   shield: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z'/><path d='m9 12 2 2 4-4.5'/></svg>",
+  career: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='7.5' width='18' height='12' rx='2.5'/><path d='M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5'/><path d='M3 12.5h18'/></svg>",
 };
 
 export function renderDashboardPage(): string {
@@ -34,6 +35,7 @@ export function renderDashboardPage(): string {
     nav("cohorts", "cohorts", "Cohorts") +
     nav("reflections", "reflect", "Reflections") +
     nav("analytics", "analytics", "Analytics") +
+    nav("career", "career", "Career tools") +
     nav("evidence", "shield", "Evidence") +
     "<div class='dsec'>Administration</div>" +
     `<a class='dn' href='/dashboard/export.csv'>${ICONS.csv}<span>Download CSV</span></a>` +
@@ -61,8 +63,8 @@ export function renderDashboardPage(): string {
     "<div class='kpigrid'>" +
     kpi("k-learners", "👥", "Learners", "in your scope") +
     kpi("k-modules", "🎓", "Modules completed", "across your learners") +
-    kpi("k-engaged", "⚡", "Using career tools", "tried at least one") +
-    kpi("k-avgcv", "📄", "Avg CV score", "latest per learner") +
+    kpi("k-active", "⚡", "Active this week", "logged in within 7 days") +
+    kpi("k-reflect", "💬", "Reflection answers", "in their own words") +
     "</div>" +
     "<div class='dcard'><h2>Learner pipeline <span class='dmut' style='font-weight:500'>from enrolment to job-ready — learning and career progress in one picture</span></h2>" +
     "<div id='funnel'></div></div>" +
@@ -72,13 +74,14 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h2>Quick actions</h2><div class='qacts'>" +
     "<button type='button' class='dbtn ghost' data-view='students'>👥 Students</button>" +
     "<button type='button' class='dbtn ghost' data-view='analytics'>📊 Analytics</button>" +
+    "<button type='button' class='dbtn ghost' data-view='career'>💼 Career tools</button>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ Download CSV</a>" +
     "</div></div></div>" + // closes quick-actions card + the left column
     "<div class='dcard'><h2>Students needing attention <span class='dtag' id='att-count'></span></h2>" +
     "<div class='dtablewrap'><table class='dtable' id='att-table' aria-label='Students needing attention'>" +
-    "<thead><tr><th scope='col'>Student</th><th scope='col'>Issue</th><th scope='col'>Job-ready</th><th scope='col'>Journey</th><th scope='col'></th></tr></thead>" +
+    "<thead><tr><th scope='col'>Student</th><th scope='col'>Issue</th><th scope='col'>Modules</th><th scope='col'>Last active</th><th scope='col'></th></tr></thead>" +
     "<tbody id='att-body'></tbody></table>" +
-    "<div class='dempty' id='att-empty' hidden>🎉 No one flagged — scores and journeys look healthy.</div></div></div>" +
+    "<div class='dempty' id='att-empty' hidden>🎉 No one flagged — everyone looks engaged.</div></div></div>" +
     "</div></section>" +
 
     /* ---------- students ---------- */
@@ -88,7 +91,7 @@ export function renderDashboardPage(): string {
     "<div class='chips' id='s-chips'></div>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
     "<div class='dcard'><div class='dtablewrap'><table class='dtable' aria-label='Every student in your scope'>" +
-    "<thead><tr><th scope='col'>Student</th><th scope='col'>Cohort</th><th scope='col'>Modules</th><th scope='col'>CV</th><th scope='col'>LinkedIn</th><th scope='col'>Interview</th><th scope='col'>Letters</th><th scope='col'>Journey</th><th scope='col'>Job-ready</th></tr></thead>" +
+    "<thead><tr><th scope='col'>Student</th><th scope='col'>Cohort</th><th scope='col'>Modules</th><th scope='col'>Study time</th><th scope='col'>Last active</th><th scope='col'>Status</th></tr></thead>" +
     "<tbody id='s-body'></tbody></table>" +
     /* Same learners, laid out for a phone. Which one shows is a CSS
      * decision, so there is no breakpoint logic in JS and rotating the
@@ -164,15 +167,32 @@ export function renderDashboardPage(): string {
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
     "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
-    "<div class='dsplit even'>" +
     "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
-    "<div class='dcard'><h2>Career tool adoption</h2><div id='ch-adopt'></div></div>" +
-    "</div>" +
-    "<div class='dcard'><h2>CV score distribution</h2><div id='ch-dist'></div></div>" +
     "<div class='dcard'><h2>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up — whole school</span></h2>" +
     "<div id='ch-stalls' aria-live='polite'><div class='dempty'>Loading module health…</div></div></div>" +
-    "<div class='dcard'><h2>Career tool activity — last 12 weeks</h2><div id='ch-activity'></div></div>" +
+    "</section>" +
+
+    /* ---------- career tools: every readiness score lives here ---------- */
+    "<section class='dview' id='v-career' hidden>" +
+    "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='c-chips'></div>" +
+    "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
+    "<div class='kpigrid'>" +
+    kpi("c-engaged", "⚡", "Using career tools", "tried at least one") +
+    kpi("c-avgcv", "📄", "Avg CV score", "latest per learner") +
+    kpi("c-letters", "✉️", "Cover letters", "created so far") +
+    kpi("c-journeys", "🏁", "Journeys complete", "all 7 career tasks done") +
+    "</div>" +
+    "<div class='dsplit even'>" +
+    "<div class='dcard'><h2>Tool adoption</h2><div id='ch-adopt'></div></div>" +
+    "<div class='dcard'><h2>CV score distribution</h2><div id='ch-dist'></div></div>" +
+    "</div>" +
+    "<div class='dcard'><h2>Activity — last 12 weeks <span class='dtag' id='ca-note' hidden>all cohorts</span></h2><div id='ch-activity'></div></div>" +
     "<div class='dcard'><h2>Average job-ready score by cohort</h2><div id='ch-cohorts'></div></div>" +
+    "<div class='dcard'><div class='cardhead'><h2>Scores by student</h2></div>" +
+    "<div class='dtablewrap'><table class='dtable' aria-label='Career-tool scores by student'>" +
+    "<thead><tr><th scope='col'>Student</th><th scope='col'>CV</th><th scope='col'>LinkedIn</th><th scope='col'>Interview</th><th scope='col'>Letters</th><th scope='col'>Journey</th><th scope='col'>Job-ready</th></tr></thead>" +
+    "<tbody id='c-body'></tbody></table>" +
+    "<div class='dempty' id='c-empty' hidden>No learners match.</div></div></div>" +
     "</section>" +
 
     /* ---------- evidence (SAR narrative + inspector link) ---------- */
@@ -240,7 +260,8 @@ var TITLES={home:['Home','Outcomes, progress and attention — at a glance'],
 students:['Students','Every learner in your scope with their employability record'],
 cohorts:['Cohorts','Groups by cohort tag'],
 reflections:['Self-Reflections','What learners say before and after each module — in their own words'],
-analytics:['Analytics','Adoption, scores and activity — visual first'],
+analytics:['Analytics','Learning, engagement and where to help — visual first'],
+career:['Career tools','CV, LinkedIn, interview and cover-letter progress — all in one place'],
 evidence:['Evidence','Inspection-ready narrative and a shareable read-only snapshot'],
 profile:['Learner profile','Their full record — modules, time, reflections, career tools']};
 var userActed=false;
@@ -257,6 +278,7 @@ if(v==='students')renderStudents();
 if(v==='cohorts')renderCohorts();
 if(v==='reflections')loadReflections();
 if(v==='analytics'){renderAnalytics();loadStalls();}
+if(v==='career')renderCareer();
 if(v==='evidence')loadEvidence();
 /* After the current tick, so a profile view has overwritten the
  * heading with the learner's name before it is announced. Not on the
@@ -287,9 +309,6 @@ s+="<text x='"+(x+bw/2)+"' y='"+(y-5)+"' text-anchor='middle' font-size='10' fon
 else{s+="<text x='"+(x+bw/2)+"' y='"+(base-6)+"' text-anchor='middle' font-size='10' fill='#7C7573'>0</text>";}
 s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#6D777F'>"+esc2(labels[i]||'')+"</text>";});
 return s+"</svg>";}
-function toolChip(label,v,isCount){
-if(isCount)return "<span class='sc-tool'>"+label+" <b>"+v+"</b></span>";
-return "<span class='sc-tool'>"+label+" <b style='color:"+(v===null?'#7C7573':band(v))+"'>"+(v===null?'—':v)+"</b></span>";}
 function miniScore(v){if(v===null||v===undefined)return "<span class='ms none'>—</span>";
 return "<span class='ms' style='color:"+band(v)+"'>"+v+"</span><i class='msb'><b style='width:"+v+"%;background:"+band(v)+"'></b></i>";}
 /* ---------- renders ---------- */
@@ -304,13 +323,17 @@ var enrolled=DATA.learners.reduce(function(s,r){return s+r.learning.enrolled},0)
 countUp($('k-modules'),k.modulesCompleted);
 $('k-modules-bar').style.width=(enrolled?Math.round(k.modulesCompleted*100/enrolled):0)+'%';
 $('k-modules-bar').style.background='#1A7649';
-countUp($('k-engaged'),k.engaged);
-$('k-engaged-bar').style.width=(k.learners?Math.round(k.engaged*100/k.learners):0)+'%';
-if(k.avgCv!==null){countUp($('k-avgcv'),k.avgCv);$('k-avgcv-bar').style.width=k.avgCv+'%';
-$('k-avgcv-bar').style.background=band(k.avgCv);}
-else{$('k-avgcv').textContent='—';
-$('k-avgcv').nextElementSibling.nextElementSibling.textContent='no CV reviews yet';
-$('k-avgcv-bar').parentElement.style.display='none';}
+var activeWk=DATA.learners.filter(function(r){
+return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
+countUp($('k-active'),activeWk);
+$('k-active-bar').style.width=(k.learners?Math.round(activeWk*100/k.learners):0)+'%';
+/* Reflection answers: one lazy KV read fills the count; a raw count
+ * gets no bar. */
+$('k-reflect-bar').parentElement.style.display='none';
+fetch('/portal/reflections').then(function(x){return x.json()}).then(function(d){
+if(d&&typeof d.rawCount==='number')countUp($('k-reflect'),d.rawCount);
+else $('k-reflect').textContent='—';})
+.catch(function(){$('k-reflect').textContent='—';});
 /* The pipeline: both systems, one picture. Width = share of scope. */
 var fu=DATA.funnel||[];var scopeN=(fu[0]&&fu[0].n)||1;
 $('funnel').innerHTML=fu.map(function(st,i){
@@ -322,10 +345,16 @@ return "<div class='fu-row'><span class='fu-l'>"+esc2(st.stage)+"</span>"+
 var att=DATA.attention||[];$('att-count').textContent=att.length+' flagged';
 $('att-empty').hidden=att.length>0;
 $('att-body').innerHTML=att.map(function(a){
+/* Learning facts come from the full row — the flag is about their
+ * engagement, so modules and recency say more than scores here. */
+var r=DATA.learners.find(function(x){return x.email===a.email});
+var lg=r?r.learning:null,en=r?r.engagement:null;
+var lastIn=!en||en.daysSinceLogin===null?'Never logged in':
+en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';
 return "<tr><td><b>"+esc2(a.name)+"</b><br><span class='dmut'>"+esc2(a.email)+"</span></td>"+
 "<td><span class='dtag warn'>"+esc2(a.issue||'')+"</span></td>"+
-"<td><span style='color:"+(a.readiness===null?'#7C7573':band(a.readiness))+";font-weight:800'>"+(a.readiness===null?'—':a.readiness)+"</span></td>"+
-"<td>"+a.tasksDone+"/7</td>"+
+"<td>"+(lg?lg.completed+"/"+lg.enrolled:'—')+"</td>"+
+"<td class='dmut'>"+esc2(lastIn)+"</td>"+
 "<td><button type='button' class='dlink' data-drill='"+esc2(a.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
 function chips(el,onPick){var tags=DATA.tags||[];
@@ -333,41 +362,42 @@ el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' aria
 tags.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' aria-pressed='"+(cohortFilter===t.tag?'true':'false')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('');
 el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.chip||null;onPick();};});}
+function tierChipFor(en){if(!en||!en.tier)return "<span class='dmut'>—</span>";
+var lbl={high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier;
+return "<span class='dtag"+(en.tier==='high'?' warn':'')+"'>"+esc2(lbl)+"</span>";}
+function lastInFor(en){if(!en||en.daysSinceLogin===null)return 'Never logged in';
+return en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';}
 function renderStudents(){chips($('s-chips'),renderStudents);
 var rows=scoped();$('s-empty').hidden=rows.length>0;
-var usingTools=rows.filter(function(r){return r.readiness!==null}).length;
+var activeWk=rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
 var neverIn=rows.filter(function(r){return r.engagement.tier==='high'&&r.engagement.daysSinceLogin===null}).length;
 var modsDone=rows.reduce(function(s,r){return s+r.learning.completed},0);
 $('s-stats').innerHTML="<span>👥 Students <b>"+rows.length+"</b></span>"+
 "<span>🎓 Modules completed <b>"+modsDone+"</b></span>"+
-"<span>⚡ Using career tools <b>"+usingTools+"</b></span>"+
+"<span>⚡ Active this week <b>"+activeWk+"</b></span>"+
 "<span>🕐 Never logged in <b>"+neverIn+"</b></span>";
-$('s-body').innerHTML=rows.map(function(r){var e=r.employability;var lg=r.learning;
+$('s-body').innerHTML=rows.map(function(r){var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
 "<td>"+r.tags.slice(0,2).map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+"</td>"+
 "<td><span class='ms'>"+lg.completed+"/"+lg.enrolled+"</span><i class='msb'><b style='width:"+modPct+"%;background:#1A7649'></b></i></td>"+
-"<td>"+miniScore(e.cv.latest)+"</td><td>"+miniScore(e.linkedin.latest)+"</td><td>"+miniScore(e.interview.latest)+"</td>"+
-"<td>"+e.cover.attempts+"</td><td>"+r.tasksDone+"/7</td>"+
-"<td>"+miniScore(r.readiness)+"</td></tr>";}).join('');
+"<td>"+(lg.minutes?fmtMins(lg.minutes):'—')+"</td>"+
+"<td class='dmut'>"+esc2(lastInFor(en))+"</td>"+
+"<td>"+tierChipFor(en)+"</td></tr>";}).join('');
 /* The whole card is the control, so the tap target is the card rather
  * than a 16px link inside it. Its text is left to be read out: a
  * screen reader gets the same facts a sighted provider sees. */
-$('s-cards').innerHTML=rows.map(function(r){var e=r.employability;var lg=r.learning;
+$('s-cards').innerHTML=rows.map(function(r){var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<button type='button' class='scard' data-drill='"+esc2(r.email)+"'>"+
 "<span class='sc-top'><span class='sc-id'><b>"+esc2(r.name)+"</b>"+
-"<span class='sc-mail'>"+esc2(r.email)+"</span></span>"+
-"<span class='sc-jr' style='color:"+(r.readiness===null?'#7C7573':band(r.readiness))+"'>"+
-(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></span>"+
+"<span class='sc-mail'>"+esc2(r.email)+"</span></span>"+tierChipFor(en)+"</span>"+
 (r.tags.length?"<span class='sc-tags'>"+r.tags.slice(0,2).map(function(t){
 return "<span class='dtag'>"+esc2(t)+"</span>"}).join('')+"</span>":'')+
 "<span class='sc-line'><span class='sc-k'>Modules</span><span class='sc-v'>"+lg.completed+"/"+lg.enrolled+"</span>"+
 "<i class='msb'><b style='width:"+modPct+"%;background:#1A7649'></b></i></span>"+
-"<span class='sc-line'><span class='sc-k'>Journey</span><span class='sc-v'>"+r.tasksDone+"/7</span>"+
-"<i class='msb'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></span>"+
-"<span class='sc-tools'>"+toolChip('CV',e.cv.latest)+toolChip('LinkedIn',e.linkedin.latest)+
-toolChip('Interview',e.interview.latest)+toolChip('Letters',e.cover.attempts,true)+"</span>"+
+"<span class='sc-line'><span class='sc-k'>Study time</span><span class='sc-v'>"+(lg.minutes?fmtMins(lg.minutes):'—')+"</span></span>"+
+"<span class='sc-line'><span class='sc-k'>Last active</span><span class='sc-v'>"+esc2(lastInFor(en))+"</span></span>"+
 "<span class='sr-only'>Open profile</span></button>";}).join('');
 wireDrills();}
 function wireDrills(){document.querySelectorAll('[data-drill]').forEach(function(el){
@@ -466,9 +496,8 @@ function renderCohorts(){var tags=DATA.tags||[];
 $('co-empty').hidden=tags.length>0;
 $('co-grid').innerHTML=tags.map(function(t){
 var members=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
-var scored=members.filter(function(r){return r.readiness!==null});
-var avg=scored.length?Math.round(scored.reduce(function(s,r){return s+r.readiness},0)/scored.length):null;
-var done=members.filter(function(r){return r.tasksDone===7}).length;
+var activeWk=members.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
+var neverIn=members.filter(function(r){return r.engagement.daysSinceLogin===null}).length;
 var mc=members.reduce(function(s,r){return s+r.learning.completed},0);
 var me=members.reduce(function(s,r){return s+r.learning.enrolled},0);
 var mp=me?Math.round(mc*100/me):0;
@@ -476,8 +505,8 @@ return "<div class='dcard cocard'><div class='co-t'>"+esc2(t.tag)+"</div>"+
 "<div class='co-n'>"+members.length+"</div><div class='kpi-s'>learners</div>"+
 "<div class='co-row'><span>Modules completed</span><b>"+mc+"/"+me+"</b></div>"+
 "<i class='msb wide'><b style='width:"+mp+"%;background:#1A7649'></b></i>"+
-"<div class='co-row'><span>Avg job-ready</span><b style='color:"+(avg===null?'#6D777F':band(avg))+"'>"+(avg===null?'—':avg)+"</b></div>"+
-"<div class='co-row'><span>Career journey done</span><b>"+done+"</b></div>"+
+"<div class='co-row'><span>Active this week</span><b>"+activeWk+"</b></div>"+
+"<div class='co-row'><span>Never logged in</span><b"+(neverIn?" style='color:#B93A22'":"")+">"+neverIn+"</b></div>"+
 "<button type='button' class='dbtn ghost co-view' data-cohort='"+esc2(t.tag)+"'>View students →</button></div>";}).join('');
 document.querySelectorAll('[data-cohort]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.cohort;go('students');};});}
@@ -610,7 +639,24 @@ var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
 $('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
 return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
 :"<div class='dempty'>No curriculum data yet.</div>";
+}
+/* ---------- career tools: every readiness score, one pressable place ---------- */
+function renderCareer(){chips($('c-chips'),renderCareer);
+var rows=scoped();$('c-empty').hidden=rows.length>0;
 function tried(t){return rows.filter(function(r){return r.employability[t].latest!==null||( t==='cover'&&r.employability[t].attempts>0)})}
+var engaged=rows.filter(function(r){return r.readiness!==null}).length;
+countUp($('c-engaged'),engaged);
+$('c-engaged-bar').style.width=(rows.length?Math.round(engaged*100/rows.length):0)+'%';
+var cvTried=tried('cv');
+var avgCv=cvTried.length?Math.round(cvTried.reduce(function(s,r){return s+(r.employability.cv.latest||0)},0)/cvTried.length):null;
+if(avgCv!==null){countUp($('c-avgcv'),avgCv);$('c-avgcv-bar').style.width=avgCv+'%';
+$('c-avgcv-bar').style.background=band(avgCv);}
+else{$('c-avgcv').textContent='—';$('c-avgcv-bar').parentElement.style.display='none';}
+var letters=rows.reduce(function(s,r){return s+r.employability.cover.attempts},0);
+countUp($('c-letters'),letters);$('c-letters-bar').parentElement.style.display='none';
+var journeys=rows.filter(function(r){return r.tasksDone===7}).length;
+countUp($('c-journeys'),journeys);
+$('c-journeys-bar').style.width=(rows.length?Math.round(journeys*100/rows.length):0)+'%';
 var anyTool=['cv','linkedin','interview','cover'].some(function(t){return tried(t).length>0});
 var SHARE_HINT="<div class='dempty'>No career-tool use in this cohort yet — learners reach the tools from "+
 "<b>fledglings.co</b> or you can send them the hub link directly: <b>fledglings-coach.fledglings.workers.dev/hub</b></div>";
@@ -622,12 +668,15 @@ $('ch-adopt').innerHTML=anyTool?hbar([
 {l:'Interview',v:tried('interview').length},
 {l:'Cover letter',v:tried('cover').length}],rows.length||1):SHARE_HINT;
 var buckets=[0,0,0,0,0];
-tried('cv').forEach(function(r){buckets[Math.min(4,Math.floor((r.employability.cv.latest||0)/20))]++});
+cvTried.forEach(function(r){buckets[Math.min(4,Math.floor((r.employability.cv.latest||0)/20))]++});
 /* Score buckets ARE quality bands — colour them so red only ever
  * appears under genuinely low scores. */
-$('ch-dist').innerHTML=tried('cv').length?colChart(buckets,['0-19','20-39','40-59','60-79','80+'],
+$('ch-dist').innerHTML=cvTried.length?colChart(buckets,['0-19','20-39','40-59','60-79','80+'],
 ['#B93A22','#9A5812','#ED9249','#13507F','#1A7649'])
 :"<div class='dempty'>Scores appear here after the first CV reviews.</div>";
+/* The 12-week trace is a whole-scope server rollup — say so honestly
+ * when a cohort chip narrows everything else. */
+$('ca-note').hidden=!cohortFilter;
 var act=(DATA.analytics&&DATA.analytics.activity)||[];
 var anyAct=act.some(function(a){return a.events>0});
 $('ch-activity').innerHTML=anyAct?colChart(act.map(function(a){return a.events}),
@@ -637,7 +686,13 @@ var perTag=(DATA.tags||[]).map(function(t){
 var m=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1&&r.readiness!==null});
 return {l:t.tag,v:m.length?Math.round(m.reduce(function(s,r){return s+r.readiness},0)/m.length):0,c:'#ED9249'};})
 .filter(function(x){return x.v>0}).sort(function(a,b){return b.v-a.v}).slice(0,8);
-$('ch-cohorts').innerHTML=perTag.length?hbar(perTag,100):"<div class='dempty'>No scored learners in any cohort yet.</div>";}
+$('ch-cohorts').innerHTML=perTag.length?hbar(perTag,100):"<div class='dempty'>No scored learners in any cohort yet.</div>";
+$('c-body').innerHTML=rows.map(function(r){var e=r.employability;
+return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
+"<td>"+miniScore(e.cv.latest)+"</td><td>"+miniScore(e.linkedin.latest)+"</td><td>"+miniScore(e.interview.latest)+"</td>"+
+"<td>"+e.cover.attempts+"</td><td>"+r.tasksDone+"/7</td>"+
+"<td>"+miniScore(r.readiness)+"</td></tr>";}).join('');
+wireDrills();}
 $('s-search').addEventListener('input',function(){search=this.value;renderStudents();});
 /* ---------- live feed (Home) + module health (Analytics), lazily ---------- */
 var feedTimer=null;

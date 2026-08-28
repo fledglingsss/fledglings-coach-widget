@@ -3321,7 +3321,7 @@ app.get("/dashboard/data", async (c) => {
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-  const cacheKey = `dash:v11:${scopeKey}`;
+  const cacheKey = `dash:v12:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
@@ -3354,20 +3354,38 @@ app.get("/dashboard/data", async (c) => {
     /* Attention: disengaged from the platform first (the risk engine's
      * signal), then never-started / weak / stalled tool journeys —
      * weakest first, never-engaged weakest of all. */
+    /* Home's attention list is pastoral: it flags ENGAGEMENT problems
+     * (gone quiet, never arrived, learning stalled). Career-tool
+     * nudging lives in the Career tools view, per the founder — the
+     * scores must not lead the dashboard. */
     const issueFor = (r: DashLearner): string | null => {
       if (r.engagement.tier === "high") {
         return r.engagement.daysSinceLogin === null
           ? "Never logged in"
           : `${r.engagement.daysSinceLogin} days since login`;
       }
-      if (r.readiness === null) return "Not started any tool";
-      if (r.readiness < 50) return "Low job-ready score";
-      if (r.tasksDone <= 2) return "Journey stalled early";
+      if (r.engagement.tier === "medium") {
+        return r.engagement.daysSinceLogin === null
+          ? "Cooling off"
+          : `Cooling off — ${r.engagement.daysSinceLogin} days quiet`;
+      }
+      if (
+        r.learning.enrolled > 0 &&
+        r.learning.completed === 0 &&
+        r.engagement.tier !== "new"
+      ) {
+        return "No module finished yet";
+      }
       return null;
     };
     const attention = rows
       .filter((r) => issueFor(r) !== null)
-      .sort((a, b) => (a.readiness ?? -1) - (b.readiness ?? -1))
+      .sort((a, b) => {
+        /* Most disengaged first: never-logged-in, then longest quiet. */
+        const da = a.engagement.daysSinceLogin ?? Number.POSITIVE_INFINITY;
+        const db = b.engagement.daysSinceLogin ?? Number.POSITIVE_INFINITY;
+        return db - da;
+      })
       .slice(0, 8)
       .map((r) => ({
         name: r.name,
