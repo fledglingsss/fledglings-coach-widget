@@ -110,6 +110,11 @@ export function renderDashboardPage(): string {
     /* ---------- cohorts ---------- */
     "<section class='dview' id='v-cohorts' hidden>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/cohorts.csv'>⬇ Cohort rollup CSV</a></div>" +
+    "<div class='dcard' id='co-compare' hidden><h2>Cohorts compared " +
+    "<span class='dmut' style='font-weight:500'>averages per learner — tap a bar to open that cohort's students</span></h2>" +
+    "<h3 class='co-h'>Average modules completed</h3><div id='cmp-mods'></div>" +
+    "<h3 class='co-h'>Average time on the platform</h3><div id='cmp-time'></div>" +
+    "<h3 class='co-h'>Active this week</h3><div id='cmp-active'></div></div>" +
     "<div class='cogrid' id='co-grid'></div>" +
     "<div class='dempty' id='co-empty' hidden>No cohort tags found on these learners yet — add a cohort tag to learners and they appear here.</div></section>" +
 
@@ -482,15 +487,33 @@ function toolRow(label,t,isCount){return "<div class='dr-tool'><span class='dr-l
 function statCard(v,l,s,barPct,barCol){return "<div class='kpi'><div class='kpi-n'>"+v+"</div>"+
 "<div class='kpi-l'>"+esc2(l)+"</div><div class='kpi-s'>"+esc2(s)+"</div>"+
 (barPct!==null?"<div class='kpi-bar'><i style='width:"+barPct+"%;background:"+(barCol||'#13507F')+"'></i></div>":'')+"</div>";}
+/* Their most specific cohort (fewest members) is the honest peer
+ * group; a learner with no shared tag compares to the whole scope. */
+var cohortTag=null,cohortN=Infinity;
+(r.tags||[]).forEach(function(t){
+var m=DATA.learners.filter(function(x){return x.tags.indexOf(t)>-1}).length;
+if(m>1&&m<cohortN){cohortN=m;cohortTag=t;}});
+var peers=cohortTag?DATA.learners.filter(function(x){return x.tags.indexOf(cohortTag)>-1}):DATA.learners;
+var avgMods=peers.length?Math.round(peers.reduce(function(s,x){return s+x.learning.completed},0)*10/peers.length)/10:0;
+var avgMins=peers.length?Math.round(peers.reduce(function(s,x){return s+x.learning.minutes},0)/peers.length):0;
+function vsRow(label,mine,avg,fmtF){var mx=Math.max(mine,avg,1);
+return "<div class='vs-row'><span class='vs-l'>"+esc2(label)+"</span>"+
+"<div class='vs-b'><i style='width:"+Math.round(mine*100/mx)+"%;background:#13507F'></i></div><span class='vs-v'>"+esc2(fmtF(mine))+" <i>them</i></span>"+
+"<div class='vs-b'><i style='width:"+Math.round(avg*100/mx)+"%;background:#C9C2BE'></i></div><span class='vs-v'>"+esc2(fmtF(avg))+" <i>"+(cohortTag?'cohort':'scope')+" avg</i></span></div>";}
 $('prof-body').innerHTML=
 "<div class='dcard dr-head'><div><b style='font-size:19px'>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
 r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
 "<span class='dr-ready' style='color:"+(r.readiness===null?'#7C7573':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></div>"+
 "<div class='kpigrid'>"+
-statCard(lg.completed+"<small style='font-size:16px;color:#6D777F'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress',modPct,'#1A7649')+
-statCard(lg.minutes?fmtMins(lg.minutes):'—','Study time','across their modules',null)+
+statCard(lg.completed+"<small style='font-size:16px;color:#6D777F'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress · '+(cohortTag?'cohort':'scope')+' avg '+avgMods,modPct,'#1A7649')+
+statCard(lg.minutes?fmtMins(lg.minutes):'—','Time on the platform',(cohortTag?'cohort':'scope')+' avg '+fmtMins(avgMins),null)+
 statCard("<span id='prof-rf-n'>…</span>",'Reflection answers','in their own words',null)+
 statCard(esc2(loginNote),'Last active','on the platform',null)+
+"</div>"+
+"<div class='dcard'><h2>Against their cohort <span class='dtag'>"+esc2(cohortTag||'whole scope')+"</span>"+
+"<span class='dmut' style='font-weight:500'> "+peers.length+" learners in the comparison</span></h2>"+
+vsRow('Modules completed',lg.completed,avgMods,function(x){return String(x)})+
+vsRow('Time on the platform',lg.minutes,avgMins,fmtMins)+
 "</div>"+
 "<div id='prof-flags'></div>"+
 "<div class='dsplit'>"+
@@ -552,6 +575,28 @@ if(el)el.innerHTML="<span class='dmut'>Could not read their answers just now —
 
 function renderCohorts(){var tags=DATA.tags||[];
 $('co-empty').hidden=tags.length>0;
+/* Side-by-side averages — the comparison the founder asked for. One
+ * shared row order across all three charts so a tap always means the
+ * same cohort. */
+var stats=tags.map(function(t){
+var m=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
+var n=m.length||1;
+return {tag:t.tag,n:m.length,
+avgMods:Math.round(m.reduce(function(s,r){return s+r.learning.completed},0)*10/n)/10,
+avgMins:Math.round(m.reduce(function(s,r){return s+r.learning.minutes},0)/n),
+activeN:m.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length};});
+$('co-compare').hidden=stats.length<2;
+if(stats.length>=2){
+var maxMods=Math.max.apply(null,stats.map(function(s){return s.avgMods}).concat([1]));
+var maxMins=Math.max.apply(null,stats.map(function(s){return s.avgMins}).concat([1]));
+$('cmp-mods').innerHTML=hbar(stats.map(function(s){return {l:s.tag,v:s.avgMods,r:s.avgMods+' per learner',c:'#1A7649'};}),maxMods);
+$('cmp-time').innerHTML=hbar(stats.map(function(s){return {l:s.tag,v:s.avgMins,r:fmtMins(s.avgMins)+' per learner',c:'#13507F'};}),maxMins);
+$('cmp-active').innerHTML=hbar(stats.map(function(s){return {l:s.tag,v:s.n?Math.round(s.activeN*100/s.n):0,r:s.activeN+' of '+s.n,c:'#ED9249'};}),100);
+['cmp-mods','cmp-time','cmp-active'].forEach(function(id){
+$(id).querySelectorAll('.hb').forEach(function(el,i){
+el.style.cursor='pointer';el.setAttribute('role','button');el.setAttribute('tabindex','0');
+function open(){cohortFilter=stats[i].tag;go('students');}
+el.onclick=open;el.onkeydown=function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open();}};});});}
 $('co-grid').innerHTML=tags.map(function(t){
 var members=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
 var activeWk=members.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
@@ -1045,6 +1090,14 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dlogin input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-family:inherit;
   font-size:14px;margin-bottom:12px;}
 .dnote{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.5;}
+.co-h{margin:16px 0 8px;font-size:13px;font-weight:700;color:var(--mut);letter-spacing:.02em;text-transform:uppercase;}
+.vs-row{display:grid;grid-template-columns:150px 1fr 128px;gap:6px 12px;align-items:center;margin-bottom:12px;}
+.vs-l{font-size:13.5px;font-weight:600;color:var(--ink);grid-row:span 2;}
+.vs-b{height:12px;background:var(--off);border-radius:999px;overflow:hidden;}
+.vs-b i{display:block;height:100%;border-radius:999px;}
+.vs-v{font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;}
+.vs-v i{font-style:normal;font-weight:500;color:var(--mut);}
+@media(max-width:760px){.vs-row{grid-template-columns:1fr 110px;}.vs-l{grid-row:auto;grid-column:1/-1;}}
 .csoon{text-align:center;padding:44px 28px;}
 .csoon-ico{font-size:40px;margin-bottom:10px;}
 .csoon h2{margin-bottom:10px;}
