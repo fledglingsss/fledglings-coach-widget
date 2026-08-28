@@ -137,9 +137,10 @@ export function renderDashboardPage(): string {
     kpi("rf-raw", "💬", "Answers on record", "raw question-and-answer pairs") +
     "</div>" +
     "<div class='chips' id='rf-deck-chips' style='margin-bottom:14px'></div>" +
-    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing flags <span class='dtag warn' id='rf-flags-count'></span></h2>" +
-    "<p class='rf-p'>Answers whose wording matched the same crisis patterns that guard the coach. Read them yourself — this is a prompt to check in, not a verdict.</p>" +
-    "<div id='rf-flags'></div></div>" +
+    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing — worrying answers first <span class='dtag' id='rf-flags-count'></span></h2>" +
+    "<p class='rf-p'>Every answer is scanned against the same crisis patterns that guard the coach. Anything that matches appears here, first — read it yourself: this is a prompt to check in, not a verdict.</p>" +
+    "<div id='rf-flags'></div>" +
+    "<div class='dempty' id='rf-flags-empty' hidden>✅ Nothing worrying right now — every answer on record has been scanned, and the scan re-runs on every sweep. Anything that matches will appear here before everything else.</div></div>" +
     "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h2>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h2>" +
     "<div id='rf-shifts'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
@@ -153,8 +154,8 @@ export function renderDashboardPage(): string {
     "<div id='rf-asks'></div>" +
     "<p class='dmut' id='rf-asks-more' hidden></p>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download every reflection (CSV)</a></div></div>" +
-    "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h2>Latest answers, verbatim</h2>" +
-    "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download raw reflections (CSV)</a></div>" +
+    "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h2>Latest answers — a sample <span class='dmut' style='font-weight:500' id='rf-recent-note'></span></h2>" +
+    "<div class='dbar'><a class='dbtn' href='/dashboard/reflections.csv'>⬇ Download every answer (Excel)</a></div>" +
     "<div class='dtablewrap'><table class='dtable' aria-label='Latest reflection answers'><thead><tr><th scope='col'>Student</th><th scope='col'>Module</th><th scope='col'>When</th><th scope='col'>Question</th><th scope='col'>Answer</th></tr></thead>" +
     "<tbody id='rf-recent'></tbody></table>" +
     "<div class='dempty' id='rf-recent-empty' hidden>No answers read yet.</div></div></div>" +
@@ -586,8 +587,11 @@ $('rf-asks-more').hidden=asksTotal<=asks.length;
 $('rf-asks-more').textContent='Newest '+asks.length+' shown here — all '+asksTotal+' are in the CSV.';
 var flags=(d.flags||[]).slice().sort(function(a,b){return (a.acked?1:0)-(b.acked?1:0)});
 var open=flags.filter(function(f){return !f.acked}).length;
-$('rf-flags-card').hidden=flags.length===0;
-$('rf-flags-count').textContent=open?open+' to review':'all checked in';
+/* Worry leads unconditionally: the card is always in the deck and
+ * always opens first — an all-clear is information too. */
+$('rf-flags-empty').hidden=flags.length>0;
+$('rf-flags-count').className='dtag'+(open?' warn':'');
+$('rf-flags-count').textContent=flags.length===0?'all clear':open?open+' to review':'all checked in';
 $('rf-flags').innerHTML=flags.map(function(f,i){
 var inRows=DATA&&DATA.learners.some(function(r){return r.email===f.email});
 return "<div class='rf-flag"+(f.acked?' acked':'')+"' id='rff-"+i+"'><b>"+esc2(f.email)+"</b> · "+esc2(f.courseTitle)+
@@ -618,15 +622,18 @@ return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
 "<span class='dmut'>"+s.preCount+" before · "+s.postCount+" after</span></div>";}).join('')
 :"<div class='dempty'>No scored reflections read yet.</div>";
-var recent=d.recent||[];
+/* A sample only — the full record is the Excel download, per the
+ * founder: browse a taste here, download everything. */
+var recent=(d.recent||[]).slice(0,10);
 $('rf-recent-empty').hidden=recent.length>0;
+$('rf-recent-note').textContent=recent.length?('the newest '+recent.length+' of '+(d.rawCount||recent.length)+' — the Excel download has every answer'):'';
 $('rf-recent').innerHTML=recent.map(function(r){
 return "<tr><td class='dmut'>"+esc2(r.email)+"</td><td>"+esc2(r.courseTitle)+"</td>"+
 "<td class='dmut'>"+(r.submittedAt?new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—')+"</td>"+
 "<td class='rf-q'>"+esc2(r.question)+"</td><td class='rf-a'>"+esc2(r.answer)+"</td></tr>";}).join('');
-/* flickable sections: shifts / answers / wellbeing (when present) */
-var rfSecs=Array.prototype.filter.call(document.querySelectorAll('.rf-sec'),function(s){
-return s.id!=='rf-flags-card'||flags.length>0});
+/* flickable sections — wellbeing is always first and always opens
+ * first, flags or no flags */
+var rfSecs=Array.prototype.slice.call(document.querySelectorAll('.rf-sec'));
 function rfShow(i){rfSecs.forEach(function(c,j){c.hidden=j!==i});
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,j){ch.classList.toggle('on',j===i);
 ch.setAttribute('aria-pressed',j===i?'true':'false');});}
@@ -634,8 +641,7 @@ $('rf-deck-chips').innerHTML=rfSecs.map(function(s){
 var lbl=s.dataset.rfl;if(s.id==='rf-flags-card'&&flags.length)lbl+=' ('+flags.length+')';
 return "<button type='button' class='chip' aria-pressed='false'>"+esc2(lbl)+"</button>"}).join('');
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.onclick=function(){rfShow(i)}});
-/* wellbeing first when flags exist — duty of care leads */
-rfShow(flags.length>0?rfSecs.indexOf($('rf-flags-card')):0);}
+rfShow(rfSecs.indexOf($('rf-flags-card')));}
 function renderAnalytics(){chips($('a-chips'),renderAnalytics);
 var rows=scoped();
 var TIER_ORDER=[['ok','Engaged','#1A7649'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#9A5812'],['high','Needs contact','#B93A22']];
