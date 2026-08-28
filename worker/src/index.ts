@@ -208,6 +208,7 @@ import {
 import {
   aggregate,
   EXCLUDED_TITLES,
+  learnerInsightSystemPrompt,
   narrativeSystemPrompt,
 } from "./lib/portal";
 import {
@@ -3567,6 +3568,88 @@ app.get("/dashboard/learner-reflections", async (c) => {
   } catch (err) {
     console.error("[coach] learner reflections error:", String(err));
     return c.json({ error: "service_error" }, 500);
+  }
+});
+
+/* AI read of one learner's reflections — the profile shows judgement,
+ * not a wall of answers: a short summary plus at most five genuinely
+ * notable quotes (bright spots and worries). One model call per
+ * learner, cached until they answer something new; the deterministic
+ * crisis flags stay separate and always lead. */
+app.get("/dashboard/learner-insight", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const email = (c.req.query("email") || "").trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) return c.json({ error: "invalid_email" }, 400);
+  try {
+    const state = await readReflections(c.env);
+    const tagPatch = JSON.parse(
+      (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+    ) as Record<string, string[]>;
+    const tags = tagPatch[email] ?? state.userTags[email] ?? [];
+    if (!inScope(tags, access.tag)) return c.json({ error: "out_of_scope" }, 403);
+    const rows = state.responses
+      .filter((r) => r.email.toLowerCase() === email)
+      .sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0));
+    if (rows.length < 3) {
+      return c.json({ ok: true, status: "too_few", count: rows.length });
+    }
+    /* Keyed by answer count: a new answer refreshes the read, an
+     * unchanged record never repeats the model call. */
+    const hash = (await hashLearnerId(email)).slice(0, 16);
+    const cacheKey = `profile:insight:v1:${hash}:${rows.length}`;
+    const cached = await c.env.RATE_LIMITS.get(cacheKey);
+    if (cached) return c.json(JSON.parse(cached));
+    const input = rows.slice(-120).map((r) => ({
+      module: r.courseTitle,
+      when: r.kind === "pre" ? "before the module" : "after the module",
+      question: r.question.slice(0, 160),
+      answer: r.answer.slice(0, 300),
+    }));
+    const raw = await generate(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.COACH_MODEL || "claude-sonnet-4-6",
+      learnerInsightSystemPrompt(),
+      JSON.stringify({ answers: input }),
+      700,
+    );
+    const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as {
+      summary?: unknown;
+      highlights?: unknown;
+    };
+    const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 600) : "";
+    /* Honesty guard: a highlight only survives if its quote really
+     * appears in the learner's answers — a paraphrase or invention is
+     * dropped, never shown. */
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+    const answerBlob = norm(rows.map((r) => r.answer).join(" \n "));
+    const highlights = (Array.isArray(parsed.highlights) ? parsed.highlights : [])
+      .filter((h): h is { kind: string; quote: string; module?: string; note?: string } => {
+        if (typeof h !== "object" || h === null) return false;
+        const hh = h as Record<string, unknown>;
+        return (
+          (hh.kind === "positive" || hh.kind === "concern") &&
+          typeof hh.quote === "string" &&
+          hh.quote.trim().length > 0 &&
+          answerBlob.includes(norm(hh.quote))
+        );
+      })
+      .slice(0, 5)
+      .map((h) => ({
+        kind: h.kind,
+        quote: h.quote.slice(0, 400),
+        module: typeof h.module === "string" ? h.module.slice(0, 120) : "",
+        note: typeof h.note === "string" ? h.note.slice(0, 200) : "",
+      }));
+    const payload = { ok: true, status: "ready", count: rows.length, summary, highlights };
+    await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
+      expirationTtl: 30 * 24 * 3600,
+    });
+    return c.json(payload);
+  } catch (err) {
+    console.error("[coach] learner insight error:", String(err));
+    /* The profile must never break on this — an honest fallback. */
+    return c.json({ ok: true, status: "unavailable" });
   }
 });
 

@@ -176,6 +176,17 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-career' hidden>" +
     "<div class='dbar'><span class='dbarlabel'>Cohort filter</span><div class='chips' id='c-chips'></div>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
+    /* Until anyone in scope has used a tool, this section is honestly a
+     * COMING-SOON: one inviting card, no empty charts and zero KPIs. */
+    "<div class='dcard csoon' id='c-soon' hidden>" +
+    "<div class='csoon-ico'>💼</div>" +
+    "<h2>Career tools — coming soon for your learners</h2>" +
+    "<p>Alongside their modules, every learner gets Fledge&#39;s career studio: honest CV reviews, a CV builder, " +
+    "LinkedIn feedback, filmed interview practice and cover-letter drafting. None of your learners have tried them yet " +
+    "— the moment one does, this section fills with adoption, score distributions and a per-student picture.</p>" +
+    "<p class='dmut'>Learners reach the tools any time from <b>fledglings.co</b> — or press <b>Student view</b> in the sidebar to try them yourself.</p>" +
+    "</div>" +
+    "<div id='c-full'>" +
     "<div class='kpigrid'>" +
     kpi("c-engaged", "⚡", "Using career tools", "tried at least one") +
     kpi("c-avgcv", "📄", "Avg CV score", "latest per learner") +
@@ -193,6 +204,7 @@ export function renderDashboardPage(): string {
     "<thead><tr><th scope='col'>Student</th><th scope='col'>CV</th><th scope='col'>LinkedIn</th><th scope='col'>Interview</th><th scope='col'>Letters</th><th scope='col'>Journey</th><th scope='col'>Job-ready</th></tr></thead>" +
     "<tbody id='c-body'></tbody></table>" +
     "<div class='dempty' id='c-empty' hidden>No learners match.</div></div></div>" +
+    "</div>" +
     "</section>" +
 
     /* ---------- evidence (SAR narrative + inspector link) ---------- */
@@ -453,44 +465,49 @@ toolRow('Interview',e.interview)+toolRow('Cover letters',e.cover,true)+"</div>"+
 "<div class='dr-journey' style='margin-top:12px'>Career journey: <b>"+r.tasksDone+"/7</b> tasks"+
 "<i class='msb wide'><b style='width:"+Math.round(r.tasksDone*100/7)+"%;background:#13507F'></b></i></div></div>"+
 "</div>"+
-"<div class='dcard'><h2>Their self-reflections <span class='dtag' id='prof-rf-count'></span></h2>"+
-"<div id='prof-rf-trend'></div><div id='prof-rf-list'><span class='dmut'>Loading their answers…</span></div></div>"+
+"<div class='dcard'><h2>What their reflections say <span class='dtag' id='prof-rf-count'></span></h2>"+
+"<div id='prof-insight' aria-live='polite'><span class='dmut'>Reading their answers…</span></div></div>"+
 "<div class='dr-acts'>"+
 "<a class='dbtn ghost sm' href='/hub?e="+b64u(r.email)+"&view=1' target='_blank' rel='noopener'>Open their hub view</a>"+
 "<a class='dbtn ghost sm' href='"+mailHref+"'>✉ Email"+(en.nudge?' (nudge prefilled)':'')+"</a>"+
 "<a class='dbtn ghost sm' href='/dashboard/reflections.csv'>⬇ All reflections (CSV)</a>"+
 "</div>";
 window.scrollTo({top:0,behavior:'smooth'});
-/* their reflections: flags first, self-rating trend, verbatim answers */
+/* Deterministic crisis flags lead (duty of care, rule-based); the
+ * count fills the stat card. */
 fetch('/dashboard/learner-reflections?email='+encodeURIComponent(r.email))
 .then(function(x){return x.json()}).then(function(rf){
-if(!rf||!rf.ok){$('prof-rf-list').innerHTML="<span class='dmut'>Reflections unavailable just now.</span>";$('prof-rf-n').textContent='—';return;}
+if(!rf||!rf.ok){$('prof-rf-n').textContent='—';return;}
 $('prof-rf-n').textContent=rf.count;$('prof-rf-count').textContent=rf.count+' answers';
 if((rf.flags||[]).length){$('prof-flags').innerHTML=
 "<div class='dcard dr-flagbox' style='margin-bottom:16px'><b>⚠ "+rf.flags.length+" answer"+(rf.flags.length===1?'':'s')+" worth a check-in</b>"+
 rf.flags.map(function(f){return "<div class='dr-flag'><span class='dmut'>"+esc2(f.courseTitle)+" · "+esc2(f.question)+"</span>"+
 "<div class='dr-fa'>“"+esc2(f.answer)+"”</div></div>";}).join('')+"</div>";}
-else{$('prof-flags').innerHTML='';}
-/* self-rating trend: their numeric "n / 10" answers over time */
-var pts=(rf.rows||[]).filter(function(row){return /^\s*\d+(\.\d+)?\s*\/\s*\d+\s*$/.test(row.answer)&&row.submittedAt})
-.map(function(row){var mm=row.answer.split('/');return {at:row.submittedAt,pct:Math.round(parseFloat(mm[0])*100/parseFloat(mm[1]))};})
-.sort(function(a,b){return a.at-b.at});
-if(pts.length>=3){var W2=560,H2=120;
-var t0=pts[0].at,t1=pts[pts.length-1].at,span=Math.max(1,t1-t0);
-var poly=pts.map(function(pp){return (16+(W2-32)*(pp.at-t0)/span).toFixed(1)+','+(H2-16-(pp.pct*(H2-36)/100)).toFixed(1)}).join(' ');
-$('prof-rf-trend').innerHTML="<div class='dmut' style='margin-bottom:6px'>Self-rating trend — every score they have given themselves, oldest to newest</div>"+
-"<svg viewBox='0 0 "+W2+" "+H2+"' style='width:100%;max-width:560px' role='img' aria-label='Self-rating trend across "+pts.length+" answers'>"+
-"<line x1='16' y1='"+(H2-16)+"' x2='"+(W2-16)+"' y2='"+(H2-16)+"' stroke='#E3DDDA'/>"+
-"<polyline points='"+poly+"' fill='none' stroke='#13507F' stroke-width='2' stroke-linejoin='round'/>"+
-pts.map(function(pp){var x=(16+(W2-32)*(pp.at-t0)/span).toFixed(1),y=(H2-16-(pp.pct*(H2-36)/100)).toFixed(1);
-return "<circle cx='"+x+"' cy='"+y+"' r='3.5' fill='"+band(pp.pct)+"'/>";}).join('')+"</svg>";}
-else{$('prof-rf-trend').innerHTML='';}
-$('prof-rf-list').innerHTML=(rf.count===0)?"<span class='dmut'>No reflections submitted yet.</span>":
-"<div class='dr-rflist'>"+rf.rows.slice(0,12).map(function(row){
-return "<div class='dr-rf'><span class='dmut'>"+esc2(row.courseTitle)+(row.submittedAt?" · "+new Date(row.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span>"+
-"<div class='dr-rq'>"+esc2(row.question)+"</div><div class='dr-ra'>"+esc2(row.answer)+"</div></div>";}).join('')+"</div>"+
-(rf.count>12?"<div class='dmut' style='margin-top:8px'>Showing the latest 12 of "+rf.count+" — the CSV has every answer.</div>":'');})
-.catch(function(){$('prof-rf-list').innerHTML="<span class='dmut'>Could not load reflections.</span>";$('prof-rf-n').textContent='—';});}
+else{$('prof-flags').innerHTML='';}})
+.catch(function(){$('prof-rf-n').textContent='—';});
+/* The AI read: a short summary plus only the answers that genuinely
+ * stand out — bright spots and worries, five at most. */
+fetch('/dashboard/learner-insight?email='+encodeURIComponent(r.email))
+.then(function(x){return x.json()}).then(function(ins){
+var el=$('prof-insight');if(!el)return;
+if(!ins||!ins.ok||ins.status==='unavailable'){
+el.innerHTML="<span class='dmut'>The read of their answers is unavailable just now — every answer is in the CSV below.</span>";return;}
+if(ins.status==='too_few'){
+el.innerHTML="<span class='dmut'>"+(ins.count===0?'No reflections submitted yet.':
+'Only '+ins.count+' answer'+(ins.count===1?'':'s')+' so far — too few to read a pattern. They are in the CSV below.')+"</span>";return;}
+var out='';
+if(ins.summary)out+="<p class='ins-sum'>"+esc2(ins.summary)+"</p>";
+var hls=ins.highlights||[];
+if(hls.length){out+="<div class='ins-list'>"+hls.map(function(h){
+var pos=h.kind==='positive';
+return "<div class='ins-hl "+(pos?'pos':'con')+"'><span class='ins-k'>"+(pos?'✨ Bright spot':'⚠ Worth a word')+
+(h.module?" <i>· "+esc2(h.module)+"</i>":'')+"</span>"+
+"<div class='ins-q'>“"+esc2(h.quote)+"”</div>"+
+(h.note?"<div class='ins-n'>"+esc2(h.note)+"</div>":'')+"</div>";}).join('')+"</div>";}
+else{out+="<p class='dmut'>Nothing stands out for a tutor to act on — their answers read as steady. All "+ins.count+" are in the CSV below.</p>";}
+el.innerHTML=out;})
+.catch(function(){var el=$('prof-insight');
+if(el)el.innerHTML="<span class='dmut'>Could not read their answers just now — the CSV below has all of them.</span>";});}
 
 function renderCohorts(){var tags=DATA.tags||[];
 $('co-empty').hidden=tags.length>0;
@@ -644,6 +661,10 @@ return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
 function renderCareer(){chips($('c-chips'),renderCareer);
 var rows=scoped();$('c-empty').hidden=rows.length>0;
 function tried(t){return rows.filter(function(r){return r.employability[t].latest!==null||( t==='cover'&&r.employability[t].attempts>0)})}
+/* No usage yet = an honest coming-soon, not a page of empty charts. */
+var anyUse=['cv','linkedin','interview','cover'].some(function(t){return tried(t).length>0});
+$('c-soon').hidden=anyUse;$('c-full').hidden=!anyUse;
+if(!anyUse)return;
 var engaged=rows.filter(function(r){return r.readiness!==null}).length;
 countUp($('c-engaged'),engaged);
 $('c-engaged-bar').style.width=(rows.length?Math.round(engaged*100/rows.length):0)+'%';
@@ -967,6 +988,21 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dlogin input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-family:inherit;
   font-size:14px;margin-bottom:12px;}
 .dnote{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.5;}
+.csoon{text-align:center;padding:44px 28px;}
+.csoon-ico{font-size:40px;margin-bottom:10px;}
+.csoon h2{margin-bottom:10px;}
+.csoon p{max-width:560px;margin:0 auto 10px;font-size:14.5px;line-height:1.65;color:var(--ink);}
+.ins-sum{font-size:14.5px;line-height:1.6;color:var(--ink);margin-bottom:12px;}
+.ins-list{display:grid;gap:10px;}
+.ins-hl{background:#FAF8F7;border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+.ins-hl.pos{border-left:3px solid var(--ok);}
+.ins-hl.con{border-left:3px solid #9A5812;}
+.ins-k{font-size:12px;font-weight:700;letter-spacing:.02em;}
+.ins-hl.pos .ins-k{color:var(--ok);}
+.ins-hl.con .ins-k{color:#9A5812;}
+.ins-k i{font-style:normal;font-weight:500;color:var(--mut);}
+.ins-q{font-size:14px;line-height:1.55;color:var(--ink);margin-top:5px;}
+.ins-n{font-size:12.5px;color:var(--mut);margin-top:5px;}
 .evnarr{background:#FAF8F7;border:1px solid var(--line);border-left:3px solid var(--orange);
   border-radius:12px;padding:16px 18px;margin-top:12px;}
 .evnarr p{font-size:14px;line-height:1.65;color:var(--ink);}

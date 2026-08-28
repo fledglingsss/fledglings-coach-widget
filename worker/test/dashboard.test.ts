@@ -1008,3 +1008,56 @@ describe("device link codes", () => {
     expect(out).toMatchObject({ ok: false, reason: "bad_code" });
   });
 });
+
+describe("GET /dashboard/learner-insight", () => {
+  const N_COURSES = Object.values(COURSE_MAP).filter((v) => v !== null).length;
+  async function seedInsightReflections(env: Env) {
+    const row = (email: string, answer: string) => ({
+      email, courseTitle: "Money Confidence", unitTitle: "Initial Self - Reflection",
+      kind: "pre", submittedAt: 1_753_000_000, question: "How confident are you?", answer,
+    });
+    await env.RATE_LIMITS.put(
+      "portal:reflect:v4",
+      JSON.stringify({
+        status: "ready", responsesEnabled: true, cursor: N_COURSES, totalCourses: N_COURSES,
+        coverage: [], shifts: [], flags: [],
+        responses: [row("amy@swift.test", "4 / 10"), row("amy@swift.test", "quite nervous about money")],
+        userTags: { "amy@swift.test": ["Swift Learners"], "cal@other.test": ["Other College"] },
+        learnerEmails: ["amy@swift.test", "cal@other.test"],
+        preRespondents: ["amy@swift.test"], postRespondents: [],
+        builtAt: new Date().toISOString(),
+      }),
+    );
+  }
+
+  it("rejects without a session", async () => {
+    const res = await app.request(
+      get("/dashboard/learner-insight?email=amy@swift.test"), undefined, makeEnv(),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("refuses learners outside the code's scope", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedInsightReflections(env);
+    const res = await app.request(
+      get("/dashboard/learner-insight?email=cal@other.test", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("answers honestly when there is too little to analyse — no model call", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedInsightReflections(env);
+    const res = await app.request(
+      get("/dashboard/learner-insight?email=amy@swift.test", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(200);
+    const d = (await res.json()) as { ok: boolean; status: string; count: number };
+    expect(d).toMatchObject({ ok: true, status: "too_few", count: 2 });
+  });
+});
