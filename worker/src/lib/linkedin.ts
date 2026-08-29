@@ -147,6 +147,10 @@ export interface LinkedInFacts {
   hasAboutHeading: boolean;
   aboutWords: number;
   experienceRanges: number; // date ranges like "Sep 2024 - Present"
+  /** Words under the Experience heading. A PDF export often drops the
+   * dates while keeping the roles, so content and dates are counted
+   * separately — absence of dates is not absence of experience. */
+  experienceWords: number;
   hasEducationHeading: boolean;
   skillsListed: number; // lines under Top Skills (export shows up to 3)
   extrasHeadings: string[]; // certifications / honours / languages / volunteering
@@ -178,8 +182,28 @@ function headingIndex(text: string, names: string[]): number {
 export function analyseLinkedInFacts(rawText: string): LinkedInFacts {
   const text = rawText.slice(0, 20_000);
 
-  const urlMatch = /linkedin\.com\/in\/([A-Za-z0-9%_-]+)/i.exec(text);
-  const slug = urlMatch ? urlMatch[1]! : "";
+  /* A PDF export wraps long lines, so a profile URL routinely arrives
+   * as "linkedin.com/in/imogen-\nhart" or with a space after /in/.
+   * Reading that literally produced two false accusations a learner
+   * hit in testing: a truncated slug echoed back to them as though
+   * they had typed it, and a URL reported missing when it was there.
+   *
+   * Both are the export's doing, not theirs, so the line breaks and
+   * spaces that only the export introduced are healed before matching.
+   * A genuine space inside a slug is impossible — LinkedIn does not
+   * allow one — so nothing real is lost by closing them up. */
+  const healed = text
+    /* a space straight after /in/ */
+    .replace(/(linkedin\.com\/in\/)[ \t]+/gi, "$1")
+    /* a wrap after the hyphen LinkedIn puts between name parts, which
+     * is where a PDF almost always breaks these. Deliberately narrow:
+     * joining on any whitespace glued the slug to the next section
+     * heading ("...ab4082396" + "Summary"), which hid the digits that
+     * mark an unclaimed URL and quietly turned a real finding into a
+     * pass — caught by the existing test for exactly that case. */
+    .replace(/(linkedin\.com\/in\/[A-Za-z0-9%_]*-)\s+(?=[a-z0-9])/gi, "$1");
+  const urlMatch = /linkedin\.com\/in\/([A-Za-z0-9%_-]+)/i.exec(healed);
+  const slug = urlMatch ? urlMatch[1]!.replace(/-+$/, "") : "";
   const url = {
     found: Boolean(urlMatch),
     custom: Boolean(urlMatch) && !DEFAULT_SLUG_TAIL.test(slug),
@@ -244,12 +268,15 @@ export function analyseLinkedInFacts(rawText: string): LinkedInFacts {
     experienceText = text.slice(experienceAt, end);
   }
   const experienceRanges = (experienceText.match(DATE_RANGE) || []).length;
+  const experienceWords =
+    experienceAt >= 0 ? experienceText.trim().split(/s+/).filter(Boolean).length : 0;
 
   return {
     url,
     hasAboutHeading: aboutAt >= 0,
     aboutWords,
     experienceRanges,
+    experienceWords,
     hasEducationHeading: educationAt >= 0,
     skillsListed,
     extrasHeadings,
@@ -379,6 +406,10 @@ export function linkedinUserMessage(
     `custom URL claimed: ${facts.url.custom ? "yes" : facts.url.found ? "no (default URL)" : "not visible"}`,
     `About/Summary heading present: ${facts.hasAboutHeading ? `yes (~${facts.aboutWords} words)` : "no"}`,
     `experience date ranges found: ${facts.experienceRanges}`,
+    `words under the experience heading: ${facts.experienceWords}`,
+    facts.experienceWords >= 12 && facts.experienceRanges === 0
+      ? "NOTE: roles are present but no dates survived the PDF export. Do NOT claim their profile is missing dates — say you cannot see them in this export and to check the profile itself."
+      : "",
     `Education heading present: ${facts.hasEducationHeading ? "yes" : "no"}`,
     `top skills listed: ${facts.skillsListed}`,
     `extra sections present: ${facts.extrasHeadings.join(", ") || "none"}`,
@@ -423,7 +454,13 @@ function absenceCap(id: LinkedInSectionId, facts: LinkedInFacts): number | null 
     case "about":
       return facts.hasAboutHeading && facts.aboutWords >= 5 ? null : 0;
     case "experience":
-      return facts.experienceRanges > 0 ? null : 0;
+      /* Zero only when there is genuinely nothing here. A learner
+       * tested this with roles that carry dates on their profile but
+       * lost them in the PDF export, and the whole 25-point section
+       * was zeroed — the export's shortcoming charged to them. Missing
+       * dates now weigh on the score through the model's judgement of
+       * what it can see, rather than deleting the section outright. */
+      return facts.experienceWords >= 12 || facts.experienceRanges > 0 ? null : 0;
     case "education":
       return facts.hasEducationHeading ? null : 0;
     case "skills":

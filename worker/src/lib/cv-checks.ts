@@ -62,6 +62,28 @@ function contentLines(text: string): string[] {
     .filter((l) => l.length > 25 && /[a-z]/.test(l));
 }
 
+/* Is there a phone number in here?
+ *
+ * The old test was a single UK-shaped pattern, and it missed six of
+ * fifteen formats a real CV uses — "+44 7700 900123", anything
+ * hyphenated or bracketed, and every international number. A learner
+ * tested this and was told their CV had no mobile when it plainly did,
+ * which is worse than saying nothing: once one check is provably
+ * wrong, none of the others are believed either.
+ *
+ * So it now normalises the way a person reads a number — strip the
+ * punctuation a phone number is allowed to contain, then look for a
+ * long enough run of digits — rather than demanding one written shape.
+ * It errs towards finding a number: a missed number is a false
+ * accusation, while a stray match only costs an unearned tick. */
+export function hasPhoneNumber(text: string): boolean {
+  /* Separators a phone number legitimately contains, including the
+   * non-breaking spaces PDF extraction leaves behind. */
+  const normalised = text.replace(/[\s   ().‐-―-]/g, "");
+  /* +CC then 8+ digits, or a domestic 0-led number of 10+ digits. */
+  return /(\+\d{1,3}\d{8,14}|(?:^|\D)0\d{9,13})(?:\D|$)/.test(normalised);
+}
+
 export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult {
   const lower = text.toLowerCase();
   const lines = contentLines(text);
@@ -193,7 +215,7 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
   const structure: Check[] = [];
 
   const hasEmail = /[\w.+-]+@[\w-]+\.[\w.]+/.test(text);
-  const hasPhone = /(\+44|\b0)\d[\d\s]{8,12}\b/.test(text);
+  const hasPhone = hasPhoneNumber(text);
   if (kind === "cv") {
     structure.push({
       id: "contact",

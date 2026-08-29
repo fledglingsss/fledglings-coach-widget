@@ -127,7 +127,7 @@ export const CV_RUBRIC: RubricDimension[] = [
     label: "Tailoring",
     weight: 20,
     measures:
-      "Whether this reads as written for the role you are aiming at, rather than sent to everyone.",
+      "Whether this reads as written for the role you are aiming at, rather than sent to everyone. If no advert was given, this is judged on how clearly the CV points somewhere at all — never marked down for the advert being missing.",
     source:
       "UCAS and the National Careers Service publish the same first rule: tailor every application to the role — the one that could have been sent anywhere is the one that gets rejected.",
     bands: [

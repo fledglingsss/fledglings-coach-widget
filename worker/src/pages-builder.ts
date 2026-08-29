@@ -45,6 +45,9 @@ export function renderBuilderPage(): string {
     /* ---------- design gallery (real rendered miniatures) ---------- */
     "<div id='s-design' hidden><div class='card'>" +
     "<div class='listhead'><div><h3 style='margin-bottom:2px'>Choose a design</h3>" +
+    "<p class='atsexplain'>Every design here is <b>ATS-safe</b> — that means it reads correctly in the software " +
+    "most employers use to scan applications before a person sees them. Software like that gets confused by " +
+    "columns, tables and text boxes, so all of these keep to a single flow. Pick whichever you like the look of.</p>" +
     "<p class='fieldtip' style='margin:0'>Six genuinely different layouts, all ATS-safe, shown exactly as they print. " +
     "Change any time — your content never changes with the design.</p></div>" +
     "<button type='button' class='btn ghost' id='designback'>← Back</button></div>" +
@@ -152,12 +155,12 @@ cvs=cvs.filter(function(c){return c.id!==b.dataset.del});saveAll(cvs);renderList
  * parsers read out of order — the gallery says so instead of letting a
  * learner find out from a silent rejection. */
 var DESIGNS=[
-{id:'classic',label:'Classic',ats:true,blurb:'Timeless serif with a centred masthead and double rules — suits every application.'},
-{id:'executive',label:'Executive',ats:true,blurb:'Full navy masthead with your contact inside it, tabbed headings. Lands with authority.'},
-{id:'modern',label:'Modern',ats:true,blurb:'Big name, orange energy bar, skills as chips — contemporary without shouting.'},
-{id:'accent',label:'Monogram',ats:true,blurb:'Your initials in a warm medallion beside a spine of colour. Personal and polished.'},
-{id:'sidebar',label:'Sidebar',ats:true,twoCol:true,blurb:'A navy panel carries contact, skills and achievements beside your story.'},
-{id:'compact',label:'Ledger',ats:true,blurb:'Headings in their own label column, hairline rules — dense, calm, one page.'}];
+{id:'classic',label:'Classic',ats:true,blurb:'Traditional and safe. Your name centred at the top, classic lettering. Works for anything — pick this if you are unsure.'},
+{id:'executive',label:'Executive',ats:true,blurb:'A navy banner across the top with your name and contact details inside it. Looks confident.'},
+{id:'modern',label:'Modern',ats:true,blurb:'Modern and colourful. Big name, a stripe of colour, and your skills shown as small rounded tags.'},
+{id:'accent',label:'Monogram',ats:true,blurb:'Your initials in a circle beside a line of colour down the edge. Personal, still smart.'},
+{id:'sidebar',label:'Sidebar',ats:true,twoCol:true,blurb:'A coloured panel down one side holds your contact details and skills, with your history beside it.'},
+{id:'compact',label:'Ledger',ats:true,blurb:'Compact. Headings sit in a left-hand column so more fits on one page.'}];
 var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.com',town:'Leeds',linkedin:'',
 summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
 experience:[{role:'Volunteer',org:'Community Shop',location:'Leeds',from:'Jun 2025',to:'Present',
@@ -170,7 +173,7 @@ function renderDesignGallery(){var h='';
 DESIGNS.forEach(function(d){
 h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
 "<div class='cvpaper "+d.id+"'>"+docHtml(DESIGN_SAMPLE,false)+"</div></div></div>"+
-"<b>"+esc2(d.label)+" <span class='atsbadge ok'>ATS-safe</span>"+"</b><p>"+esc2(d.blurb)+
+"<b>"+esc2(d.label)+" <span class='atsbadge ok' title='Reads correctly in the software employers use to scan applications'>ATS-safe</span>"+"</b><p>"+esc2(d.blurb)+
 (d.twoCol?" <span class='atsnote'>Two columns on screen, one column when you download it — so a parser still reads your CV in the right order.</span>":'')+"</p>"+
 "<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
 $('designgrid').innerHTML=h;
@@ -329,8 +332,13 @@ d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";
  * CV, not editable, because there is exactly one correct wording and
  * a learner guessing at it is how a referee's phone number ends up on
  * a document handed to strangers. */
+if(!d.hideRefs){
 h+="<div class='cp-sec sec-refs'><h4>References</h4>"+
-"<p class='cp-refs'>References are available on request.</p></div>";
+"<p class='cp-refs'>References are available on request.</p>"+
+(E?"<div class='ctl' contenteditable='false'><button type='button' class='ctlbtn' data-refs='off'>remove this section</button></div>":"")+
+"</div>";}
+else if(E){h+="<div class='cp-sec sec-refs refs-off'><div class='ctl' contenteditable='false'>"+
+"<button type='button' class='ctlbtn' data-refs='on'>+ add References back</button></div></div>";}
 h+="</div></div>";
 return h;}
 
@@ -343,6 +351,8 @@ function renderDoc(){$('paper').innerHTML=docHtml(current.data,true);renderSkill
 $('paper').querySelectorAll('[data-addbullet]').forEach(function(b){b.onclick=function(){
 var i=+b.dataset.addbullet;var e=current.data.experience[i];
 e.bullets=(e.bullets?e.bullets+'\n':'');renderDoc();focusBind('xb:'+i+':'+(String(e.bullets).split('\n').length-1));scheduleSave();};});
+$('paper').querySelectorAll('[data-refs]').forEach(function(b){b.onclick=function(){
+current.data.hideRefs=b.dataset.refs==='off';renderDoc();scheduleSave();};});
 $('paper').querySelectorAll('[data-delentry]').forEach(function(b){b.onclick=function(){
 current.data.experience.splice(+b.dataset.delentry,1);
 if(!current.data.experience.length)current.data.experience=[blankExp()];
@@ -495,6 +505,7 @@ const BUILDER_CSS = `
 .dthumb .mk{display:none!important;}
 .dthumb::after{content:'';position:absolute;inset:0;}
 .dselect{padding:10px 16px;min-height:40px;font-size:13.5px;}
+.atsexplain{font-size:13px;color:var(--ink);line-height:1.6;margin:6px 0 0;max-width:70ch;}
 .atsbadge{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;
   padding:3px 8px;background:#FCEBD9;color:#9A5812;vertical-align:2px;}
 .atsbadge.ok{background:#E8F2EC;color:#1A7649;}
@@ -658,6 +669,10 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .cvpaper.compact .cp-sec>*:not(h4){grid-column:1;}}
 @media print{
   body{background:#fff!important;}
+  /* Keep the design's colour in the PDF. Without this the browser
+   * strips backgrounds and the Executive masthead prints as white,
+   * taking its white name text with it. */
+  .cvpaper,.cvpaper *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
   .snav,.footer,h2.page,.sub,.no-print,.revcol{display:none!important;}
   .wrap{padding:0;max-width:none;}
   .docgrid{display:block;}
@@ -674,6 +689,7 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
   .cvpaper.sidebar .cp-side h4{color:#1c2b36!important;border-bottom-color:#1c2b36!important;}
   .cvpaper.sidebar .cp-main{padding:0!important;}
   .mk,.ctl,.addline{display:none!important;}
+  .refs-off{display:none!important;}
   [contenteditable]:empty{display:none;}
 }
 `;

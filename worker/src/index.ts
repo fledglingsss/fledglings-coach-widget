@@ -1293,6 +1293,17 @@ these are their rules, not ours):
   they want. LinkedIn's limit is 2,600 characters; aim far shorter —
   three short paragraphs a person will actually read. No "hardworking
   and passionate" opener: name a real thing they did instead.
+  The three paragraphs must run in this order, and each must follow on
+  from the one before so it reads as one piece of writing:
+    1. what they are doing now and the strongest real thing they have
+       done — the hook;
+    2. the detail underneath it: the actual work, skills and any
+       numbers from their profile;
+    3. where they are heading and how to get in touch.
+  Do not produce three disconnected statements. A learner tested this
+  and got paragraphs in no order at all, which is unusable — they
+  cannot paste it in, and fixing the order is harder than writing it
+  themselves.
 - SKILLS are what recruiters search on, so any rewrite should use the
   plain words a job advert uses, never invented job-title jargon.
 

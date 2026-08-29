@@ -528,9 +528,10 @@ export function renderToolsPage(): string {
     /* step 1: target */
     "<div class='card' id='cvst-1'>" +
     "<h3>🎯 What are you aiming at?</h3>" +
-    "<p class='kw-note' style='margin-bottom:4px'>Name the role — or paste the whole advert — and the scoring gets " +
-    "much sharper: keyword matching, tailoring, the lot. You can also skip this.</p>" +
-    "<input type='text' id='target' aria-label='Job title or advert you are aiming at' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
+    "<p class='kw-note' style='margin-bottom:4px'><b>Paste the actual job advert</b> if you have one — that is what " +
+    "unlocks the keyword match against the employer's own wording. A job title alone still helps with tailoring, " +
+    "but nobody can tell you which keywords a specific employer wants from two words. You can also skip this.</p>" +
+    "<textarea id='target' rows='3' aria-label='Paste the job advert, or name the role you are aiming at' maxlength='2500' placeholder='Paste the advert here — or just name the role, e.g. Customer service apprenticeship at a bank'></textarea>" +
     "<div class='btnrow' style='margin-top:14px'>" +
     "<button type='button' class='btn' id='cv-n1'>Next: your CV →</button>" +
     "<button type='button' class='btn ghost' id='cv-skip'>Skip — just score it</button></div></div>" +
@@ -890,7 +891,10 @@ export function renderToolsPage(): string {
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-kind').textContent=(kind==='cv'?'CV REVIEW':'LINKEDIN REVIEW');" +
     "$('r-verdict').textContent=r.verdict;" +
-    "$('r-file').textContent=lastName+($('target').value?' · aiming at: '+$('target').value:'');" +
+    /* A pasted advert can be 2,000 characters — show enough to confirm
+     * what it scored against, not the whole posting. */
+    "var aim=$('target').value.trim().replace(/\\s+/g,' ');" +
+    "$('r-file').textContent=lastName+(aim?' · aiming at: '+(aim.length>70?aim.slice(0,70)+'…':aim):'');" +
     /* Carry identity onward or the next tool scores anonymously. */
     "function flNextHref(p){var t=flToken();return p+(t?'?t='+encodeURIComponent(t):'');}" +
     "if(kind==='cv'){$('r-journey').href=flNextHref('/linkedin');$('r-journey-t').textContent='LinkedIn review — get your profile to match this CV';}" +
