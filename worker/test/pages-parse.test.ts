@@ -85,3 +85,15 @@ describe("no page can loop on identity adoption", () => {
     });
   }
 });
+
+describe("white-label: no vendor name in any served page", () => {
+  /* Founder law: nothing provider- or learner-facing may name the
+   * platform supplier — including view-source (comments in inline
+   * scripts ship to the browser too). Regressed once via a code
+   * comment in shared page JS (2026-08-29); this pins it. */
+  for (const [name, render] of PAGES) {
+    it(`${name} never mentions the supplier`, () => {
+      expect(render()).not.toMatch(/learn\s*_?-?worlds/i);
+    });
+  }
+});

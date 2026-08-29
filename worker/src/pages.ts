@@ -187,7 +187,7 @@ function flSignOutHere(){flClearEmail();
 try{var u=new URL(location.href);u.searchParams.delete('t');u.searchParams.delete('e');
 location.href=u.pathname+u.search;}catch(e){location.href='/hub';}}
 /* One call per tool page: show who we are saving as, and — when the
- * page was opened from a LearnWorlds embed carrying ?e= — exchange
+ * page was opened from a course embed carrying ?e= — exchange
  * that address for a token, then re-render as the signed-in learner.
  *
  * Reloads via ?t= rather than a bare reload: if storage is blocked the

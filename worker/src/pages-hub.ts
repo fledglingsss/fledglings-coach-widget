@@ -165,7 +165,7 @@ var known=email.length>0;
 $('id-known').hidden=!known;$('id-anon').hidden=known;
 if(known)$('id-email').textContent=email;}
 renderIdentity();
-/* Opened inside a LearnWorlds course with ?e=? Exchange that address
+/* Opened inside a course embed with ?e=? Exchange that address
  * for a signed token once, then re-render as the linked learner. */
 if(!viewOnly&&!email){try{flAdoptEmbedEmail(lid);}catch(e){}}
 /* Linking an email asks the worker for a signed token; it can say no

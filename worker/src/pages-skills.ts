@@ -406,7 +406,7 @@ export function renderSkillsPassport(
         "var t=document.getElementById('toast');t.textContent='Could not create your share link — please try again.';" +
         "t.className='toast on';setTimeout(function(){t.className='toast'},3200);});});}"
       : "") +
-    /* Tell the embedding page (LearnWorlds iframe) how tall we are so it
+    /* Tell the embedding page (the course iframe) how tall we are so it
      * can size the frame without clipping or a scrollbar. */
     /* Measure .page, not scrollHeight — scrollHeight can never shrink
      * below the iframe viewport, which ratchets the frame ever taller. */
