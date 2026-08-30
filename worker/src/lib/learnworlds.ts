@@ -125,6 +125,12 @@ async function resolveBase(env: LwEnv, token: string): Promise<string> {
   throw new Error(`LearnWorlds API base resolution failed: ${results.join(" | ")}`);
 }
 
+/** The school's public homepage, for links learner-facing pages build
+ * (e.g. the sign-in course). Empty string when unconfigured. */
+export function schoolHomepage(env: LwEnv): string {
+  return schoolUrl(env);
+}
+
 export async function lwRequest(
   env: LwEnv,
   method: string,

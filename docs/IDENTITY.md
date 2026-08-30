@@ -104,22 +104,34 @@ person owns an address. One residual remains:
 Trust on first use — the protection starts the moment a real learner
 links. Someone who knew a classmate's address, knew they had never
 used the tools, and got there first could sit on their score history;
-the classmate would then be refused and would contact Fledglings, so
-it is noisy rather than silent. Clearing the binding
-(`id:bind:<emailHash16>`) revokes it immediately, including any token
-already minted.
+the classmate would then be refused — and can now evict the squatter
+themselves by signing in with their school account (below), no support
+contact needed. Clearing the binding (`id:bind:<emailHash16>`) still
+revokes everything immediately as the manual fallback.
 
 The data behind identity remains whole numbers and timestamps —
 scores, never documents, answers, letters or video. That is why this
 trade-off is acceptable, and it is written down rather than implied.
 
-## Closing the last residual later
+## Closing the last residual: school-account sign-in (SHIPPED)
 
-If LearnWorlds SSO (or the Assessments/Forms-style plan gate) becomes
-available: have LearnWorlds sign a short-lived assertion, verify it in
-`/api/identity`, and let a verified assertion satisfy first-claim
-instead of "nobody has claimed it yet". Nothing else changes — every
-caller already speaks tokens, and link codes stay as the offline path.
+The school cannot sign an assertion directly (no IdP mode; its only
+user-token flow wants the learner's password typed into our page,
+which was rejected). What it does attribute reliably is an assessment
+response — so the proof rides on one. The hub shows a one-time code;
+the learner submits it inside the **Hub sign-in** course behind the
+school's own login; the worker reads the school's record of who
+submitted it server-to-server and mints for the device that asked.
+
+A verified sign-in **rebinds the address to exactly the proven device**
+(`{d: [device], v: true}` — the record format grew a verified flag;
+legacy bare arrays still parse). Because `emailFromToken` re-checks
+bindings on every call, a first-claim squatter is revoked the moment
+the real learner proves the address. Full design and founder setup:
+[SSO.md](SSO.md).
+
+Link codes stay as the offline path, and adding a device via link code
+preserves the verified flag rather than downgrading it.
 
 ## Provider "open their hub view"
 

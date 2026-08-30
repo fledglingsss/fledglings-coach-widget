@@ -66,9 +66,19 @@ import {
   listUsersPage,
   lwConfigured,
   lwRequest,
+  schoolHomepage,
   type LwUser,
   type LwUserCourse,
 } from "./lib/learnworlds";
+import {
+  matchSsoResponse,
+  recentSsoRows,
+  resolveSsoUnit,
+  SSO_CODE_TTL_SECS,
+  SSO_STARTS_PER_DEVICE_PER_DAY,
+  SSO_STARTS_PER_IP_PER_DAY,
+  SSO_CHECKS_PER_CODE,
+} from "./lib/sso";
 import {
   buildCoverage,
   classifyUnit,
@@ -229,8 +239,11 @@ import {
   LINK_CODE_TTL_SECS,
   mintIdentityToken,
   normaliseLinkCode,
+  parseBindingRecord,
   parseBindings,
   parseLinkCodeRecord,
+  serialiseBindingRecord,
+  verifiedRebind,
   verifyIdentityToken,
 } from "./lib/identity";
 import { generate } from "./lib/anthropic";
@@ -3009,7 +3022,8 @@ app.post("/api/identity", async (c) => {
     }
 
     const bindKey = `id:bind:${(await hashLearnerId(email)).slice(0, 16)}`;
-    const bindings = parseBindings(await c.env.RATE_LIMITS.get(bindKey));
+    const record = parseBindingRecord(await c.env.RATE_LIMITS.get(bindKey));
+    const bindings = record.devices;
     const decision = decideMint(bindings, deviceHash16, Boolean(linkCode));
     if (!decision.allow) {
       console.log(`[coach] kind=identity outcome=refused why=${decision.reason}`);
@@ -3027,9 +3041,13 @@ app.post("/api/identity", async (c) => {
 
     const next = addBinding(bindings, deviceHash16);
     if (next !== bindings) {
-      await c.env.RATE_LIMITS.put(bindKey, JSON.stringify(next), {
-        expirationTtl: 180 * 24 * 3600,
-      });
+      /* Preserve the verified flag — an unverified device joining via
+       * link code must not quietly downgrade a school-proven record. */
+      await c.env.RATE_LIMITS.put(
+        bindKey,
+        serialiseBindingRecord({ devices: next, verified: record.verified }),
+        { expirationTtl: 180 * 24 * 3600 },
+      );
     }
     const nowSecs = Math.floor(Date.now() / 1000);
     const token = await mintIdentityToken(secret, email, deviceHash16, nowSecs);
@@ -3043,6 +3061,155 @@ app.post("/api/identity", async (c) => {
     });
   } catch (err) {
     console.error("[coach] identity error:", String(err));
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
+
+/* ---------------- school-account sign-in (SSO) ----------------
+ *
+ * The one flow that can PROVE a learner owns an address, closing the
+ * first-claim residual documented in docs/IDENTITY.md. The trust chain
+ * and why it is shaped this way live in lib/sso.ts; the founder-side
+ * setup is docs/SSO.md. */
+
+app.post("/api/sso/start", async (c) => {
+  const body = await readJsonCapped(c, 2_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  if (!lwConfigured(c.env)) return c.json({ ok: false, reason: "not_set_up" }, 200);
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const deviceHash16 = (await hashLearnerId(learnerId)).slice(0, 16);
+    const rlKey = `sso:rl:${deviceHash16}:${day}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= SSO_STARTS_PER_DEVICE_PER_DAY) {
+      return c.json({ ok: false, reason: "rate_limited" }, 429);
+    }
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+    const ip = c.req.header("CF-Connecting-IP") || "";
+    if (ip) {
+      const ipKey = `sso:rli:${(await hashLearnerId(ip)).slice(0, 16)}:${day}`;
+      const ipUsed = parseInt((await c.env.RATE_LIMITS.get(ipKey)) || "0", 10) || 0;
+      if (ipUsed >= SSO_STARTS_PER_IP_PER_DAY) {
+        return c.json({ ok: false, reason: "rate_limited" }, 429);
+      }
+      await c.env.RATE_LIMITS.put(ipKey, String(ipUsed + 1), { expirationTtl: 86_400 });
+    }
+    const unit = await resolveSsoUnit(c.env, c.env.RATE_LIMITS);
+    if (!unit) return c.json({ ok: false, reason: "not_set_up" }, 200);
+    const code = generateLinkCode();
+    const nowSecs = Math.floor(Date.now() / 1000);
+    await c.env.RATE_LIMITS.put(
+      `sso:req:${code}`,
+      JSON.stringify({ d: deviceHash16, t: nowSecs }),
+      { expirationTtl: SSO_CODE_TTL_SECS },
+    );
+    console.log("[coach] kind=sso outcome=started");
+    return c.json({
+      ok: true,
+      code,
+      display: `${code.slice(0, 3)}-${code.slice(3)}`,
+      course_url: `${schoolHomepage(c.env)}/course/${encodeURIComponent(unit.courseId)}`,
+      expires_at: nowSecs + SSO_CODE_TTL_SECS,
+    });
+  } catch (err) {
+    console.error("[coach] sso start error:", String(err));
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
+
+app.post("/api/sso/check", async (c) => {
+  const body = await readJsonCapped(c, 2_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  const code = normaliseLinkCode(body.code);
+  if (!code) return c.json({ ok: false, reason: "expired" }, 200);
+  const secret = identitySecret(c.env);
+  if (!secret || !lwConfigured(c.env)) {
+    return c.json({ ok: false, reason: "unavailable" }, 503);
+  }
+  try {
+    const deviceHash16 = (await hashLearnerId(learnerId)).slice(0, 16);
+    const reqRaw = await c.env.RATE_LIMITS.get(`sso:req:${code}`);
+    let request: { d?: unknown; t?: unknown } | null = null;
+    try {
+      request = reqRaw ? (JSON.parse(reqRaw) as { d?: unknown; t?: unknown }) : null;
+    } catch {
+      request = null;
+    }
+    /* A missing code and someone else's code answer identically —
+     * polling must not confirm which codes are live. */
+    if (!request || request.d !== deviceHash16) {
+      return c.json({ ok: false, reason: "expired" }, 200);
+    }
+    const chkKey = `sso:chk:${code}`;
+    const checks = parseInt((await c.env.RATE_LIMITS.get(chkKey)) || "0", 10) || 0;
+    if (checks >= SSO_CHECKS_PER_CODE) {
+      return c.json({ ok: false, reason: "expired" }, 200);
+    }
+    await c.env.RATE_LIMITS.put(chkKey, String(checks + 1), {
+      expirationTtl: SSO_CODE_TTL_SECS,
+    });
+    const unit = await resolveSsoUnit(c.env, c.env.RATE_LIMITS);
+    if (!unit) return c.json({ ok: false, reason: "not_set_up" }, 200);
+    /* One fetch feeds every device polling at once: the rows land in
+     * KV for a few seconds, so a classroom signing in together costs
+     * the platform API no more than one learner does. */
+    const cacheKey = "sso:rows:v1";
+    let rows: unknown[] | null = null;
+    const cachedRows = await c.env.RATE_LIMITS.get(cacheKey);
+    if (cachedRows) {
+      try {
+        const parsed = JSON.parse(cachedRows) as { at?: number; rows?: unknown[] };
+        if (
+          typeof parsed.at === "number" &&
+          Date.now() - parsed.at < 5_000 &&
+          Array.isArray(parsed.rows)
+        ) {
+          rows = parsed.rows;
+        }
+      } catch {
+        rows = null;
+      }
+    }
+    if (rows === null) {
+      rows = await recentSsoRows(c.env, unit.unitId);
+      await c.env.RATE_LIMITS.put(
+        cacheKey,
+        JSON.stringify({ at: Date.now(), rows }),
+        { expirationTtl: 60 },
+      );
+    }
+    const nowSecs = Math.floor(Date.now() / 1000);
+    const match = matchSsoResponse(rows, code, nowSecs);
+    if (!match) return c.json({ ok: true, pending: true });
+    /* Proven. Burn the code, rebind the address to exactly this
+     * device (revoking any first-claim squatter immediately — token
+     * verification re-checks bindings on every call), mint. */
+    try {
+      await c.env.RATE_LIMITS.delete(`sso:req:${code}`);
+    } catch {
+      /* expires on its own regardless */
+    }
+    const bindKey = `id:bind:${(await hashLearnerId(match.email)).slice(0, 16)}`;
+    await c.env.RATE_LIMITS.put(
+      bindKey,
+      serialiseBindingRecord(verifiedRebind(deviceHash16)),
+      { expirationTtl: 180 * 24 * 3600 },
+    );
+    const token = await mintIdentityToken(secret, match.email, deviceHash16, nowSecs);
+    if (!token) return c.json({ ok: false, reason: "unavailable" }, 500);
+    console.log("[coach] kind=sso outcome=minted");
+    return c.json({
+      ok: true,
+      token,
+      email: match.email,
+      expires_at: nowSecs + IDENTITY_TTL_SECS,
+    });
+  } catch (err) {
+    console.error("[coach] sso check error:", String(err));
     return c.json({ ok: false, reason: "unavailable" }, 500);
   }
 });

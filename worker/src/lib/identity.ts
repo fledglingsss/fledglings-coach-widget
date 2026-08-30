@@ -141,16 +141,53 @@ export async function verifyIdentityToken(
  * cannot grow the record without bound. */
 export const MAX_BOUND_DEVICES = 6;
 
-export function parseBindings(raw: string | null): string[] {
-  if (!raw) return [];
+/** A binding record. `verified` means the learner proved the address
+ * through their school account (the sign-in course round-trip), not
+ * merely claimed it first. Stored either as the legacy bare device
+ * array or as `{d: devices, v: verified}` — both parse, so nothing
+ * already in KV needs migrating. */
+export interface BindingRecord {
+  devices: string[];
+  verified: boolean;
+}
+
+function devicesFrom(value: unknown): string[] {
+  return (Array.isArray(value) ? value : [])
+    .filter((d): d is string => typeof d === "string" && /^[0-9a-f]{16}$/.test(d))
+    .slice(0, MAX_BOUND_DEVICES);
+}
+
+export function parseBindingRecord(raw: string | null): BindingRecord {
+  if (!raw) return { devices: [], verified: false };
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return (Array.isArray(parsed) ? parsed : [])
-      .filter((d): d is string => typeof d === "string" && /^[0-9a-f]{16}$/.test(d))
-      .slice(0, MAX_BOUND_DEVICES);
+    if (Array.isArray(parsed)) return { devices: devicesFrom(parsed), verified: false };
+    if (typeof parsed === "object" && parsed !== null) {
+      const record = parsed as { d?: unknown; v?: unknown };
+      return { devices: devicesFrom(record.d), verified: record.v === true };
+    }
+    return { devices: [], verified: false };
   } catch {
-    return [];
+    return { devices: [], verified: false };
   }
+}
+
+export function serialiseBindingRecord(record: BindingRecord): string {
+  return JSON.stringify({ d: record.devices, v: record.verified });
+}
+
+/** The record after a school-verified sign-in: exactly the proven
+ * device, marked verified. Replacing the list rather than appending is
+ * the point — `emailFromToken` checks bindings on every call, so any
+ * device that had merely claimed the address first stops working the
+ * moment the real learner proves it. A learner's own other devices are
+ * dropped too; they re-add via a link code or their own sign-in. */
+export function verifiedRebind(deviceHash16: string): BindingRecord {
+  return { devices: [deviceHash16], verified: true };
+}
+
+export function parseBindings(raw: string | null): string[] {
+  return parseBindingRecord(raw).devices;
 }
 
 /** Add a device, or return the list unchanged when it is full.

@@ -118,8 +118,22 @@ export function renderHubPage(): string {
     "It works once and expires in <span id='lc-left'>10:00</span>.</span>" +
     "<div class='id-err' id='lc-err' hidden></div></div></div>" +
     "<div id='id-anon' hidden><b>Keep your scores?</b>" +
-    "<span class='id-sub'>Enter the email you use with Fledglings and your progress follows you on any device or page. " +
-    "It's only used as the key for your scores — no password, nothing else stored.</span>" +
+    "<span class='id-sub'>Sign in with your school account and your progress follows you on any device or page. " +
+    "No password is ever typed here — your school stays the front door.</span>" +
+    "<div class='idrow'><button type='button' class='btn' id='sso-go'>Sign in with your school account</button></div>" +
+    /* the one-time code + where to take it */
+    "<div class='linkbox' id='sso-box' hidden>" +
+    "<b>Your sign-in code</b>" +
+    "<div class='lc-code' id='sso-code'>------</div>" +
+    "<span class='id-sub'><b>1.</b> Open your school (button below — log in if it asks). " +
+    "<b>2.</b> Type this code into the box on that page and submit it. " +
+    "<b>3.</b> Come back here — this page signs you in by itself. " +
+    "The code works once and expires in <span id='sso-left'>10:00</span>.</span>" +
+    "<div class='idrow'><a class='btn' id='sso-open' href='#' target='_blank' rel='noopener'>Open my school</a>" +
+    "<button type='button' class='idlink' id='sso-cancel'>Cancel</button></div>" +
+    "<div class='id-sub' id='sso-status' aria-live='polite' hidden>Waiting for your code to arrive…</div>" +
+    "<div class='id-err' id='sso-err' hidden></div></div>" +
+    "<span class='id-sub' style='margin-top:10px'>Or link with just your email:</span>" +
     "<div class='idrow'><input type='email' id='id-input' maxlength='80' placeholder='you@example.com' aria-label='Your email'>" +
     "<button type='button' class='btn' id='id-save'>Save my progress</button></div>" +
     "<div class='id-err' id='id-err' hidden>That doesn't look like an email — check it and try again.</div>" +
@@ -180,8 +194,8 @@ if(!viewOnly&&!email){try{flAdoptEmbedEmail(lid);}catch(e){}}
  * (address already in use on another device, or not a Fledglings
  * learner) and the learner gets told plainly what to do instead. */
 var ID_REFUSALS={
-claimed_elsewhere:"That email is already linked to another device — that's your protection working. Open the Hub on that device, tap “Link another device” and type the code it gives you below.",
-cannot_link:"We couldn't link that email — check it's the address you use with Fledglings. You can carry on without linking; your scores still save on this device.",
+claimed_elsewhere:"That email is already linked to another device — that's your protection working. Sign in with your school account above to prove it's yours, or type a code from your other device below.",
+cannot_link:"We couldn't link that email — check it's the address you use with Fledglings, or sign in with your school account above. You can also carry on without linking; your scores still save on this device.",
 too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it, or carry on without linking — your scores still save on this device.",
 unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking — your scores still save on this device.",
 bad_email:"That doesn't look like an email — check it and try again.",
@@ -249,6 +263,61 @@ $('lc-enter-err').hidden=false;})
 $('lc-enter-err').textContent=LC_REFUSALS.offline;$('lc-enter-err').hidden=false;});};
 $('lc-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('lc-go').click();});
 $('id-input').addEventListener('keydown',function(e){if(e.key==='Enter')$('id-save').click();});
+
+/* ---- school-account sign-in ----
+ * The hub shows a one-time code; the learner submits it on a page
+ * behind the school's own login; the worker reads the school's record
+ * of who submitted it and signs this device in as that learner. No
+ * password ever touches this page. */
+var ssoCode=null,ssoPoll=null,ssoTimer=null;
+function ssoStop(){if(ssoPoll){clearInterval(ssoPoll);ssoPoll=null;}
+if(ssoTimer){clearInterval(ssoTimer);ssoTimer=null;}ssoCode=null;}
+function ssoFail(msg){ssoStop();$('sso-status').hidden=true;
+$('sso-err').textContent=msg;$('sso-err').hidden=false;}
+function ssoCountdown(until){if(ssoTimer)clearInterval(ssoTimer);
+function tick(){var left=Math.max(0,Math.round(until-Date.now()/1000));
+var m=Math.floor(left/60),s=left%60;
+$('sso-left').textContent=m+':'+(s<10?'0':'')+s;
+if(left<=0)ssoFail('That code has expired — tap “Sign in with your school account” for a fresh one.');}
+tick();ssoTimer=setInterval(tick,1000);}
+function ssoCheck(){if(!ssoCode||document.hidden)return;
+fetch('/api/sso/check',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,code:ssoCode})})
+.then(function(r){return r.json()}).then(function(d){
+if(!ssoCode)return;
+if(d&&d.ok&&d.token){ssoStop();
+$('sso-status').textContent='Signed in — loading your hub…';$('sso-status').hidden=false;
+try{localStorage.setItem('fl_hub_token_v1',d.token)}catch(e){}
+location.replace('/hub?t='+encodeURIComponent(d.token));return;}
+if(d&&d.ok&&d.pending)return;
+if(d&&d.reason==='expired')ssoFail('That code has expired — start again for a fresh one.');
+else if(d&&d.reason==='not_set_up')ssoFail('School sign-in is not switched on yet — link with your email below instead.');
+/* Anything else is transient — keep polling; the next tick retries. */
+})
+.catch(function(){/* transient network blip — the next poll retries */});}
+$('sso-go').onclick=function(){var btn=this;
+btn.disabled=true;btn.textContent='Getting your code…';
+$('sso-err').hidden=true;
+fetch('/api/sso/start',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid})})
+.then(function(r){return r.json()}).then(function(d){
+btn.disabled=false;btn.textContent='Sign in with your school account';
+if(d&&d.ok&&d.code){ssoCode=d.code;
+$('sso-box').hidden=false;$('sso-code').textContent=d.display||d.code;
+$('sso-open').href=d.course_url;
+$('sso-status').textContent='Waiting — submit the code on your school page, then come back here.';
+$('sso-status').hidden=false;ssoCountdown(d.expires_at);
+if(ssoPoll)clearInterval(ssoPoll);ssoPoll=setInterval(ssoCheck,4000);return;}
+$('sso-box').hidden=false;$('sso-code').textContent='------';
+if(d&&d.reason==='not_set_up')ssoFail('School sign-in is not switched on yet — link with your email below instead.');
+else if(d&&d.reason==='rate_limited')ssoFail('That is a lot of sign-in codes for one day — try again tomorrow, or link with your email below.');
+else ssoFail('Could not start sign-in just now — try again in a minute, or link with your email below.');})
+.catch(function(){btn.disabled=false;btn.textContent='Sign in with your school account';
+$('sso-box').hidden=false;ssoFail('Could not reach Fledglings — check your connection and try again.');});};
+$('sso-cancel').onclick=function(){ssoStop();$('sso-box').hidden=true;};
+/* Coming back from the school tab is the moment the answer is most
+ * likely ready — check immediately rather than waiting out the poll. */
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&ssoCode)ssoCheck();});
 /* Must strip ?t= as well — a plain reload would re-adopt the token
  * sitting in the URL and sign the same learner straight back in. */
 $('id-change').onclick=flSignOutHere;
