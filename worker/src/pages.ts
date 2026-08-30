@@ -83,7 +83,9 @@ td.c,th.c{text-align:center;}
   font-size:11.5px;font-weight:600;}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 @media print{.brandbar .right,.btn,.tabs,form,.footer,.no-print{display:none!important;}
-  body{background:#fff;}.card,.kpi{box-shadow:none;border:1px solid #ddd;}}
+  body{background:#fff;}.card,.kpi{box-shadow:none;border:1px solid #ddd;}
+  /* Same print-colour fix as APP_CSS carries, for the legacy shell. */
+  .card,.card *,svg,svg *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}
 `;
 
 /* Shared identity layer, included on every tool page.
@@ -340,7 +342,15 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
   .wrap{padding:22px 16px 60px;}
 }
 @media print{.snav,.btn,.tabs,.footer,.no-print{display:none!important;}
-  body{background:#fff;}.card{box-shadow:none;border:1px solid #ddd;}}
+  body{background:#fff;}.card{box-shadow:none;border:1px solid #ddd;}
+  /* Browsers drop background colours when printing, to save ink. On a
+   * report that is not a cosmetic loss: score rings, band bars and
+   * status chips ARE the meaning, and white text on a coloured header
+   * prints white on white and disappears. A learner reported the CV
+   * builder doing exactly this; the same default was quietly doing it
+   * to every other printable surface, so it is fixed here, once, for
+   * every page that uses this shell. */
+  .card,.card *,svg,svg *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}
 `;
 
 /* Retints applied AFTER page-specific CSS so the legacy warm-palette

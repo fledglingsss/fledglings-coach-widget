@@ -235,8 +235,11 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
   const sectionWords: Array<[string, RegExp]> =
     kind === "cv"
       ? [
-          ["experience or work", /\b(experience|employment|work history|volunteering)\b/i],
-          ["education", /\b(education|qualifications|school|college)\b/i],
+          [
+            "experience or work",
+            /\b(experience|employment|work history|career history|volunteering|placements?|internships?|part[- ]time work)\b/i,
+          ],
+          ["education", /\b(education|qualifications|school|college|academic)\b/i],
           ["skills", /\bskills\b/i],
         ]
       : [
@@ -256,7 +259,18 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
         : `Could not find: ${missingSections.join(", ")}. Screening software looks for standard headings — use them exactly.`,
   });
 
-  const hasDates = /\b(20\d{2}|19\d{2})\b/.test(text);
+  /* Not everyone writes full years. "Sept 24 – present" and "09/24"
+   * are dates a recruiter reads without blinking, and telling a learner
+   * their CV has no dates when it plainly does is the fault they
+   * reported elsewhere — the checker being confidently wrong about
+   * something they can see on the page. */
+  const MONTH =
+    /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*'?\d{2,4}\b/i;
+  const hasDates =
+    /\b(20\d{2}|19\d{2})\b/.test(text) ||
+    MONTH.test(text) ||
+    /\b\d{1,2}\/\d{2,4}\b/.test(text) ||
+    /\d\s*[-–—]\s*(present|current|ongoing|to date)\b/i.test(text);
   structure.push({
     id: "dates",
     label: "Dates on your history",
@@ -266,9 +280,24 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
       : "No years detected — add dates to experience and education; gaps are fine, mysteries are not.",
   });
 
-  const capsLines = lines.filter(
-    (l) => l.length > 12 && l === l.toUpperCase() && /[A-Z]{4,}/.test(l),
-  );
+  /* This has to read the raw lines. `lines` keeps only lines containing
+   * a lowercase letter, so an all-caps line could never reach the test
+   * that looks for all-caps lines — every CV passed, including ones
+   * written entirely in capitals. A green tick nobody earned is the
+   * same dishonesty as a red cross nobody deserved.
+   *
+   * Six words is the line between a heading and shouting: "WORK
+   * EXPERIENCE" and a name in capitals are normal and stay unflagged;
+   * a whole sentence in capitals is not. */
+  const capsLines = text
+    .split(/\n+/)
+    .map((l) => l.replace(/^[-•*◦▪‣]\s*/, "").trim())
+    .filter(
+      (l) =>
+        l === l.toUpperCase() &&
+        /[A-Z]{4,}/.test(l) &&
+        l.split(/\s+/).filter(Boolean).length >= 6,
+    );
   structure.push({
     id: "no-shouting",
     label: "No all-caps blocks",

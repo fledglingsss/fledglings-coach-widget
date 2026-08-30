@@ -421,6 +421,10 @@ const COVER_LETTER_CSS = `
   .brandbar,.footer,h2.page,.sub,.edit-hint,.no-print{display:none!important;}
   .wrap{padding:0;max-width:none;}
   .letterpaper{box-shadow:none;border-radius:0;padding:10mm 6mm;}
+  /* The bold design puts white text on a navy letterhead. Without
+   * this the background drops out in print and the learner's name
+   * prints white on white. */
+  .letterpaper,.letterpaper *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
   .ph{background:none;color:inherit;}
 }
 `;

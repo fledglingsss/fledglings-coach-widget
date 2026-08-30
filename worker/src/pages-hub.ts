@@ -86,7 +86,15 @@ export function renderHubPage(): string {
     "<span class='bb-chip'>LinkedIn's own profile guidance</span>" +
     "<span class='bb-chip'>Real ATS screening rules</span>" +
     "<span class='bb-chip'>UCAS &amp; National Careers Service advice</span>" +
-    "<span class='bb-chip'>Institute of Student Employers practice</span></div>" +
+    "<span class='bb-chip'>Institute of Student Employers practice</span>" +
+    /* These chips are the first words a learner reads, and three of
+     * them are acronyms. A learner told us ATS gets used everywhere
+     * with nothing saying what it is — naming a standard you have not
+     * explained is just a badge, so decode all three in one line. */
+    "<p class='bb-plain'><b>In plain English:</b> <b>ATS</b> is the screening software that reads your CV " +
+    "before any person does. <b>XYZ</b> is how Google tells applicants to write a CV line — what you " +
+    "achieved, how it was measured, how you did it. <b>STAR</b> is how to tell that same story out loud in " +
+    "an interview — situation, task, action, result.</p></div>" +
     /* guided next step */
     "<div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div>" +
     "<div id='next-reason'></div>" +
@@ -359,6 +367,10 @@ const HUB_CSS = `
 .backedby{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:2px 0 20px;
   background:linear-gradient(120deg,#05253C,#13507F);border-radius:14px;padding:12px 16px;}
 .bb-lead{font-size:13px;font-weight:800;color:#fff;margin-right:4px;}
+/* Full width beneath the chips it decodes. 6.8:1 on the lighter end of
+ * the gradient, so it passes AA as body text. */
+.bb-plain{flex-basis:100%;margin:4px 0 0;font-size:12.5px;line-height:1.55;color:#DCE7F0;}
+.bb-plain b{color:#fff;}
 .bb-chip{font-size:12px;font-weight:700;color:#E8EEF4;background:rgba(255,255,255,.14);
   border-radius:999px;padding:5px 12px;white-space:nowrap;}
 @media(max-width:560px){.backedby{padding:11px 13px;}.bb-chip{white-space:normal;}}

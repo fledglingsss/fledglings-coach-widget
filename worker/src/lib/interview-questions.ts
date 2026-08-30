@@ -75,7 +75,9 @@ Exactly five: one opener about them and why this course, two probing genuine int
   return `You are Fledge, the Fledglings interview coach. A young person (16-24, UK, applying for a first job or apprenticeship) has pasted a job advert. Write the five questions a fair interviewer for THIS role would actually ask an entry-level candidate.
 
 ${GEN_SHARED}
-Exactly five: one opener about them and their interest in the role, two grounded in the advert's actual duties or requirements, one situational scenario from the role's daily reality, one closer.`;
+Exactly five: one opener about them and their interest in the role, two grounded in the advert's actual duties or requirements, one situational scenario from the role's daily reality, one closer.
+
+If what they pasted is thin — a role name, a category like "summer internships", a line of blurb with no duties in it — you do not know what this employer will ask. Do not invent specialist duties to fill the gap: ask the five questions any fair interviewer for that KIND of work would ask, keep them answerable by someone at the start of their career, and make role_label honest about how broad it is (e.g. "Internship candidate", not "Investment Analyst").`;
 }
 
 export function questionGenUserMessage(req: QuestionGenRequest): string {

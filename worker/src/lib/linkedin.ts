@@ -269,7 +269,7 @@ export function analyseLinkedInFacts(rawText: string): LinkedInFacts {
   }
   const experienceRanges = (experienceText.match(DATE_RANGE) || []).length;
   const experienceWords =
-    experienceAt >= 0 ? experienceText.trim().split(/s+/).filter(Boolean).length : 0;
+    experienceAt >= 0 ? experienceText.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return {
     url,
