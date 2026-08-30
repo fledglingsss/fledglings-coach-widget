@@ -50,28 +50,47 @@ costs the platform API no more than one learner does. Unknown codes,
 expired codes and someone else's codes all get the same answer, so
 polling cannot confirm which codes are live.
 
-## One-time setup (founder, ~5 minutes)
+## The school side (BUILT, live, proven 2026-08-30)
 
 The worker discovers everything by name — no config, no ids to paste.
+The course was created in the school admin and verified end to end:
 
-1. In the school admin, create a **free course titled exactly
-   `Hub sign-in`** (capitalisation doesn't matter; the name does).
-2. Give it **one unit: an Assessment** (the standard assessment
-   activity), with a **single free-text question** — suggested wording:
-   *"Type your sign-in code (it's on the hub page you just came
-   from)."* No pass mark, no time limit, unlimited attempts.
-3. Course access: **free, open to any logged-in learner** — not listed
-   in the catalogue if you prefer (the hub links straight to it).
-4. That's it. Within ~5 minutes the hub's sign-in button goes live
-   (the worker checks for the course every 5 minutes until it finds
-   it, then caches it for 12 hours).
+- **Course:** `Hub sign-in` (id `hub-sign-in`), free, one section
+  ("Sign in", free) with one **self-assessment** unit, "Sign-in code"
+  (unit `6a9460471a3c19b7510ed4c1`), containing a single required
+  short-text form question: *"Type your sign-in code (the Hub page you
+  came from is showing it)"*.
+- Self-assessment (Form-question) rather than an exam or text
+  assignment deliberately: no right/wrong marking to confuse a
+  learner, and nothing lands in the admin's manual-review queue.
+- The hub links `{school}/course/hub-sign-in` — confirmed to be the
+  live page; an enrolled learner's button reads **Continue** and opens
+  the player directly on the code box.
 
-Until the course exists, the button answers honestly: "School sign-in
-is not switched on yet — link with your email below instead."
+Proven against production, full loop, twice:
 
-**One thing to verify on first try:** the hub links to
-`{school}/course/hub-sign-in`. If your course page lives at a
-different URL shape, tell me and it's a one-line fix.
+1. `/api/sso/start` discovered the course by title and issued a code.
+2. The code was submitted through the school's own player.
+3. `/api/sso/check` read the school's attribution and minted a token
+   for the logged-in account's email — never typed anywhere.
+4. A replayed code answered `expired`.
+5. A second code for a second device was submitted through the SAME
+   unit (self-assessments re-open on revisit — the default attempts
+   settings are correct as-is) and minted for the new device; the KV
+   record afterwards read `{"d":["<new device>"],"v":true}` — one
+   device, verified, the previous one evicted. Test bindings were
+   then deleted so real first use starts clean.
+
+If the course is ever deleted or renamed, the button degrades to the
+honest "not switched on yet" message within 12 hours (or immediately
+after clearing `sso:unit:v1` in KV), and recovers by itself within
+five minutes of the course reappearing.
+
+Cosmetic leftovers, deliberately not blocking: the course page uses
+the default theme template (stock construction photos and placeholder
+staff names) and the school-wide post-enrol "thank you" page carries
+B2B enquiry copy. Both are one-time edits in the site builder if
+wanted; learners only pass them once.
 
 ## What learners see
 
