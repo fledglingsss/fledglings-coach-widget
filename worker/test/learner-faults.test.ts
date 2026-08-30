@@ -146,3 +146,25 @@ describe("same class: the all-caps check was inert, so everyone passed", () => {
     expect(check("IMOGEN HART\nLeeds\nWork Experience\nTesco", "no-shouting").status).toBe("pass");
   });
 });
+
+describe("tightened: words that merely start with a month are not dates", () => {
+  /* The first fix matched any month stem plus trailing letters, so
+   * "Junior 12" and "Marketing 24" counted as dates — the unearned
+   * green tick again, from the other side. */
+  const NOT_DATES: Array<[string, string]> = [
+    ["Junior + number", "Junior 12-a-side football captain"],
+    ["Marketing + number", "Marketing 24 campaign project"],
+    ["score out of ten", "Rated 24/70 in the regional final"],
+  ];
+  for (const [label, tail] of NOT_DATES) {
+    it(`does not read "${label}" as a date`, () => {
+      expect(check(CV + tail, "dates").status).toBe("warn");
+    });
+  }
+
+  it("still reads real month-year forms as dates", () => {
+    for (const tail of ["Tesco Sept 24 - present", "Tesco September 2024", "Tesco Sep. 24 onwards"]) {
+      expect(check(CV + tail, "dates").status).toBe("pass");
+    }
+  });
+});

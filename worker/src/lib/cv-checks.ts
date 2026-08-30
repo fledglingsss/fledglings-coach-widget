@@ -264,12 +264,15 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
    * their CV has no dates when it plainly does is the fault they
    * reported elsewhere — the checker being confidently wrong about
    * something they can see on the page. */
+  /* Whole month words only — a permissive stem-plus-anything matched
+   * "Junior 12" and "Marketing 24" as dates, which is the unearned
+   * green tick again from the other side. */
   const MONTH =
-    /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*'?\d{2,4}\b/i;
+    /\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?)\.?\s+'?\d{2,4}\b/i;
   const hasDates =
     /\b(20\d{2}|19\d{2})\b/.test(text) ||
     MONTH.test(text) ||
-    /\b\d{1,2}\/\d{2,4}\b/.test(text) ||
+    /\b(0?[1-9]|1[0-2])\/\d{2,4}\b/.test(text) ||
     /\d\s*[-–—]\s*(present|current|ongoing|to date)\b/i.test(text);
   structure.push({
     id: "dates",
