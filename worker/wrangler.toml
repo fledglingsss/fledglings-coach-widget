@@ -8,9 +8,12 @@ compatibility_date = "2026-07-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Nightly early-warning refresh (03:10 UTC) — keeps the portal instant
-# and the engagement trend history accruing. The 5-minute tick is the
-# rolling roster: a handful of learners refreshed per tick, so the
-# dashboard reads a warm store and the API never sees a burst.
+# and the engagement trend history accruing. The hourly tick is the
+# rolling roster: a slice of learners refreshed per tick, so the
+# dashboard reads a warm store and the API never sees a burst. Hourly
+# rather than every five minutes because the measured load showed no
+# reason to sit anywhere near the provider's rate limit for data that
+# changes a few times a day.
 [triggers]
 crons = ["10 3 * * *", "0 * * * *"]
 
