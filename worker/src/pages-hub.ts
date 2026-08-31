@@ -458,10 +458,26 @@ const HUB_CSS = `
   font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none;}
 .tasklist li.done{color:var(--navy);}
 .tasklist li.done i{background:#E3F4EA;color:var(--ok);}
-.nextstep{background:#fff;border-left:4px solid var(--orange);color:var(--navy);}
-.nextstep .ns-label{font-size:11.5px;font-weight:700;letter-spacing:.1em;margin-bottom:6px;}
-.nextstep div:nth-child(2){font-size:15.5px;line-height:1.6;font-weight:500;}
-.nextstep a.btn{text-decoration:none;background:#fff;color:#B93A22;}
+/* This card is the one instruction on the page, so it should read as
+ * a card with an action — not a paragraph with a red word under it.
+ * The old rule stripped the button's own background to white, which
+ * left the call to action looking like leftover text. */
+.nextstep{background:#fff;border-left:4px solid var(--pri-btn);color:var(--navy);
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:20px 24px;}
+.nextstep .ns-label{font-size:11px;font-weight:800;letter-spacing:.13em;
+  color:var(--pri-btn);margin:0;}
+.nextstep #next-reason{font-size:17px;line-height:1.45;font-weight:600;color:var(--navy);
+  max-width:52ch;text-wrap:balance;}
+.nextstep .btnrow{margin-top:12px!important;}
+.nextstep a.btn{text-decoration:none;background:var(--pri-btn);color:#fff;
+  display:inline-flex;align-items:center;gap:8px;padding:12px 22px;}
+.nextstep a.btn::after{content:'→';font-weight:700;}
+.nextstep a.btn:hover{background:#B93A22;}
+@media(max-width:560px){
+  .nextstep{padding:17px 18px;}
+  .nextstep #next-reason{font-size:16px;}
+  .nextstep a.btn{width:100%;justify-content:center;}
+}
 .idcard{font-size:14px;line-height:1.6;color:var(--mut);padding:16px 22px;}
 .idcard b{color:var(--navy);}
 .id-sub{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;}

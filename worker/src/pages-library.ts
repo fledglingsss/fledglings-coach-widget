@@ -139,18 +139,33 @@ $('lib-grid').innerHTML=list.map(card).join('');
 $('lib-grid').querySelectorAll('[data-toggle]').forEach(function(b){b.addEventListener('click',function(){
 var id=b.getAttribute('data-toggle');var box=$('full-'+id);var row=rows.filter(function(r){return r.id===id})[0];
 if(!box||!row)return;
-if(box.hidden){box.textContent=row.text||'';box.hidden=false;b.textContent='Hide';}
-else{box.hidden=true;b.textContent='Read it all';}});});
+if(!box.hidden){box.hidden=true;b.textContent='Read it all';return;}
+/* A document saved on another device has no words here yet — fetch
+ * them on demand rather than pulling every body into the list. */
+b.disabled=true;b.textContent='Opening…';
+flLibText(row).then(function(txt){b.disabled=false;
+if(!txt){b.textContent='Read it all';
+box.textContent='Could not load this one just now — check your connection and try again.';
+box.hidden=false;return;}
+row.text=txt;box.textContent=txt;box.hidden=false;b.textContent='Hide';});});});
+/* Reopening needs the words in hand before the browser follows the
+ * link, so a remote document is fetched first and then navigated. */
 $('lib-grid').querySelectorAll('[data-open]').forEach(function(a){a.addEventListener('click',function(e){
 var id=a.getAttribute('data-open');var row=rows.filter(function(r){return r.id===id})[0];
-if(row)flLibHandoff(row.text||'');});});
+if(!row)return;
+if(row.text){flLibHandoff(row.text);return;}
+e.preventDefault();a.textContent='Opening…';
+flLibText(row).then(function(txt){
+if(txt)flLibHandoff(txt);
+location.href=a.getAttribute('href');});});});
 $('lib-grid').querySelectorAll('[data-del]').forEach(function(b){b.addEventListener('click',function(){
 var id=b.getAttribute('data-del');
 if(!window.confirm('Delete this from your library? The feedback goes with it.'))return;
 flLibRemove(id).then(function(){rows=rows.filter(function(r){return r.id!==id});render();note();});});});}
-function note(){$('lib-note').textContent=rows.length
-?'Saved in this browser only — your work never leaves your device. Clearing your browser data, or opening the hub on a different device, means starting this library again. Your scores follow you anywhere you sign in.'
-:'';}
+function note(){if(!rows.length){$('lib-note').textContent='';return;}
+$('lib-note').textContent=flResolveEmail()
+?'Signed in, so your work follows you — open the hub on your phone or a school computer and it is all here. Delete something and it goes from every device.'
+:'Saved in this browser only. Sign in on the hub and your work follows you to any device — otherwise clearing your browser data clears this.';}
 document.querySelectorAll('.lib-f').forEach(function(b){b.addEventListener('click',function(){
 document.querySelectorAll('.lib-f').forEach(function(o){o.classList.toggle('on',o===b)});
 filter=b.getAttribute('data-k');render();});});

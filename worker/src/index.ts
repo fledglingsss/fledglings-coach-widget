@@ -162,6 +162,18 @@ import {
   parseCoverLetterDraft,
   validateCoverLetterRequest,
 } from "./lib/cover-letter";
+import {
+  docKey,
+  indexKey,
+  LIBRARY_MAX_CHARS,
+  LIBRARY_TTL_SECS,
+  parseDoc,
+  parseEntry,
+  parseIndex,
+  removeEntry,
+  upsertEntry,
+  validDocId,
+} from "./lib/library";
 import { renderLibraryPage } from "./pages-library";
 import { renderCoverLetterPage } from "./pages-cover-letter";
 import { renderBuilderPage } from "./pages-builder";
@@ -3072,6 +3084,109 @@ app.post("/api/identity", async (c) => {
     });
   } catch (err) {
     console.error("[coach] identity error:", String(err));
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
+
+/* ---------------- My work, synced across devices ----------------
+ *
+ * The learner's documents follow their signed-in identity rather than
+ * one browser. See lib/library.ts for what this deliberately does and
+ * does not hold; the short version is: nothing without a proven
+ * identity, keys are hashes, bodies expire, and no provider surface
+ * ever reads these keys. */
+
+/** Resolve the caller to an email hash, or null when they are not a
+ * proven learner. Every library route goes through this. */
+async function libraryOwner(
+  c: { env: Env; req: { header(name: string): string | undefined } },
+  body: Record<string, unknown>,
+): Promise<string | null> {
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return null;
+  const email = await emailFromToken(c.env, body.token, learnerId);
+  if (!email) return null;
+  return (await hashLearnerId(email)).slice(0, 16);
+}
+
+app.post("/api/library/save", async (c) => {
+  const body = await readJsonCapped(c, 64_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const owner = await libraryOwner(c, body);
+  /* Not signed in is not an error — the device library still holds
+   * their work, and the page says so. */
+  if (!owner) return c.json({ ok: false, reason: "not_signed_in" }, 200);
+  const entry = parseEntry(body.entry);
+  const text = typeof body.text === "string" ? body.text.slice(0, LIBRARY_MAX_CHARS) : "";
+  if (!entry || text.length < 1) return c.json({ error: "invalid_request" }, 400);
+  try {
+    const idx = parseIndex(await c.env.RATE_LIMITS.get(indexKey(owner)));
+    const { index, evicted } = upsertEntry(idx, entry);
+    await c.env.RATE_LIMITS.put(
+      docKey(owner, entry.id),
+      JSON.stringify({ text, report: body.report ?? null }),
+      { expirationTtl: LIBRARY_TTL_SECS },
+    );
+    await c.env.RATE_LIMITS.put(indexKey(owner), JSON.stringify(index), {
+      expirationTtl: LIBRARY_TTL_SECS,
+    });
+    /* Drop the bodies of anything pushed off the end rather than
+     * leaving them to sit out their TTL unreachable. */
+    for (const id of evicted) {
+      await c.env.RATE_LIMITS.delete(docKey(owner, id)).catch(() => {});
+    }
+    return c.json({ ok: true, id: entry.id });
+  } catch (err) {
+    console.error("[coach] library save error:", String(err));
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
+
+app.post("/api/library/list", async (c) => {
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const owner = await libraryOwner(c, body);
+  if (!owner) return c.json({ ok: false, reason: "not_signed_in" }, 200);
+  try {
+    return c.json({
+      ok: true,
+      entries: parseIndex(await c.env.RATE_LIMITS.get(indexKey(owner))),
+    });
+  } catch {
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
+
+app.post("/api/library/get", async (c) => {
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const owner = await libraryOwner(c, body);
+  if (!owner) return c.json({ ok: false, reason: "not_signed_in" }, 200);
+  if (!validDocId(body.id)) return c.json({ error: "invalid_request" }, 400);
+  try {
+    const doc = parseDoc(await c.env.RATE_LIMITS.get(docKey(owner, body.id)));
+    if (!doc) return c.json({ ok: false, reason: "gone" }, 200);
+    return c.json({ ok: true, text: doc.text, report: doc.report });
+  } catch {
+    return c.json({ ok: false, reason: "unavailable" }, 500);
+  }
+});
+
+app.post("/api/library/delete", async (c) => {
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const owner = await libraryOwner(c, body);
+  if (!owner) return c.json({ ok: false, reason: "not_signed_in" }, 200);
+  if (!validDocId(body.id)) return c.json({ error: "invalid_request" }, 400);
+  try {
+    const idx = parseIndex(await c.env.RATE_LIMITS.get(indexKey(owner)));
+    const { index } = removeEntry(idx, body.id);
+    await c.env.RATE_LIMITS.put(indexKey(owner), JSON.stringify(index), {
+      expirationTtl: LIBRARY_TTL_SECS,
+    });
+    await c.env.RATE_LIMITS.delete(docKey(owner, body.id)).catch(() => {});
+    return c.json({ ok: true });
+  } catch {
     return c.json({ ok: false, reason: "unavailable" }, 500);
   }
 });

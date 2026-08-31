@@ -256,22 +256,70 @@ t.oncomplete=function(){res(out&&out.result!==undefined?out.result:out)};
 t.onerror=function(){rej(t.error)};});});}
 /* Save a document and the report it earned. Storage failures never
  * break a review — the learner still has their report on screen. */
+function flLibFix(report){if(!report)return '';
+if(report.next_step)return String(report.next_step);
+if(report.improvements&&report.improvements.length){var i=report.improvements[0];
+return (i.title?i.title+' — ':'')+(i.detail||'');}
+return '';}
 function flLibSave(kind,title,text,report,score){
 try{
 var entry={id:'d'+Date.now()+Math.random().toString(36).slice(2,7),owner:flLibOwner(),
 kind:kind,title:String(title||'').slice(0,120),text:String(text||'').slice(0,20000),
 report:report||null,score:(typeof score==='number'?score:null),at:Math.floor(Date.now()/1000)};
+/* Device first — it must not depend on the network — then the
+ * server copy so the same work is there on their phone. */
 return flLibTx('readwrite',function(st){st.put(entry)})
-.then(function(){return flLibPrune()}).then(function(){return entry.id})
+.then(function(){return flLibPrune()})
+.then(function(){return flLibPush(entry)})
+.then(function(){return entry.id})
 .catch(function(){return null});
 }catch(e){return Promise.resolve(null)}}
-function flLibList(){return flLibTx('readonly',function(st){return st.getAll()})
+/* ---- the synced half ----
+ * Only a signed-in learner gets a server copy: the token is the proof
+ * of who they are, and without one the library stays on the device. */
+function flLibApi(path,payload){var tok=flToken();if(!tok)return Promise.resolve(null);
+var body=payload||{};body.token=tok;
+body.learner_id=flStoredId(localStorage,'fl_coach_learner_v1');
+return fetch('/api/library/'+path,{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify(body)}).then(function(r){return r.json()}).catch(function(){return null});}
+function flLibPush(entry){
+return flLibApi('save',{entry:{id:entry.id,kind:entry.kind,title:entry.title,at:entry.at,
+score:entry.score,fix:flLibFix(entry.report)},text:entry.text,report:entry.report})
+.catch(function(){return null});}
+/* The list a learner sees is their device library plus anything saved
+ * on another device. Entries that came from the server carry
+ * remote:true and have no text yet — flLibText fetches a body only
+ * when they actually open one. */
+function flLibList(){
+var local=flLibTx('readonly',function(st){return st.getAll()})
 .then(function(rows){var me=flLibOwner();
-return (rows||[]).filter(function(r){return r&&r.owner===me}).sort(function(a,b){return b.at-a.at});})
-.catch(function(){return []});}
+return (rows||[]).filter(function(r){return r&&r.owner===me});})
+.catch(function(){return []});
+return local.then(function(rows){
+return flLibApi('list',{}).then(function(res){
+if(!res||!res.ok||!res.entries)return rows;
+var have={};rows.forEach(function(r){have[r.id]=true});
+var extra=res.entries.filter(function(e){return !have[e.id]}).map(function(e){
+return {id:e.id,owner:flLibOwner(),kind:e.kind,title:e.title,at:e.at,score:e.score,
+text:'',report:e.fix?{next_step:e.fix}:null,remote:true};});
+return rows.concat(extra);}).catch(function(){return rows});})
+.then(function(all){return all.sort(function(a,b){return b.at-a.at})});}
 function flLibGet(id){return flLibTx('readonly',function(st){return st.get(id)})
 .then(function(r){return r&&r.owner===flLibOwner()?r:null}).catch(function(){return null});}
-function flLibRemove(id){return flLibTx('readwrite',function(st){st.delete(id)}).catch(function(){});}
+/* The document's words, wherever they live. A row saved on another
+ * device has none until it is asked for. */
+function flLibText(row){
+if(row&&row.text)return Promise.resolve(row.text);
+if(!row||!row.id)return Promise.resolve('');
+return flLibApi('get',{id:row.id}).then(function(res){
+return res&&res.ok&&res.text?res.text:'';}).catch(function(){return ''});}
+/* Deleting means deleting — the device copy and the synced one, so a
+ * learner who removes a CV does not find it on their phone. */
+function flLibRemove(id){
+return flLibTx('readwrite',function(st){st.delete(id)})
+.catch(function(){})
+.then(function(){return flLibApi('delete',{id:id})})
+.catch(function(){});}
 /* Keep the newest FL_LIB_MAX per learner — a browser store should not
  * grow without bound on a shared device. */
 function flLibPrune(){return flLibList().then(function(rows){
