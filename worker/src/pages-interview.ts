@@ -141,6 +141,14 @@ export function renderInterviewPage(): string {
     "<div class='btnrow'>" +
     "<button type='button' class='btn' id='next' disabled>Next question</button>" +
     "<button type='button' class='btn ghost' id='redo' hidden>Answer again</button></div>" +
+    /* A question you cannot answer should not be able to trap you in
+     * the studio. Skipping keeps the practice going; finishing early
+     * still gets a real review of what you did do. Both are quiet
+     * links, not buttons — they are the way out, not the way on. */
+    "<div class='outrow'>" +
+    "<button type='button' class='outlink' id='skipq'>Skip this question</button>" +
+    "<button type='button' class='outlink' id='finishearly'>Finish early and get my feedback</button>" +
+    "</div>" +
     "<div class='hero-note' id='int-meta' style='margin-top:10px'></div>" +
     "</div>" +
 
@@ -150,6 +158,7 @@ export function renderInterviewPage(): string {
     "<p class='sub' style='margin-bottom:6px'>Watch anything back and re-record if you want — then send the words to " +
     "Fledge for scoring. The videos themselves never leave your device.</p></div>" +
     "<div id='rev-list'></div>" +
+    "<div class='hero-note' id='rev-count' aria-live='polite' style='margin:4px 0 10px'></div>" +
     "<div class='btnrow'><button type='button' class='btn' id='rev-submit'>Get my AI review</button>" +
     "<button type='button' class='btn ghost' id='rev-restart'>Start over</button></div>" +
     "</div>" +
@@ -293,7 +302,7 @@ var stream=null,recorder=null,chunks=[],recStartAt=0,recTimer=null,thinkTimer=nu
 var finalText='',listening=false,rec=null,voiceStartAt=0,voiceSecs=0;
 var presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,lookingAhead:0};
 var faceDet=null,mpDetector=null,mpLoading=false,sampleTimer=null;
-var THINK_SECS=30,MAX_ANSWER_SECS=180;
+var THINK_SECS=30,MAX_ANSWER_SECS=180,MIN_ANSWER_CHARS=20;
 
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function band(s){return s>=70?'#1A7649':s>=50?'#9A5812':'#B93A22'}
@@ -473,6 +482,44 @@ answers[idx]=null;startThink();}
 else{$('micstate').textContent='Tap to answer out loud';}});
 $('typed').addEventListener('input',checkReady);
 
+/* ---- skipping, and stopping early ----
+ * A skipped question is recorded as skipped rather than as an empty
+ * answer: the review shows it honestly, and submit() drops it so the
+ * scoring never sees a blank it would have to mark. */
+function closeCapture(){clearThink();
+if(mode==='video'){if(recTimer)stopRecording();}
+else if(listening){stopSR();$('mic').classList.remove('on');}
+voiceSecs=0;}
+/* The answers that actually go for scoring, in order. The report's
+ * per-answer feedback comes back in THIS order, so every render must
+ * index against this list — indexing the full list would pin Q3's
+ * feedback onto a skipped Q2. */
+function scoredAnswers(){return answers.filter(function(a){
+return a&&!a.skipped&&a.answer&&a.answer.trim().length>=MIN_ANSWER_CHARS;});}
+function answeredCount(){return scoredAnswers().length;}
+/* The report says what was actually marked. Claiming "5 questions"
+ * when two were skipped would overstate the score's basis. */
+function metaCount(){var done=answeredCount(),total=answers.length;
+var s=done+' question'+(done===1?'':'s');
+return done<total?s+' answered of '+total:s;}
+$('skipq').addEventListener('click',function(){closeCapture();
+if(answers[idx]&&answers[idx].blobUrl){try{URL.revokeObjectURL(answers[idx].blobUrl)}catch(e){}}
+answers[idx]={question:qs[idx],answer:'',duration_secs:null,blobUrl:'',skipped:true};
+if(reviewReturn){reviewReturn=false;renderReview();show('s-review');window.scrollTo({top:0});return;}
+if(idx<qs.length-1){idx++;showQuestion();return;}
+renderReview();show('s-review');window.scrollTo({top:0});});
+$('finishearly').addEventListener('click',function(){closeCapture();
+/* Keep whatever is in the current box before leaving the question. */
+var a=answers[idx]||(answers[idx]={question:qs[idx],answer:'',duration_secs:null,blobUrl:''});
+a.question=qs[idx];a.answer=currentAnswer().slice(0,2000);
+if(a.answer.trim().length<MIN_ANSWER_CHARS&&!a.blobUrl)a.skipped=true;
+/* Everything not reached is simply not part of this interview. */
+answers=answers.slice(0,idx+1);
+reviewReturn=false;
+if(answeredCount()===0){$('int-meta').textContent=
+'Answer at least one question and Fledge can review it — or head back and pick a shorter set.';return;}
+setTimeout(function(){renderReview();show('s-review');window.scrollTo({top:0});},250);});
+
 $('next').addEventListener('click',function(){clearThink();
 if(mode==='video'){if(recTimer)stopRecording();}else{if(listening){stopSR();voiceSecs+=Math.round((Date.now()-voiceStartAt)/1000);$('mic').classList.remove('on');}}
 var a=answers[idx]||(answers[idx]={question:qs[idx],answer:'',duration_secs:null,blobUrl:''});
@@ -535,21 +582,36 @@ beginInterview('voice');});
 
 /* ---------------- review ---------------- */
 function renderReview(){var out='';
-answers.forEach(function(a,i){out+="<div class='card revcard'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
+answers.forEach(function(a,i){if(!a)return;
+var skipped=Boolean(a.skipped);
+out+="<div class='card revcard"+(skipped?" skipped":"")+"'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
 "<span class='qc-q'>"+esc2(a.question)+"</span>"+
-"<button type='button' class='rev-redo' data-i='"+i+"'>Re-record</button></div>";
-if(a.blobUrl){out+="<video class='rev-vid' src='"+a.blobUrl+"' controls playsinline></video>";}
-out+="<div class='rev-tx'>"+(a.answer?esc2(a.answer):"<i>No words captured — re-record or type this answer.</i>")+"</div></div>";});
+"<button type='button' class='rev-redo' data-i='"+i+"'>"+(skipped?'Answer it':'Re-record')+"</button></div>";
+if(a.blobUrl&&!skipped){out+="<video class='rev-vid' src='"+a.blobUrl+"' controls playsinline></video>";}
+out+="<div class='rev-tx'>"+(skipped
+?"<i>Skipped — this one is left out of your feedback. Nothing is marked down for it.</i>"
+:(a.answer?esc2(a.answer):"<i>No words captured — re-record or type this answer.</i>"))+"</div></div>";});
 $('rev-list').innerHTML=out;
+var done=answeredCount();
+$('rev-count').textContent=done===0
+?'Nothing to review yet — answer at least one question.'
+:'Fledge will review the '+done+' question'+(done===1?'':'s')+' you answered.';
+$('rev-submit').disabled=done===0;
 /* Scope to the review list — .rev-redo is reused as a button style by
  * the library and question bank, and a document-wide bind would hijack
  * those buttons with stale re-record handlers. */
 $('rev-list').querySelectorAll('.rev-redo').forEach(function(b){b.addEventListener('click',function(){
 idx=parseInt(b.dataset.i,10);reviewReturn=true;showQuestion();show('s-int');window.scrollTo({top:0});});});}
 $('rev-submit').addEventListener('click',function(){
-var short=answers.findIndex(function(a){return !a||a.answer.length<20});
+/* Only answers the learner MEANT to give must clear the bar — a
+ * skipped question is a deliberate choice, not a too-short answer,
+ * and sending them back to it would defeat the point of skipping. */
+var short=answers.findIndex(function(a){
+return a&&!a.skipped&&(!a.answer||a.answer.trim().length<MIN_ANSWER_CHARS);});
 if(short!==-1){idx=short;reviewReturn=true;showQuestion();show('s-int');
-$('int-meta').textContent='This answer needs at least a sentence or two — speak it or type it, then finish.';return;}
+$('int-meta').textContent='This answer needs at least a sentence or two — speak it, type it, or skip it.';return;}
+if(answeredCount()===0){$('rev-count').textContent=
+'Answer at least one question before asking for feedback.';return;}
 submit();});
 
 /* ---------------- practice library (IndexedDB, on-device only) ---------------- */
@@ -639,7 +701,7 @@ function renderPendingReport(scoring){
 $('r-score').textContent='–';$('r-score').style.color='';
 $('r-ring').style.background='#ECE7E6';
 $('r-verdict').textContent=scoring?'Being scored…':'Your recording';
-$('r-meta').textContent=roleLabel+' · '+answers.length+' question'+(answers.length===1?'':'s');
+$('r-meta').textContent=roleLabel+' · '+metaCount();
 $('b-answer').textContent='–';$('b-speech').textContent='–';$('b-presence').textContent='–';
 $('b-answer-s').textContent=$('b-speech-s').textContent=$('b-presence-s').textContent=scoring?'On its way':'Not available for this one';
 ['b-answer-bar','b-speech-bar','b-presence-bar'].forEach(function(id){var el=$(id);if(el)el.innerHTML='';});
@@ -647,7 +709,7 @@ $('b-answer-s').textContent=$('b-speech-s').textContent=$('b-presence-s').textCo
 var qsCard=$('qs-card');if(qsCard)qsCard.hidden=true;
 $('sp-card').hidden=true;$('pr-card').hidden=true;$('r-cheercard').hidden=true;
 repShowScoring(Boolean(scoring));
-var out='';answers.forEach(function(a,i){
+var out='';scoredAnswers().forEach(function(a,i){
 out+="<div class='card qcard'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
 "<span class='qc-q'>"+esc2(a.question)+"</span></div>";
 if(a.blobUrl)out+="<video class='rev-vid inrep' src='"+a.blobUrl+"' controls playsinline></video>";
@@ -660,8 +722,14 @@ function submit(){
 saveSession('scoring',null);
 cleanupMedia();
 renderPendingReport(true);show('s-rep');window.scrollTo({top:0,behavior:'smooth'});
+/* Skipped questions never reach the scorer: it marks what was said,
+ * not what was left out. */
+var scored=scoredAnswers();
 var payload={learner_id:lid,session_id:sid,role:role,role_label:roleLabel,token:flToken(),
-answers:answers.map(function(a){return {question:a.question,answer:a.answer,duration_secs:a.duration_secs}})};
+answers:scored.map(function(a){return {question:a.question,answer:a.answer,duration_secs:a.duration_secs}})};
+/* The full question set still goes up: its signature covers all five,
+ * and the server only requires each answer to belong to that set —
+ * not that every question was answered. */
 if(role==='custom'){payload.questions=qs;payload.sig=sig;payload.iat=sigIat;}
 if(presence.frames>=3){var pr={frames:presence.frames,faceVisible:presence.faceVisible,
 centred:presence.centred,goodDistance:presence.goodDistance};
@@ -720,7 +788,7 @@ function renderReport(r){repShowScoring(false);rpGo('overview');var col=band(r.o
 flCountUp($('r-score'),r.overall);$('r-score').style.color=col;
 $('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';
 $('r-verdict').textContent=r.verdict;
-$('r-meta').textContent=roleLabel+' · '+answers.length+' question'+(answers.length===1?'':'s')+(mode==='video'?' · on camera':'');
+$('r-meta').textContent=roleLabel+' · '+metaCount()+(mode==='video'?' · on camera':'');
 var bd=r.breakdown||{};
 var apct=bd.answerMax?Math.round(bd.answer*100/bd.answerMax):0;
 $('b-answer').textContent=(bd.answer!=null?bd.answer:'–')+' / '+(bd.answerMax||80);
@@ -774,7 +842,7 @@ prStat('Straight head',PR_ICONS.head,m.headStraight||null,noKp)+
 prStat('Eye contact',PR_ICONS.eye,m.eyeContact||null,noKp);}
 else{$('pr-card').hidden=true;}
 /* Per-question: Hiration-style assessment (left) + guidance (right) */
-var out='';r.answers.forEach(function(a,i){var c=band(a.score);
+var out='';var SC=scoredAnswers();r.answers.forEach(function(a,i){var c=band(a.score);
 /* the marking scheme, from the same constant the prompt was built
  * from — a learner sees what the score judged and what the band above
  * asks for */
@@ -788,9 +856,9 @@ return "<details class='rb'><summary><span>How this answer is marked</span></sum
 "<p class='rb-m'>"+esc2(rb.measures)+"</p>"+
 (rb.source?"<p class='rb-src'>"+esc2(rb.source)+"</p>":"")+rows+"</details>"}
 out+="<div class='card qrep' id='qrep-"+i+"'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
-"<span class='qc-q'>"+esc2(answers[i]?answers[i].question:'')+"</span>"+
+"<span class='qc-q'>"+esc2(SC[i]?SC[i].question:'')+"</span>"+
 "<span class='qchip' style='background:"+c+"'>"+a.score+" · "+scoreLabel(a.score)+"</span></div>";
-if(answers[i]&&answers[i].blobUrl){out+="<video class='rev-vid inrep' src='"+answers[i].blobUrl+"' controls playsinline></video>";}
+if(SC[i]&&SC[i].blobUrl){out+="<video class='rev-vid inrep' src='"+SC[i].blobUrl+"' controls playsinline></video>";}
 out+="<div class='qcols'>"+
 "<div class='qcol'><div class='qcol-t'>ANSWER ASSESSMENT</div>"+
 "<div class='meter'><i style='width:"+a.score+"%;background:"+c+"'></i></div>"+
@@ -1177,6 +1245,15 @@ const INTERVIEW_CSS = `
 .typefall{margin-top:12px;font-size:13.5px;color:var(--blue);}
 .typefall summary{cursor:pointer;font-weight:600;}
 .typefall textarea{margin-top:10px;}
+/* Skip / finish-early: quiet exits, sized for a thumb (44px) but
+ * visually subordinate to the button that continues the interview. */
+.outrow{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:12px;}
+.outlink{background:none;border:0;padding:11px 0;min-height:44px;cursor:pointer;
+  font:600 13.5px/1.3 inherit;color:#5b6b78;text-decoration:underline;
+  text-underline-offset:3px;text-align:left;}
+.outlink:hover{color:#B93A22;}
+.revcard.skipped{opacity:.72;}
+.revcard.skipped .qc-n{background:#8A97A1;}
 .revcard{padding:0;overflow:hidden;}
 .rev-vid{width:100%;max-height:320px;background:#0b1620;display:block;}
 .rev-vid.inrep{max-height:260px;}

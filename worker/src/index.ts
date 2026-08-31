@@ -463,7 +463,15 @@ const CSP_POLICY = [
   "base-uri 'self'",
   "object-src 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+  /* 'wasm-unsafe-eval' is required for the on-device face detector:
+   * MediaPipe is entirely WebAssembly, and a CSP without this blocks
+   * WebAssembly.instantiate outright. Hardening this page in August
+   * silently killed every face-in-frame reading — the studio kept
+   * saying "not measured" and nobody connected it to the CSP.
+   *
+   * It permits WASM compilation ONLY; it does not re-enable eval() on
+   * JavaScript strings, so the injection surface is unchanged. */
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob:",

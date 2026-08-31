@@ -77,24 +77,13 @@ export function renderHubPage(): string {
     "<a class='btn' id='learn-btn' href='#' target='_top'>Continue →</a></div>" +
     /* tool cards */
     `<div class='hubgrid'>${cards}</div>` +
-    /* Every claim here is a published, checkable practice — the point
-     * is that a 17-year-old in Leeds is marked against the same
-     * standards as a Google applicant, and should know it. */
-    "<div class='backedby no-print'><span class='bb-lead'>⚡ Marked the way the real world marks</span>" +
-    "<span class='bb-chip'>Google's XYZ CV formula</span>" +
-    "<span class='bb-chip'>Civil Service STAR interviews</span>" +
-    "<span class='bb-chip'>LinkedIn's own profile guidance</span>" +
-    "<span class='bb-chip'>Real ATS screening rules</span>" +
-    "<span class='bb-chip'>UCAS &amp; National Careers Service advice</span>" +
-    "<span class='bb-chip'>Institute of Student Employers practice</span>" +
-    /* These chips are the first words a learner reads, and three of
-     * them are acronyms. A learner told us ATS gets used everywhere
-     * with nothing saying what it is — naming a standard you have not
-     * explained is just a badge, so decode all three in one line. */
-    "<p class='bb-plain'><b>In plain English:</b> <b>ATS</b> is the screening software that reads your CV " +
-    "before any person does. <b>XYZ</b> is how Google tells applicants to write a CV line — what you " +
-    "achieved, how it was measured, how you did it. <b>STAR</b> is how to tell that same story out loud in " +
-    "an interview — situation, task, action, result.</p></div>" +
+    /* The marking standards used to be listed here, on the first
+     * screen. Explaining how you will be judged before a learner has
+     * done anything is the platform talking about itself: it lands as
+     * pressure, not reassurance. The rubric belongs beside the score
+     * it explains, where the learner is actually asking "why that
+     * number?" — so it lives in each report, and the home page just
+     * shows them their work and the next thing to do. */
     /* guided next step */
     "<div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div>" +
     "<div id='next-reason'></div>" +
