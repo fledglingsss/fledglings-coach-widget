@@ -197,11 +197,7 @@ return file.arrayBuffer().then(function(buf){return lib.getDocument({data:buf}).
 .then(function(doc){var chain=Promise.resolve('');var total=Math.min(doc.numPages,12);
 for(var p=1;p<=total;p++){(function(pn){chain=chain.then(function(acc){
 return doc.getPage(pn).then(function(pg){return pg.getTextContent()}).then(function(tc){
-var line='',out=[],lastY=null;
-tc.items.forEach(function(it){if(!it.str)return;
-if(lastY!==null&&Math.abs(it.transform[5]-lastY)>2){out.push(line);line=''}
-line+=(line&&it.str.charAt(0)!==' '?' ':'')+it.str;lastY=it.transform[5]});
-out.push(line);return acc+out.join('\n')+'\n\n'})})})(p)}return chain})})}
+return acc+flAssemblePageText(tc.items)+'\n\n'})})})(p)}return chain})})}
 var drop=$('cl-drop'),fileIn=$('cl-file');
 function clErr(msg){var e=$('cl-err');e.hidden=!msg;e.textContent=msg||'';}
 function handleFile(f){if(!f)return;clErr('');

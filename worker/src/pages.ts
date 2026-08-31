@@ -1,3 +1,4 @@
+import { PDF_TEXT_JS } from "./lib/pdf-text";
 /* Branded page layer for every non-widget surface the worker serves:
  * /tools, /passport, /portal. One design system, Outfit throughout,
  * mobile-first, print-aware. All dynamic values are escaped by the
@@ -104,7 +105,8 @@ td.c,th.c{text-align:center;}
  *      storage is partitioned.
  * The token is scoped to this browser and expires; the email inside it
  * is only ever a key for score history — no account, no password. */
-export const IDENTITY_JS = String.raw`
+
+export const IDENTITY_JS = PDF_TEXT_JS + String.raw`
 function flViewOnly(){try{return new URLSearchParams(location.search).get('view')==='1'}catch(e){return false}}
 /* Stable per-browser ids, even where storage is blocked (private mode,
  * or a cross-site iframe with partitioned storage). An in-memory
@@ -521,6 +523,14 @@ export function appShell(opts: {
     "var href=a.getAttribute('href');if(href.indexOf('http')===0)return;" +
     "var hash='';var hi=href.indexOf('#');if(hi>-1){hash=href.slice(hi);href=href.slice(0,hi);}" +
     "a.href=href+(href.indexOf('?')>-1?'&':'?')+'t='+evq+hash;});}" +
+    /* On a phone the nav is a horizontal strip, and the page you are
+     * ON was landing half off the right edge — the one item that must
+     * be legible was the one cut in half. Bring it into view, without
+     * moving the page itself (block:'nearest'). */
+    "(function(){var on=document.querySelector('.sn-link.on');if(!on)return;" +
+    "var strip=on.parentNode;if(!strip||strip.scrollWidth<=strip.clientWidth+2)return;" +
+    "try{on.scrollIntoView({inline:'center',block:'nearest'})}" +
+    "catch(e){strip.scrollLeft=on.offsetLeft-(strip.clientWidth-on.offsetWidth)/2;}})();" +
     /* Liveness layer: animate anything that becomes visible, and give
      * pages a count-up for their big score reveals. */
     "var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;" +
@@ -819,11 +829,7 @@ export function renderToolsPage(): string {
     ".then(function(doc){var chain=Promise.resolve('');var total=Math.min(doc.numPages,12);" +
     "for(var p=1;p<=total;p++){(function(pn){chain=chain.then(function(acc){" +
     "return doc.getPage(pn).then(function(pg){return pg.getTextContent()}).then(function(tc){" +
-    "var line='',out=[],lastY=null;" +
-    "tc.items.forEach(function(it){if(!it.str)return;" +
-    "if(lastY!==null&&Math.abs(it.transform[5]-lastY)>2){out.push(line);line=''}" +
-    "line+=(line&&it.str.charAt(0)!==' '?' ':'')+it.str;lastY=it.transform[5]});" +
-    "out.push(line);return acc+out.join('\\n')+'\\n\\n'})})})(p)}return chain})})}" +
+    "return acc+flAssemblePageText(tc.items)+'\\n\\n'})})})(p)}return chain})})}" +
     /* ---- upload handling ---- */
     "var drop=$('drop'),fileIn=$('file');" +
     "function dropErr(msg){var e=$('d-err');e.hidden=!msg;e.textContent=msg||'';}" +
@@ -902,9 +908,16 @@ export function renderToolsPage(): string {
     /* score-in-context: the honest calibration bands this scoring is
      * built on, with the learner's pin on them */
     "function scaleChart(v){var BANDS=[[0,40,'#B93A22','Rebuild it'],[40,55,'#E07B39','Early draft'],[55,70,'#ED9249','Solid start'],[70,85,'#4E9A6B','Interview-ready'],[85,100,'#1A7649','Excellent']];" +
-    "var W=360,H=74,x=function(p){return 6+(W-12)*p/100};var s=\"<svg viewBox='0 0 \"+W+\" \"+H+\"' class='kwg' role='img' aria-label='Score \"+v+\" of 100: \"+(BANDS.filter(function(b){return v>=b[0]&&v<=b[1]})[0]||BANDS[4])[3]+\"'>\";" +
-    "BANDS.forEach(function(b,i){s+=\"<rect x='\"+x(b[0])+\"' y='30' width='\"+(x(b[1])-x(b[0]))+\"' height='12' \"+(i===0?\"rx='6' \":i===4?\"rx='6' \":'')+\"fill='\"+b[2]+\"' opacity='.42'/>\";" +
-    "s+=\"<text x='\"+((x(b[0])+x(b[1]))/2)+\"' y='58' text-anchor='middle' font-size='8.6' font-weight='700' fill='#68788A'>\"+b[3]+\"</text>\";});" +
+    /* The middle bands are only 15 points wide, so their labels are
+     * wider than the band they sit under and used to run into each
+     * other — "Solid startInterview-ready Excellent" on a phone.
+     * Staggering onto two rows gives every label its own line to grow
+     * into, and a tick ties each one back to its band. */
+    "var W=360,H=86,x=function(p){return 6+(W-12)*p/100};var s=\"<svg viewBox='0 0 \"+W+\" \"+H+\"' class='kwg' role='img' aria-label='Score \"+v+\" of 100: \"+(BANDS.filter(function(b){return v>=b[0]&&v<=b[1]})[0]||BANDS[4])[3]+\"'>\";" +
+    "BANDS.forEach(function(b,i){var mid=(x(b[0])+x(b[1]))/2;var low=i%2===1;var ty=low?70:56;" +
+    "s+=\"<rect x='\"+x(b[0])+\"' y='30' width='\"+(x(b[1])-x(b[0]))+\"' height='12' \"+(i===0?\"rx='6' \":i===4?\"rx='6' \":'')+\"fill='\"+b[2]+\"' opacity='.42'/>\";" +
+    "if(low)s+=\"<line x1='\"+mid+\"' y1='44' x2='\"+mid+\"' y2='61' stroke='#D8D2CE' stroke-width='1'/>\";" +
+    "s+=\"<text x='\"+mid+\"' y='\"+ty+\"' text-anchor='middle' font-size='8.6' font-weight='700' fill='#68788A'>\"+b[3]+\"</text>\";});" +
     "s+=\"<circle cx='\"+x(v)+\"' cy='36' r='9' fill='\"+band(v)+\"'/>\";" +
     "s+=\"<text x='\"+x(v)+\"' y='18' text-anchor='middle' font-size='14' font-weight='800' fill='\"+band(v)+\"'>\"+v+\"</text>\";" +
     "return s+'</svg>'}" +
@@ -914,7 +927,12 @@ export function renderToolsPage(): string {
     "var pt=function(i,v){var a=-Math.PI/2+i*2*Math.PI/n;" +
     "return (CX+Math.cos(a)*R*v/100).toFixed(1)+','+(CY+Math.sin(a)*R*v/100).toFixed(1)};" +
     /* Dimension labels are model text landing in an attribute — escape. */
-    "var s=\"<svg viewBox='0 0 280 224' class='radar' role='img' aria-label='\"+esc(dims.map(function(d){return d.label+' '+d.score}).join(', '))+\"'>\";" +
+    /* The side labels start at the widest point of the web and read
+     * outwards, so the viewBox needs room beyond the shape or they
+     * clip — "ATS readine" and "Clarity & struc…" were being cut off
+     * against the old 280-wide box. Sixty units of margin each side
+     * fits the longest dimension name at this type size. */
+    "var s=\"<svg viewBox='-60 0 400 224' class='radar' role='img' aria-label='\"+esc(dims.map(function(d){return d.label+' '+d.score}).join(', '))+\"'>\";" +
     "[25,50,75,100].forEach(function(g){s+=\"<polygon points='\"+dims.map(function(_,i){return pt(i,g)}).join(' ')+\"' fill='none' stroke='#E3DDDA' stroke-width='1'/>\";});" +
     "dims.forEach(function(_,i){s+=\"<line x1='\"+CX+\"' y1='\"+CY+\"' x2='\"+pt(i,100).split(',')[0]+\"' y2='\"+pt(i,100).split(',')[1]+\"' stroke='#E3DDDA' stroke-width='1'/>\";});" +
     "s+=\"<polygon points='\"+dims.map(function(_,i){return pt(i,70)}).join(' ')+\"' fill='none' stroke='#05253C' stroke-width='1.6' stroke-dasharray='4 3'/>\";" +
@@ -924,7 +942,7 @@ export function renderToolsPage(): string {
     "var lx=CX+Math.cos(a)*(R+14),ly=CY+Math.sin(a)*(R+14);" +
     "var anch=Math.abs(Math.cos(a))<0.35?'middle':(Math.cos(a)>0?'start':'end');" +
     "if(Math.sin(a)<-0.9)ly-=4;if(Math.sin(a)>0.9)ly+=8;" +
-    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+ly.toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='9.6' font-weight='700' fill='#25394B'>\"+esc(d.label.length>16?d.label.slice(0,15)+'…':d.label)+\"</text>\";" +
+    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+ly.toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='9.6' font-weight='700' fill='#25394B'>\"+esc(d.label.length>22?d.label.slice(0,21)+'…':d.label)+\"</text>\";" +
     "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+(ly+11).toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='10' font-weight='800' fill='\"+band(d.score)+\"'>\"+d.score+\"</text>\";});" +
     "return s+'</svg>'}" +
     /* attempt-over-attempt: real history from the hub score store */
@@ -1015,7 +1033,11 @@ export function renderToolsPage(): string {
     "var weakest=r.dimensions.length?r.dimensions.reduce(function(a,b){return b.score<a.score?b:a}):null;" +
     "var glance='';" +
     "if(pct!==null)glance+=\"<button type='button' class='gl' data-rp='match'><b style='color:\"+band(pct)+\"'>\"+pct+\"%</b><span>job advert match</span><i>75% target →</i></button>\";" +
-    "if(checks&&checks.groups)glance+=\"<button type='button' class='gl' data-rp='checks'><b style='color:\"+(checks.passed>=checks.total-1?'#1A7649':checks.passed>=checks.total-4?'#ED9249':'#B93A22')+\"'>\"+checks.passed+\"/\"+checks.total+\"</b><span>recruiter checks passed</span><i>see the rest →</i></button>\";" +
+    /* Guard the counts, not just the container: a checks payload that
+     * arrives without totals rendered the tile as "undefined/undefined
+     * recruiter checks passed", which is worse than showing nothing. */
+    "if(checks&&checks.groups&&checks.groups.length&&typeof checks.passed==='number'&&typeof checks.total==='number'&&checks.total>0)" +
+    "glance+=\"<button type='button' class='gl' data-rp='checks'><b style='color:\"+(checks.passed>=checks.total-1?'#1A7649':checks.passed>=checks.total-4?'#ED9249':'#B93A22')+\"'>\"+checks.passed+\"/\"+checks.total+\"</b><span>recruiter checks passed</span><i>see the rest →</i></button>\";" +
     "if(weakest)glance+=\"<button type='button' class='gl' data-rp='improve'><b style='color:\"+band(weakest.score)+\"'>\"+esc(weakest.label)+\"</b><span>your weakest area</span><i>fix it →</i></button>\";" +
     "$('r-glance').innerHTML=glance;" +
     "document.querySelectorAll('.gl').forEach(function(g){g.onclick=function(){rpGo(g.dataset.rp)}});" +
