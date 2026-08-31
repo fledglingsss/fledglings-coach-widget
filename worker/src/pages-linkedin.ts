@@ -129,6 +129,16 @@ export function renderLinkedInPage(): string {
     "var $=function(id){return document.getElementById(id)};" +
     "var qs=new URLSearchParams(location.search);" +
     "var hubEmail=flResolveEmail();flIdentityInit(lid);" +
+    /* Reopened from My work — score the saved export again so a
+     * learner can see whether their profile edits moved the number. */
+    "(function(){var rTxt=flLibTakeHandoff();if(!rTxt||rTxt.length<120)return;" +
+    "var b=document.createElement('div');b.className='card';" +
+    "b.innerHTML=\"<h3>Picked up from My work</h3><p class='kw-note'>Score your saved profile again to see " +
+    "what moved — or upload a fresh export below once you have changed your profile.</p>\";" +
+    "var rbtn=document.createElement('button');rbtn.type='button';rbtn.className='btn';" +
+    "rbtn.textContent='Score my saved profile again';" +
+    "rbtn.onclick=function(){show('a-card');startMsgs();submit(rTxt);};" +
+    "b.appendChild(rbtn);var uc=$('u-card');if(uc)uc.parentNode.insertBefore(b,uc);})();" +
     /* The journey card must carry identity to the next tool. */
     "(function(){var j=document.getElementById('li-journey'),t=flToken();" +
     "if(j&&t)j.href='/interview?t='+encodeURIComponent(t);})();" +
@@ -199,7 +209,9 @@ export function renderLinkedInPage(): string {
     "fetch('/api/linkedin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
     "learner_id:lid,session_id:sid,text:text,target:$('target').value,token:flToken()})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
-    "if(d&&d.report){renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
+    "if(d&&d.report){renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});" +
+    "try{flLibSave('linkedin','My LinkedIn profile',text,d.report,d.report.overall)}catch(e){}" +
+    "return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
     "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +

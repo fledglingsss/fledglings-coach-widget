@@ -244,7 +244,14 @@ fetch('/api/cover-letter',{method:'POST',headers:{'Content-Type':'application/js
 learner_id:lid,session_id:sid,jd:jd,cv_text:(pasted||cvText).slice(0,9000),
 role:$('cl-role').value,company:$('cl-company').value,token:flToken()})})
 .then(function(r){return r.json()}).then(function(d){
-if(d&&d.draft){renderLetter(d.draft);show('s-out');window.scrollTo({top:0,behavior:'smooth'});return;}
+if(d&&d.draft){renderLetter(d.draft);show('s-out');window.scrollTo({top:0,behavior:'smooth'});
+/* Also into My work, so every reviewed document sits in one place
+ * rather than each tool keeping its own private pile. */
+try{var dr=d.draft;
+var full=[dr.greeting].concat(dr.paragraphs||[]).concat([dr.signoff]).filter(Boolean).join('\n\n');
+var who=$('cl-company').value||$('cl-role').value||'this role';
+flLibSave('cover','Cover letter — '+who,full,{next_step:(dr.tips&&dr.tips[0])||''},null);}catch(e){}
+return;}
 $('msgtext').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('s-msg');})
 .catch(function(){$('msgtext').textContent='Could not reach Fledge — try again in a minute.';show('s-msg');});});
 

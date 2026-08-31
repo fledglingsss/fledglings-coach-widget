@@ -220,7 +220,68 @@ not.style.cssText='border:none;background:none;color:#13507F;font-family:inherit
 not.onclick=flSignOutHere;
 chip.appendChild(who);chip.appendChild(not);
 var hh=document.querySelector('h2.page');
-if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}`;
+if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}
+
+/* ---------------- My work: the on-device document library ----------
+ *
+ * Every CV, cover letter and profile a learner submits is kept HERE,
+ * in their own browser, with the feedback it earned — so they can come
+ * back, read the advice again, and edit the actual words rather than
+ * starting from a blank box.
+ *
+ * It is IndexedDB on the device and nowhere else. The platform has
+ * always stored whole numbers and timestamps for a learner, never
+ * their documents, and a 16-year-old's CV is not something to start
+ * holding on a server because a feature would be tidier. The cost is
+ * honest and stated in the UI: clear your browser data, or move to
+ * another device, and the library is empty. Scores still follow the
+ * learner anywhere, because those are keyed to their identity.
+ *
+ * Entries are namespaced per signed-in email so a shared classroom
+ * machine never shows one learner's CV to the next. */
+var FL_LIB_DB='fl_library_v1',FL_LIB_STORE='docs',FL_LIB_MAX=40;
+function flLibOwner(){return flResolveEmail()||'device';}
+function flLibOpen(){return new Promise(function(res,rej){
+if(!window.indexedDB){rej(new Error('no indexeddb'));return;}
+var q=indexedDB.open(FL_LIB_DB,1);
+q.onupgradeneeded=function(){var db=q.result;
+if(!db.objectStoreNames.contains(FL_LIB_STORE)){
+var st=db.createObjectStore(FL_LIB_STORE,{keyPath:'id'});st.createIndex('owner','owner',{unique:false});}};
+q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)};});}
+function flLibTx(mode,fn){return flLibOpen().then(function(db){return new Promise(function(res,rej){
+var t=db.transaction(FL_LIB_STORE,mode);var out=fn(t.objectStore(FL_LIB_STORE));
+t.oncomplete=function(){res(out&&out.result!==undefined?out.result:out)};
+t.onerror=function(){rej(t.error)};});});}
+/* Save a document and the report it earned. Storage failures never
+ * break a review — the learner still has their report on screen. */
+function flLibSave(kind,title,text,report,score){
+try{
+var entry={id:'d'+Date.now()+Math.random().toString(36).slice(2,7),owner:flLibOwner(),
+kind:kind,title:String(title||'').slice(0,120),text:String(text||'').slice(0,20000),
+report:report||null,score:(typeof score==='number'?score:null),at:Math.floor(Date.now()/1000)};
+return flLibTx('readwrite',function(st){st.put(entry)})
+.then(function(){return flLibPrune()}).then(function(){return entry.id})
+.catch(function(){return null});
+}catch(e){return Promise.resolve(null)}}
+function flLibList(){return flLibTx('readonly',function(st){return st.getAll()})
+.then(function(rows){var me=flLibOwner();
+return (rows||[]).filter(function(r){return r&&r.owner===me}).sort(function(a,b){return b.at-a.at});})
+.catch(function(){return []});}
+function flLibGet(id){return flLibTx('readonly',function(st){return st.get(id)})
+.then(function(r){return r&&r.owner===flLibOwner()?r:null}).catch(function(){return null});}
+function flLibRemove(id){return flLibTx('readwrite',function(st){st.delete(id)}).catch(function(){});}
+/* Keep the newest FL_LIB_MAX per learner — a browser store should not
+ * grow without bound on a shared device. */
+function flLibPrune(){return flLibList().then(function(rows){
+var extra=rows.slice(FL_LIB_MAX);
+if(!extra.length)return;
+return flLibTx('readwrite',function(st){extra.forEach(function(r){st.delete(r.id)})});}).catch(function(){});}
+/* Handing a saved document back to the tool that made it: the text
+ * rides in sessionStorage (same tab, cleared on close) rather than the
+ * URL, so a CV never lands in browser history or a server log. */
+function flLibHandoff(text){try{sessionStorage.setItem('fl_reopen_v1',String(text||''));return true}catch(e){return false}}
+function flLibTakeHandoff(){try{var v=sessionStorage.getItem('fl_reopen_v1');
+if(v)sessionStorage.removeItem('fl_reopen_v1');return v||'';}catch(e){return ''}}`;
 
 /* ------------------------------------------------------------------
  * App shell — the Hiration-style light application chrome used by the
@@ -238,6 +299,7 @@ export const NAV_ICONS: Record<string, string> = {
   linkedin: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='3'/><path d='M8 11v5M8 8v.01M12 16v-5'/><path d='M16 16v-3a2 2 0 0 0-4 0'/></svg>",
   interview: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg>",
   privacy: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z'/><path d='m9 12 2 2 4-4'/></svg>",
+  library: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5.5A1.5 1.5 0 0 1 5.5 4H9v16H5.5A1.5 1.5 0 0 1 4 18.5z'/><path d='M9 4h4.5A1.5 1.5 0 0 1 15 5.5v13A1.5 1.5 0 0 1 13.5 20H9z'/><path d='m17 5.5 2.6.7a1.5 1.5 0 0 1 1 1.9l-3.2 11.6'/></svg>",
   account: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg>",
 };
 
@@ -248,6 +310,7 @@ export const APP_NAV: Array<{ id: string; icon: string; label: string; href: str
   { id: "cover", icon: "cover", label: "Cover Letter", href: "/cover-letter" },
   { id: "linkedin", icon: "linkedin", label: "LinkedIn Review", href: "/linkedin" },
   { id: "interview", icon: "interview", label: "Interview Practice", href: "/interview" },
+  { id: "library", icon: "library", label: "My Work", href: "/library" },
 ];
 
 const APP_CSS = `
@@ -722,6 +785,19 @@ export function renderToolsPage(): string {
     "if(qs.get('tab')==='li'){location.replace(linkedinUrl());}" +
     /* Handoff from the Resume Builder: the built CV's text arrives via
      * sessionStorage — offer to review it without a PDF. */
+    /* Reopened from My work. This tool reads PDFs, so there is no box
+     * to drop the old text into — what it CAN do is score the saved
+     * version again, which is exactly what a learner wants after
+     * editing their CV elsewhere: same document, new score, movement
+     * they can see. */
+    "(function(){var rTxt=flLibTakeHandoff();if(!rTxt||rTxt.length<120)return;" +
+    "var b=document.createElement('div');b.className='card';" +
+    "b.innerHTML=\"<h3>Picked up from My work</h3><p class='kw-note'>Score this saved version again to " +
+    "see what moved — or upload your edited CV below and Fledge will mark the new one.</p>\";" +
+    "var rbtn=document.createElement('button');rbtn.type='button';rbtn.className='btn';" +
+    "rbtn.textContent='Score my saved version again';" +
+    "rbtn.onclick=function(){lastName='My saved CV';show('a-card');startMsgs();submit(rTxt);};" +
+    "b.appendChild(rbtn);var uc=$('u-card');if(uc)uc.parentNode.insertBefore(b,uc);})();" +
     "if(qs.get('from')==='builder'){try{var bTxt=sessionStorage.getItem('fl_builder_cv_text')||'';" +
     "if(bTxt.length>=120){var bb=document.createElement('div');bb.className='card';" +
     "bb.innerHTML=\"<h3>Review the CV you just built?</h3><p class='kw-note'>Fledge has the text from your Resume Builder — \"+" +
@@ -780,7 +856,12 @@ export function renderToolsPage(): string {
     "fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
     "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value,token:flToken()})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
-    "if(d&&d.report){renderReport(d.report,d.checks);show('r-card');window.scrollTo({top:0,behavior:'smooth'});return;}" +
+    "if(d&&d.report){renderReport(d.report,d.checks);show('r-card');window.scrollTo({top:0,behavior:'smooth'});" +
+    /* Keep it in their own library, with the feedback attached, so
+     * the advice is still there tomorrow and they can edit the words
+     * instead of re-pasting the whole document. */
+    "try{flLibSave(kind==='linkedin'?'linkedin':'cv',lastName||'My CV',text,d.report,d.report.overall)}catch(e){}" +
+    "return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
     "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +

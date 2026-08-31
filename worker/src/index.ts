@@ -162,6 +162,7 @@ import {
   parseCoverLetterDraft,
   validateCoverLetterRequest,
 } from "./lib/cover-letter";
+import { renderLibraryPage } from "./pages-library";
 import { renderCoverLetterPage } from "./pages-cover-letter";
 import { renderBuilderPage } from "./pages-builder";
 import {
@@ -1563,6 +1564,8 @@ app.post("/api/linkedin", async (c) => {
  * no-fabrication law: only their real CV facts, [brackets] for
  * everything they must supply themselves. Never stored.
  * ================================================================== */
+
+app.get("/library", (c) => c.html(renderLibraryPage(), 200, FRAME_HEADERS));
 
 app.get("/cover-letter", (c) => c.html(renderCoverLetterPage(), 200, FRAME_HEADERS));
 
