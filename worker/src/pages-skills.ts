@@ -179,7 +179,13 @@ body{font-family:'Outfit',sans-serif;background:#ECE7E6;color:#05253C;-webkit-fo
   padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none}
 .toast.on{opacity:1}
 .demo-pill{background:#ECE7E6;color:#13507F;border-radius:999px;padding:4px 12px;font-size:11px;font-weight:700}
-@media (max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}}
+/* A two-class selector out-specifies the bare one, so the
+ * collapse-to-one-column rule below never applied to the "even"
+ * variant: its second column ran 68px off a 320px screen, hidden by
+ * the shell's overflow. The learner never saw "finish these next".
+ * Both selectors are named here so neither can drift out again. */
+@media (max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}
+  .cols,.cols.even{grid-template-columns:1fr}}
 @media (max-width:640px){.hero{grid-template-columns:1fr}.scorewrap{justify-self:start}
   .badges{grid-template-columns:repeat(2,1fr)}.inner{padding:20px}.page{padding:16px 8px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

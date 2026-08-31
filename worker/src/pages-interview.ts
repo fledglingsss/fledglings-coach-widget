@@ -1026,9 +1026,11 @@ $('fbrow').textContent='Thanks — that helps Fledge improve.';};});
 })();`;
 
 const INTERVIEW_CSS = `
-.ivtabs{display:flex;gap:8px;margin-bottom:18px;}
-.ivtab{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:10px 20px;
-  font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;min-height:42px;display:inline-flex;align-items:center;gap:8px;}
+/* Three pills do not fit a 320px phone in one row, and without wrap
+ * the third pushed the whole page sideways. */
+.ivtabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.ivtab{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:10px 18px;
+  font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;gap:8px;}
 .ivtab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 .ivcount{background:var(--orange);color:#fff;border-radius:999px;min-width:20px;height:20px;font-size:11px;
   display:inline-flex;align-items:center;justify-content:center;padding:0 6px;}

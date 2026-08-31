@@ -24,14 +24,22 @@ const LIBRARY_CSS = `
 .lib-grid{display:grid;gap:14px;}
 .lib-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;}
 .lib-top{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 12px;}
-.lib-kind{font:700 10.5px/1 inherit;letter-spacing:.1em;text-transform:uppercase;
+/* The kind sits above the title rather than beside it. Beside it, a
+ * nowrap chip like "COVER LETTER" took most of a 320px screen and
+ * squeezed the title into a column one character wide. No
+ * letter-spacing either: on a two-letter label it read as "C V". */
+.lib-kind{align-self:flex-start;font:700 11px/1 inherit;text-transform:uppercase;
   padding:6px 9px;border-radius:6px;background:var(--off);color:var(--blue);white-space:nowrap;}
-.lib-h{flex:1;min-width:0;}
-.lib-t{font-weight:700;font-size:15.5px;color:var(--ink);word-break:break-word;}
-.lib-when{font-size:12.5px;color:var(--mut);margin-top:2px;}
+/* Title and timestamp are separate lines. As inline spans a long
+ * title ran straight into "Reviewed just now" with no break —
+ * "…September revisionReviewed just now". */
+.lib-h{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px;}
+.lib-t{display:block;font-weight:700;font-size:15.5px;line-height:1.35;color:var(--ink);
+  overflow-wrap:anywhere;}
+.lib-when{display:block;font-size:12.5px;color:var(--mut);}
 .lib-score{display:flex;flex-direction:column;align-items:center;justify-content:center;
   width:52px;height:52px;border-radius:50%;color:#fff;font-weight:800;font-size:17px;flex:none;}
-.lib-score span{font-size:8.5px;font-weight:700;letter-spacing:.06em;opacity:.9;}
+.lib-score span{font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.92;}
 .lib-noscore{width:52px;height:52px;border-radius:50%;border:2px dashed var(--line);flex:none;}
 .lib-body{padding:0 18px 14px;}
 .lib-snip{font-size:13px;line-height:1.6;color:var(--mut);white-space:pre-wrap;
@@ -112,8 +120,8 @@ var sc=typeof r.score==='number'?r.score:null;
 var fix=topFix(r);
 return "<article class='lib-card' data-id='"+esc(r.id)+"'>"+
 "<div class='lib-top'>"+
-"<span class='lib-kind'>"+esc(k.label)+"</span>"+
-"<span class='lib-h'><span class='lib-t'>"+esc(r.title||k.label)+"</span>"+
+"<span class='lib-h'><span class='lib-kind'>"+esc(k.label)+"</span>"+
+"<span class='lib-t'>"+esc(r.title||k.label)+"</span>"+
 "<span class='lib-when'>Reviewed "+esc(ago(r.at))+"</span></span>"+
 (sc===null?"<span class='lib-noscore' title='Not scored'></span>"
 :"<span class='lib-score' style='background:"+band(sc)+"'>"+sc+"<span>/100</span></span>")+
