@@ -55,7 +55,7 @@ label .opt{color:var(--blue);font-weight:500;font-size:12.5px;}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
 .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
 .tab{border:1.5px solid var(--mango);background:#fff;color:var(--navy);border-radius:999px;padding:10px 18px;
-  font-weight:600;font-size:14px;cursor:pointer;min-height:42px;}
+  font-weight:600;font-size:14px;cursor:pointer;min-height:44px;}
 .tab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 .tab:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
@@ -415,9 +415,16 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
 .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
 .tab{border:1.5px solid var(--mango);background:#fff;color:var(--navy);border-radius:999px;padding:10px 18px;
-  font-weight:600;font-size:14px;cursor:pointer;min-height:42px;}
+  font-weight:600;font-size:14px;cursor:pointer;min-height:44px;}
 .tab.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 .tab:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+/* Every control gets a visible keyboard ring, not just the two that
+ * happened to declare one. Each new control was relying on whatever
+ * the browser drew by default, which is not something to leave to
+ * chance for a learner navigating without a mouse. */
+a:focus-visible,button:focus-visible,summary:focus-visible,
+select:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--navy);
+  outline-offset:2px;border-radius:6px;}
 .badge{display:inline-block;background:var(--off);color:var(--mut);border-radius:99px;padding:3px 10px;
   font-size:11.5px;font-weight:600;}
 .notice{background:#FFF6F0;border-left:4px solid var(--orange);border-radius:10px;padding:12px 14px;

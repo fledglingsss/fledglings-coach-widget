@@ -18,7 +18,7 @@ import { appShell } from "./pages";
 const LIBRARY_CSS = `
 .lib-lead{color:var(--mut);font-size:14.5px;max-width:62ch;margin:-4px 0 20px;}
 .lib-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
-.lib-f{font:600 13px/1 inherit;padding:9px 14px;min-height:38px;border-radius:99px;cursor:pointer;
+.lib-f{font:600 13px/1 inherit;padding:12px 16px;min-height:44px;border-radius:99px;cursor:pointer;
   border:1px solid var(--line);background:#fff;color:var(--ink);}
 .lib-f.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 .lib-grid{display:grid;gap:14px;}

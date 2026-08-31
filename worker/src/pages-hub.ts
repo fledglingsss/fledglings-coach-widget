@@ -481,8 +481,12 @@ const HUB_CSS = `
 .idcard{font-size:14px;line-height:1.6;color:var(--mut);padding:16px 22px;}
 .idcard b{color:var(--navy);}
 .id-sub{display:block;font-size:12.5px;color:var(--mut);margin-top:2px;}
+/* A link-styled button still has to be hittable with a thumb. Height
+ * rather than padding, so the target reaches 44px while the underline
+ * stays tight to the words. */
 .idlink{border:none;background:none;color:#B93A22;font-family:inherit;font-size:12.5px;font-weight:700;
-  cursor:pointer;text-decoration:underline;padding:5px 0;margin-top:6px;min-height:24px;}
+  cursor:pointer;text-decoration:underline;padding:5px 0;margin-top:6px;
+  min-height:44px;display:inline-flex;align-items:center;}
 .idrow{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
 .idrow input{flex:1;min-width:220px;}
 .id-err{color:#B93A22;font-weight:600;font-size:12.5px;margin-top:8px;}

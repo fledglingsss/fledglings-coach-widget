@@ -371,7 +371,7 @@ const COVER_LETTER_CSS = `
 .dthumb .letterpaper{box-shadow:none;border-radius:0;width:700px;margin:0;padding:44px 50px;pointer-events:none;}
 .dthumb .letterpaper.bold{padding-top:0;}
 .dthumb::after{content:'';position:absolute;inset:0;}
-.clsel{padding:10px 16px;min-height:40px;font-size:13px;}
+.clsel{padding:11px 16px;min-height:44px;font-size:13px;}
 .cl-designs summary{cursor:pointer;list-style:none;}
 .cl-designs summary::-webkit-details-marker{display:none;}
 .letteritem{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line,#E3DDDA);border-radius:14px;
