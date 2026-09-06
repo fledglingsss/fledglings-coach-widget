@@ -1338,21 +1338,32 @@ export function renderAiPrivacyPage(): string {
     "<p class='sub'>Straight answers about what the AI in these tools does, the rules it works under, " +
     "and what happens to your stuff. Written for you, not for lawyers.</p>" +
     "<div class='card'><h3>What is stored — and what never is</h3><div class='result'>" +
-    "<p><b>Stored:</b> your scores (whole numbers) and when you earned them, kept for six months against " +
-    "the email you choose to save, so your progress follows you. That's the entire record.</p>" +
-    "<p><b>Never stored:</b> your CV, your LinkedIn profile, your cover letters, your interview answers, " +
-    "your video or your voice. PDFs are read inside your own browser. Interview recordings never leave " +
-    "your device — the AI only ever sees the words, and forgets them once your feedback is written.</p></div></div>" +
+    /* This page has to be true on the day it is read. When My work
+     * started syncing across devices, "never stored: your CV" stopped
+     * being true for a signed-in learner — so it says exactly what is
+     * kept, for how long, filed how, and who can never see it. */
+    "<p><b>Stored:</b> your scores (whole numbers) and when you earned them, kept for six months so your " +
+    "progress follows you. And, if you sign in and use <b>My work</b>, the CVs, LinkedIn text and cover " +
+    "letters you have had reviewed, with their feedback — so they follow you to your phone or a school " +
+    "computer. Those are kept for six months, filed under a scrambled version of your email rather than " +
+    "the address itself, and you can delete any of them from My work, which removes them everywhere.</p>" +
+    "<p><b>Never stored:</b> your interview answers, your video or your voice. PDFs are read inside your " +
+    "own browser. Interview recordings never leave your device — the AI only ever sees the words, and " +
+    "forgets them once your feedback is written. Nothing in My work is ever shown to your tutor, your " +
+    "provider or anyone else: they see scores and progress, never a document.</p></div></div>" +
     "<div class='card'><h3>How your progress stays yours</h3><div class='result'>" +
-    "<p>When you link your email, this browser is given a signed pass — a bit like a cloakroom ticket. " +
-    "It's tied to this browser, it runs out after 30 days, and every time your scores are saved or shown " +
-    "the pass is checked. Typing someone else's email somewhere gets nobody anywhere: without a pass " +
+    "<p>The proper front door is <b>Sign in with your school account</b> on the Hub: you get a short code, " +
+    "type it on a page that sits behind your school's own login, and this browser is given a signed pass — " +
+    "a bit like a cloakroom ticket. No password is ever typed here. You can also link by email alone, " +
+    "which is quicker but weaker: it works on trust until someone signs in properly, and a school sign-in " +
+    "always wins. The pass is tied to this browser, runs out after 30 days, and is checked every time your " +
+    "work or scores are saved or shown. Typing someone else's email gets nobody anywhere: without a pass " +
     "issued by us, there's no way in.</p>" +
     "<p>Linking a second device? On the one that already works, open the Hub and tap <b>Link another device</b> — " +
     "it shows a six-character code that you type on the new device. Codes last ten minutes and work once. " +
     "That's why nobody can take your progress just by typing your email: they'd need the code from your device.</p>" +
-    "<p>There's still no password, because there's nothing sensitive behind it — the whole record is " +
-    "scores and dates. Tap <b>Not you?</b> on any tool to hand the device back.</p></div></div>" +
+    "<p>There's still no password typed on these pages — your school account is the front door, and the " +
+    "pass does the rest. Tap <b>Not you?</b> on any tool to hand the device back.</p></div></div>" +
     "<div class='card'><h3>The no-fabrication law</h3><div class='result'>" +
     "<p>These tools never invent experience, qualifications or numbers for you. Praise must quote your own " +
     "words back to you; anything a document needs that only you can supply appears in [brackets] for you to " +
