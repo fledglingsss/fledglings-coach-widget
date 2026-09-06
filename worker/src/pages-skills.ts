@@ -188,6 +188,9 @@ body{font-family:'Outfit',sans-serif;background:#ECE7E6;color:#05253C;-webkit-fo
   .cols,.cols.even{grid-template-columns:1fr}}
 @media (max-width:640px){.hero{grid-template-columns:1fr}.scorewrap{justify-self:start}
   .badges{grid-template-columns:repeat(2,1fr)}.inner{padding:20px}.page{padding:16px 8px}}
+/* The platform's touch-target floor is 44px; these two sat at 38 and
+ * were missed because the passport has its own stylesheet. */
+.share,.tabbar button{min-height:44px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;
 

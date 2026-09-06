@@ -567,9 +567,10 @@ voiceSecs=0;}
  * feedback onto a skipped Q2. */
 function trackStrip(raw){
 /* A three-minute answer is 150 samples — too many blocks for a phone.
- * Fold long runs into at most 60 buckets by majority, so every strip
- * fits and a block always means the same stretch of time. */
-var per=Math.max(1,Math.ceil(raw.length/60));var track=[];
+ * Fold long runs into at most 40 buckets by majority (40 blocks at
+ * their 2px minimum plus gaps fit a 320px screen with room to spare),
+ * so every strip fits and a block always means the same stretch. */
+var per=Math.max(1,Math.ceil(raw.length/40));var track=[];
 for(var b=0;b<raw.length;b+=per){var chunk=raw.slice(b,b+per);
 var vote=function(k){var n=0;chunk.forEach(function(s){if(s[k])n++});return n*2>=chunk.length};
 track.push({t:chunk[0].t,face:vote('face'),eye:vote('eye'),smile:vote('smile'),up:vote('up')});}
@@ -1411,8 +1412,8 @@ const INTERVIEW_CSS = `
 .ptrack-t span{font-weight:500;color:var(--mut);margin-left:8px;}
 .ptrow{display:flex;align-items:center;gap:10px;margin:5px 0;}
 .ptl{flex:none;width:80px;font-size:11.5px;color:var(--mut);}
-.ptcells{display:flex;gap:2px;flex:1;min-width:0;overflow:hidden;}
-.ptcells i{flex:1 1 0;min-width:3px;max-width:14px;height:12px;border-radius:2px;background:#E3DDDA;}
+.ptcells{display:flex;gap:1.5px;flex:1;min-width:0;overflow:hidden;}
+.ptcells i{flex:1 1 0;min-width:2px;max-width:14px;height:12px;border-radius:2px;background:#E3DDDA;}
 .ptcells i.on{background:#1A7649;}
 @media(max-width:560px){.ptrack{padding:10px 14px 12px;}.ptl{width:64px;font-size:11px;}}
 .qc-head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--off);}
