@@ -42,6 +42,9 @@ export interface LibraryEntry {
   score: number | null;
   /** The one next fix, lifted from the report for the card. */
   fix: string;
+  /** The opening of the document, so a card for work saved on another
+   * device is not blank before it is opened. Never the whole text. */
+  snip: string;
 }
 
 function str(value: unknown, max: number): string {
@@ -74,6 +77,7 @@ export function parseEntry(value: unknown): LibraryEntry | null {
     at,
     score,
     fix: str(raw.fix, 400),
+    snip: str(raw.snip, 240),
   };
 }
 

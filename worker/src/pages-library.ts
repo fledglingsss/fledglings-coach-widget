@@ -126,7 +126,7 @@ return "<article class='lib-card' data-id='"+esc(r.id)+"'>"+
 (sc===null?"<span class='lib-noscore' title='Not scored'></span>"
 :"<span class='lib-score' style='background:"+band(sc)+"'>"+sc+"<span>/100</span></span>")+
 "</div>"+
-"<div class='lib-body'><div class='lib-snip'>"+esc(String(r.text||'').slice(0,320))+"</div>"+
+"<div class='lib-body'><div class='lib-snip'>"+esc(String(r.text||r.snip||'').slice(0,320))+"</div>"+
 (fix?"<div class='lib-fix'><b>Your next fix</b>"+esc(fix)+"</div>":"")+
 "<div class='lib-full' id='full-"+esc(r.id)+"' hidden></div></div>"+
 "<div class='lib-acts'>"+

@@ -284,24 +284,36 @@ return fetch('/api/library/'+path,{method:'POST',headers:{'Content-Type':'applic
 body:JSON.stringify(body)}).then(function(r){return r.json()}).catch(function(){return null});}
 function flLibPush(entry){
 return flLibApi('save',{entry:{id:entry.id,kind:entry.kind,title:entry.title,at:entry.at,
-score:entry.score,fix:flLibFix(entry.report)},text:entry.text,report:entry.report})
+score:entry.score,fix:flLibFix(entry.report),snip:String(entry.text||'').slice(0,240)},
+text:entry.text,report:entry.report})
 .catch(function(){return null});}
-/* The list a learner sees is their device library plus anything saved
- * on another device. Entries that came from the server carry
- * remote:true and have no text yet — flLibText fetches a body only
- * when they actually open one. */
-function flLibList(){
-var local=flLibTx('readonly',function(st){return st.getAll()})
+/* Only what this device holds. Pruning must count these alone — the
+ * merged list below includes work that lives on the server, and
+ * counting that against the device cap pruned local copies early. */
+function flLibLocal(){return flLibTx('readonly',function(st){return st.getAll()})
 .then(function(rows){var me=flLibOwner();
 return (rows||[]).filter(function(r){return r&&r.owner===me});})
-.catch(function(){return []});
-return local.then(function(rows){
+.catch(function(){return []});}
+/* The list a learner sees is their device library plus anything saved
+ * on another device. Entries that came from the server carry
+ * remote:true, a snippet for the card, and no full text — flLibText
+ * fetches a body only when they open one.
+ *
+ * This is also where the two halves are reconciled: any local row the
+ * server does not have is pushed. That covers work saved before the
+ * learner signed in, and a push that failed on a bad connection, so
+ * "your work follows you" is true of everything, not just what came
+ * after the sign-in. */
+function flLibList(){
+return flLibLocal().then(function(rows){
 return flLibApi('list',{}).then(function(res){
 if(!res||!res.ok||!res.entries)return rows;
 var have={};rows.forEach(function(r){have[r.id]=true});
+var onServer={};res.entries.forEach(function(e){onServer[e.id]=true});
+rows.forEach(function(r){if(!onServer[r.id])flLibPush(r);});
 var extra=res.entries.filter(function(e){return !have[e.id]}).map(function(e){
 return {id:e.id,owner:flLibOwner(),kind:e.kind,title:e.title,at:e.at,score:e.score,
-text:'',report:e.fix?{next_step:e.fix}:null,remote:true};});
+text:'',snip:e.snip||'',report:e.fix?{next_step:e.fix}:null,remote:true};});
 return rows.concat(extra);}).catch(function(){return rows});})
 .then(function(all){return all.sort(function(a,b){return b.at-a.at})});}
 function flLibGet(id){return flLibTx('readonly',function(st){return st.get(id)})
@@ -322,7 +334,8 @@ return flLibTx('readwrite',function(st){st.delete(id)})
 .catch(function(){});}
 /* Keep the newest FL_LIB_MAX per learner — a browser store should not
  * grow without bound on a shared device. */
-function flLibPrune(){return flLibList().then(function(rows){
+function flLibPrune(){return flLibLocal().then(function(rows){
+rows.sort(function(a,b){return b.at-a.at});
 var extra=rows.slice(FL_LIB_MAX);
 if(!extra.length)return;
 return flLibTx('readwrite',function(st){extra.forEach(function(r){st.delete(r.id)})});}).catch(function(){});}

@@ -73,6 +73,7 @@ function entry(over: Partial<LibraryEntry> = {}): LibraryEntry {
     at: 1_700_000_000,
     score: 62,
     fix: "Add a number to your second bullet.",
+    snip: "Career History\nWeekend Team Member",
     ...over,
   };
 }
@@ -115,6 +116,16 @@ describe("the library index", () => {
     }
     expect(index).toHaveLength(LIBRARY_MAX_DOCS);
     expect(lastEvicted).toHaveLength(1);
+  });
+
+  it("keeps a bounded snippet so a card from another device is not blank", () => {
+    const long = "x".repeat(1000);
+    const parsed = parseEntry({ ...entry(), snip: long });
+    expect(parsed?.snip.length).toBe(240);
+    /* An index written before snippets existed still parses. */
+    const legacy = { ...entry() } as Record<string, unknown>;
+    delete legacy.snip;
+    expect(parseEntry(legacy)?.snip).toBe("");
   });
 
   it("survives a corrupt stored index", () => {
