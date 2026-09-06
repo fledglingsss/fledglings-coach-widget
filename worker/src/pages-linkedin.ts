@@ -386,7 +386,8 @@ export function renderLinkedInPage(): string {
 .schip.on{border-color:var(--navy,#05253C);box-shadow:0 0 0 2px rgba(5,37,60,.15);}
 @media print{.secpanel[hidden]{display:block!important;}}
 .rw-block{border:1.5px solid var(--line,#E3DDDA);border-radius:12px;padding:12px 14px;margin-bottom:10px;position:relative;}
-.rw-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--blue);margin-bottom:6px;}
+/* right padding keeps the label and its count clear of the Copy pill */
+.rw-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--blue);margin-bottom:6px;padding-right:68px;line-height:1.5;}
 .rw-count{font-weight:600;letter-spacing:0;color:var(--mut);margin-left:8px;text-transform:none;}
 .rw-count.over{color:#B93A22;}
 .rw-t{font-size:13.5px;line-height:1.6;color:#2A3F52;white-space:pre-wrap;}

@@ -398,7 +398,9 @@ focusBind('edn:'+(current.data.education.length-1)+':school');scheduleSave();};}
 function focusBind(b){var el=$('paper').querySelector("[data-b='"+b+"']");if(el){el.focus();
 try{var r=document.createRange();r.selectNodeContents(el);r.collapse(false);
 var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}}}
-function updateGuard(){$('exguard').hidden=JSON.stringify(current.data).toLowerCase().indexOf('example')===-1;}
+/* The scaffolding marker is "(example" — "imogen@example.com" or "set an
+ * example for new starters" is the learner's own content, not ours. */
+function updateGuard(){$('exguard').hidden=JSON.stringify(current.data).toLowerCase().indexOf('(example')===-1;}
 
 /* ---- inline editing: write-through without re-render (caret-safe) ---- */
 function writeBind(el){var b=(el.dataset.b||'').split(':');var v=el.textContent.replace(/\n/g,' ');

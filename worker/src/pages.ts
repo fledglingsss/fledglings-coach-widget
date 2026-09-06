@@ -1258,7 +1258,7 @@ export function renderToolsPage(): string {
 .lnote.warn{border-left-color:#ED9249;background:#FFF7EE;}
 .lnote.bad{border-left-color:#B93A22;background:#FFF3F0;}
 .ln-t{flex:1 1 260px;min-width:0;overflow-wrap:anywhere;}
-.ln-flags{display:flex;flex-wrap:wrap;gap:4px;flex:none;}
+.ln-flags{display:flex;flex-wrap:wrap;gap:4px;flex:0 1 auto;max-width:100%;}
 .ln-flag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;
   background:#EEE9E4;color:#5C6B7A;}
 .ln-flag.ok{background:#DDF0E4;color:#1A7649;}
