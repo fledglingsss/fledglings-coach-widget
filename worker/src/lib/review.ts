@@ -67,14 +67,14 @@ Output exactly this JSON shape:
   ],
   "strengths": ["<strength including a verbatim quote in quotation marks>", ...3-4 items],
   "improvements": [
-    {"title": "<short imperative title>", "detail": "<3 specific sentences: QUOTE the weak line, explain exactly why it costs them, and name the edit — never invented content>", "example": "<one improved line demonstrating the fix, built ONLY from their own facts with [brackets] for anything only they know>"}
+    {"title": "<short imperative title>", "detail": "<2-3 short sentences, 60 words at most: QUOTE the weak line, say what it costs them, name the edit — never invented content. The example below carries the fix; do not restate it here>", "example": "<one improved line demonstrating the fix, built ONLY from their own facts with [brackets] for anything only they know>"}
   , ...exactly 4-5 items, ordered highest-impact first],
   "rewrite": {
     "before": "<ONE verbatim weak line copied exactly from the learner's text>",
     "after": "<that same line rewritten to lead with an action verb and a result, using ONLY facts already in their text; where a number would strengthen it that they have not provided, insert a placeholder in square brackets like [how many] or [how often] for them to fill in>"
   },
   "keywords": {"matched": ["<term from the job advert their text genuinely evidences>"], "missing": ["<important term from the advert their text does not evidence>"]},
-  "next_step": "<the single highest-impact edit and WHY it moves their score most, 2-3 sentences>",
+  "next_step": "<the single highest-impact edit and WHY it moves their score most. TWO sentences, 45 words at most — this is read on a phone as one short card, not a paragraph>",
   "encouragement": "<ONE warm, genuine closing sentence anchored in their strongest real moment (quote or reference it) — no hedging, no 'but', no advice; this is the sentence they remember>"
 }
 The "keywords" field: ONLY when the learner pasted an actual job ADVERT — a real posting with duties or requirements in it — extract the 6-12 most important skills/requirements FROM THAT TEXT and split them into matched (their text genuinely shows it) vs missing (it does not).
@@ -202,7 +202,11 @@ export function parseReviewReport(
     )
     .slice(0, 6);
 
-  if (dimensions.length < 3 || strengths.length < 1 || improvements.length < 2) {
+  /* One improvement is still a report. Requiring two threw away the
+   * model's honest answer for a genuinely strong document — and, since
+   * a parse failure counts against the day's allowance, charged the
+   * learner a slot for having a good CV. */
+  if (dimensions.length < 3 || strengths.length < 1 || improvements.length < 1) {
     return null;
   }
 

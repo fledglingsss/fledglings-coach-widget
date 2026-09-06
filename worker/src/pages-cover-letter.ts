@@ -120,7 +120,7 @@ export function renderCoverLetterPage(): string {
     "<div style='margin-top:14px'>" + clDesignCards("out") + "</div></details>" +
     "<div class='letterpaper classic' id='paper'>" +
     "<div class='lp-head'><div class='lp-name' id='lp-name'>[Your name]</div>" +
-    "<div class='lp-contact'>[your email] · [your phone] · [your town]</div></div>" +
+    "<div class='lp-contact' id='lp-contact'>[your email] · [your phone] · [your town]</div></div>" +
     "<div class='lp-date' id='lp-date'></div>" +
     "<div class='lp-body' id='lp-body' contenteditable='true' spellcheck='true'></div>" +
     "<div class='lp-sign'><div id='lp-signoff'></div><div class='lp-signname' id='lp-signname'>[Your name]</div></div>" +
@@ -286,7 +286,10 @@ var lenOk=words>=120&&words<=350;
 var lenNote=words<120?words+' words — a first letter usually needs 120+ to land an example':
 words>350?words+' words — over ~350 stops getting read; trim to your strongest example':
 words+' words — right length for a skim-read';
-var ph=(body.match(/\[[^\]\n]{1,200}\]/g)||[]).length;
+/* Count the letterhead's brackets too — the check said "2 still to
+ * replace" while five sat on the page, and a learner can count. */
+var ph=(body.match(/\[[^\]\n]{1,200}\]/g)||[]).length+
+(($('lp-contact').textContent||'').match(/\[[^\]\n]{1,200}\]/g)||[]).length;
 var rows=[
 {ok:named,label:'Named for the job',note:named?'Mentions '+esc2((role&&low.indexOf(role)>-1)?$('cl-role').value.trim():$('cl-company').value.trim()):'Neither the role nor the company you gave appears — add one so it cannot read as sent-to-everyone'},
 {ok:lenOk,label:'Right length',note:lenNote},
@@ -296,9 +299,24 @@ $('clchk-count').textContent=done+' of '+rows.length;
 $('clchk-list').innerHTML=rows.map(function(r){
 return "<div class='clchk"+(r.ok?' ok':'')+"'><span class='clchk-i'>"+(r.ok?'✓':'✎')+"</span>"+
 "<div><b>"+r.label+"</b><span class='clchk-n'>"+r.note+"</span></div></div>"}).join('');}
+/* The letterhead used to read "[your email] · [your phone] · [your
+ * town]" even when the CV the letter was drafted from carried the
+ * email and phone two inches away. Lift what the CV states; keep a
+ * bracket only for what it does not. Town stays a bracket — a CV's
+ * address line is too varied to pull reliably, and a wrong town is
+ * worse than a bracket. */
+function contactLine(){
+var src=($('cl-cv').value||cvText||'');
+var email=(src.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)||[])[0]||'';
+var phone=(src.match(/(?:\+\d{1,3}[\s().-]*)?(?:\(?0\)?[\s().-]*)?\d[\d\s().-]{8,14}\d/)||[])[0]||'';
+phone=phone.replace(/\s+/g,' ').trim();
+if(phone&&phone.replace(/\D/g,'').length<10)phone='';
+var parts=[email||'[your email]',phone||'[your phone]','[your town]'];
+return parts.map(function(p){return /^\[/.test(p)?"<span class='ph'>"+esc2(p)+"</span>":esc2(p)}).join(' · ');}
 function renderLetter(d,skipSave){
 var name=$('cl-name').value.trim()||'[Your name]';
 $('lp-name').textContent=name;$('lp-signname').textContent=name;
+$('lp-contact').innerHTML=contactLine();
 $('lp-date').textContent=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 var html="<p class='lp-greet'>"+markPh(d.greeting)+"</p>";
 d.paragraphs.forEach(function(p){html+="<p>"+markPh(p)+"</p>"});

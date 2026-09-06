@@ -566,6 +566,7 @@ export function appShell(opts: {
   return (
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>" +
     "<meta name='robots' content='noindex'>" +
     `<title>${esc(opts.title)}</title>` +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
@@ -641,6 +642,7 @@ export function pageShell(opts: {
   return (
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>" +
     "<meta name='robots' content='noindex'>" +
     `<title>${esc(opts.title)}</title>` +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
@@ -756,8 +758,9 @@ export function renderToolsPage(): string {
     "Only claim a missing skill if you genuinely have it.</p></div>" +
     "<div class='kw-h'>✓ Found in your document</div><div class='chips' id='r-kwm'></div>" +
     "<div class='kw-h miss'>Missing from your document</div><div class='chips' id='r-kwx'></div></div>" +
-    "<div class='card' id='r-kwnone' hidden><p class='kw-note' style='margin:0'>No job advert was given this time — " +
-    "add the advert (or role) on the first step and this tab scores your wording against it.</p></div>" +
+    "<div class='card' id='r-kwnone' hidden><p class='kw-note' style='margin:0'>No job advert was given this time. " +
+    "Paste the actual advert on the first step and this tab scores your wording against its exact terms — " +
+    "a role name on its own is not enough for that, because no one can know which words a particular employer wants from two words.</p></div>" +
     "</div>" +
 
     /* ---- recruiter checks panel ---- */
@@ -960,7 +963,11 @@ export function renderToolsPage(): string {
     "function fbShow(i){var s=fbSlides();if(!s.length)return;" +
     "fbIdx=Math.max(0,Math.min(s.length-1,i));" +
     "s.forEach(function(c,j){c.hidden=j!==fbIdx});" +
-    "document.querySelectorAll('#fb-chips .qpick').forEach(function(ch,j){ch.classList.toggle('on',j===fbIdx)});" +
+    "document.querySelectorAll('#fb-chips .qpick').forEach(function(ch,j){ch.classList.toggle('on',j===fbIdx);" +
+    /* The strip scrolls now rather than wrapping, so the active chip
+     * must be brought into view or the arrows move to a chip the
+     * learner cannot see. */
+    "if(j===fbIdx&&ch.scrollIntoView)try{ch.scrollIntoView({inline:'nearest',block:'nearest'})}catch(e){}});" +
     "$('fb-prev').disabled=fbIdx===0;$('fb-next').disabled=fbIdx===s.length-1;}" +
     "function fbInit(){var s=fbSlides();" +
     "$('fb-chips').innerHTML=s.map(function(c){return \"<button type='button' class='qpick' role='tab'>\"+c.dataset.fbl+'</button>'}).join('');" +
@@ -1010,12 +1017,18 @@ export function renderToolsPage(): string {
     "var lx=CX+Math.cos(a)*(R+14),ly=CY+Math.sin(a)*(R+14);" +
     "var anch=Math.abs(Math.cos(a))<0.35?'middle':(Math.cos(a)>0?'start':'end');" +
     "if(Math.sin(a)<-0.9)ly-=4;if(Math.sin(a)>0.9)ly+=8;" +
-    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+ly.toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='9.6' font-weight='700' fill='#25394B'>\"+esc(d.label.length>22?d.label.slice(0,21)+'…':d.label)+\"</text>\";" +
-    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+(ly+11).toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='10' font-weight='800' fill='\"+band(d.score)+\"'>\"+d.score+\"</text>\";});" +
-    "return s+'</svg>'}" +
+    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+ly.toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='11.5' font-weight='700' fill='#25394B'>\"+esc(d.label.length>22?d.label.slice(0,21)+'…':d.label)+\"</text>\";" +
+    "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+(ly+13).toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='12.5' font-weight='800' fill='\"+band(d.score)+\"'>\"+d.score+\"</text>\";});" +
+    /* The shape is the point of the chart, but on a phone the SVG
+     * scales down until its labels are a few pixels tall — the phone
+     * pass showed "Impact 48" unreadable. A key in real HTML text
+     * underneath carries the four numbers at a size that never
+     * shrinks, whatever the chart does. */
+    "var key=\"<div class='radar-key'>\"+dims.map(function(d){return \"<span><i style='background:\"+band(d.score)+\"'></i>\"+esc(d.label)+\" <b style='color:\"+band(d.score)+\"'>\"+d.score+\"</b></span>\"}).join('')+'</div>';" +
+    "return s+'</svg>'+key}" +
     /* attempt-over-attempt: real history from the hub score store */
     "function loadCompare(){var el=$('r-compare');if(!hubEmail){" +
-    "el.innerHTML=\"<span class='dmut2'>Save your email on the Hub and every review compares with your last attempt.</span>\";return;}" +
+    "el.innerHTML=\"<span class='dmut2'>Sign in on the Hub and every review compares with your last attempt.</span>\";return;}" +
     "fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({learner_id:lid,token:flToken()})})" +
     ".then(function(x){return x.json()}).then(function(d){" +
     "var t=d&&d.summary&&d.summary[kind==='cv'?'cv':'linkedin'];if(!t||!t.history||t.history.length<2){" +
@@ -1177,13 +1190,19 @@ export function renderToolsPage(): string {
 @media print{.rpanel{display:block!important;}
 .rpanel[hidden]{display:block!important;}
 .fb-slide[hidden]{display:block!important;}}
-.qnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+/* One scrolling row with the arrows pinned at the ends. Wrapping left
+ * the arrows floating in the middle of row two on a phone — "← Fix 2
+ * Fix 3 Fix 4 Fix 5 →" — which is what they look like when the strip
+ * they are meant to scroll is allowed to wrap instead. */
+.qnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:nowrap;}
 .secarrow{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line,#E3DDDA);background:#fff;
   font-size:16px;font-weight:800;color:var(--navy,#05253C);cursor:pointer;flex:none;}
 .secarrow:disabled{opacity:.35;cursor:default;}
 .secarrow:hover:not(:disabled){border-color:var(--orange,#D9452B);color:var(--orange,#D9452B);}
-.qchips{display:flex;gap:7px;flex-wrap:wrap;flex:1;}
-.qpick{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line,#E3DDDA);background:#fff;
+.qchips{display:flex;gap:7px;flex-wrap:nowrap;flex:1;min-width:0;overflow-x:auto;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0;}
+.qchips::-webkit-scrollbar{display:none;}
+.qpick{display:inline-flex;align-items:center;gap:7px;flex:none;white-space:nowrap;border:1.5px solid var(--line,#E3DDDA);background:#fff;
   border-radius:999px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--ink,#25394B);cursor:pointer;}
 .qpick.on{border-color:var(--navy,#05253C);background:var(--navy,#05253C);color:#fff;}
 .glance{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
@@ -1203,6 +1222,11 @@ export function renderToolsPage(): string {
   margin-left:7px;vertical-align:2px;}
 .dim-ev{font-size:12px;color:#68788A;font-style:italic;border-left:3px solid var(--off,#ECE7E6);
   padding-left:10px;margin-top:6px;line-height:1.5;}
+.radar-key{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin:6px 0 2px;
+  font-size:13px;color:var(--ink);}
+.radar-key span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.radar-key i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.radar-key b{font-weight:800;}
 .fix-ex{margin-top:8px;background:#F1F8F3;border:1px solid #CBE3D4;border-radius:9px;padding:9px 12px;
   font-size:13px;line-height:1.55;}
 .fix-ex b{color:#1A7649;margin-right:4px;}

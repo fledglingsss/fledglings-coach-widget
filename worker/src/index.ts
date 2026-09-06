@@ -301,16 +301,54 @@ const ENROLS_PER_DAY = 6;
  * Billing and auth failures mean the coach is DOWN until the founder
  * acts — the log line is the alarm bell (visible in wrangler tail and
  * Cloudflare observability). */
-function modelFailure(where: string, err: unknown) {
+/* What a learner reads when a TOOL call fails, as opposed to a chat
+ * turn. The chat replies were being reused here, and they carry
+ * helpline numbers — right for a conversation that may have turned
+ * serious, wrong for "your CV review timed out", where they read as
+ * alarming and off-key. These say what happened, that nothing was
+ * taken from the day's allowance, and what to do. The crisis path is
+ * separate and still routes to real support. */
+const TOOL_BUSY_REPLY =
+  "Fledge is busy right now, so this one did not go through — nothing has been used from " +
+  "today's allowance. Give it a minute and try again.";
+const TOOL_UNAVAILABLE_REPLY =
+  "Reviews are paused for a moment while the team sorts something out — nothing has been " +
+  "used from today's allowance. Your saved work is safe; try again a little later.";
+const TOOL_FALLBACK_REPLY =
+  "That one did not finish — nothing has been used from today's allowance. Try again in a " +
+  "minute; if it keeps happening, your tutor can let Fledglings know.";
+
+/** Give back the daily slot a model call took when the call itself
+ * failed. Every tool spends the slot BEFORE calling the model (so an
+ * input crafted to produce unparseable output cannot burn unlimited
+ * calls), which was right — but it meant an outage upstream cost every
+ * learner their day's reviews for nothing, and left them locked out
+ * after the model recovered. A call that threw produced nothing, so
+ * the slot goes back. A call that returned rubbish still counts: that
+ * is the abuse guard, and the model, not the learner, is on the hook
+ * for it. */
+async function refundSlot(env: Env, key: string): Promise<void> {
+  try {
+    const used = parseInt((await env.RATE_LIMITS.get(key)) || "0", 10) || 0;
+    if (used > 0) {
+      await env.RATE_LIMITS.put(key, String(used - 1), { expirationTtl: 86_400 });
+    }
+  } catch {
+    /* A refund that fails costs one slot, never the service. */
+  }
+}
+
+function modelFailure(where: string, err: unknown, surface: "chat" | "tool" = "chat") {
   const kind = classifyModelError(err);
   const detail = err as { status?: number; message?: string };
+  const tool = surface === "tool";
   if (kind === "billing") {
     console.error(
       `[coach] SERVICE DOWN - ANTHROPIC CREDITS EXHAUSTED (${where}): top up at console.anthropic.com`,
       detail.status ?? "",
       detail.message ?? "",
     );
-    return { reply: UNAVAILABLE_REPLY, kind: "unavailable" };
+    return { reply: tool ? TOOL_UNAVAILABLE_REPLY : UNAVAILABLE_REPLY, kind: "unavailable" };
   }
   if (kind === "auth") {
     console.error(
@@ -318,14 +356,14 @@ function modelFailure(where: string, err: unknown) {
       detail.status ?? "",
       detail.message ?? "",
     );
-    return { reply: UNAVAILABLE_REPLY, kind: "unavailable" };
+    return { reply: tool ? TOOL_UNAVAILABLE_REPLY : UNAVAILABLE_REPLY, kind: "unavailable" };
   }
   if (kind === "busy") {
     console.error(`[coach] upstream busy (${where}):`, detail.status ?? "", detail.message ?? "");
-    return { reply: BUSY_REPLY, kind: "busy" };
+    return { reply: tool ? TOOL_BUSY_REPLY : BUSY_REPLY, kind: "busy" };
   }
   console.error(`[coach] ${where} failed:`, detail.status ?? "", detail.message ?? String(err));
-  return { reply: FALLBACK_REPLY, kind: "fallback" };
+  return { reply: tool ? TOOL_FALLBACK_REPLY : FALLBACK_REPLY, kind: "fallback" };
 }
 
 /* ------------------------------------------------------------------
@@ -562,6 +600,28 @@ app.get("/", (c) =>
     service: "fledglings-coach",
     status: "ok",
     docs: "POST /api/coach; widget at GET /widget.js",
+  }),
+);
+
+/* Browsers ask for /favicon.ico on every page whether or not a page
+ * names an icon; without one, each visit logged a 404 and the tab sat
+ * blank. The mark is the brand flame, inline, so nothing else loads. */
+const FAVICON_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>" +
+  "<rect width='64' height='64' rx='14' fill='#05253C'/>" +
+  "<path d='M32 10c6 8 12 14 12 24a12 12 0 0 1-24 0c0-6 3-9 5-12 0 5 2 8 5 8 4 0 4-8 2-20z' fill='#ED9249'/>" +
+  "<path d='M32 30c3 4 6 7 6 12a6 6 0 0 1-12 0c0-4 2-6 3-8 0 2 1 4 2 4 2 0 2-4 1-8z' fill='#D2432A'/>" +
+  "</svg>";
+app.get("/favicon.ico", (c) =>
+  c.body(FAVICON_SVG, 200, {
+    "Content-Type": "image/svg+xml",
+    "Cache-Control": "public, max-age=604800",
+  }),
+);
+app.get("/favicon.svg", (c) =>
+  c.body(FAVICON_SVG, 200, {
+    "Content-Type": "image/svg+xml",
+    "Cache-Control": "public, max-age=604800",
   }),
 );
 
@@ -1191,7 +1251,8 @@ app.post("/api/review", async (c) => {
     );
     return c.json({ report, checks, kind: "review" });
   } catch (err) {
-    return c.json(modelFailure("review", err));
+    await refundSlot(c.env, capKey);
+    return c.json(modelFailure("review", err, "tool"));
   }
 });
 
@@ -1268,7 +1329,8 @@ app.post("/api/improve-line", async (c) => {
     console.log("[coach] kind=improve-line outcome=ok");
     return c.json({ line: improved, kind: "improve-line" });
   } catch (err) {
-    return c.json(modelFailure("improve-line", err));
+    await refundSlot(c.env, capKey);
+    return c.json(modelFailure("improve-line", err, "tool"));
   }
 });
 
@@ -1373,7 +1435,8 @@ Output exactly:
     console.log("[coach] kind=linkedin-rewrite outcome=ok");
     return c.json({ rewrite, kind: "linkedin-rewrite" });
   } catch (err) {
-    return c.json(modelFailure("linkedin-rewrite", err));
+    await refundSlot(c.env, capKey);
+    return c.json(modelFailure("linkedin-rewrite", err, "tool"));
   }
 });
 
@@ -1567,7 +1630,8 @@ app.post("/api/linkedin", async (c) => {
     );
     return c.json({ report, kind: "linkedin" });
   } catch (err) {
-    return c.json(modelFailure("linkedin", err));
+    await refundSlot(c.env, capKey);
+    return c.json(modelFailure("linkedin", err, "tool"));
   }
 });
 
@@ -1673,7 +1737,8 @@ app.post("/api/cover-letter", async (c) => {
     );
     return c.json({ draft, kind: "cover-letter" });
   } catch (err) {
-    return c.json(modelFailure("cover-letter", err));
+    await refundSlot(c.env, capKey);
+    return c.json(modelFailure("cover-letter", err, "tool"));
   }
 });
 
@@ -2460,7 +2525,8 @@ app.post("/api/interview-questions", async (c) => {
       kind: "questions",
     });
   } catch (err) {
-    return c.json(modelFailure("interview-questions", err));
+    await refundSlot(c.env, capKey);
+    return c.json(modelFailure("interview-questions", err, "tool"));
   }
 });
 
@@ -2613,7 +2679,8 @@ app.post("/api/interview", async (c) => {
       kind: "interview",
     });
   } catch (err) {
-    return c.json(modelFailure("interview", err));
+    await refundSlot(c.env, capKey);
+    return c.json(modelFailure("interview", err, "tool"));
   }
 });
 
@@ -4827,8 +4894,9 @@ async function scheduled(
   ctx: ExecutionContext,
 ): Promise<void> {
   if (!lwConfigured(env)) return;
-  /* The 5-minute tick only rolls the roster; the heavyweight jobs
-   * stay nightly. */
+  /* The hourly tick only rolls the roster; the heavyweight jobs stay
+   * nightly. Each job carries its own catch so one failing cannot
+   * take the others down with it. */
   if (event.cron === "0 * * * *") {
     ctx.waitUntil(
       rosterTick(env).catch((err) =>

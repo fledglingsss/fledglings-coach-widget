@@ -744,8 +744,12 @@ $('r-meta').textContent=(d&&d.reply)||'Fledge could not score this one — your 
 .catch(function(){saveSession('unscored',null);repShowScoring(false);
 $('r-verdict').textContent='Recording saved — scoring unavailable';
 $('r-meta').textContent='Could not reach Fledge — your recording is safe in My recordings.';});}
-function scoreLabel(s){return s>=85?'Excellent':s>=70?'Strong':s>=50?'Getting there':s>=35?'Early days':'Needs work'}
-function tenLabel(s){return s>=8?'Excellent':s>=6?'Good':s>=4?'Getting there':'Needs work'}
+/* A missing score must not read as a bad one: undefined fell through
+ * every comparison and came out as "Needs work" beside a dash. */
+function scoreLabel(s){if(typeof s!=='number'||!isFinite(s))return 'Not measured';
+return s>=85?'Excellent':s>=70?'Strong':s>=50?'Getting there':s>=35?'Early days':'Needs work'}
+function tenLabel(s){if(typeof s!=='number'||!isFinite(s))return 'Not measured';
+return s>=8?'Excellent':s>=6?'Good':s>=4?'Getting there':'Needs work'}
 /* Five-segment pill bar (the reference design's metric bars). */
 function seg5(filled,col){var h='';for(var i=0;i<5;i++){
 h+="<i"+(i<filled?" style='background:"+col+"'":"")+"></i>";}return h;}
@@ -1307,13 +1311,15 @@ const INTERVIEW_CSS = `
 .qc-row.good b{color:var(--ok);}
 .qc-row.sharper{background:#F4F8F5;}
 .qc-row.sharper b{color:var(--ok);}
-.qnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.qnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:nowrap;}
 .secarrow{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line,#E3DDDA);background:#fff;
   font-size:16px;font-weight:800;color:var(--navy,#05253C);cursor:pointer;flex:none;}
 .secarrow:disabled{opacity:.35;cursor:default;}
 .secarrow:hover:not(:disabled){border-color:var(--orange,#D9452B);color:var(--orange,#D9452B);}
-.qchips{display:flex;gap:7px;flex-wrap:wrap;flex:1;}
-.qpick{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line,#E3DDDA);background:#fff;
+.qchips{display:flex;gap:7px;flex-wrap:nowrap;flex:1;min-width:0;overflow-x:auto;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0;}
+.qchips::-webkit-scrollbar{display:none;}
+.qpick{display:inline-flex;align-items:center;gap:7px;flex:none;white-space:nowrap;border:1.5px solid var(--line,#E3DDDA);background:#fff;
   border-radius:999px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--ink,#25394B);cursor:pointer;}
 .qpick i{font-style:normal;color:#fff;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:800;}
 .qpick.on{border-color:var(--navy,#05253C);background:var(--navy,#05253C);color:#fff;}
