@@ -24,7 +24,27 @@ export interface ChecksResult {
   passed: number;
   total: number;
   groups: CheckGroup[];
+  /** The learner's own lines, each with the rules it trips — attached
+   * by the review route so a report can show WHICH line, not just
+   * how many. */
+  lines?: LineNote[];
 }
+
+export type LineFlag =
+  | "weak-opener"
+  | "no-number"
+  | "passive"
+  | "cliche"
+  | "long"
+  | "pronoun"
+  | "strong";
+
+export interface LineNote {
+  text: string;
+  flags: LineFlag[];
+}
+
+export const MAX_LINE_NOTES = 120;
 
 /* Weak bullet openers that hide what the person actually did. */
 const WEAK_OPENERS =
@@ -45,6 +65,12 @@ const CLICHES = [
   "passionate individual",
   "dynamic individual",
 ];
+
+/* Passive voice. The old pattern wanted a participle ending in -ed,
+ * which missed the commonest irregular ones — including "was given",
+ * the very example the check's own copy quotes. */
+const PASSIVE =
+  /\b(was|were|been|being)\s+(\w+ed|given|told|made|shown|taken|chosen|put|kept|left|sent|set|paid|run|seen|held|found|brought|taught|built)\b/i;
 
 const ACTION_VERBS =
   /^(led|built|created|designed|organised|organized|delivered|improved|increased|reduced|launched|ran|managed|taught|trained|raised|won|achieved|volunteered|founded|set up|coordinated|planned|presented|resolved|handled|served|greeted|maintained|supported)\b/i;
@@ -82,6 +108,41 @@ export function hasPhoneNumber(text: string): boolean {
   const normalised = text.replace(/[\s   ().‐-―-]/g, "");
   /* +CC then 8+ digits, or a domestic 0-led number of 10+ digits. */
   return /(\+\d{1,3}\d{8,14}|(?:^|\D)0\d{9,13})(?:\D|$)/.test(normalised);
+}
+
+/**
+ * The document, line by line, with the same rules the checks apply —
+ * so "1 line opens with a weak verb" becomes a mark on THAT line.
+ *
+ * Headings and short lines carry no flags. "no-number" is raised only
+ * on lines that read as achievement bullets (they open with a verb),
+ * because a skills list or a profile sentence is not supposed to carry
+ * a number. "strong" marks a line that leads with an action verb, has
+ * a number, and trips nothing else — the pattern to copy.
+ */
+export function analyseLines(text: string): LineNote[] {
+  const out: LineNote[] = [];
+  for (const raw of text.split(/\n/)) {
+    if (out.length >= MAX_LINE_NOTES) break;
+    const t = raw.replace(/^[-•*◦▪‣]\s*/, "").trim();
+    if (!t) continue;
+    const flags: LineFlag[] = [];
+    if (t.length > 25 && /[a-z]/.test(t)) {
+      const lower = t.toLowerCase();
+      const weak = WEAK_OPENERS.test(t);
+      const action = ACTION_VERBS.test(t);
+      const hasNumber = /(\d|%|£)/.test(t);
+      if (weak) flags.push("weak-opener");
+      if (PASSIVE.test(t)) flags.push("passive");
+      if (CLICHES.some((c) => lower.includes(c))) flags.push("cliche");
+      if (/\b(i|me|my)\b/.test(lower)) flags.push("pronoun");
+      if (t.split(/\s+/).length > 30) flags.push("long");
+      if (!hasNumber && (weak || action)) flags.push("no-number");
+      if (flags.length === 0 && action && hasNumber) flags.push("strong");
+    }
+    out.push({ text: t.slice(0, 200), flags });
+  }
+  return out;
 }
 
 export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult {
@@ -128,7 +189,7 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
         : "Start more lines with a doing word (organised, delivered, greeted, trained) rather than a description.",
   });
 
-  const passive = lines.filter((l) => /\b(was|were|been)\s+\w+ed\b/i.test(l));
+  const passive = lines.filter((l) => PASSIVE.test(l));
   impact.push({
     id: "passive-voice",
     label: "Active, not passive voice",

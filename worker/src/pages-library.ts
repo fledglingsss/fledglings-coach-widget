@@ -131,6 +131,7 @@ return "<article class='lib-card' data-id='"+esc(r.id)+"'>"+
 "<div class='lib-full' id='full-"+esc(r.id)+"' hidden></div></div>"+
 "<div class='lib-acts'>"+
 "<a class='lib-btn' href='"+k.href+"' data-open='"+esc(r.id)+"'>Edit this in the tool</a>"+
+(r.kind==='cv'?"<a class='lib-btn ghost' href='/builder?from=text' data-openb='"+esc(r.id)+"'>Open in the builder</a>":"")+
 "<button type='button' class='lib-btn ghost' data-toggle='"+esc(r.id)+"'>Read it all</button>"+
 "<button type='button' class='lib-btn danger' data-del='"+esc(r.id)+"'>Delete</button>"+
 "</div></article>";}
@@ -156,6 +157,12 @@ if(!txt){b.textContent='Read it all';
 box.textContent='Could not load this one just now — check your connection and try again.';
 box.hidden=false;return;}
 row.text=txt;box.textContent=txt;box.hidden=false;b.textContent='Hide';});});});
+/* Into the builder: same handoff, then the builder parses the words
+ * into its sections so the learner edits rather than retypes. */
+$('lib-grid').querySelectorAll('[data-openb]').forEach(function(a){a.addEventListener('click',function(e){
+var id=a.getAttribute('data-openb');var row=rows.filter(function(r){return r.id===id})[0];
+if(!row)return;e.preventDefault();a.textContent='Opening…';
+flLibText(row).then(function(txt){if(txt)flLibHandoff(txt);location.href=a.getAttribute('href');});});});
 /* Reopening needs the words in hand before the browser follows the
  * link, so a remote document is fetched first and then navigated. */
 $('lib-grid').querySelectorAll('[data-open]').forEach(function(a){a.addEventListener('click',function(e){

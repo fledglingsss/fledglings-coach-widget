@@ -765,6 +765,15 @@ export function renderToolsPage(): string {
 
     /* ---- recruiter checks panel ---- */
     "<div class='rpanel' id='rp-checks' hidden>" +
+    /* the document itself, marked line by line — the count above
+     * becomes a mark on the line it means */
+    "<div class='card' id='r-linescard' hidden><h3>Your CV, line by line</h3>" +
+    "<p class='kw-note'>Every line you wrote, with the rule it trips — or a tick when it is the pattern to copy. " +
+    "<b>Weak opener</b> means the line starts with what you were asked to do, not what you did; <b>No number</b> " +
+    "means an achievement line with nothing to prove its size.</p>" +
+    "<div class='ln-key'><span class='ln-flag ok'>Strong line</span><span class='ln-flag warn'>Worth tightening</span>" +
+    "<span class='ln-flag bad'>Costs you</span></div>" +
+    "<div id='r-lines'></div></div>" +
     "<div class='card'><h3>Recruiter checks <span class='badge' id='r-ckcount'></span></h3>" +
     "<p class='kw-note'>Objective, rule-based checks — the things screening software and a skim-reading recruiter " +
     "judge before reading a word properly.</p>" +
@@ -818,6 +827,7 @@ export function renderToolsPage(): string {
     "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
     "<div class='btnrow no-print'>" +
     "<button type='button' class='btn' onclick='window.print()'>Print / save feedback</button>" +
+    "<button type='button' class='btn ghost' id='r-builder' hidden>Edit this in the builder</button>" +
     "<button type='button' class='btn ghost' id='r-again'>Review another</button></div>" +
     "</div>" +
     "<p class='sub' style='font-size:12.5px;margin-top:18px'>Up to 5 reviews a day. Scores are honest and calibrated for someone starting out — " +
@@ -938,6 +948,9 @@ export function renderToolsPage(): string {
      * the advice is still there tomorrow and they can edit the words
      * instead of re-pasting the whole document. */
     "try{flLibSave(kind==='linkedin'?'linkedin':'cv',lastName||'My CV',text,d.report,d.report.overall)}catch(e){}" +
+    /* review -> builder: the reviewed words, handed to the editor in
+     * this tab only (sessionStorage), parsed into sections there */
+    "var rb=$('r-builder');if(rb){rb.hidden=kind!=='cv';rb.onclick=function(){if(flLibHandoff(text))location.href='/builder?from=text';};}" +
     "return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
@@ -1073,6 +1086,15 @@ export function renderToolsPage(): string {
     "\"<div class='ck-d'>\"+esc(c.detail)+'</div>'+" +
     "(c.evidence?\"<div class='ck-e'>“\"+esc(c.evidence)+\"”</div>\":'')+'</div></div>'});" +
     "$('r-checks').innerHTML=ck}" +
+    /* the marked-up document */
+    "var LNF={'weak-opener':['Weak opener','bad'],'no-number':['No number','warn'],passive:['Passive voice','warn']," +
+    "cliche:['Cliché','bad'],long:['Too long','warn'],pronoun:['I / me / my','warn'],strong:['✓ Strong line','ok']};" +
+    "if(checks&&checks.lines&&checks.lines.length){$('r-linescard').hidden=false;" +
+    "$('r-lines').innerHTML=checks.lines.map(function(l){var fl=l.flags||[];" +
+    "var worst=fl.some(function(f){return LNF[f]&&LNF[f][1]==='bad'})?'bad':fl.some(function(f){return LNF[f]&&LNF[f][1]==='warn'})?'warn':fl.length?'ok':'';" +
+    "var chips=fl.map(function(f){var d=LNF[f]||[f,'warn'];return \"<span class='ln-flag \"+d[1]+\"'>\"+esc(d[0])+'</span>'}).join('');" +
+    "return \"<div class='lnote\"+(worst?' '+worst:'')+\"'><span class='ln-t'>\"+esc(l.text)+'</span>'+(chips?\"<span class='ln-flags'>\"+chips+'</span>':'')+'</div>'}).join('');}" +
+    "else{$('r-linescard').hidden=true;}" +
     /* rewrite (XYZ/STAR teaching) */
     "if(r.rewrite&&r.rewrite.before){$('r-rwb').textContent=r.rewrite.before;" +
     "$('r-rwa').textContent=r.rewrite.after;$('r-rwcard').removeAttribute('data-absent')}" +
@@ -1227,6 +1249,21 @@ export function renderToolsPage(): string {
 .radar-key span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
 .radar-key i{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .radar-key b{font-weight:800;}
+/* the document, line by line */
+.ln-key{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;}
+.lnote{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px 10px;padding:8px 10px;border-radius:8px;
+  border-left:3px solid transparent;font-size:13.5px;line-height:1.5;color:var(--ink);}
+.lnote+.lnote{margin-top:2px;}
+.lnote.ok{border-left-color:#1A7649;background:#F1F8F3;}
+.lnote.warn{border-left-color:#ED9249;background:#FFF7EE;}
+.lnote.bad{border-left-color:#B93A22;background:#FFF3F0;}
+.ln-t{flex:1 1 260px;min-width:0;overflow-wrap:anywhere;}
+.ln-flags{display:flex;flex-wrap:wrap;gap:4px;flex:none;}
+.ln-flag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;
+  background:#EEE9E4;color:#5C6B7A;}
+.ln-flag.ok{background:#DDF0E4;color:#1A7649;}
+.ln-flag.warn{background:#FBE6D0;color:#8A4A0C;}
+.ln-flag.bad{background:#F8DAD3;color:#9A2D18;}
 .fix-ex{margin-top:8px;background:#F1F8F3;border:1px solid #CBE3D4;border-radius:9px;padding:9px 12px;
   font-size:13px;line-height:1.55;}
 .fix-ex b{color:#1A7649;margin-right:4px;}

@@ -110,7 +110,7 @@ import {
   type StreakState,
 } from "./lib/skills-passport";
 import { renderSkillsPassport } from "./pages-skills";
-import { runCvChecks } from "./lib/cv-checks";
+import { runCvChecks, analyseLines } from "./lib/cv-checks";
 import {
   parseReviewReport,
   REVIEW_CAPS,
@@ -175,6 +175,7 @@ import {
   validDocId,
 } from "./lib/library";
 import { renderLibraryPage } from "./pages-library";
+import { textToSeed } from "./lib/cv-import";
 import { renderCoverLetterPage } from "./pages-cover-letter";
 import { renderBuilderPage } from "./pages-builder";
 import {
@@ -1249,7 +1250,13 @@ app.post("/api/review", async (c) => {
     console.log(
       `[coach] kind=review tool=${validated.kind} outcome=ok overall=${report.overall} checks=${checks.passed}/${checks.total}`,
     );
-    return c.json({ report, checks, kind: "review" });
+    /* The learner's own lines, marked, ride with the checks — so the
+     * report can show WHICH line trips a rule, not just how many. */
+    return c.json({
+      report,
+      checks: { ...checks, lines: analyseLines(validated.text) },
+      kind: "review",
+    });
   } catch (err) {
     await refundSlot(c.env, capKey);
     return c.json(modelFailure("review", err, "tool"));
@@ -1467,6 +1474,20 @@ app.post("/api/feedback", async (c) => {
     /* feedback is a bonus signal — never an error the learner sees */
   }
   return c.json({ ok: true });
+});
+
+/* Turn a pasted CV into builder sections — the bridge from a review
+ * back into the editor, so "adjust to the feedback" does not mean
+ * retyping. Deterministic, model-free, and the text is parsed and
+ * forgotten. */
+app.post("/api/builder-import", async (c) => {
+  const body = await readJsonCapped(c, 64_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  const text = sanitiseText(body.text, 20_000);
+  if (text.length < 40) return c.json({ error: "too_short" }, 400);
+  return c.json({ ok: true, seed: textToSeed(text) });
 });
 
 app.post("/api/builder-check", async (c) => {

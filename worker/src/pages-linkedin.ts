@@ -107,8 +107,10 @@ export function renderLinkedInPage(): string {
     "Uses one of today's reviews.</p>" +
     "<button type='button' class='btn' id='rw-btn'>Generate my rewrite</button>" +
     "<div id='rw-out' hidden>" +
-    "<div class='rw-block'><div class='rw-h'>HEADLINE — paste into LinkedIn</div><div class='rw-t' id='rw-headline'></div><button type='button' class='rev-copy' data-copy-rw='rw-headline'>Copy</button></div>" +
-    "<div class='rw-block'><div class='rw-h'>ABOUT — paste into LinkedIn</div><div class='rw-t' id='rw-about'></div><button type='button' class='rev-copy' data-copy-rw='rw-about'>Copy</button></div>" +
+    /* LinkedIn's own limits, shown live: a rewrite that will not fit
+     * the box is not a rewrite the learner can use. */
+    "<div class='rw-block'><div class='rw-h'>HEADLINE — paste into LinkedIn <span class='rw-count' id='rw-headline-n'></span></div><div class='rw-t' id='rw-headline'></div><button type='button' class='rev-copy' data-copy-rw='rw-headline'>Copy</button></div>" +
+    "<div class='rw-block'><div class='rw-h'>ABOUT — paste into LinkedIn <span class='rw-count' id='rw-about-n'></span></div><div class='rw-t' id='rw-about'></div><button type='button' class='rev-copy' data-copy-rw='rw-about'>Copy</button></div>" +
     "<div class='rw-block'><div class='rw-h'>YOUR WEAKEST EXPERIENCE ENTRY, REWRITTEN</div><div class='rw-t' id='rw-exp'></div><button type='button' class='rev-copy' data-copy-rw='rw-exp'>Copy</button></div>" +
     "<div class='kw-note' id='rw-next'></div></div></div>" +
     "</div>" +
@@ -290,6 +292,10 @@ export function renderLinkedInPage(): string {
     "$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
     "if(!d||!d.rewrite){alert((d&&d.reply)||'Could not rewrite just now — try again in a minute.');return;}" +
     "$('rw-headline').textContent=d.rewrite.headline;$('rw-about').textContent=d.rewrite.about;" +
+    /* LinkedIn caps the headline at 220 characters and About at 2,600 */
+    "[['rw-headline',220],['rw-about',2600]].forEach(function(p){var n=($(p[0]).textContent||'').length;var el=$(p[0]+'-n');" +
+    "el.textContent=n+' / '+p[1]+' characters';el.className='rw-count'+(n>p[1]?' over':'');" +
+    "if(n>p[1])el.textContent+=' — too long for the box, trim before pasting';});" +
     "$('rw-exp').textContent=d.rewrite.experience_tip||'';$('rw-next').textContent=d.rewrite.next||'';" +
     "$('rw-out').hidden=false;" +
     "document.querySelectorAll('[data-copy-rw]').forEach(function(b){b.onclick=function(){" +
@@ -381,6 +387,8 @@ export function renderLinkedInPage(): string {
 @media print{.secpanel[hidden]{display:block!important;}}
 .rw-block{border:1.5px solid var(--line,#E3DDDA);border-radius:12px;padding:12px 14px;margin-bottom:10px;position:relative;}
 .rw-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--blue);margin-bottom:6px;}
+.rw-count{font-weight:600;letter-spacing:0;color:var(--mut);margin-left:8px;text-transform:none;}
+.rw-count.over{color:#B93A22;}
 .rw-t{font-size:13.5px;line-height:1.6;color:#2A3F52;white-space:pre-wrap;}
 .rev-copy{position:absolute;top:10px;right:10px;border:1.5px solid var(--line,#E3DDDA);background:#fff;border-radius:999px;
   padding:4px 12px;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--blue);cursor:pointer;}

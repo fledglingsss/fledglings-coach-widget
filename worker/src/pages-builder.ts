@@ -209,6 +209,21 @@ if(sid&&FL_STARTERS[sid]){title=FL_STARTERS[sid].label+' CV';data=seedToModel(FL
 else{data=blankCv();}
 var c={id:Math.random().toString(16).slice(2),title:title,updated:Date.now(),tpl:pendingTpl,data:data};
 cvs.unshift(c);saveAll(cvs);openCv(c.id);};});
+/* Arriving from a review or the library with the words already in
+ * hand (?from=text): parse them into sections on the worker — no
+ * model, nothing kept — and open the editor on the result. Deferred a
+ * tick so every var this script sets up is in place first. */
+setTimeout(function(){if(!/[?&]from=text\b/.test(location.search))return;
+var txt='';try{txt=flLibTakeHandoff()||''}catch(e){}
+if(!txt||txt.length<40)return;
+fetch('/api/builder-import',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:lid,text:txt})})
+.then(function(r){return r.json()}).then(function(d){if(!d||!d.seed)return;
+var data=seedToModel(d.seed);
+data.name=d.seed.name||'';data.phone=d.seed.phone||'';data.email=d.seed.email||'';data.linkedin=d.seed.linkedin||'';
+var c={id:Math.random().toString(16).slice(2),title:'From my CV review',updated:Date.now(),tpl:pendingTpl,data:data};
+cvs.unshift(c);saveAll(cvs);openCv(c.id);
+try{history.replaceState(null,'',location.pathname)}catch(e){}}).catch(function(){});},0);
 function openCv(id){current=cvs.find(function(c){return c.id===id});if(!current)return;
 $('cvtitle').value=current.title||'My CV';
 $('s-list').hidden=true;$('s-pick').hidden=true;$('s-design').hidden=true;$('s-build').hidden=false;

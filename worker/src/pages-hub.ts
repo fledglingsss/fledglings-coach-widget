@@ -311,6 +311,14 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden&&sso
  * sitting in the URL and sign the same learner straight back in. */
 $('id-change').onclick=flSignOutHere;
 function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#B93A22'}
+/* A tiny line of every attempt so far — the shape of the climb is the
+ * most motivating thing on this page, and it costs nothing to show. */
+function spark(h,color){var W=84,H=26,n=h.length;if(n<2)return '';
+var pts=h.map(function(v,i){return (4+(W-8)*i/(n-1)).toFixed(1)+','+(H-3-(H-6)*Math.max(0,Math.min(100,v))/100).toFixed(1)});
+var last=pts[pts.length-1].split(',');
+return "<svg class='spark' viewBox='0 0 "+W+" "+H+"' role='img' aria-label='Scores so far: "+h.join(', ')+"'>"+
+"<polyline points='"+pts.join(' ')+"' fill='none' stroke='"+color+"' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>"+
+"<circle cx='"+last[0]+"' cy='"+last[1]+"' r='2.6' fill='"+color+"'/></svg>";}
 function ago(at){if(!at)return '';var d=Math.floor((Date.now()/1000-at)/86400);
 return d<=0?'today':d===1?'yesterday':d+' days ago';}
 var LABELS={cv:'CV review',linkedin:'LinkedIn review',interview:'Mock interview',cover:'Cover letter'};
@@ -352,7 +360,9 @@ else if(t==='cover'){metaEl.textContent=ts.attempts+' letter'+(ts.attempts===1?'
 else{var delta=ts.delta===null?'':(ts.delta>=0?' ▲'+ts.delta:' ▼'+Math.abs(ts.delta));
 metaEl.innerHTML="Latest score <b style='color:"+band(ts.latest)+"'>"+ts.latest+"</b>"+
 (delta?"<b style='color:"+(ts.delta>=0?'#1B9E5A':'#B93A22')+"'>"+delta+"</b>":"")+
-" · "+esc2(ts.attempts+' attempt'+(ts.attempts===1?'':'s'));}
+" · "+esc2(ts.attempts+' attempt'+(ts.attempts===1?'':'s'))+
+/* the climb itself, once there is one: every attempt as a point */
+(ts.history&&ts.history.length>=2?spark(ts.history,band(ts.latest)):'');}
 var st=$('jstep-'+t);if(st){if(ts.latest!==null)st.classList.add('done');
 if(s.next&&s.next.tool===t)st.classList.add('now');}});
 /* career readiness + job-ready rings */
@@ -462,6 +472,7 @@ const HUB_CSS = `
  * a card with an action — not a paragraph with a red word under it.
  * The old rule stripped the button's own background to white, which
  * left the call to action looking like leftover text. */
+.spark{width:84px;height:26px;vertical-align:middle;margin-left:10px;overflow:visible;}
 .nextstep{background:#fff;border-left:4px solid var(--pri-btn);color:var(--navy);
   display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:20px 24px;}
 .nextstep .ns-label{font-size:11px;font-weight:800;letter-spacing:.13em;
