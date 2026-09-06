@@ -60,3 +60,34 @@ describe("evaluatePresence v2 (keypoint signals)", () => {
     expect(e!.metrics.distance.band).toBe("work");
   });
 });
+
+describe("feedback-only signals: expression and posture", () => {
+  const framing = { frames: 40, faceVisible: 40, centred: 40, goodDistance: 40, headStraight: 40, lookingAhead: 40 };
+
+  it("reports warmth, posture and stillness without touching the score", () => {
+    const e = evaluatePresence({ ...framing, exprFrames: 30, smiling: 9, poseFrames: 28, upright: 25, settled: 26 });
+    expect(e!.score).toBe(10);
+    expect(e!.metrics.warmth).toEqual({ pct: 30, band: "great" });
+    expect(e!.metrics.posture!.pct).toBe(89);
+    expect(e!.metrics.stillness!.band).toBe("great");
+  });
+
+  it("uses warmth bands that expect a natural amount of smiling, not a grin", () => {
+    expect(evaluatePresence({ ...framing, exprFrames: 40, smiling: 5 })!.metrics.warmth!.band).toBe("okay");
+    expect(evaluatePresence({ ...framing, exprFrames: 40, smiling: 1 })!.metrics.warmth!.band).toBe("work");
+  });
+
+  it("stays null when the models never loaded on that device", () => {
+    const e = evaluatePresence(framing);
+    expect(e!.metrics.warmth).toBeNull();
+    expect(e!.metrics.posture).toBeNull();
+    expect(e!.metrics.stillness).toBeNull();
+  });
+
+  it("treats a tally larger than the framing samples as unmeasured, not as evidence", () => {
+    const e = evaluatePresence({ ...framing, exprFrames: 400, smiling: 400, poseFrames: 2, upright: 2, settled: 2 });
+    expect(e!.metrics.warmth).toBeNull();
+    expect(e!.metrics.posture).toBeNull();
+    expect(e!.score).toBe(10);
+  });
+});

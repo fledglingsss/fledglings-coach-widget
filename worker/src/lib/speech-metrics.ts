@@ -153,11 +153,25 @@ export interface PresenceEvaluation {
     /** null = the detector could not measure this signal. */
     headStraight: PresenceMetric | null;
     eyeContact: PresenceMetric | null;
+    /** Feedback only — never part of the score. Expression and posture
+     * are the signals a disability or neurodivergence affects most, so
+     * they are shown as coaching and counted for nothing. null =
+     * the model that reads them never loaded on that device. */
+    warmth: PresenceMetric | null;
+    posture: PresenceMetric | null;
+    stillness: PresenceMetric | null;
   };
 }
 
 function metricOf(pct: number): PresenceMetric {
   return { pct, band: pct >= 75 ? "great" : pct >= 45 ? "okay" : "work" };
+}
+
+/** Smiling has its own bands: nobody smiles for three-quarters of an
+ * interview answer, and a tool that expected them to would be
+ * coaching a grin, not warmth. A quarter of the time reads as warm. */
+function warmthOf(pct: number): PresenceMetric {
+  return { pct, band: pct >= 25 ? "great" : pct >= 10 ? "okay" : "work" };
 }
 
 /** Validate + clamp client-reported presence sampling. Returns null
@@ -195,6 +209,21 @@ export function evaluatePresence(
   const headPct = head === null ? null : pct(head);
   const aheadPct = ahead === null ? null : pct(ahead);
 
+  /* Feedback-only signals, each against its own sample count: the
+   * landmarkers load after the face detector, so a run can honestly
+   * have 40 framing samples and 25 expression samples. A count that
+   * exceeds the framing tally, or too few samples to mean anything,
+   * is treated as unmeasured rather than trusted. */
+  const feedbackPct = (measured: unknown, hits: unknown): number | null => {
+    const total = int(measured);
+    const n = int(hits);
+    if (total === null || n === null || total < 3 || total > frames) return null;
+    return Math.round((Math.min(n, total) * 100) / total);
+  };
+  const warmthPct = feedbackPct(r.exprFrames, r.smiling);
+  const posturePct = feedbackPct(r.poseFrames, r.upright);
+  const stillnessPct = feedbackPct(r.poseFrames, r.settled);
+
   /* Scoring: with the full five signals — face 2, centred 2, distance
    * 2, head 2, eye contact 2. Without the keypoint signals the classic
    * 4/3/3 split applies, so older samples score identically. */
@@ -223,6 +252,9 @@ export function evaluatePresence(
       distance: metricOf(goodDistancePct),
       headStraight: headPct === null ? null : metricOf(headPct),
       eyeContact: aheadPct === null ? null : metricOf(aheadPct),
+      warmth: warmthPct === null ? null : warmthOf(warmthPct),
+      posture: posturePct === null ? null : metricOf(posturePct),
+      stillness: stillnessPct === null ? null : metricOf(stillnessPct),
     },
   };
 }

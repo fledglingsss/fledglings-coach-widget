@@ -239,9 +239,10 @@ export function renderInterviewPage(): string {
     "<div id='sp-times'></div></div>" +
     /* presence detail — five measured signals, Hiration-style */
     "<div class='card' id='pr-card' hidden><h3>Camera presence <span class='badge' id='pr-badge'></span></h3>" +
-    "<div class='note-a11y' style='margin:10px 0'>ℹ️ <b>Accessibility note:</b> feedback only, measured on your device — " +
-    "never used to judge you, and safely ignored if a disability or medical condition affects your posture, movement or " +
-    "eye contact.</div>" +
+    "<div class='note-a11y' style='margin:10px 0'>ℹ️ <b>How this is used:</b> framing, head position and eye contact count " +
+    "for up to 10 of your 100. <b>Warmth, posture and stillness are feedback only — they are never scored.</b> " +
+    "All of it is measured on your device, and all of it is safely ignored if a disability, medical condition or " +
+    "how you naturally are affects your expression, posture, movement or eye contact.</div>" +
     "<div class='prgrid' id='prgrid'></div></div>" +
     "</div>" +
 
@@ -300,8 +301,13 @@ var role=null,roleLabel='',qs=[],sig='',sigIat=0,idx=0,answers=[],mode='video';
 var reviewReturn=false;
 var stream=null,recorder=null,chunks=[],recStartAt=0,recTimer=null,thinkTimer=null;
 var finalText='',listening=false,rec=null,voiceStartAt=0,voiceSecs=0;
-var presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,lookingAhead:0};
-var faceDet=null,mpDetector=null,mpLoading=false,sampleTimer=null;
+var presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,lookingAhead:0,
+exprFrames:0,smiling:0,poseFrames:0,upright:0,settled:0};
+var faceDet=null,mpDetector=null,mpFaceLm=null,mpPose=null,mpLoading=false,sampleTimer=null;
+/* The per-answer timeline: one entry per sample, booleans only, kept
+ * on this device and never sent — it draws the strip under each
+ * answer that shows WHEN eye contact dropped or a smile appeared. */
+var currentTrack=null,trackT0=0;
 var THINK_SECS=30,MAX_ANSWER_SECS=180,MIN_ANSWER_CHARS=20;
 
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -333,14 +339,68 @@ function checkReady(){$('next').disabled=currentAnswer().length<20;}
  * plus eye/nose keypoints — enough for framing, head tilt (roll) and
  * an eye-contact proxy (facing the camera). Fallback: the native
  * FaceDetector API (framing only). Nothing is ever uploaded. */
+/* Three on-device models, each optional. The face detector (~230KB)
+ * gives framing as before. The face landmarker (~3.6MB) adds a
+ * proper head pose and expression; the pose landmarker (~5.5MB) adds
+ * posture. The two bigger ones load AFTER the first and fail alone —
+ * a phone on a slow connection still gets framing within a second,
+ * and anything that never loaded is reported as not measured rather
+ * than guessed. Nothing leaves the device. */
+var MP_CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+var MP_MODELS='https://storage.googleapis.com/mediapipe-models';
 function detectorInit(){
 try{if('FaceDetector' in window){faceDet=new window.FaceDetector({fastMode:true,maxDetectedFaces:1});}}catch(e){faceDet=null}
 if(mpDetector||mpLoading)return;mpLoading=true;
-import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs')
-.then(function(mod){return mod.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm')
-.then(function(files){return mod.FaceDetector.createFromOptions(files,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'});});})
+import(MP_CDN+'/vision_bundle.mjs')
+.then(function(mod){return mod.FilesetResolver.forVisionTasks(MP_CDN+'/wasm').then(function(files){
+return mod.FaceDetector.createFromOptions(files,{baseOptions:{modelAssetPath:MP_MODELS+'/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'})
 .then(function(det){mpDetector=det;})
+.then(function(){return mod.FaceLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:MP_MODELS+'/face_landmarker/face_landmarker/float16/1/face_landmarker.task'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true})
+.then(function(lm){mpFaceLm=lm;}).catch(function(){mpFaceLm=null;});})
+.then(function(){return mod.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:MP_MODELS+'/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'},runningMode:'VIDEO',numPoses:1})
+.then(function(pm){mpPose=pm;}).catch(function(){mpPose=null;});});});})
 .catch(function(){mpDetector=null;});}
+/* Expression and head pose from the face landmarker. Smile = the two
+ * mouth-smile blendshapes averaged. Eye contact and head level come
+ * from landmark geometry — nose tip 1, eye corners 33/263, chin 152 —
+ * rather than the transformation matrix, so there is no axis
+ * convention to get wrong. null = model not loaded or no face. */
+function analyseExpression(v){
+if(!mpFaceLm||!v.videoWidth)return null;
+try{var out=mpFaceLm.detectForVideo(v,performance.now());
+var lm=out&&out.faceLandmarks&&out.faceLandmarks[0];if(!lm||lm.length<300)return null;
+var bs=(out.faceBlendshapes&&out.faceBlendshapes[0]&&out.faceBlendshapes[0].categories)||[];
+var smile=0,n=0;bs.forEach(function(c){if(c.categoryName==='mouthSmileLeft'||c.categoryName==='mouthSmileRight'){smile+=c.score;n++;}});
+smile=n?smile/n:0;
+var nose=lm[1],eR=lm[33],eL=lm[263],chin=lm[152];
+var dxR=Math.abs(nose.x-eR.x),dxL=Math.abs(eL.x-nose.x);
+var yawRatio=Math.abs(dxL-dxR)/((dxL+dxR)||0.001);
+var eyeY=(eR.y+eL.y)/2;var pitchT=(nose.y-eyeY)/((chin.y-eyeY)||0.001);
+var roll=Math.atan2((eL.y-eR.y)*v.videoHeight,(eL.x-eR.x)*v.videoWidth)*180/Math.PI;
+return {smiling:smile>=0.3,lookingAhead:yawRatio<=0.35&&pitchT>=0.2&&pitchT<=0.7,headStraight:Math.abs(roll)<=12};
+}catch(e){return null}}
+/* Posture from the pose landmarker: shoulders 11/12, nose 0. Upright =
+ * shoulders level and the head carried above them rather than sunk;
+ * settled = the shoulders barely moved since the last sample. Coarse
+ * on purpose — sampled every ~1.2s it reads slouching and fidgeting,
+ * not gestures. Feedback only; it counts for nothing. */
+var lastShoulderMid=null;
+function analysePose(v){
+if(!mpPose||!v.videoWidth)return null;
+try{var out=mpPose.detectForVideo(v,performance.now());
+var lm=out&&out.landmarks&&out.landmarks[0];if(!lm||lm.length<13)return null;
+var ls=lm[11],rs=lm[12],nose=lm[0];
+if((ls.visibility!=null&&ls.visibility<0.5)||(rs.visibility!=null&&rs.visibility<0.5))return null;
+var W=v.videoWidth,H=v.videoHeight;
+var dx=(rs.x-ls.x)*W,dy=(rs.y-ls.y)*H;var width=Math.hypot(dx,dy)||1;
+var tilt=Math.abs(Math.atan2(dy,dx)*180/Math.PI);if(tilt>90)tilt=180-tilt;
+var midX=(ls.x+rs.x)/2*W,midY=(ls.y+rs.y)/2*H;
+var headLift=(midY-nose.y*H)/width;
+var settled=true;
+if(lastShoulderMid)settled=Math.hypot(midX-lastShoulderMid.x,midY-lastShoulderMid.y)<=0.06*width;
+lastShoulderMid={x:midX,y:midY};
+return {upright:tilt<=8&&headLift>=0.45,settled:settled};
+}catch(e){return null}}
 /* One frame -> framing + keypoint facts, or null when no face/detector.
  * kp:true means head/eye signals are genuinely measured. */
 function analyseFrame(v){
@@ -403,22 +463,32 @@ ckSet('ck-face',Boolean(f.centred&&f.goodDistance),msg);});}
  * keypoint detector is live, head straightness + eye contact */
 var kpMeasured=false;
 function sampleStart(){if(!stream)return;
+currentTrack=[];trackT0=Date.now();lastShoulderMid=null;
 sampleTimer=setInterval(function(){var v=$('live-video');if(!v.videoWidth)return;
 var r=analyseFrame(v);if(r===null)return;
 Promise.resolve(r).then(function(f){if(!f)return;
 presence.frames++;
+var ex=analyseExpression(v),po=analysePose(v);
 if(f.face){presence.faceVisible++;
 if(f.centred)presence.centred++;
 if(f.goodDistance)presence.goodDistance++;
-if(f.kp){kpMeasured=true;
-if(f.headStraight)presence.headStraight++;
-if(f.lookingAhead)presence.lookingAhead++;}}
+/* The landmarker's eye-contact and head-level readings are the more
+ * accurate ones; the detector's keypoint proxies stand in until it
+ * has loaded. Either way the tally means the same thing. */
+if(ex||f.kp){kpMeasured=true;
+if(ex?ex.headStraight:f.headStraight)presence.headStraight++;
+if(ex?ex.lookingAhead:f.lookingAhead)presence.lookingAhead++;}}
+if(ex){presence.exprFrames++;if(ex.smiling)presence.smiling++;}
+if(po){presence.poseFrames++;if(po.upright)presence.upright++;if(po.settled)presence.settled++;}
+if(currentTrack&&currentTrack.length<400)currentTrack.push({t:Math.round((Date.now()-trackT0)/1000),
+face:!!f.face,eye:!!(f.face&&(ex?ex.lookingAhead:f.lookingAhead)),smile:!!(ex&&ex.smiling),up:!!(po&&po.upright)});
 });},1200);}
 function sampleStop(){if(sampleTimer){clearInterval(sampleTimer);sampleTimer=null}}
 
 /* ---------------- interview flow ---------------- */
 function beginInterview(chosenMode){mode=chosenMode;idx=0;answers=[];reviewReturn=false;
-presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,lookingAhead:0};
+presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,lookingAhead:0,
+exprFrames:0,smiling:0,poseFrames:0,upright:0,settled:0};
 kpMeasured=false;
 $('qrole').textContent=roleLabel;showQuestion();show('s-int');}
 function showQuestion(){finalText='';$('typed').value='';$('redo').hidden=true;renderTranscript('');
@@ -456,7 +526,8 @@ var secs=Math.round((Date.now()-recStartAt)/1000);
 /* Write duration synchronously; the blob URL lands by mutation when
  * the recorder's async onstop fires — nothing can clobber the answer. */
 var prev=answers[idx]||{};
-answers[idx]={question:qs[idx],answer:prev.answer||'',duration_secs:Math.max(1,secs),blobUrl:prev.blobUrl||''};
+answers[idx]={question:qs[idx],answer:prev.answer||'',duration_secs:Math.max(1,secs),blobUrl:prev.blobUrl||'',
+track:currentTrack||[]};
 var slot=answers[idx];
 if(recorder&&recorder.state!=='inactive'){recorder.onstop=function(){
 try{var blob=new Blob(chunks,{type:recorder.mimeType||'video/webm'});
@@ -494,6 +565,21 @@ voiceSecs=0;}
  * per-answer feedback comes back in THIS order, so every render must
  * index against this list — indexing the full list would pin Q3's
  * feedback onto a skipped Q2. */
+function trackStrip(raw){
+/* A three-minute answer is 150 samples — too many blocks for a phone.
+ * Fold long runs into at most 60 buckets by majority, so every strip
+ * fits and a block always means the same stretch of time. */
+var per=Math.max(1,Math.ceil(raw.length/60));var track=[];
+for(var b=0;b<raw.length;b+=per){var chunk=raw.slice(b,b+per);
+var vote=function(k){var n=0;chunk.forEach(function(s){if(s[k])n++});return n*2>=chunk.length};
+track.push({t:chunk[0].t,face:vote('face'),eye:vote('eye'),smile:vote('smile'),up:vote('up')});}
+var lanes=[{k:'eye',label:'Eye contact'},{k:'smile',label:'Smile'},{k:'up',label:'Upright'}];
+var secs=raw[raw.length-1].t||0;var blockSecs=Math.max(1,Math.round(per*1.2));
+var anyPose=track.some(function(s){return s.up});var anySmile=track.some(function(s){return s.smile});
+var rows=lanes.filter(function(l){return l.k==='eye'||(l.k==='smile'?anySmile||track.length>5:anyPose||track.length>5);})
+.map(function(l){return "<div class='ptrow'><span class='ptl'>"+l.label+"</span><span class='ptcells'>"+
+track.map(function(s){return "<i class='"+(s[l.k]?'on':'off')+"' title='"+s.t+"s'></i>"}).join('')+"</span></div>"}).join('');
+return "<div class='ptrack'><div class='ptrack-t'>Presence through your answer <span>0s → "+secs+"s · each block ≈ "+blockSecs+(blockSecs===1?" second":" seconds")+"</span></div>"+rows+"</div>";}
 function scoredAnswers(){return answers.filter(function(a){
 return a&&!a.skipped&&a.answer&&a.answer.trim().length>=MIN_ANSWER_CHARS;});}
 function answeredCount(){return scoredAnswers().length;}
@@ -734,6 +820,10 @@ if(role==='custom'){payload.questions=qs;payload.sig=sig;payload.iat=sigIat;}
 if(presence.frames>=3){var pr={frames:presence.frames,faceVisible:presence.faceVisible,
 centred:presence.centred,goodDistance:presence.goodDistance};
 if(kpMeasured){pr.headStraight=presence.headStraight;pr.lookingAhead=presence.lookingAhead;}
+/* Feedback-only tallies ride along only when their model actually
+ * sampled — the server treats a missing pair as "not measured". */
+if(presence.exprFrames>=3){pr.exprFrames=presence.exprFrames;pr.smiling=presence.smiling;}
+if(presence.poseFrames>=3){pr.poseFrames=presence.poseFrames;pr.upright=presence.upright;pr.settled=presence.settled;}
 payload.presence=pr;}
 fetch('/api/interview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
 .then(function(r){return r.json()}).then(function(d){
@@ -777,7 +867,7 @@ out+="<div class='tc-row'><span class='tc-l'>Q"+(i+1)+"</span><div class='tc-tra
 (d?"<i class='tc-bar' style='width:"+pct+"%;background:"+col+"'></i>":"")+
 "</div><span class='tc-v'>"+(d?fmt(d):'typed')+"</span></div>";});
 return out+"</div>";}
-var PR_ICONS={face:'👤',centre:'🎯',dist:'↔️',head:'📐',eye:'👁️'};
+var PR_ICONS={face:'👤',centre:'🎯',dist:'↔️',head:'📐',eye:'👁️',warm:'🙂',posture:'🧍',still:'🪨'};
 function prStat(label,icon,metric,unavailableNote){
 /* a metric without a usable pct is an unavailable metric — never
  * print 'undefined%' at a learner */
@@ -808,7 +898,7 @@ $('b-speech-s').textContent='Not measured (no timed spoken answers)';}
 if(r.presence){$('b-presence').textContent=r.presence.score+' / 10';
 $('b-presence-bar').innerHTML=seg5(Math.round(r.presence.score/2),band(r.presence.score*10));
 $('b-presence-v').textContent=tenLabel(r.presence.score);$('b-presence-v').style.color=band(r.presence.score*10);
-$('b-presence-s').textContent='Framing, head position and eye contact — measured on your device';}
+$('b-presence-s').textContent='Framing, head position and eye contact — plus expression and posture as feedback — all measured on your device';}
 else{$('b-presence').textContent='—';$('b-presence-bar').innerHTML=seg5(0,'');$('b-presence-v').textContent='';
 $('b-presence-s').textContent='Not measured (no camera, or face checks unavailable)';}
 /* scores at a glance */
@@ -843,7 +933,11 @@ prStat('Face in frame',PR_ICONS.face,m.faceVisible||{pct:r.presence.faceVisibleP
 prStat('Centre of screen',PR_ICONS.centre,m.centred||{pct:r.presence.centredPct,band:'okay'},'')+
 prStat('Distance',PR_ICONS.dist,m.distance||{pct:r.presence.goodDistancePct,band:'okay'},'')+
 prStat('Straight head',PR_ICONS.head,m.headStraight||null,noKp)+
-prStat('Eye contact',PR_ICONS.eye,m.eyeContact||null,noKp);}
+prStat('Eye contact',PR_ICONS.eye,m.eyeContact||null,noKp)+
+/* Feedback only, never scored — the a11y note above the grid says so. */
+prStat('Warmth',PR_ICONS.warm,m.warmth||null,noKp)+
+prStat('Posture',PR_ICONS.posture,m.posture||null,noKp)+
+prStat('Stillness',PR_ICONS.still,m.stillness||null,noKp);}
 else{$('pr-card').hidden=true;}
 /* Per-question: Hiration-style assessment (left) + guidance (right) */
 var out='';var SC=scoredAnswers();r.answers.forEach(function(a,i){var c=band(a.score);
@@ -863,6 +957,11 @@ out+="<div class='card qrep' id='qrep-"+i+"'><div class='qc-head'><span class='q
 "<span class='qc-q'>"+esc2(SC[i]?SC[i].question:'')+"</span>"+
 "<span class='qchip' style='background:"+c+"'>"+a.score+" · "+scoreLabel(a.score)+"</span></div>";
 if(SC[i]&&SC[i].blobUrl){out+="<video class='rev-vid inrep' src='"+SC[i].blobUrl+"' controls playsinline></video>";}
+/* WHEN, not just how much: one cell per sample, so a learner can see
+ * that eye contact held for the story and dropped at the end, or that
+ * they only smiled once. Drawn from booleans kept on this device —
+ * nothing here was ever sent. */
+if(SC[i]&&SC[i].track&&SC[i].track.length>=3){out+=trackStrip(SC[i].track);}
 out+="<div class='qcols'>"+
 "<div class='qcol'><div class='qcol-t'>ANSWER ASSESSMENT</div>"+
 "<div class='meter'><i style='width:"+a.score+"%;background:"+c+"'></i></div>"+
@@ -1022,6 +1121,10 @@ $('tab-learn').onclick=function(){showTab('learn')};
 refreshRecCount();
 /* QA hook: lets automated tests render a report without a model call.
  * Operates only on this page's own DOM — no data leaves the device. */
+/* Test seam: lets a visual check attach a presence timeline to an
+ * answer so the strip can be rendered without a camera. Touches only
+ * this page's in-memory state; nothing is sent or stored. */
+window.__flSetTrack=function(i,track){if(answers[i])answers[i].track=track;};
 window.__flRenderReport=function(rep,ans){if(ans)answers=ans;renderReport(rep);show('s-rep');};
 document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
 fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -1301,6 +1404,17 @@ const INTERVIEW_CSS = `
 .bandc.on.slow,.bandc.on.fast{background:#D9452B;}
 .bandc.on.good{background:#1A7649;}
 .qcard{padding:0;overflow:hidden;}
+/* presence timeline: one small block per sample, lit when the signal
+ * held. Reads as a barcode of the answer — long lit runs are good. */
+.ptrack{padding:12px 20px 14px;border-bottom:1px solid var(--off);background:#FCFBFA;}
+.ptrack-t{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px;}
+.ptrack-t span{font-weight:500;color:var(--mut);margin-left:8px;}
+.ptrow{display:flex;align-items:center;gap:10px;margin:5px 0;}
+.ptl{flex:none;width:80px;font-size:11.5px;color:var(--mut);}
+.ptcells{display:flex;gap:2px;flex:1;min-width:0;overflow:hidden;}
+.ptcells i{flex:1 1 0;min-width:3px;max-width:14px;height:12px;border-radius:2px;background:#E3DDDA;}
+.ptcells i.on{background:#1A7649;}
+@media(max-width:560px){.ptrack{padding:10px 14px 12px;}.ptl{width:64px;font-size:11px;}}
 .qc-head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--off);}
 .qc-n{font-size:12px;font-weight:800;color:#B93A22;flex:none;}
 .qc-q{font-size:14.5px;font-weight:600;flex:1;line-height:1.4;}

@@ -1370,7 +1370,7 @@ export function renderAiPrivacyPage(): string {
     "fill in. Employers can tell when a tool wrote someone's story — and you deserve to be hired as yourself.</p></div></div>" +
     "<div class='card'><h3>Honest scoring</h3><div class='result'>" +
     "<p>Scores are calibrated for someone starting out — not inflated to flatter you, not harsh to shock you. " +
-    "Delivery metrics (speaking pace, filler words, camera framing) are measured on your device, and anything " +
+    "Delivery metrics (speaking pace, filler words, camera framing, expression and posture) are measured on your device, and anything " +
     "that can't genuinely be measured says <i>not measured</i> instead of pretending.</p></div></div>" +
     "<div class='card'><h3>If something worries us</h3><div class='result'>" +
     "<p>If anything you write or say suggests you're not okay, the tools stop scoring and point you to real " +

@@ -52,9 +52,13 @@ note) leads into think-time countdowns and recorded answers with live
 captions; recordings can be reviewed and re-recorded before submitting.
 **Video and audio never leave the device** — recording and speech
 transcription are entirely in-browser; only the words, answer timings
-and face-framing tallies reach the worker. The AI review blends the
-answer evaluation (80%) with deterministic speech metrics (wpm bands +
-filler words, 10%) and camera presence (10%); unmeasured signals show
+and presence tallies (whole-number counts, never frames) reach the
+worker. The AI review blends the answer evaluation (80%) with
+deterministic speech metrics (wpm bands + filler words, 10%) and camera
+presence (10% — framing, head position, eye contact). Expression
+(warmth), posture and stillness are read on-device by two further
+optional models and shown as **feedback only, never scored**, with a
+per-answer timeline of when eye contact held; unmeasured signals show
 as "not measured", never a guessed number. Typing fallback throughout.
 3 AI-reviewed interviews per learner per day; crisis language routes to
 signposting instead of scoring.
