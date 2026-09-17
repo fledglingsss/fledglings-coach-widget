@@ -12,5 +12,13 @@ export function makeKvMock() {
     async delete(key: string): Promise<void> {
       store.delete(key);
     },
+    async list(options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }> {
+      const prefix = options?.prefix ?? "";
+      return {
+        keys: [...store.keys()]
+          .filter((name) => name.startsWith(prefix))
+          .map((name) => ({ name })),
+      };
+    },
   } as unknown as KVNamespace & { store: Map<string, string> };
 }

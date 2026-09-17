@@ -25,6 +25,9 @@ export interface ModuleHealthState {
   totalCourses: number;
   courses: CourseHealth[];
   builtAt: string;
+  /** Failed fetch attempts per course id — retried on later steps,
+   * skipped loudly after three failures. */
+  attempts?: Record<string, number>;
 }
 
 export function emptyHealthState(totalCourses: number, now: Date): ModuleHealthState {

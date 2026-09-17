@@ -839,18 +839,32 @@ describe("reflections sweep learner filter", () => {
       totalPages: 1,
     } as never);
 
-    /* Drive the real 5-minute tick until the budgeted sweep finishes —
-     * the same path production uses, so the filter is tested where it
-     * lives. */
-    const waits: Promise<unknown>[] = [];
-    const ctx = { waitUntil: (p: Promise<unknown>) => waits.push(p) } as unknown as ExecutionContext;
-    for (let i = 0; i < 10; i++) {
-      await worker.scheduled(
-        { cron: "*/5 * * * *" } as unknown as ScheduledController,
+    /* Drive the sweep through the internal job route — the exact path
+     * the cron dispatches to in production — until it finishes. The
+     * signed header also proves the route's gate. */
+    const jobSig = await signPayload(SECRET, "internal-job:v1");
+    const runStep = () =>
+      app.request(
+        new Request("http://coach.test/internal/job", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Job-Sig": jobSig },
+          body: JSON.stringify({ job: "reflect" }),
+        }),
+        undefined,
         env,
-        ctx,
       );
-      await Promise.all(waits.splice(0));
+    const unsigned = await app.request(
+      new Request("http://coach.test/internal/job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job: "reflect" }),
+      }),
+      undefined,
+      env,
+    );
+    expect(unsigned.status).toBe(401);
+    for (let i = 0; i < 10; i++) {
+      await runStep();
       const built = env.RATE_LIMITS.store.get("portal:reflect:v4");
       if (built && (JSON.parse(built) as { status: string }).status === "ready") break;
     }
@@ -1059,5 +1073,59 @@ describe("GET /dashboard/learner-insight", () => {
     expect(res.status).toBe(200);
     const d = (await res.json()) as { ok: boolean; status: string; count: number };
     expect(d).toMatchObject({ ok: true, status: "too_few", count: 2 });
+  });
+});
+
+describe("GET /ops/verify.json — the founder's verification console", () => {
+  it("refuses a provider code without ops rights", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const res = await app.request(
+      get("/ops/verify.json", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("reconciles the role census against the served dashboard", async () => {
+    const env = makeEnv();
+    await env.RATE_LIMITS.put(
+      "portal:code:hq-ops-1",
+      JSON.stringify({ label: "Fledglings HQ", ops: true }),
+    );
+    const res = await app.request(
+      get("/ops/verify.json", await cookieFor("hq-ops-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(200);
+    const d = (await res.json()) as {
+      roles: { totalAccounts: number; learnersAfterRoleFilter: number };
+      reconciliation: { census: number; dashboard: number };
+      security: { staffInRoster: number; staffAnswerAccounts: string[] };
+      structure: { combinations: Array<{ tags: string; learners: number }> };
+    };
+    /* The USERS fixture holds 4 accounts, one an admin. */
+    expect(d.roles.totalAccounts).toBe(4);
+    expect(d.roles.learnersAfterRoleFilter).toBe(3);
+    expect(d.reconciliation.census).toBe(3);
+    expect(d.reconciliation.dashboard).toBe(3);
+    expect(d.security.staffInRoster).toBe(0);
+    expect(d.structure.combinations.length).toBeGreaterThan(0);
+  });
+
+  it("serves the console page only with ops rights", async () => {
+    const env = makeEnv();
+    await env.RATE_LIMITS.put(
+      "portal:code:hq-ops-1",
+      JSON.stringify({ label: "Fledglings HQ", ops: true }),
+    );
+    const page = await app.request(
+      get("/ops/verify", await cookieFor("hq-ops-1")),
+      undefined, env,
+    );
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain("Verification console");
+    const anon = await app.request(get("/ops/verify"), undefined, makeEnv());
+    expect(await anon.text()).not.toContain("Verification console");
   });
 });

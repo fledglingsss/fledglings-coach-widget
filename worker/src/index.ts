@@ -45,7 +45,7 @@ import {
   validateCoachRequest,
 } from "./lib/validate";
 import { allPathwayTitles, computePathway, validAnswers } from "./lib/pathway";
-import { COURSE_MAP, courseIdFor } from "./lib/course-map";
+import { COURSE_MAP, courseIdFor, sweepCourseEntries } from "./lib/course-map";
 import {
   accurateUserCourses,
   courseTitleMap,
@@ -63,6 +63,8 @@ import {
   getUserProgress,
   getUserProgressAll,
   listAllUsers,
+  listGroupMemberEmails,
+  listUserGroups,
   listUsersPage,
   lwConfigured,
   lwRequest,
@@ -133,6 +135,7 @@ import {
   renderToolsPage,
 } from "./pages";
 import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalLogin } from "./pages-portal";
+import { renderVerifyPage } from "./pages-verify";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderDashboardPage } from "./pages-dashboard";
 import {
@@ -278,6 +281,9 @@ import widgetSource from "./widget/coach-widget.js.txt";
 
 export interface Env {
   RATE_LIMITS: KVNamespace;
+  /** Self service binding — each dispatched job runs in its own
+   * invocation with a fresh subrequest budget. */
+  SELF?: Fetcher;
   ANTHROPIC_API_KEY: string;
   COACH_DISABLED: string;
   WORKER_VERSION: string;
@@ -680,6 +686,36 @@ app.get("/ops/course-check", async (c) => {
   } catch (err) {
     return c.json({
       configured: true,
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+/* Founder-only user-group probe: lists the school's user groups, and
+ * with ?id= returns one group's members — so group membership can be
+ * reconciled against tags (providers organise cohorts in groups too,
+ * seen live 2026-09-17). Raw payloads on purpose: this is a probe. */
+app.get("/ops/group-check", async (c) => {
+  if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
+  try {
+    const id = (c.req.query("id") || "").trim();
+    const page = (c.req.query("page") || "1").trim();
+    /* ?path= lets the founder probe an arbitrary READ path while the
+     * groups endpoint shape is pinned down — GET only, API-relative. */
+    const override = (c.req.query("path") || "").trim();
+    const path = override.startsWith("/")
+      ? override.slice(0, 200)
+      : id
+        ? `/groups/${encodeURIComponent(id)}/users?page=${encodeURIComponent(page)}&items_per_page=100`
+        : "/groups";
+    const res = await lwRequest(c.env, "GET", path);
+    if (!res.ok) {
+      return c.json({ ok: false, status: res.status, body: (await res.text()).slice(0, 300) });
+    }
+    return c.json({ ok: true, payload: (await res.json()) as Record<string, unknown> });
+  } catch (err) {
+    return c.json({
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     });
@@ -2167,9 +2203,7 @@ const REFLECT_BUILD_KEY = `${REFLECT_KV_KEY}:building`;
  * the last complete data, never a half-filled sweep. */
 async function advanceReflections(env: Env): Promise<ReflectionsState> {
   const now = new Date();
-  const courseEntries = Object.entries(COURSE_MAP).filter(
-    (e): e is [string, string] => e[1] !== null,
-  );
+  const courseEntries = sweepCourseEntries();
   const main: ReflectionsState | null = JSON.parse(
     (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
   );
@@ -2288,8 +2322,21 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
       if (pre.length > 0 || post.length > 0) {
         state.shifts.push(moduleShift(courseId, courseTitle, pre, post));
       }
-    } catch {
-      /* one broken course never sinks the sweep */
+    } catch (err) {
+      /* A transient failure must never silently drop a course for the
+       * whole day — a rate-limit burst once left 25 of 33 modules
+       * unswept while the state still read "ready" (found live,
+       * 2026-09-17). Retry the same course on the next budget step;
+       * give up only after three attempts, loudly. */
+      state.attempts = state.attempts ?? {};
+      const tries = (state.attempts[courseId] ?? 0) + 1;
+      state.attempts[courseId] = tries;
+      if (tries < 3) break;
+      console.error(
+        `[coach] reflections sweep giving up on "${courseTitle}" after ${tries} attempts: ${String(err).slice(0, 120)}`,
+      );
+      state.cursor++;
+      continue;
     }
     state.cursor++;
   }
@@ -4267,9 +4314,7 @@ async function advanceModuleHealth(env: Env): Promise<ModuleHealthState> {
   let state: ModuleHealthState | null = JSON.parse(
     (await env.RATE_LIMITS.get(MH_KV_KEY)) || "null",
   );
-  const courseEntries = Object.entries(COURSE_MAP).filter(
-    (e): e is [string, string] => e[1] !== null,
-  );
+  const courseEntries = sweepCourseEntries();
   const stale =
     state !== null &&
     now.getTime() - new Date(state.builtAt).getTime() > MH_MAX_AGE_MS;
@@ -4309,8 +4354,19 @@ async function advanceModuleHealth(env: Env): Promise<ModuleHealthState> {
         });
       }
       state.courses.push({ courseId, title: courseTitle, units: healths });
-    } catch {
-      /* one broken course never sinks the sweep */
+    } catch (err) {
+      /* Same retry discipline as the reflections sweep: a transient
+       * failure retries on the next step instead of silently dropping
+       * the course for a day; three strikes skips it loudly. */
+      state.attempts = state.attempts ?? {};
+      const tries = (state.attempts[courseId] ?? 0) + 1;
+      state.attempts[courseId] = tries;
+      if (tries < 3) break;
+      console.error(
+        `[coach] module-health sweep giving up on "${courseTitle}" after ${tries} attempts: ${String(err).slice(0, 120)}`,
+      );
+      state.cursor++;
+      continue;
     }
     state.cursor++;
   }
@@ -4402,6 +4458,196 @@ app.get("/ops/roles", async (c) => {
     });
   } catch (err) {
     return c.json({ error: String(err).slice(0, 120) }, 500);
+  }
+});
+
+/* Founder verification console — a live test bench for the whole
+ * pipeline: platform roles, cohort structure, code scoping, security
+ * invariants and data-pull freshness, each with an honest verdict.
+ * Founder-only; one fresh user-list pull per load (2-3 API calls). */
+app.get("/ops/verify", async (c) => {
+  if (!(await opsSession(c))) {
+    return c.html(renderPortalLogin("The verification console needs a whole-school access code."));
+  }
+  return c.html(renderVerifyPage());
+});
+
+app.get("/ops/verify.json", async (c) => {
+  if (!(await opsSession(c))) return c.json({ error: "unauthorised" }, 401);
+  try {
+    const now = Date.now();
+    const users = await listAllUsers(c.env, 5);
+
+    /* ---- platform roles, straight from the source ---- */
+    const roleCounts: Record<string, number> = {};
+    const nonUsers: Array<{ email: string; level: string; name: string }> = [];
+    for (const u of users) {
+      const level = String(u.role?.level ?? "user(absent)");
+      roleCounts[level] = (roleCounts[level] ?? 0) + 1;
+      if (!isLearner(u)) {
+        nonUsers.push({
+          email: u.email ?? "?",
+          level,
+          name: u.role?.name ?? "",
+        });
+      }
+    }
+    const nonUserEmails = new Set(
+      users.filter((u) => !isLearner(u)).map((u) => (u.email ?? "").toLowerCase()),
+    );
+
+    /* ---- three-way learner reconciliation: census vs roster vs the
+     * dashboard's served rows must all agree ---- */
+    const staffTags = await getStaffTags(c.env);
+    /* The census wears the same group-title overlay the roster wears,
+     * so scope counts here match what providers are served. */
+    const storedGroups = JSON.parse(
+      (await c.env.RATE_LIMITS.get(GROUPS_KV_KEY)) || "[]",
+    ) as Array<{ id: string; title: string; members: string[] }>;
+    const groupTitlesFor = new Map<string, string[]>();
+    for (const g of storedGroups) {
+      for (const email of g.members) {
+        const titlesFor = groupTitlesFor.get(email) ?? [];
+        if (!titlesFor.includes(g.title)) titlesFor.push(g.title);
+        groupTitlesFor.set(email, titlesFor);
+      }
+    }
+    const censusLearners = users
+      .filter(isLearner)
+      .filter((u) => !isStaffTagged(u.tags, staffTags))
+      .map((u) => {
+        const extra = groupTitlesFor.get((u.email ?? "").toLowerCase());
+        return extra ? { ...u, tags: [...new Set([...(u.tags ?? []), ...extra])] } : u;
+      });
+    const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
+    const { rows } = await dashboardRows(c.env, null);
+    const reconciliation = {
+      census: censusLearners.length,
+      roster: roster?.entries.length ?? 0,
+      dashboard: rows.length,
+      agree:
+        censusLearners.length === (roster?.entries.length ?? 0) &&
+        censusLearners.length === rows.length,
+    };
+
+    /* ---- cohort structure: the exact tag combinations learners
+     * carry, so offering tag + cohort tag pairs are visible ---- */
+    const combos = new Map<string, number>();
+    for (const u of censusLearners) {
+      const key = (u.tags ?? []).slice().sort().join(" + ") || "(no tags)";
+      combos.set(key, (combos.get(key) ?? 0) + 1);
+    }
+    const combinations = [...combos.entries()]
+      .map(([tags, learners]) => ({ tags, learners }))
+      .sort((a, b) => b.learners - a.learners);
+
+    /* Role-user accounts wearing staff-looking tags still count as
+     * learners (the role decides) — flagged so a mis-set role is
+     * caught by a human rather than silently polluting cohorts. */
+    const oddities = censusLearners
+      .filter((u) => (u.tags ?? []).some((t) => /\b(admin|staff|manager|tutor|teacher)\b/i.test(t)))
+      .map((u) => ({ email: u.email ?? "?", tags: u.tags ?? [] }));
+
+    /* ---- provider codes and their live scope ---- */
+    const codes: Array<{ label: string; tag: string | null; ops: boolean; inScope: number }> = [];
+    const codeList = await c.env.RATE_LIMITS.list({ prefix: "portal:code:" });
+    for (const key of codeList.keys) {
+      const raw = (await c.env.RATE_LIMITS.get(key.name)) || "";
+      let label = raw;
+      let tag: string | null = null;
+      let ops = false;
+      try {
+        const parsed = JSON.parse(raw) as { label?: string; tag?: string; ops?: unknown };
+        label = parsed.label ?? raw;
+        tag = parsed.tag ?? null;
+        ops = parsed.ops === true;
+      } catch {
+        /* legacy plain-string code */
+      }
+      codes.push({
+        label,
+        tag,
+        ops,
+        inScope: censusLearners.filter((u) => inScope(u.tags ?? [], tag)).length,
+      });
+    }
+
+    /* ---- security invariants, checked live ---- */
+    const staffInRoster = (roster?.entries ?? []).filter((e) =>
+      nonUserEmails.has((e.user.email ?? "").toLowerCase()),
+    ).length;
+    const reflect = await readReflections(c.env);
+    const staffAnswerAccounts = [
+      ...new Set(
+        reflect.responses
+          .filter((r) => nonUserEmails.has(r.email.toLowerCase()))
+          .map((r) => r.email.toLowerCase()),
+      ),
+    ];
+
+    /* ---- data-pull freshness ---- */
+    const minutesAgo = (epochMs: number) => Math.round((now - epochMs) / 60_000);
+    const fetchTimes = (roster?.entries ?? [])
+      .map((e) => e.fetchedAt)
+      .filter((t) => t > 0);
+    const perTick = perTickFor(roster?.entries.length ?? 0);
+    const pulls = {
+      roster: {
+        size: roster?.entries.length ?? 0,
+        listSyncedMinutesAgo: roster ? minutesAgo(roster.listSyncedAt) : null,
+        newestCourseFetchMinutesAgo: fetchTimes.length ? minutesAgo(Math.max(...fetchTimes)) : null,
+        oldestCourseFetchMinutesAgo: fetchTimes.length ? minutesAgo(Math.min(...fetchTimes)) : null,
+        awaitingFirstFetch: (roster?.entries ?? []).filter((e) => e.fetchedAt === 0).length,
+        refreshedPerHourlyTick: perTick,
+        fullCycleHours: roster?.entries.length ? Math.ceil(roster.entries.length / perTick) : 0,
+      },
+      reflections: {
+        status: reflect.status,
+        answersOnRecord: reflect.responses.length,
+        builtHoursAgo: Math.round((now - new Date(reflect.builtAt).getTime()) / 3_600_000),
+        learnerFilterActive: reflect.learnerEmails !== undefined,
+        coveredCourses: reflect.coverage.length,
+        totalCourses: reflect.totalCourses,
+      },
+      accountCapacity: { seen: users.length, max: 500 },
+      webhooksSigned: Boolean(c.env.LW_WEBHOOK_SIGNATURE),
+    };
+
+    /* ---- provider user groups vs tags and roster ---- */
+    const rosterEmails = new Set(
+      (roster?.entries ?? []).map((e) => (e.user.email ?? "").toLowerCase()),
+    );
+    const learnerEmailSet = new Set(
+      censusLearners.map((u) => (u.email ?? "").toLowerCase()),
+    );
+    const groups = storedGroups.map((g) => ({
+      title: g.title,
+      members: g.members.length,
+      learners: g.members.filter((m) => learnerEmailSet.has(m)).length,
+      staffMembers: g.members.filter((m) => nonUserEmails.has(m)),
+      missingFromRoster: g.members.filter(
+        (m) => learnerEmailSet.has(m) && !rosterEmails.has(m),
+      ),
+    }));
+
+    return c.json({
+      generatedAt: new Date(now).toISOString(),
+      roles: {
+        totalAccounts: users.length,
+        counts: roleCounts,
+        nonUsers,
+        learnersAfterRoleFilter: users.filter(isLearner).length,
+      },
+      reconciliation,
+      structure: { combinations, oddities },
+      groups,
+      codes,
+      security: { staffInRoster, staffAnswerAccounts },
+      pulls,
+    });
+  } catch (err) {
+    console.error("[coach] ops verify failed:", String(err));
+    return c.json({ error: String(err).slice(0, 160) }, 500);
   }
 });
 
@@ -4506,6 +4752,22 @@ app.post("/ops/action", async (c) => {
       await kv.put("ops:coach-disabled", op === "coach_kill" ? "true" : "false");
       console.log(`[coach] kind=ops op=${op}`);
       return c.json({ ok: true });
+    }
+    if (op === "roster_tick") {
+      /* Founder-triggered refresh for testing: the same jobs the
+       * hourly cron dispatches, each in its own invocation. Still
+       * never visit-triggered — this is an explicit founder action. */
+      const roster = await dispatchJob(c.env, "roster");
+      const reflect = await dispatchJob(c.env, "reflect");
+      console.log("[coach] kind=ops op=roster_tick");
+      return c.json({ ok: true, roster, reflect });
+    }
+    if (op === "reflect_step") {
+      /* One budgeted sweep step on demand — lets the founder walk a
+       * rebuild through without waiting for hourly ticks. */
+      const ok = await dispatchJob(c.env, "reflect");
+      console.log("[coach] kind=ops op=reflect_step");
+      return c.json({ ok });
     }
     if (op === "bust_caches") {
       const prefixes = [
@@ -4855,11 +5117,58 @@ app.onError((err, c) => {
 /* One roster tick: reconcile the account list (1 call), then refresh
  * the stalest few learners' course progress (ROSTER_PER_TICK calls).
  * Gentle by construction — the API never sees a burst. */
+/** Provider-managed user groups, overlaid onto learner tags as
+ * synthetic tags (the group title). Providers organise live cohorts
+ * in GROUPS while tags lag behind (seen live 2026-09-17: the
+ * "Swift Learners (09/26)" group held 140 learners, the offering tag
+ * only 137) — so a group title behaves exactly like a tag everywhere:
+ * scoping, cohort chips, CSVs, reflections. Nothing is ever written
+ * back to the platform; the overlay lives only in our snapshot. */
+const GROUPS_KV_KEY = "groups:v1";
+
+async function fetchGroupOverlay(env: Env): Promise<Map<string, string[]>> {
+  const overlay = new Map<string, string[]>();
+  const stored: Array<{ id: string; title: string; members: string[] }> = [];
+  const groups = (await listUserGroups(env)).slice(0, 10);
+  for (const g of groups) {
+    const members = await listGroupMemberEmails(env, g.id);
+    stored.push({ id: g.id, title: g.title, members });
+    for (const email of members) {
+      const titlesFor = overlay.get(email) ?? [];
+      if (!titlesFor.includes(g.title)) titlesFor.push(g.title);
+      overlay.set(email, titlesFor);
+    }
+  }
+  await env.RATE_LIMITS.put(GROUPS_KV_KEY, JSON.stringify(stored));
+  return overlay;
+}
+
 async function rosterTick(env: Env): Promise<void> {
   const staff = await getStaffTags(env);
   const users = (await listAllUsers(env, 5))
     .filter(isLearner)
     .filter((u) => !isStaffTagged(u.tags, staff));
+  /* Group overlay is additive and best-effort: a groups hiccup must
+   * never sink the roster cycle. */
+  try {
+    const overlay = await fetchGroupOverlay(env);
+    const patch = JSON.parse(
+      (await env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+    ) as Record<string, string[]>;
+    for (const u of users) {
+      const extra = overlay.get((u.email ?? "").toLowerCase());
+      if (!extra) continue;
+      u.tags = [...new Set([...(u.tags ?? []), ...extra])];
+      /* The patch keeps profile and reflection scope checks in step
+       * with the overlay immediately, ahead of any sweep rebuild. */
+      patch[u.email!.toLowerCase()] = u.tags;
+    }
+    await env.RATE_LIMITS.put(REFLECT_TAGS_PATCH_KEY, JSON.stringify(patch), {
+      expirationTtl: 24 * 3600,
+    });
+  } catch (err) {
+    console.error("[coach] group overlay failed:", String(err));
+  }
   const now = Date.now();
   const snapshot = reconcileRoster(
     parseRoster(await env.RATE_LIMITS.get(ROSTER_KV_KEY)),
@@ -4882,15 +5191,57 @@ async function rosterTick(env: Env): Promise<void> {
   console.log(
     `[coach] kind=roster-tick learners=${snapshot.entries.length} refreshed=${picks.length}`,
   );
-  /* The tick also owns reflections freshness so visits never build:
-   * when the snapshot is ready and fresh this is a single KV read;
-   * when building or stale it advances one budgeted step. */
+}
+
+/* ==================================================================
+ * Internal job dispatch — each heavyweight pull runs in its OWN
+ * invocation with its own subrequest budget. At 204 learners the
+ * hourly tick (user list + groups + course pulls + reflections step)
+ * outgrew a single invocation's budget and starved the sweep (found
+ * live, 2026-09-17), so the cron fans out via signed self-requests.
+ * ================================================================== */
+
+const INTERNAL_JOB_PAYLOAD = "internal-job:v1";
+
+async function dispatchJob(env: Env, job: string): Promise<boolean> {
+  const sig = await signPayload(env.LEARNWORLDS_CLIENT_SECRET || "", INTERNAL_JOB_PAYLOAD);
   try {
-    await advanceReflections(env);
+    /* The SELF binding is the only way a worker reaches itself — the
+     * public URL is blocked for self-requests. The URL host is
+     * nominal; the binding routes straight to this worker. */
+    const target = env.SELF ?? { fetch };
+    const res = await target.fetch("https://self.internal/internal/job", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Job-Sig": sig },
+      body: JSON.stringify({ job }),
+    });
+    console.log(`[coach] kind=dispatch job=${job} status=${res.status}`);
+    return res.ok;
   } catch (err) {
-    console.error("[coach] tick reflections step failed:", String(err));
+    console.error(`[coach] dispatch ${job} failed:`, String(err));
+    return false;
   }
 }
+
+app.post("/internal/job", async (c) => {
+  const sig = c.req.header("X-Job-Sig") || "";
+  const authorised =
+    Boolean(c.env.LEARNWORLDS_CLIENT_SECRET) &&
+    (await verifyPayload(c.env.LEARNWORLDS_CLIENT_SECRET!, INTERNAL_JOB_PAYLOAD, sig));
+  if (!authorised) return c.json({ error: "unauthorised" }, 401);
+  const body = (await c.req.json().catch(() => ({}))) as { job?: string };
+  const job = typeof body.job === "string" ? body.job : "";
+  try {
+    if (job === "roster") await rosterTick(c.env);
+    else if (job === "reflect") await advanceReflections(c.env);
+    else if (job === "risk") await getRiskReport(c.env, true);
+    else return c.json({ error: "unknown_job" }, 400);
+    return c.json({ ok: true, job });
+  } catch (err) {
+    console.error(`[coach] job ${job} failed:`, String(err));
+    return c.json({ ok: false, job, error: String(err).slice(0, 140) }, 500);
+  }
+});
 
 /** Read the reflections snapshot without ever advancing the build —
  * provider visits are pure reads; the cron owns freshness. Serves the
@@ -4905,7 +5256,7 @@ async function readReflections(env: Env): Promise<ReflectionsState> {
     (await env.RATE_LIMITS.get(REFLECT_BUILD_KEY)) || "null",
   ) as ReflectionsState | null;
   if (building && building.responses !== undefined) return building;
-  const courseCount = Object.values(COURSE_MAP).filter((v) => v !== null).length;
+  const courseCount = sweepCourseEntries().length;
   return emptyState(courseCount, new Date());
 }
 
@@ -4919,9 +5270,14 @@ async function scheduled(
    * nightly. Each job carries its own catch so one failing cannot
    * take the others down with it. */
   if (event.cron === "0 * * * *") {
+    /* Roster first (fresh tags and group overlay), then one budgeted
+     * reflections step — each in its own invocation. */
     ctx.waitUntil(
-      rosterTick(env).catch((err) =>
-        console.error("[coach] roster tick failed:", String(err)),
+      (async () => {
+        await dispatchJob(env, "roster");
+        await dispatchJob(env, "reflect");
+      })().catch((err) =>
+        console.error("[coach] hourly dispatch failed:", String(err)),
       ),
     );
     return;
@@ -4941,12 +5297,10 @@ async function scheduled(
    * an in-progress build advances a few budget steps. */
   ctx.waitUntil(
     (async () => {
+      /* Each step is its own invocation — four steps rebuilds the
+       * whole sweep overnight without touching one budget. */
       for (let i = 0; i < 4; i++) {
-        const state = await advanceReflections(env);
-        console.log(
-          `[coach] kind=reflect-cron status=${state.status} enabled=${state.responsesEnabled} cursor=${state.cursor}/${state.totalCourses}`,
-        );
-        if (state.status === "ready") break;
+        if (!(await dispatchJob(env, "reflect"))) break;
       }
     })().catch((err) => console.error("[coach] reflect cron failed:", String(err))),
   );

@@ -714,3 +714,51 @@ export async function createUser(
   const body = (await res.text()).slice(0, 160);
   return { ok: false, reason: `HTTP ${res.status} ${body}` };
 }
+
+/* ---------------- user groups (provider-managed cohort groups) ---------------- */
+
+export interface LwUserGroup {
+  id: string;
+  title: string;
+}
+
+/** Every user group on the school. Providers organise live cohorts in
+ * groups (seen 2026-09-17: "Swift Learners (09/26)" holds the real
+ * intake while tags lag), so groups are read as a first-class signal. */
+export async function listUserGroups(env: LwEnv): Promise<LwUserGroup[]> {
+  const res = await lwRequest(env, "GET", "/user_groups");
+  if (!res.ok) throw new Error(`LearnWorlds user_groups failed: HTTP ${res.status}`);
+  const payload = (await res.json()) as { data?: Array<{ id?: string; title?: string }> };
+  return (payload.data ?? [])
+    .filter((g) => typeof g.id === "string" && typeof g.title === "string")
+    .map((g) => ({ id: g.id as string, title: (g.title as string).trim() }));
+}
+
+/** Lowercased member emails of one group. The endpoint pages at a
+ * FIXED 20 per page whatever items_per_page asks for (same quirk as
+ * assessment responses), so the page cap is generous. */
+export async function listGroupMemberEmails(
+  env: LwEnv,
+  groupId: string,
+  maxPages = 15,
+): Promise<string[]> {
+  const emails: string[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const res = await lwRequest(
+      env,
+      "GET",
+      `/user_groups/${encodeURIComponent(groupId)}/users?page=${page}`,
+    );
+    if (!res.ok) throw new Error(`LearnWorlds group users failed: HTTP ${res.status}`);
+    const payload = (await res.json()) as {
+      data?: Array<{ email?: string }>;
+      meta?: { totalPages?: number; total_pages?: number };
+    };
+    for (const u of payload.data ?? []) {
+      if (typeof u.email === "string" && u.email) emails.push(u.email.toLowerCase());
+    }
+    const totalPages = payload.meta?.totalPages ?? payload.meta?.total_pages ?? 1;
+    if (page >= totalPages || (payload.data ?? []).length === 0) break;
+  }
+  return emails;
+}

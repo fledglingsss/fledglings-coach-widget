@@ -409,7 +409,10 @@ return "<tr><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"<
 "<td class='dmut'>"+esc2(lastIn)+"</td>"+
 "<td><button type='button' class='dlink' data-drill='"+esc2(r.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
-function chips(el,onPick){var tags=DATA.tags||[];
+function chips(el,onPick){
+/* The scope's own tag is every learner — "All in scope" already says
+ * that, so it never appears as a cohort chip. */
+var tags=(DATA.tags||[]).filter(function(t){return t.tag!==DATA.scopedTag});
 el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' aria-pressed='"+(cohortFilter?'false':'true')+"' data-chip=''>All in scope</button>"+
 tags.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' aria-pressed='"+(cohortFilter===t.tag?'true':'false')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('');
 el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
@@ -874,7 +877,7 @@ if(d.error){$('dh-sub').textContent='Could not load data — '+d.error;return;}
 d.attention=d.attention||[];DATA=d;
 $('dscope').textContent=d.scopedTag?('Scope: '+d.scopedTag):'Whole school';
 $('dsample').textContent=(d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?
-'all '+d.totalUsers+' accounts covered, refreshed automatically every 30 minutes':
+'all '+d.totalUsers+' accounts covered, refreshed automatically on a rolling cycle through the day':
 d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled';
 $('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
 renderHome();

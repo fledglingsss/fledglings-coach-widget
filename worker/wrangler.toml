@@ -17,6 +17,14 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["10 3 * * *", "0 * * * *"]
 
+# Self service binding: lets the cron fan each heavyweight data pull
+# out into its own invocation (a worker cannot fetch its own public
+# URL, and one invocation's subrequest budget no longer covers a
+# 200-learner tick in one go).
+[[services]]
+binding = "SELF"
+service = "fledglings-coach"
+
 [vars]
 # Kill switch — set to "true" to make the coach return its authored
 # fallback for every request (widget stays up, model calls stop).

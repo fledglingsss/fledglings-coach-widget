@@ -311,6 +311,9 @@ export interface ReflectionsState {
    * reflections view or skew the confidence shifts. Absent on
    * pre-filter snapshots, which marks them due for a rebuild. */
   learnerEmails?: string[];
+  /** Failed fetch attempts per course id — a course is retried on
+   * later budget steps and only skipped after three failures. */
+  attempts?: Record<string, number>;
   /** emails seen per kind, for the completion stat */
   preRespondents: string[];
   postRespondents: string[];
@@ -329,6 +332,7 @@ export function emptyState(totalCourses: number, now: Date): ReflectionsState {
     responses: [],
     userTags: {},
     learnerEmails: [],
+    attempts: {},
     preRespondents: [],
     postRespondents: [],
     builtAt: now.toISOString(),

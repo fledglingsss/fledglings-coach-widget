@@ -56,3 +56,29 @@ export const COURSE_MAP: Record<string, string | null> = {
 export function courseIdFor(title: string): string | null {
   return COURSE_MAP[title] ?? null;
 }
+
+/* Learner modules that exist on the platform but are not (yet)
+ * pathway-emittable — the pathway engine deliberately does not
+ * recommend them, but their self-reflections and module health must
+ * still be swept. Found live 2026-09-17 when Swift's cohorts rolled
+ * onto them. Titles here are the LIVE platform titles, trimmed. */
+export const EXTRA_SWEEP_COURSES: Record<string, string> = {
+  "Welcome to Financial Literacy": "sso-1-1",
+  "Financial Literacy Mastery": "sso-9-1",
+  "Employability Skills Mastery": "sso-7-1",
+  "Staying Safe Online Mastery": "sso-8",
+  "Handling Change & Uncertainty - Adaptability You Can Trust": "sso-7-2",
+  "Confidence & Resilience Showcase": "sso-10",
+  "Managing Nerves": "sso-4-4",
+  "What is Safeguarding?": "sso-9-2",
+};
+
+/** Every course the data sweeps cover: the pathway catalogue plus the
+ * extra live modules above. One list, so reflections and module
+ * health can never disagree about what "complete" means. */
+export function sweepCourseEntries(): Array<[string, string]> {
+  const entries = Object.entries(COURSE_MAP).filter(
+    (e): e is [string, string] => e[1] !== null,
+  );
+  return entries.concat(Object.entries(EXTRA_SWEEP_COURSES));
+}
