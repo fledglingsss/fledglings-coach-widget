@@ -90,6 +90,7 @@ import {
   RAW_ROWS_MAX,
   rawRows,
   scanForSafeguarding,
+  shiftsFromRows,
   type ReflectionResponse,
   type ReflectionsState,
 } from "./lib/reflections";
@@ -1998,6 +1999,30 @@ function isStaffTagged(tags: string[] | undefined, staffTags: Set<string>): bool
   return (tags ?? []).some((t) => staffTags.has(t.toLowerCase()));
 }
 
+/* Founder-named test accounts excluded from every learner view — an
+ * explicit HQ-managed list (KV ops:excluded-accounts, lowercased
+ * emails) for accounts that carry the learner role and no
+ * distinguishing tag (first named by the founder on 2026-09-19). This is
+ * not role inference by email (the founder's law stands): it is the
+ * founder naming specific accounts, visible on the verification
+ * console. */
+async function getExcludedEmails(env: Env): Promise<Set<string>> {
+  const set = new Set<string>();
+  try {
+    const raw = await env.RATE_LIMITS.get("ops:excluded-accounts");
+    for (const e of JSON.parse(raw || "[]") as unknown[]) {
+      if (typeof e === "string") set.add(e.toLowerCase());
+    }
+  } catch {
+    /* an unreadable list excludes nobody */
+  }
+  return set;
+}
+
+function isExcludedEmail(email: string | undefined, excluded: Set<string>): boolean {
+  return excluded.has((email ?? "").toLowerCase());
+}
+
 /* Hierarchical tag scoping: a provider-level tag ("Swift") covers the
  * exact tag AND every cohort tag beneath it ("Swift Learners",
  * "Swift Cohort 2" — anything starting "Swift "). Cohort-level codes
@@ -2249,12 +2274,14 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
         if (u.email) state.userTags[u.email.toLowerCase()] = u.tags ?? [];
       }
       /* Same learner rule as the roster: role-"user" accounts minus
-       * anyone wearing a staff tag. Their emails gate response
-       * ingestion below. */
+       * staff tags and the founder's named exclusions. Their emails
+       * gate response ingestion below. */
       const sweepStaffTags = await getStaffTags(env);
+      const sweepExcluded = await getExcludedEmails(env);
       state.learnerEmails = users
         .filter(isLearner)
         .filter((u) => !isStaffTagged(u.tags, sweepStaffTags))
+        .filter((u) => !isExcludedEmail(u.email, sweepExcluded))
         .map((u) => u.email!.toLowerCase());
     } catch {
       /* tags map is best-effort; scoping falls back to empty */
@@ -2427,7 +2454,10 @@ app.get("/portal/reflections", async (c) => {
       reason: state.reason ?? null,
       progress: { done: state.cursor, total: state.totalCourses },
       coverage: state.coverage,
-      shifts: state.shifts,
+      /* Shifts come from the SCOPED rows — a provider's confidence
+       * chart covers their learners and their modules only (founder,
+       * 2026-09-19), and the whole school's equals its own rows. */
+      shifts: shiftsFromRows(recent),
       flags,
       preCount,
       postCount,
@@ -4515,9 +4545,11 @@ app.get("/ops/verify.json", async (c) => {
         groupTitlesFor.set(email, titlesFor);
       }
     }
+    const manualExclusions = await getExcludedEmails(c.env);
     const censusLearners = users
       .filter(isLearner)
       .filter((u) => !isStaffTagged(u.tags, staffTags))
+      .filter((u) => !isExcludedEmail(u.email, manualExclusions))
       .map((u) => {
         const extra = groupTitlesFor.get((u.email ?? "").toLowerCase());
         return extra ? { ...u, tags: [...new Set([...(u.tags ?? []), ...extra])] } : u;
@@ -4640,6 +4672,7 @@ app.get("/ops/verify.json", async (c) => {
         counts: roleCounts,
         nonUsers,
         learnersAfterRoleFilter: users.filter(isLearner).length,
+        manualExclusions: [...manualExclusions],
       },
       reconciliation,
       structure: { combinations, oddities },
@@ -5148,9 +5181,11 @@ async function fetchGroupOverlay(env: Env): Promise<Map<string, string[]>> {
 
 async function rosterTick(env: Env): Promise<void> {
   const staff = await getStaffTags(env);
+  const excluded = await getExcludedEmails(env);
   const users = (await listAllUsers(env, 5))
     .filter(isLearner)
-    .filter((u) => !isStaffTagged(u.tags, staff));
+    .filter((u) => !isStaffTagged(u.tags, staff))
+    .filter((u) => !isExcludedEmail(u.email, excluded));
   /* Group overlay is additive and best-effort: a groups hiccup must
    * never sink the roster cycle. */
   try {

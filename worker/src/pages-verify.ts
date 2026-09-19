@@ -42,7 +42,8 @@ return [esc(k),String(d.roles.counts[k]),k==='user'||k==='user(absent)'?'counted
 out+=card('Platform roles','PASS',
 "<p class='vp'>"+d.roles.totalAccounts+" accounts on the platform; "+d.roles.learnersAfterRoleFilter+" carry the learner role. Only role-'user' accounts ever appear as learners.</p>"+
 table(['Role level','Accounts','Treatment'],roleRows)+
-"<p class='vp vmut'>Excluded accounts: "+d.roles.nonUsers.map(function(n){return esc(n.email)+" ("+esc(n.name||n.level)+")"}).join(' · ')+"</p>");
+"<p class='vp vmut'>Excluded accounts: "+d.roles.nonUsers.map(function(n){return esc(n.email)+" ("+esc(n.name||n.level)+")"}).join(' · ')+"</p>"+
+((d.roles.manualExclusions||[]).length?"<p class='vp vmut'>Founder-named test accounts, excluded everywhere: "+d.roles.manualExclusions.map(esc).join(' · ')+"</p>":''));
 
 /* reconciliation */
 var rec=d.reconciliation;

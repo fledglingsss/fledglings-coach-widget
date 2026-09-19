@@ -1129,3 +1129,57 @@ describe("GET /ops/verify.json — the founder's verification console", () => {
     expect(await anon.text()).not.toContain("Verification console");
   });
 });
+
+describe("GET /portal/reflections — scoped confidence shifts", () => {
+  const COURSES_N = 41; /* sweepCourseEntries length — pinned below */
+  async function seedNumericReflections(env: Env) {
+    const row = (email: string, kind: string, answer: string) => ({
+      email, courseTitle: "Money Confidence", unitTitle: kind === "pre" ? "Initial Self - Reflection" : "Post Completion Feedback",
+      kind, submittedAt: 1_753_000_000, question: "How confident are you?", answer,
+    });
+    await env.RATE_LIMITS.put(
+      "portal:reflect:v4",
+      JSON.stringify({
+        status: "ready", responsesEnabled: true, cursor: COURSES_N, totalCourses: COURSES_N,
+        coverage: [], shifts: [{ courseId: "whole-school-artefact", courseTitle: "Whole School Artefact", preCount: 99, postCount: 99, preAvgPct: 1, postAvgPct: 2, shift: 1 }],
+        flags: [],
+        responses: [
+          row("amy@swift.test", "pre", "6 / 10"),
+          row("amy@swift.test", "post", "9 / 10"),
+          row("cal@other.test", "pre", "2 / 10"),
+        ],
+        userTags: { "amy@swift.test": ["Swift Learners"], "cal@other.test": ["Other College"] },
+        learnerEmails: ["amy@swift.test", "cal@other.test"],
+        preRespondents: ["amy@swift.test", "cal@other.test"], postRespondents: ["amy@swift.test"],
+        builtAt: new Date().toISOString(),
+      }),
+    );
+  }
+
+  it("a scoped code sees shifts from its own learners' modules only", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedNumericReflections(env);
+    const res = await app.request(
+      get("/portal/reflections", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(200);
+    const d = (await res.json()) as {
+      shifts: Array<{ courseTitle: string; preCount: number; postCount: number; preAvgPct: number | null; postAvgPct: number | null; shift: number | null }>;
+      totalCoursesCheck?: number;
+    };
+    /* The sweep-time whole-school artefact must never be served. */
+    expect(d.shifts.some((s) => s.courseTitle === "Whole School Artefact")).toBe(false);
+    expect(d.shifts).toHaveLength(1);
+    const s = d.shifts[0]!;
+    expect(s.courseTitle).toBe("Money Confidence");
+    /* Amy only: 60% before, 90% after, +30 — Cal's 2/10 never bleeds in. */
+    expect(s).toMatchObject({ preCount: 1, postCount: 1, preAvgPct: 60, postAvgPct: 90, shift: 30 });
+  });
+
+  it("pins the seeded course count to the live sweep list", async () => {
+    const { sweepCourseEntries } = await import("../src/lib/course-map");
+    expect(sweepCourseEntries().length).toBe(COURSES_N);
+  });
+});

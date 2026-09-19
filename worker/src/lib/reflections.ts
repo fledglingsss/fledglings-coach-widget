@@ -150,29 +150,35 @@ export interface ModuleShift {
   shift: number | null; // percentage points, post - pre
 }
 
+/** Parse one answer string as a self-rating. Learners answer rating
+ * blocks as "8 / 10" (live data 2026-08-03) — parse the fraction,
+ * else a bare 0-10 number; anything else is not a rating. */
+export function answerScore(answer: string): { got: number; max: number } | null {
+  const frac = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*$/.exec(answer);
+  if (frac && Number(frac[2]) > 0 && Number(frac[1]) <= Number(frac[2])) {
+    return { got: Number(frac[1]), max: Number(frac[2]) };
+  }
+  const n = Number(answer);
+  if (Number.isFinite(n) && n >= 0 && n <= 10 && answer.trim() !== "") {
+    return { got: n, max: 10 };
+  }
+  return null;
+}
+
 function avgPct(responses: ReflectionResponse[]): number | null {
   let got = 0;
   let max = 0;
   for (const r of responses) {
     for (const a of r.answers) {
-      /* Prefer explicit points; fall back to a numeric answer that
-       * looks like a 1-5 / 1-10 self-rating. */
+      /* Prefer explicit points; fall back to a numeric self-rating. */
       if (a.points !== null && a.maxPoints !== null && a.maxPoints > 0) {
         got += a.points;
         max += a.maxPoints;
       } else {
-        /* Learners answer rating blocks as "8 / 10" (live data
-         * 2026-08-03) — parse the fraction, else a bare 0-10 number. */
-        const frac = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*$/.exec(a.answer);
-        if (frac && Number(frac[2]) > 0 && Number(frac[1]) <= Number(frac[2])) {
-          got += Number(frac[1]);
-          max += Number(frac[2]);
-        } else {
-          const n = Number(a.answer);
-          if (Number.isFinite(n) && n >= 0 && n <= 10 && a.answer !== "") {
-            got += n;
-            max += 10;
-          }
+        const score = answerScore(a.answer);
+        if (score) {
+          got += score.got;
+          max += score.max;
         }
       }
     }
@@ -200,6 +206,52 @@ export function moduleShift(
     shift:
       preAvgPct !== null && postAvgPct !== null ? postAvgPct - preAvgPct : null,
   };
+}
+
+/** Confidence shifts recomputed from raw answer rows — the SERVE-time
+ * path, so a scoped provider's chart covers only their learners and
+ * only the modules those learners actually answered on, never the
+ * whole school's. Counts are distinct learners per side ("n before ·
+ * n after"). Rows are capped at RAW_ROWS_MAX upstream; at today's
+ * volumes that cap is far away. */
+export function shiftsFromRows(rows: RawReflectionRow[]): ModuleShift[] {
+  interface Side {
+    got: number;
+    max: number;
+    emails: Set<string>;
+  }
+  const byModule = new Map<string, { pre: Side; post: Side }>();
+  const side = (): Side => ({ got: 0, max: 0, emails: new Set() });
+  for (const row of rows) {
+    if (row.kind !== "pre" && row.kind !== "post") continue;
+    const entry = byModule.get(row.courseTitle) ?? { pre: side(), post: side() };
+    const s = row.kind === "pre" ? entry.pre : entry.post;
+    s.emails.add(row.email.toLowerCase());
+    const score = answerScore(row.answer);
+    if (score) {
+      s.got += score.got;
+      s.max += score.max;
+    }
+    byModule.set(row.courseTitle, entry);
+  }
+  const pct = (s: Side): number | null =>
+    s.max === 0 ? null : Math.round((s.got / s.max) * 100);
+  return [...byModule.entries()]
+    .map(([courseTitle, e]) => {
+      const preAvgPct = pct(e.pre);
+      const postAvgPct = pct(e.post);
+      return {
+        courseId: courseTitle,
+        courseTitle,
+        preCount: e.pre.emails.size,
+        postCount: e.post.emails.size,
+        preAvgPct,
+        postAvgPct,
+        shift:
+          preAvgPct !== null && postAvgPct !== null ? postAvgPct - preAvgPct : null,
+      };
+    })
+    .sort((a, b) => b.preCount + b.postCount - (a.preCount + a.postCount));
 }
 
 /* ---------------- coverage (which units we matched, per module) ---------------- */
