@@ -2248,10 +2248,13 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
       for (const u of users) {
         if (u.email) state.userTags[u.email.toLowerCase()] = u.tags ?? [];
       }
-      /* Same role rule as everywhere else: only role-"user" accounts
-       * are learners. Their emails gate response ingestion below. */
+      /* Same learner rule as the roster: role-"user" accounts minus
+       * anyone wearing a staff tag. Their emails gate response
+       * ingestion below. */
+      const sweepStaffTags = await getStaffTags(env);
       state.learnerEmails = users
         .filter(isLearner)
+        .filter((u) => !isStaffTagged(u.tags, sweepStaffTags))
         .map((u) => u.email!.toLowerCase());
     } catch {
       /* tags map is best-effort; scoping falls back to empty */
