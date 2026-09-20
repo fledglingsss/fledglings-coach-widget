@@ -180,11 +180,15 @@ export function renderDashboardPage(): string {
     "<div class='dsplit even'>" +
     "<div class='dcard'><h2>The shape of each cohort <span class='dmut' style='font-weight:500'>five measures, 0–100 — tap the legend to focus</span></h2>" +
     "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div>" +
+    /* Right column: the numbers on top, the bubble map filling the
+     * space beneath them so the section reads as one solid block. */
+    "<div>" +
     "<div class='dcard'><h2>The numbers behind it <span class='dmut' style='font-weight:500'>darker = stronger, per cohort</span></h2>" +
     "<div id='ch-heat'></div></div>" +
-    "</div>" +
     "<div class='dcard'><h2>Where each cohort sits <span class='dmut' style='font-weight:500'>activity across, progress up — a bigger bubble is a bigger cohort</span></h2>" +
-    "<div id='ch-bubble'></div></div></div>" +
+    "<div id='ch-bubble'></div></div>" +
+    "</div>" +
+    "</div></div>" +
 
     "<div class='a-sec' data-al='⚡ Engagement' hidden>" +
     "<p class='interp' id='ai-engage'></p>" +
