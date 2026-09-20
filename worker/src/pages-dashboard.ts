@@ -182,7 +182,9 @@ export function renderDashboardPage(): string {
     "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div>" +
     "<div class='dcard'><h2>The numbers behind it <span class='dmut' style='font-weight:500'>darker = stronger, per cohort</span></h2>" +
     "<div id='ch-heat'></div></div>" +
-    "</div></div>" +
+    "</div>" +
+    "<div class='dcard'><h2>Where each cohort sits <span class='dmut' style='font-weight:500'>activity across, progress up — a bigger bubble is a bigger cohort</span></h2>" +
+    "<div id='ch-bubble'></div></div></div>" +
 
     "<div class='a-sec' data-al='⚡ Engagement' hidden>" +
     "<p class='interp' id='ai-engage'></p>" +
@@ -198,7 +200,11 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><div class='cardhead'><h2>Where every learner sits, module by module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
+    "<div class='dsplit even'>" +
+    "<div class='dcard'><h2>Time invested so far <span class='dmut' style='font-weight:500'>learners by total study time</span></h2>" +
+    "<div id='ch-hist'></div></div>" +
     "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
+    "</div>" +
     /* School-wide stall analysis is HQ's view of provision, not a
      * provider's — it never shows on a scoped code. */
     "<div class='dcard' id='stalls-card'><h2>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up</span></h2>" +
@@ -772,7 +778,9 @@ var RADAR_PALETTE=['#13507F','#D9452B','#1B7A4B','#ED9249','#7C5CBF'];
 var radarHidden={};
 function cohortMeasures(members){var n=members.length||1;
 var avgMins=members.reduce(function(s,r){return s+r.learning.minutes},0)/n;
-return {loggedIn:Math.round(members.filter(function(r){return r.engagement.daysSinceLogin!==null}).length*100/n),
+var avgMods=Math.round(members.reduce(function(s,r){return s+r.learning.completed},0)*10/n)/10;
+return {avgMods:avgMods,
+loggedIn:Math.round(members.filter(function(r){return r.engagement.daysSinceLogin!==null}).length*100/n),
 active:Math.round(members.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length*100/n),
 started:Math.round(members.filter(function(r){return r.learning.completed+r.learning.inProgress>0}).length*100/n),
 completed:Math.round(members.filter(function(r){return r.learning.completed>0}).length*100/n),
@@ -812,6 +820,27 @@ return "<button type='button' class='chip"+(radarHidden[sr.tag]?'':' on')+"' dat
 document.querySelectorAll('[data-radar]').forEach(function(b){b.onclick=function(){
 radarHidden[b.dataset.radar]=!radarHidden[b.dataset.radar];renderRadar();};});
 return series;}
+/* Bubble chart: every cohort positioned by activity and progress,
+ * sized by headcount — one glance answers "who is where". */
+function bubbleChart(series){
+if(!series||series.length<2)return "<div class='dempty'>Appears once two or more cohorts have learners.</div>";
+var maxY=Math.max.apply(null,series.map(function(sr){return sr.m.avgMods}).concat([1]));
+var maxN=Math.max.apply(null,series.map(function(sr){return sr.n}).concat([1]));
+var W=680,H=260,L=52,Rt=30,T=22,B=44;
+var px=function(v){return L+(W-L-Rt)*v/100},py=function(v){return T+(H-T-B)*(1-v/maxY)};
+var s="<svg viewBox='0 0 "+W+" "+H+"' class='scatter' role='img' aria-label='Cohorts by activity, progress and size'>";
+[0,25,50,75,100].forEach(function(gx){
+s+="<line x1='"+px(gx)+"' y1='"+T+"' x2='"+px(gx)+"' y2='"+(H-B)+"' stroke='#F0EBE9' stroke-width='1'/>";
+s+="<text x='"+px(gx)+"' y='"+(H-B+18)+"' text-anchor='middle' font-size='10.5' fill='#6A7A88'>"+gx+"%</text>";});
+s+="<line x1='"+L+"' y1='"+(H-B)+"' x2='"+(W-Rt)+"' y2='"+(H-B)+"' stroke='#E3DDDA' stroke-width='2'/>";
+s+="<text x='"+((L+W-Rt)/2)+"' y='"+(H-6)+"' text-anchor='middle' font-size='10.5' font-weight='600' fill='#6A7A88'>active this week →</text>";
+s+="<text x='14' y='"+((T+H-B)/2)+"' text-anchor='middle' font-size='10.5' font-weight='600' fill='#6A7A88' transform='rotate(-90 14 "+((T+H-B)/2)+")'>avg modules done →</text>";
+series.forEach(function(sr){
+var r=8+16*Math.sqrt(sr.n/maxN);
+var x=px(sr.m.active),y=py(sr.m.avgMods);
+s+="<circle cx='"+x+"' cy='"+y+"' r='"+r.toFixed(1)+"' fill='"+sr.c+"55' stroke='"+sr.c+"' stroke-width='2'><title>"+esc2(sr.tag)+" — "+sr.n+" learners, "+sr.m.active+"% active, "+sr.m.avgMods+" modules each</title></circle>";
+s+="<text x='"+x+"' y='"+(y-r-5)+"' text-anchor='middle' font-size='11' font-weight='700' fill='#25394B'>"+esc2(sr.tag)+"</text>";});
+return s+"</svg>";}
 /* Heat matrix: the same cohort measures as the radar, as numbers with
  * colour weight — the precise dissection next to the shape. */
 function heatTable(series){
@@ -947,7 +976,12 @@ document.querySelectorAll('#a-secs .chip').forEach(function(ch,i){ch.onclick=fun
 aShow(aSecIdx);
 var series=renderRadar();
 $('ch-heat').innerHTML=heatTable(series);
+$('ch-bubble').innerHTML=bubbleChart(series);
 $('ch-scatter').innerHTML=scatterChart(rows,series);
+/* Study-time histogram: learners bucketed by total time invested. */
+var HB=[['None',function(m){return m===0}],['<15m',function(m){return m>0&&m<15}],['15–30m',function(m){return m>=15&&m<30}],['30–45m',function(m){return m>=30&&m<45}],['45–60m',function(m){return m>=45&&m<60}],['1h+',function(m){return m>=60}]];
+$('ch-hist').innerHTML=rows.length?colChart(HB.map(function(b){return rows.filter(function(r){return b[1](r.learning.minutes)}).length}),HB.map(function(b){return b[0]}),'#13507F')
+:"<div class='dempty'>No learners in this filter.</div>";
 $('ai-cohorts').textContent=interpCohorts(series);
 $('ai-engage').textContent=interpEngage(rows);
 $('ai-learn').textContent=interpLearn(rows);
