@@ -135,7 +135,8 @@ import {
   renderPassportPage,
   renderToolsPage,
 } from "./pages";
-import { renderInspectBuilding, renderInspectExpired, renderInspectPage, renderOpsPage, renderPortalLogin } from "./pages-portal";
+import { renderOpsPage, renderPortalLogin } from "./pages-portal";
+import { renderInspectBuilding, renderInspectExpired, renderInspectPage } from "./pages-inspect";
 import { renderVerifyPage } from "./pages-verify";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderDashboardPage } from "./pages-dashboard";
@@ -5012,15 +5013,11 @@ app.get("/inspect", async (c) => {
   try {
     const tag = grant.tag ?? null;
     const scopeKey = tag ? tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-    /* Aggregates come from the rolling roster snapshot — pure KV, so
-     * an inspector opening this link never bursts the platform API. */
-    const { totalUsers, sample } = await dashboardRows(c.env, tag);
-    /* A scoped snapshot's population IS the scope — quoting the
-     * whole-school total against cohort figures misstates the reach. */
+    /* Everything derives from the served dashboard rows - the same
+     * roster snapshot providers see, group overlay included, and pure
+     * KV so an inspector never bursts the platform API. */
+    const { totalUsers, sample, rows } = await dashboardRows(c.env, tag);
     const stats = aggregate(tag ? sample.length : totalUsers, sample, new Date());
-    const riskAll = await getRiskReport(c.env);
-    const learners = riskAll.learners.filter((a) => inScope(a.tags, tag));
-    const summary = tag ? summarise(learners, new Date()) : riskAll.summary;
     const byArea = new Map<string, { enrolled: number; completed: number }>();
     for (const cs of stats.courseStats) {
       const area = groupForTitle(cs.title);
@@ -5035,51 +5032,56 @@ app.get("/inspect", async (c) => {
       completed: e.completed,
       pct: e.enrolled ? Math.round((e.completed / e.enrolled) * 100) : 0,
     }));
-    const narrative =
+    /* Module composition: finished / part-way / not started. */
+    const modules = stats.courseStats.map((cs) => {
+      const going = rows.filter((r) =>
+        (r.learning.modules ?? []).some((m) => m.t === cs.title && !m.done && m.p > 0),
+      ).length;
+      const total = Math.max(cs.enrolled, cs.completed + going);
+      return {
+        title: cs.title,
+        enrolled: cs.enrolled,
+        done: cs.completed,
+        going,
+        idle: Math.max(0, total - cs.completed - going),
+      };
+    });
+    /* Confidence shifts from the scope's own reflection answers -
+     * module-level aggregates only, never a learner's words. */
+    const reflect = await readReflections(c.env);
+    const tagPatch = JSON.parse(
+      (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+    ) as Record<string, string[]>;
+    const tagsOf = (email: string): string[] =>
+      tagPatch[email.toLowerCase()] ?? reflect.userTags[email.toLowerCase()] ?? [];
+    const scopedAnswers = tag
+      ? reflect.responses.filter((r) => inScope(tagsOf(r.email), tag))
+      : reflect.responses;
+    const narrative = (
       (await c.env.RATE_LIMITS.get(`portal:narrative:v2:${scopeKey}`)) ??
-      "The provider can generate the written narrative from their portal; the figures above are live from the platform.";
-    const activePct = summary.learners
-      ? Math.round((summary.activeLast7Days / summary.learners) * 100)
-      : 0;
+      "The provider can generate the written narrative from their dashboard; the figures above are live from the platform."
+    ).replace(/\s*—\s*/g, " - ");
+    const activeWeek = rows.filter(
+      (r) => r.engagement.daysSinceLogin !== null && r.engagement.daysSinceLogin <= 7,
+    ).length;
+    const totalMinutes = rows.reduce((sum, r) => sum + r.learning.minutes, 0);
+    const dateFmt: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
     return c.html(
       renderInspectPage({
         label: grant.label ?? "Fledglings provider",
         tag,
-        expires: new Date(grant.exp).toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-        generatedAt: new Date().toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-        kpis: [
-          { k: "Learners", v: String(summary.learners), c: "on the platform" },
-          {
-            k: "Active this week",
-            v: `${summary.activeLast7Days} (${activePct}%)`,
-            c: "logged in within 7 days",
-          },
-          {
-            k: "Modules per learner",
-            v: String(stats.avgModulesPerLearner),
-            c: "average enrolments",
-          },
-          {
-            k: "Monitored for attention",
-            v: String(summary.tiers.high + summary.tiers.medium),
-            c: "flagged by continuous monitoring",
-          },
-        ],
+        expires: new Date(grant.exp).toLocaleDateString("en-GB", dateFmt),
+        generatedAt: new Date().toLocaleDateString("en-GB", dateFmt),
+        kpis: {
+          learners: rows.length,
+          activeWeek,
+          modulesCompleted: rows.reduce((sum, r) => sum + r.learning.completed, 0),
+          avgMinutes: rows.length ? Math.round(totalMinutes / rows.length) : 0,
+          reflectionAnswers: scopedAnswers.length,
+        },
         curriculum,
-        modules: stats.courseStats.map((m) => ({
-          title: m.title,
-          enrolled: m.enrolled,
-          completed: m.completed,
-          pct: m.completionRate,
-        })),
+        modules,
+        shifts: shiftsFromRows(scopedAnswers),
         narrative,
       }),
     );
@@ -5104,7 +5106,7 @@ app.get("/portal/narrative", async (c) => {
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
   const cacheKey = `portal:narrative:v2:${scopeKey}`;
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
-  if (cached) return c.json({ narrative: cached });
+  if (cached) return c.json({ narrative: cached.replace(/\s*—\s*/g, " - ") });
   try {
     /* Aggregates come from the rolling roster snapshot — pure KV
      * reads, so generating a narrative never bursts the platform API. */
@@ -5132,8 +5134,10 @@ app.get("/portal/narrative", async (c) => {
       }),
       450,
     );
-    await c.env.RATE_LIMITS.put(cacheKey, narrative, { expirationTtl: PORTAL_CACHE_TTL });
-    return c.json({ narrative });
+    /* The founder's copy law: no em dashes anywhere user-facing. */
+    const clean = narrative.replace(/\s*—\s*/g, " - ");
+    await c.env.RATE_LIMITS.put(cacheKey, clean, { expirationTtl: PORTAL_CACHE_TTL });
+    return c.json({ narrative: clean });
   } catch (err) {
     console.error("[coach] portal narrative failed:", String(err));
     return c.json({

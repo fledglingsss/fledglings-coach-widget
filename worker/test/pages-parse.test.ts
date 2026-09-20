@@ -12,6 +12,19 @@ import { renderCoverLetterPage } from "../src/pages-cover-letter";
 import { renderBuilderPage } from "../src/pages-builder";
 import { renderAiPrivacyPage, renderToolsPage } from "../src/pages";
 import { renderDashboardPage } from "../src/pages-dashboard";
+import { renderInspectBuilding, renderInspectExpired, renderInspectPage } from "../src/pages-inspect";
+
+const SAMPLE_INSPECT = {
+  label: "Sample Provider",
+  tag: "Sample Cohort",
+  expires: "27 September 2026",
+  generatedAt: "20 September 2026",
+  kpis: { learners: 10, activeWeek: 6, modulesCompleted: 4, avgMinutes: 75, reflectionAnswers: 40 },
+  curriculum: [{ area: "Financial Literacy", enrolled: 10, completed: 4, pct: 40 }],
+  modules: [{ title: "Sample Module", enrolled: 10, done: 4, going: 3, idle: 3 }],
+  shifts: [{ courseTitle: "Sample Module", preAvgPct: 50, postAvgPct: 78, shift: 28, preCount: 8, postCount: 6 }],
+  narrative: "A sample narrative.",
+};
 
 const PAGES: Array<[string, () => string]> = [
   ["dashboard", renderDashboardPage],
@@ -22,6 +35,14 @@ const PAGES: Array<[string, () => string]> = [
   ["builder", renderBuilderPage],
   ["tools", renderToolsPage],
   ["ai-privacy", renderAiPrivacyPage],
+];
+
+/* Script-free pages: covered by the white-label guard below, exempt
+ * from the inline-JavaScript checks. */
+const STATIC_PAGES: Array<[string, () => string]> = [
+  ["inspect", () => renderInspectPage(SAMPLE_INSPECT)],
+  ["inspect-building", renderInspectBuilding],
+  ["inspect-expired", renderInspectExpired],
 ];
 
 function inlineScripts(html: string): string[] {
@@ -91,7 +112,7 @@ describe("white-label: no vendor name in any served page", () => {
    * platform supplier — including view-source (comments in inline
    * scripts ship to the browser too). Regressed once via a code
    * comment in shared page JS (2026-08-29); this pins it. */
-  for (const [name, render] of PAGES) {
+  for (const [name, render] of PAGES.concat(STATIC_PAGES)) {
     it(`${name} never mentions the supplier`, () => {
       expect(render()).not.toMatch(/learn\s*_?-?worlds/i);
     });
