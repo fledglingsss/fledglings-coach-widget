@@ -170,15 +170,26 @@ export function renderDashboardPage(): string {
     "</div></section>" +
 
     /* ---------- analytics ---------- */
+    /* Analytics is a chip deck — one story at a time, each with a
+     * plain-English reading, never one long wall of charts. */
     "<section class='dview' id='v-analytics' hidden>" +
+    "<div class='chips' id='a-secs' style='margin-bottom:14px'></div>" +
+
+    "<div class='a-sec' data-al='📊 Cohorts compared'>" +
+    "<div class='dcard'><h2>Cohorts compared <span class='dmut' style='font-weight:500'>five measures, 0–100 — tap a cohort in the legend to focus it</span></h2>" +
+    "<p class='interp' id='ai-cohorts'></p>" +
+    "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div></div>" +
+
+    "<div class='a-sec' data-al='⚡ Engagement' hidden>" +
+    "<p class='interp' id='ai-engage'></p>" +
     "<div class='dsplit even'>" +
-    "<div class='dcard'><h2>Cohorts at a glance <span class='dmut' style='font-weight:500'>five measures, 0–100 — tap a cohort in the legend to focus it</span></h2>" +
-    "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div>" +
     "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
-    "</div>" +
-    "<div class='dcard'><h2>When learners were last active <span class='dmut' style='font-weight:500'>recency of every learner's last visit</span></h2>" +
-    "<div id='ch-recency'></div></div>" +
-    "<div class='dcard'><div class='cardhead'><h2>Learning — every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
+    "<div class='dcard'><h2>When learners were last active</h2><div id='ch-recency'></div></div>" +
+    "</div></div>" +
+
+    "<div class='a-sec' data-al='📚 Learning' hidden>" +
+    "<p class='interp' id='ai-learn'></p>" +
+    "<div class='dcard'><div class='cardhead'><h2>Every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
     "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
@@ -186,6 +197,7 @@ export function renderDashboardPage(): string {
      * provider's — it never shows on a scoped code. */
     "<div class='dcard' id='stalls-card'><h2>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up</span></h2>" +
     "<div id='ch-stalls' aria-live='polite'><div class='dempty'>Loading module health…</div></div></div>" +
+    "</div>" +
     "</section>" +
 
     /* ---------- career tools: every readiness score lives here ---------- */
@@ -765,7 +777,7 @@ var tags=(DATA.tags||[]).filter(function(t){return t.tag!==DATA.scopedTag})
 /* Offering-style tags cover nearly everyone — they are the scope,
  * not a cohort, so they never earn a polygon. */
 .filter(function(t){return t.count<DATA.learners.length*0.9}).slice(0,5);
-if(tags.length<2){$('ch-radar').innerHTML="<div class='dempty'>The spider view appears once two or more cohorts have learners.</div>";$('radar-legend').innerHTML='';return;}
+if(tags.length<2){$('ch-radar').innerHTML="<div class='dempty'>The spider view appears once two or more cohorts have learners.</div>";$('radar-legend').innerHTML='';return [];}
 var series=tags.map(function(t,i){
 var members=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
 return {tag:t.tag,n:members.length,c:RADAR_PALETTE[i%RADAR_PALETTE.length],m:cohortMeasures(members)};});
@@ -792,7 +804,42 @@ $('radar-legend').innerHTML=series.map(function(sr){
 return "<button type='button' class='chip"+(radarHidden[sr.tag]?'':' on')+"' data-radar='"+esc2(sr.tag)+"' aria-pressed='"+(radarHidden[sr.tag]?'false':'true')+"'>"+
 "<i class='dotc' style='background:"+sr.c+"'></i>"+esc2(sr.tag)+" <i>"+sr.n+"</i></button>";}).join('');
 document.querySelectorAll('[data-radar]').forEach(function(b){b.onclick=function(){
-radarHidden[b.dataset.radar]=!radarHidden[b.dataset.radar];renderRadar();};});}
+radarHidden[b.dataset.radar]=!radarHidden[b.dataset.radar];renderRadar();};});
+return series;}
+/* ---------- plain-English readings under each chart ---------- */
+function interpCohorts(series){
+if(!series||series.length<2)return 'Cohort comparisons appear here once two or more cohorts have learners.';
+var byActive=series.slice().sort(function(a,b){return b.m.active-a.m.active})[0];
+var byTime=series.slice().sort(function(a,b){return b.m.avgMins-a.m.avgMins})[0];
+var laggard=series.slice().sort(function(a,b){return a.m.started-b.m.started})[0];
+var s='Strongest right now: '+byActive.tag+' — '+byActive.m.active+'% of them were in this week'+
+(byTime.tag===byActive.tag?', and they lead on study time too':'; '+byTime.tag+' puts in the most study time')+'. ';
+if(laggard.m.started<50)s+=laggard.tag+' needs a push — only '+laggard.m.started+'% have started learning yet.';
+else s+='Every cohort has most of its learners started — a solid spread.';
+return s;}
+function interpEngage(rows){var n=rows.length;
+if(!n)return 'No learners in this filter.';
+var active=rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
+var never=rows.filter(function(r){return r.engagement.daysSinceLogin===null}).length;
+var s=active+' of '+n+' learners ('+Math.round(active*100/n)+'%) visited in the last 7 days. ';
+if(never>0)s+=never+' have not logged in at all yet — they show as Inactive in Students, worth a welcome nudge. ';
+var newN=rows.filter(function(r){return r.engagement.tier==='new'}).length;
+if(newN>n/2)s+='Most are brand-new starters, so expect this mix to spread out as the programme opens up.';
+return s;}
+function interpLearn(){var courses=(DATA.analytics&&DATA.analytics.courses)||[];
+if(!courses.length)return 'No module enrolments in this scope yet.';
+if(courses.length===1){var c1=courses[0];
+return 'One module is live so far: '+c1.title+' — '+c1.completed+' of '+c1.enrolled+' learners have finished it ('+c1.pct+'%). More modules appear here as the programme opens up.';}
+var best=courses.slice().sort(function(a,b){return b.pct-a.pct})[0];
+var worst=courses.filter(function(cs){return cs.enrolled>=5}).sort(function(a,b){return a.pct-b.pct})[0];
+return courses.length+' modules have enrolments. Best completion: '+best.title+' ('+best.pct+'%)'+
+(worst&&worst.title!==best.title?'; slowest: '+worst.title+' ('+worst.pct+'%) — worth checking what is holding learners there.':'.');}
+/* ---------- analytics section deck ---------- */
+var aSecIdx=0;
+function aShow(i){aSecIdx=i;
+document.querySelectorAll('.a-sec').forEach(function(sc,j){sc.hidden=j!==i});
+document.querySelectorAll('#a-secs .chip').forEach(function(ch,j){ch.classList.toggle('on',j===i);
+ch.setAttribute('aria-pressed',j===i?'true':'false')});}
 function donut(segments,total,centreLabel){
 var W=390,H=232,cx=110,cy=H/2,r=78,thick=30;
 var sum=segments.reduce(function(s,x){return s+x.v},0)||1;
@@ -826,7 +873,15 @@ s+="<text x='"+x+"' y='"+(base+18)+"' text-anchor='middle' font-size='10.5' fill
 return s+"</svg>";}
 function renderAnalytics(){
 var rows=scoped(false);
-renderRadar();
+/* Section chips — one story at a time. */
+$('a-secs').innerHTML=Array.prototype.map.call(document.querySelectorAll('.a-sec'),function(sc){
+return "<button type='button' class='chip' aria-pressed='false'>"+sc.dataset.al+"</button>"}).join('');
+document.querySelectorAll('#a-secs .chip').forEach(function(ch,i){ch.onclick=function(){aShow(i)}});
+aShow(aSecIdx);
+var series=renderRadar();
+$('ai-cohorts').textContent=interpCohorts(series);
+$('ai-engage').textContent=interpEngage(rows);
+$('ai-learn').textContent=interpLearn();
 var TIER_ORDER=[['ok','Engaged','#1A7649'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#9A5812'],['high','Needs contact','#B93A22']];
 var tiers=TIER_ORDER.map(function(t){
 return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).length,c:t[2]};})
@@ -1204,6 +1259,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   font-size:14px;margin-bottom:12px;}
 .dnote{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.5;}
 .radar,.donut,.areachart{width:100%;height:auto;display:block;}
+.interp{background:#FAF8F7;border:1px solid var(--line);border-left:3px solid var(--orange);
+  border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;line-height:1.6;color:var(--ink);}
+.dcard .interp{margin-top:2px;}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
 .chips .chip .dotc{margin-right:6px;}
 .co-h{margin:16px 0 8px;font-size:13px;font-weight:700;color:var(--mut);letter-spacing:.02em;text-transform:uppercase;}
