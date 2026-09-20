@@ -5108,15 +5108,12 @@ app.get("/portal/narrative", async (c) => {
   const cached = await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json({ narrative: cached.replace(/\s*—\s*/g, " - ") });
   try {
-    /* Aggregates come from the rolling roster snapshot — pure KV
-     * reads, so generating a narrative never bursts the platform API. */
-    const { totalUsers, sample } = await dashboardRows(c.env, access.tag);
-    /* Scoped narratives must quote the scope's own population, never
-     * the whole-school total. */
+    /* Aggregates come from the rolling roster snapshot - pure KV
+     * reads, so generating a narrative never bursts the platform API.
+     * Everything scopes through the served rows (group overlay
+     * included), exactly like the dashboard and the inspector page. */
+    const { totalUsers, sample, rows } = await dashboardRows(c.env, access.tag);
     const stats = aggregate(access.tag ? sample.length : totalUsers, sample, new Date());
-    const riskAll = await getRiskReport(c.env);
-    const learners = riskAll.learners.filter((a) => inScope(a.tags, access.tag));
-    const summary = access.tag ? summarise(learners, new Date()) : riskAll.summary;
     const narrative = await generate(
       c.env.ANTHROPIC_API_KEY,
       c.env.COACH_MODEL || "claude-sonnet-4-6",
@@ -5125,9 +5122,13 @@ app.get("/portal/narrative", async (c) => {
         scope: access.tag ? `cohort: ${access.tag}` : "whole school",
         engagement: stats,
         earlyWarning: {
-          learnersMonitored: summary.learners,
-          activeLast7Days: summary.activeLast7Days,
-          flaggedForAttention: summary.tiers.high + summary.tiers.medium,
+          learnersMonitored: rows.length,
+          activeLast7Days: rows.filter(
+            (r) => r.engagement.daysSinceLogin !== null && r.engagement.daysSinceLogin <= 7,
+          ).length,
+          flaggedForAttention: rows.filter(
+            (r) => r.engagement.tier === "high" || r.engagement.tier === "medium",
+          ).length,
           monitoringNote:
             "Learners are monitored continuously; those going quiet are flagged for personal follow-up.",
         },
