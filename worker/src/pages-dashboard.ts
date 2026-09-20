@@ -45,7 +45,8 @@ export function renderDashboardPage(): string {
     "<main class='dmain' id='dmain-content' tabindex='-1'>" +
     "<header class='dhead'><div><h1 id='dh-title'>Home</h1>" +
     "<p id='dh-sub'>Outcomes, progress and attention — at a glance</p></div>" +
-    "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span></div></header>" +
+    "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span>" +
+    "<button type='button' class='dbtn ghost' id='dh-refresh' title='Pull the latest numbers from the platform'>↻ Refresh data</button></div></header>" +
 
     /* One cohort filter for the whole dashboard — pick a cohort once
      * and every view follows, so splitting by tag is a single tap. */
@@ -170,12 +171,20 @@ export function renderDashboardPage(): string {
 
     /* ---------- analytics ---------- */
     "<section class='dview' id='v-analytics' hidden>" +
+    "<div class='dsplit even'>" +
+    "<div class='dcard'><h2>Cohorts at a glance <span class='dmut' style='font-weight:500'>five measures, 0–100 — tap a cohort in the legend to focus it</span></h2>" +
+    "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div>" +
+    "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
+    "</div>" +
+    "<div class='dcard'><h2>When learners were last active <span class='dmut' style='font-weight:500'>recency of every learner's last visit</span></h2>" +
+    "<div id='ch-recency'></div></div>" +
     "<div class='dcard'><div class='cardhead'><h2>Learning — every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
     "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
-    "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
-    "<div class='dcard'><h2>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up — whole school</span></h2>" +
+    /* School-wide stall analysis is HQ's view of provision, not a
+     * provider's — it never shows on a scoped code. */
+    "<div class='dcard' id='stalls-card'><h2>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up</span></h2>" +
     "<div id='ch-stalls' aria-live='polite'><div class='dempty'>Loading module health…</div></div></div>" +
     "</section>" +
 
@@ -740,15 +749,92 @@ var lbl=s.dataset.rfl;if(s.id==='rf-flags-card'&&flags.length)lbl+=' ('+flags.le
 return "<button type='button' class='chip' aria-pressed='false'>"+esc2(lbl)+"</button>"}).join('');
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.onclick=function(){rfShow(i)}});
 rfShow(rfSecs.indexOf($('rf-flags-card')));}
+/* ---------- richer instruments: radar, donut, recency area ---------- */
+var RADAR_PALETTE=['#13507F','#D9452B','#1B7A4B','#ED9249','#7C5CBF'];
+var radarHidden={};
+function cohortMeasures(members){var n=members.length||1;
+var avgMins=members.reduce(function(s,r){return s+r.learning.minutes},0)/n;
+return {loggedIn:Math.round(members.filter(function(r){return r.engagement.daysSinceLogin!==null}).length*100/n),
+active:Math.round(members.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length*100/n),
+started:Math.round(members.filter(function(r){return r.learning.completed+r.learning.inProgress>0}).length*100/n),
+completed:Math.round(members.filter(function(r){return r.learning.completed>0}).length*100/n),
+avgMins:avgMins};}
+function renderRadar(){
+var AXES=[['Logged in','loggedIn'],['Active this week','active'],['Started learning','started'],['Completed a module','completed'],['Study time','study']];
+var tags=(DATA.tags||[]).filter(function(t){return t.tag!==DATA.scopedTag})
+/* Offering-style tags cover nearly everyone — they are the scope,
+ * not a cohort, so they never earn a polygon. */
+.filter(function(t){return t.count<DATA.learners.length*0.9}).slice(0,5);
+if(tags.length<2){$('ch-radar').innerHTML="<div class='dempty'>The spider view appears once two or more cohorts have learners.</div>";$('radar-legend').innerHTML='';return;}
+var series=tags.map(function(t,i){
+var members=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
+return {tag:t.tag,n:members.length,c:RADAR_PALETTE[i%RADAR_PALETTE.length],m:cohortMeasures(members)};});
+var maxMins=Math.max.apply(null,series.map(function(s){return s.m.avgMins}).concat([1]));
+series.forEach(function(s){s.m.study=Math.round(s.m.avgMins*100/maxMins)});
+var W=460,H=380,cx=W/2,cy=H/2+6,R=132;
+function pt(axis,val){var ang=-Math.PI/2+axis*2*Math.PI/AXES.length;
+var r=R*Math.max(0,Math.min(100,val))/100;
+return (cx+r*Math.cos(ang)).toFixed(1)+','+(cy+r*Math.sin(ang)).toFixed(1);}
+var s="<svg viewBox='0 0 "+W+" "+H+"' class='radar' role='img' aria-label='Cohort comparison across "+AXES.length+" measures'>";
+[20,40,60,80,100].forEach(function(ring){
+s+="<polygon points='"+AXES.map(function(_,i){return pt(i,ring)}).join(' ')+"' fill='none' stroke='#E3DDDA' stroke-width='1'/>";});
+AXES.forEach(function(ax,i){var edge=pt(i,100).split(',');
+s+="<line x1='"+cx+"' y1='"+cy+"' x2='"+edge[0]+"' y2='"+edge[1]+"' stroke='#E3DDDA' stroke-width='1'/>";
+var lab=pt(i,124).split(',');
+s+="<text x='"+lab[0]+"' y='"+lab[1]+"' text-anchor='middle' font-size='11' font-weight='600' fill='#6A7A88'>"+esc2(ax[0])+"</text>";});
+series.forEach(function(sr){if(radarHidden[sr.tag])return;
+var pts=AXES.map(function(ax,i){return pt(i,sr.m[ax[1]])}).join(' ');
+s+="<polygon points='"+pts+"' fill='"+sr.c+"22' stroke='"+sr.c+"' stroke-width='2.2' stroke-linejoin='round'/>";
+AXES.forEach(function(ax,i){var p=pt(i,sr.m[ax[1]]).split(',');
+s+="<circle cx='"+p[0]+"' cy='"+p[1]+"' r='3' fill='"+sr.c+"'/>";});});
+$('ch-radar').innerHTML=s+"</svg>";
+$('radar-legend').innerHTML=series.map(function(sr){
+return "<button type='button' class='chip"+(radarHidden[sr.tag]?'':' on')+"' data-radar='"+esc2(sr.tag)+"' aria-pressed='"+(radarHidden[sr.tag]?'false':'true')+"'>"+
+"<i class='dotc' style='background:"+sr.c+"'></i>"+esc2(sr.tag)+" <i>"+sr.n+"</i></button>";}).join('');
+document.querySelectorAll('[data-radar]').forEach(function(b){b.onclick=function(){
+radarHidden[b.dataset.radar]=!radarHidden[b.dataset.radar];renderRadar();};});}
+function donut(segments,total,centreLabel){
+var W=390,H=232,cx=110,cy=H/2,r=78,thick=30;
+var sum=segments.reduce(function(s,x){return s+x.v},0)||1;
+var a0=-Math.PI/2,s="<svg viewBox='0 0 "+W+" "+H+"' class='donut' role='img' aria-label='"+esc2(centreLabel)+": "+segments.map(function(x){return x.l+' '+x.v}).join(', ')+"'>";
+segments.forEach(function(seg){var frac=seg.v/sum;var a1=a0+frac*2*Math.PI-0.02;
+var large=frac>0.5?1:0;
+var x0=cx+r*Math.cos(a0),y0=cy+r*Math.sin(a0),x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1);
+s+="<path d='M "+x0.toFixed(1)+" "+y0.toFixed(1)+" A "+r+" "+r+" 0 "+large+" 1 "+x1.toFixed(1)+" "+y1.toFixed(1)+"' fill='none' stroke='"+seg.c+"' stroke-width='"+thick+"' stroke-linecap='butt'/>";
+a0=a1+0.02;});
+s+="<text x='"+cx+"' y='"+(cy-4)+"' text-anchor='middle' font-size='30' font-weight='800' fill='#05253C'>"+total+"</text>";
+s+="<text x='"+cx+"' y='"+(cy+16)+"' text-anchor='middle' font-size='11' fill='#6A7A88'>"+esc2(centreLabel)+"</text>";
+segments.forEach(function(seg,i){var y=28+i*24;
+s+="<rect x='228' y='"+(y-9)+"' width='11' height='11' rx='3' fill='"+seg.c+"'/>";
+s+="<text x='245' y='"+(y+1)+"' font-size='12' fill='#25394B'>"+esc2(seg.l)+" · "+seg.v+"</text>";});
+return s+"</svg>";}
+function recencyArea(rows){
+var BUCKETS=[['Today',function(d2){return d2===0}],['This week',function(d2){return d2!==null&&d2>=1&&d2<=7}],['2 weeks',function(d2){return d2!==null&&d2>7&&d2<=14}],['A month',function(d2){return d2!==null&&d2>14&&d2<=30}],['Older',function(d2){return d2!==null&&d2>30}],['Never',function(d2){return d2===null}]];
+var vals=BUCKETS.map(function(b){return rows.filter(function(r){return b[1](r.engagement.daysSinceLogin)}).length});
+var W=680,H=190,base=150,left=20,step=(W-2*left)/(BUCKETS.length-1),max=Math.max.apply(null,vals.concat([1]));
+function py(v){return (base-v*(base-28)/max).toFixed(1)}
+var pts=vals.map(function(v,i){return (left+i*step).toFixed(1)+','+py(v)});
+var s="<svg viewBox='0 0 "+W+" "+H+"' class='areachart' role='img' aria-label='Learners by last visit: "+BUCKETS.map(function(b,i){return b[0]+' '+vals[i]}).join(', ')+"'>";
+s+="<defs><linearGradient id='ag' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#13507F' stop-opacity='0.35'/><stop offset='1' stop-color='#13507F' stop-opacity='0.03'/></linearGradient></defs>";
+s+="<line x1='"+left+"' y1='"+base+"' x2='"+(W-left)+"' y2='"+base+"' stroke='#E3DDDA' stroke-width='2'/>";
+s+="<polygon points='"+left+","+base+" "+pts.join(' ')+" "+(W-left)+","+base+"' fill='url(#ag)'/>";
+s+="<polyline points='"+pts.join(' ')+"' fill='none' stroke='#13507F' stroke-width='2.5' stroke-linejoin='round'/>";
+vals.forEach(function(v,i){var x=left+i*step;
+s+="<circle cx='"+x+"' cy='"+py(v)+"' r='4' fill='#13507F'/>";
+s+="<text x='"+x+"' y='"+(py(v)-10)+"' text-anchor='middle' font-size='12' font-weight='700' fill='#25394B'>"+v+"</text>";
+s+="<text x='"+x+"' y='"+(base+18)+"' text-anchor='middle' font-size='10.5' fill='#6A7A88'>"+esc2(BUCKETS[i][0])+"</text>";});
+return s+"</svg>";}
 function renderAnalytics(){
 var rows=scoped(false);
+renderRadar();
 var TIER_ORDER=[['ok','Engaged','#1A7649'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#9A5812'],['high','Needs contact','#B93A22']];
 var tiers=TIER_ORDER.map(function(t){
 return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).length,c:t[2]};})
 .filter(function(x){return x.v>0});
 var untiered=rows.filter(function(r){return !r.engagement.tier}).length;
 if(untiered)tiers.push({l:'Not assessed',v:untiered,c:'#7C7573'});
-$('ch-tiers').innerHTML=tiers.length?hbar(tiers,rows.length||1):"<div class='dempty'>No learners in this filter.</div>";
+$('ch-tiers').innerHTML=tiers.length?donut(tiers,rows.length,'learners'):"<div class='dempty'>No learners in this filter.</div>";
+$('ch-recency').innerHTML=rows.length?recencyArea(rows):"<div class='dempty'>No learners in this filter.</div>";
 /* Learning charts come from the server rollup over the whole scope —
  * flag that honestly when a cohort chip narrows the other charts. */
 $('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
@@ -760,6 +846,8 @@ var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
 $('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
 return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
 :"<div class='dempty'>No curriculum data yet.</div>";
+/* Whole-school stall analysis stays HQ-only. */
+$('stalls-card').hidden=!!DATA.scopedTag;
 }
 /* ---------- career tools: every readiness score, one pressable place ---------- */
 function renderCareer(){
@@ -832,7 +920,9 @@ return "<div class='feedrow'><span>"+ico+"</span><div><b>"+esc2(f.name||f.email)
 "<div class='dmut'>"+new Date(f.at*1000).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+"</div></div></div>";}).join('');})
 .catch(function(){});}
 var stallsLoaded=false;
-function loadStalls(){if(stallsLoaded)return;stallsLoaded=true;
+function loadStalls(){
+/* School-wide stall data never loads for a scoped provider. */
+if(stallsLoaded||(DATA&&DATA.scopedTag))return;stallsLoaded=true;
 fetch('/portal/module-health').then(function(r){return r.json()}).then(function(d){
 var el=$('ch-stalls');if(!el)return;
 var reps=(d&&d.reports)||[];
@@ -865,6 +955,17 @@ $('ev-link-copy').onclick=function(){var inp=$('ev-link-url');inp.select();
 try{navigator.clipboard.writeText(inp.value);}catch(e){document.execCommand('copy');}
 $('ev-link-copied').hidden=false;setTimeout(function(){$('ev-link-copied').hidden=true},1600);};
 /* ---------- boot ---------- */
+function applyData(d){
+d.attention=d.attention||[];DATA=d;
+$('dscope').textContent=d.scopedTag?('Scope: '+d.scopedTag):'Whole school';
+$('dsample').textContent=(d.scopedTag?
+'your '+d.sampleSize+' learners covered':
+(d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?'all '+d.totalUsers+' accounts covered':
+d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled')+
+', refreshed automatically twice a day — the Refresh button pulls the latest';
+$('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
+$('g-bar').hidden=!GBAR_VIEWS[view];renderGlobalChips();
+refresh();if(view!=='home')renderHome();}
 fetch('/dashboard/data').then(function(r){
 if(r.status===401){document.querySelectorAll('.dview').forEach(function(s){s.hidden=true});
 $('v-login').hidden=false;$('dh-title').textContent='Sign in';$('dh-sub').textContent='Provider access';
@@ -873,17 +974,26 @@ return null;}
 return r.json();}).then(function(d){
 if(!d)return;
 if(d.error){$('dh-sub').textContent='Could not load data — '+d.error;return;}
-/* attention list comes precomputed; keep a fallback */
-d.attention=d.attention||[];DATA=d;
-$('dscope').textContent=d.scopedTag?('Scope: '+d.scopedTag):'Whole school';
-$('dsample').textContent=(d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?
-'all '+d.totalUsers+' accounts covered, refreshed automatically on a rolling cycle through the day':
-d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled';
-$('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
-renderHome();
-$('g-bar').hidden=false;renderGlobalChips();
+applyData(d);
 loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
 .catch(function(){$('dh-sub').textContent='Could not reach the dashboard service — refresh to retry.';});
+/* ---------- the provider's own Refresh button ---------- */
+var refreshTimers=[];
+function refetchFresh(final){fetch('/dashboard/data?fresh=1').then(function(r){return r.json()}).then(function(d){
+if(d&&!d.error)applyData(d);
+if(final){var b=$('dh-refresh');b.disabled=false;b.textContent='↻ Refresh data';}})
+.catch(function(){if(final){var b=$('dh-refresh');b.disabled=false;b.textContent='↻ Refresh data';}});}
+$('dh-refresh').addEventListener('click',function(){
+var b=$('dh-refresh');if(b.disabled)return;
+b.disabled=true;b.textContent='Refreshing…';
+fetch('/dashboard/refresh',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
+if(d&&d.cooling){b.textContent='Fresh numbers already on their way…';}
+refreshTimers.forEach(clearTimeout);
+/* Numbers land over a couple of minutes as the cycle walks the
+ * learners — pull twice so the page catches up without a reload. */
+refreshTimers=[setTimeout(function(){refetchFresh(false)},45000),
+setTimeout(function(){refetchFresh(true)},150000)];})
+.catch(function(){b.disabled=false;b.textContent='↻ Refresh data';});});
 })();`;
 
 const DASH_CSS = `
@@ -1093,6 +1203,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dlogin input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-family:inherit;
   font-size:14px;margin-bottom:12px;}
 .dnote{font-size:11.5px;color:var(--mut);margin-top:6px;line-height:1.5;}
+.radar,.donut,.areachart{width:100%;height:auto;display:block;}
+.dotc{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+.chips .chip .dotc{margin-right:6px;}
 .co-h{margin:16px 0 8px;font-size:13px;font-weight:700;color:var(--mut);letter-spacing:.02em;text-transform:uppercase;}
 .vs-row{display:grid;grid-template-columns:150px 1fr 128px;gap:6px 12px;align-items:center;margin-bottom:12px;}
 .vs-l{font-size:13.5px;font-weight:600;color:var(--ink);grid-row:span 2;}

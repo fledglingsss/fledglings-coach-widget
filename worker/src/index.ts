@@ -3789,13 +3789,46 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
   return { totalUsers, rows, sample };
 }
 
+/* Provider-pressed refresh: kicks off the same chained roster cycle
+ * the cron runs, plus a reflections step, and clears this scope's
+ * dashboard cache. One press per scope per ten minutes — the lock
+ * also lets ?fresh=1 reads bypass the cache while numbers land. */
+app.post("/dashboard/refresh", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
+  const lockKey = `refresh:lock:${scopeKey}`;
+  if (await c.env.RATE_LIMITS.get(lockKey)) {
+    return c.json({ ok: true, cooling: true });
+  }
+  await c.env.RATE_LIMITS.put(lockKey, "1", { expirationTtl: 600 });
+  await c.env.RATE_LIMITS.delete(`dash:v13:${scopeKey}`);
+  const work = (async () => {
+    await dispatchJob(c.env, "roster_cycle");
+    await dispatchJob(c.env, "reflect");
+  })().catch((err) => console.error("[coach] refresh dispatch failed:", String(err)));
+  try {
+    c.executionCtx.waitUntil(work);
+  } catch {
+    work.catch(() => {});
+  }
+  console.log(`[coach] kind=refresh scope=${scopeKey}`);
+  return c.json({ ok: true, cooling: false });
+});
+
 app.get("/dashboard/data", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
   const cacheKey = `dash:v13:${scopeKey}`;
-  const cached = await c.env.RATE_LIMITS.get(cacheKey);
+  /* During a refresh window (lock held) the page may ask for a fresh
+   * recompute; outside one, ?fresh=1 is ignored so the cache still
+   * shields the platform from ordinary reloads. */
+  const wantFresh =
+    c.req.query("fresh") === "1" &&
+    Boolean(await c.env.RATE_LIMITS.get(`refresh:lock:${scopeKey}`));
+  const cached = wantFresh ? null : await c.env.RATE_LIMITS.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
   try {
     const { totalUsers, rows, sample } = await dashboardRows(c.env, access.tag);
@@ -4790,10 +4823,9 @@ app.post("/ops/action", async (c) => {
       return c.json({ ok: true });
     }
     if (op === "roster_tick") {
-      /* Founder-triggered refresh for testing: the same jobs the
-       * hourly cron dispatches, each in its own invocation. Still
-       * never visit-triggered — this is an explicit founder action. */
-      const roster = await dispatchJob(c.env, "roster");
+      /* Founder-triggered full refresh: the same chained cycle the
+       * twice-daily cron dispatches, plus one reflections step. */
+      const roster = await dispatchJob(c.env, "roster_cycle");
       const reflect = await dispatchJob(c.env, "reflect");
       console.log("[coach] kind=ops op=roster_tick");
       return c.json({ ok: true, roster, reflect });
@@ -5179,7 +5211,23 @@ async function fetchGroupOverlay(env: Env): Promise<Map<string, string[]>> {
   return overlay;
 }
 
-async function rosterTick(env: Env): Promise<void> {
+/** The overlay rebuilt from the stored membership — no API calls. */
+async function storedGroupOverlay(env: Env): Promise<Map<string, string[]>> {
+  const overlay = new Map<string, string[]>();
+  const stored = JSON.parse(
+    (await env.RATE_LIMITS.get(GROUPS_KV_KEY)) || "[]",
+  ) as Array<{ title: string; members: string[] }>;
+  for (const g of stored) {
+    for (const email of g.members) {
+      const titlesFor = overlay.get(email) ?? [];
+      if (!titlesFor.includes(g.title)) titlesFor.push(g.title);
+      overlay.set(email, titlesFor);
+    }
+  }
+  return overlay;
+}
+
+async function rosterTick(env: Env, withGroups = true): Promise<void> {
   const staff = await getStaffTags(env);
   const excluded = await getExcludedEmails(env);
   const users = (await listAllUsers(env, 5))
@@ -5187,9 +5235,12 @@ async function rosterTick(env: Env): Promise<void> {
     .filter((u) => !isStaffTagged(u.tags, staff))
     .filter((u) => !isExcludedEmail(u.email, excluded));
   /* Group overlay is additive and best-effort: a groups hiccup must
-   * never sink the roster cycle. */
+   * never sink the roster cycle. Chained slices skip the refetch and
+   * reuse the stored membership from the cycle's first link. */
   try {
-    const overlay = await fetchGroupOverlay(env);
+    const overlay = withGroups
+      ? await fetchGroupOverlay(env)
+      : await storedGroupOverlay(env);
     const patch = JSON.parse(
       (await env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
     ) as Record<string, string[]>;
@@ -5241,7 +5292,11 @@ async function rosterTick(env: Env): Promise<void> {
 
 const INTERNAL_JOB_PAYLOAD = "internal-job:v1";
 
-async function dispatchJob(env: Env, job: string): Promise<boolean> {
+async function dispatchJob(
+  env: Env,
+  job: string,
+  extra: Record<string, unknown> = {},
+): Promise<boolean> {
   const sig = await signPayload(env.LEARNWORLDS_CLIENT_SECRET || "", INTERNAL_JOB_PAYLOAD);
   try {
     /* The SELF binding is the only way a worker reaches itself — the
@@ -5251,7 +5306,7 @@ async function dispatchJob(env: Env, job: string): Promise<boolean> {
     const res = await target.fetch("https://self.internal/internal/job", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Job-Sig": sig },
-      body: JSON.stringify({ job }),
+      body: JSON.stringify({ job, ...extra }),
     });
     console.log(`[coach] kind=dispatch job=${job} status=${res.status}`);
     return res.ok;
@@ -5267,11 +5322,30 @@ app.post("/internal/job", async (c) => {
     Boolean(c.env.LEARNWORLDS_CLIENT_SECRET) &&
     (await verifyPayload(c.env.LEARNWORLDS_CLIENT_SECRET!, INTERNAL_JOB_PAYLOAD, sig));
   if (!authorised) return c.json({ error: "unauthorised" }, 401);
-  const body = (await c.req.json().catch(() => ({}))) as { job?: string };
+  const body = (await c.req.json().catch(() => ({}))) as { job?: string; depth?: number };
   const job = typeof body.job === "string" ? body.job : "";
   try {
     if (job === "roster") await rosterTick(c.env);
-    else if (job === "reflect") await advanceReflections(c.env);
+    else if (job === "roster_cycle") {
+      /* One slice per invocation, chained until every learner's
+       * course data is fresh — a full refresh at any roster size
+       * without one invocation ever carrying the whole load. */
+      const depth = typeof body.depth === "number" ? body.depth : 0;
+      await rosterTick(c.env, depth === 0);
+      const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
+      const staleLeft = (roster?.entries ?? []).filter(
+        (e) => Date.now() - e.fetchedAt > 30 * 60_000,
+      ).length;
+      if (staleLeft > 0 && depth < 11) {
+        const next = dispatchJob(c.env, "roster_cycle", { depth: depth + 1 });
+        try {
+          c.executionCtx.waitUntil(next);
+        } catch {
+          next.catch(() => {});
+        }
+      }
+      console.log(`[coach] kind=roster-cycle depth=${depth} staleLeft=${staleLeft}`);
+    } else if (job === "reflect") await advanceReflections(c.env);
     else if (job === "risk") await getRiskReport(c.env, true);
     else return c.json({ error: "unknown_job" }, 400);
     return c.json({ ok: true, job });
@@ -5307,15 +5381,17 @@ async function scheduled(
   /* The hourly tick only rolls the roster; the heavyweight jobs stay
    * nightly. Each job carries its own catch so one failing cannot
    * take the others down with it. */
-  if (event.cron === "0 * * * *") {
-    /* Roster first (fresh tags and group overlay), then one budgeted
-     * reflections step — each in its own invocation. */
+  if (event.cron === "0 */12 * * *") {
+    /* Twice a day: a FULL roster cycle (the job chains itself, one
+     * slice per invocation, until every learner's course data is
+     * fresh), then one budgeted reflections step. Anything sooner is
+     * the provider's own Refresh button. */
     ctx.waitUntil(
       (async () => {
-        await dispatchJob(env, "roster");
+        await dispatchJob(env, "roster_cycle");
         await dispatchJob(env, "reflect");
       })().catch((err) =>
-        console.error("[coach] hourly dispatch failed:", String(err)),
+        console.error("[coach] twice-daily dispatch failed:", String(err)),
       ),
     );
     return;

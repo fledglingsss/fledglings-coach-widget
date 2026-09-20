@@ -15,7 +15,9 @@ compatibility_flags = ["nodejs_compat"]
 # reason to sit anywhere near the provider's rate limit for data that
 # changes a few times a day.
 [triggers]
-crons = ["10 3 * * *", "0 * * * *"]
+# Nightly heavy jobs at 03:10; the data roster refreshes twice a day
+# (providers press Refresh on the dashboard for anything sooner).
+crons = ["10 3 * * *", "0 */12 * * *"]
 
 # Self service binding: lets the cron fan each heavyweight data pull
 # out into its own invocation (a worker cannot fetch its own public

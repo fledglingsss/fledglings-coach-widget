@@ -1183,3 +1183,32 @@ describe("GET /portal/reflections — scoped confidence shifts", () => {
     expect(sweepCourseEntries().length).toBe(COURSES_N);
   });
 });
+
+describe("POST /dashboard/refresh — the provider's own refresh button", () => {
+  it("rejects without a session", async () => {
+    const res = await app.request(
+      new Request("http://coach.test/dashboard/refresh", { method: "POST" }),
+      undefined, makeEnv(),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts once, then cools down for the same scope", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const call = async () =>
+      app.request(
+        new Request("http://coach.test/dashboard/refresh", {
+          method: "POST",
+          headers: { Cookie: await cookieFor("swift-code-1") },
+        }),
+        undefined, env,
+      );
+    const first = (await (await call()).json()) as { ok: boolean; cooling: boolean };
+    expect(first).toMatchObject({ ok: true, cooling: false });
+    const second = (await (await call()).json()) as { ok: boolean; cooling: boolean };
+    expect(second).toMatchObject({ ok: true, cooling: true });
+    /* The scope's dashboard cache is gone, so the next read recomputes. */
+    expect(env.RATE_LIMITS.store.has("dash:v13:swift-learners")).toBe(false);
+  });
+});
