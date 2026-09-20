@@ -1,8 +1,8 @@
-/* /dashboard — the provider backend dashboard (seat-manager view).
+/* /dashboard - the provider backend dashboard (seat-manager view).
  * Mockup-faithful admin shell: Workbench sidebar, KPI cards, students
  * table with cohort filters, cohort cards, analytics charts, CSV
  * export. Everything renders from /dashboard/data (tag-scoped by the
- * provider's portal code) — scores, attempts and timestamps only;
+ * provider's portal code) - scores, attempts and timestamps only;
  * learner documents and recordings never exist server-side. Visual
  * first: numbers count up, bars fill, prose stays minimal. */
 
@@ -44,19 +44,19 @@ export function renderDashboardPage(): string {
 
     "<main class='dmain' id='dmain-content' tabindex='-1'>" +
     "<header class='dhead'><div><h1 id='dh-title'>Home</h1>" +
-    "<p id='dh-sub'>Outcomes, progress and attention — at a glance</p></div>" +
+    "<p id='dh-sub'>Outcomes, progress and attention - at a glance</p></div>" +
     "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span>" +
     "<button type='button' class='dbtn ghost' id='dh-refresh' title='Pull the latest numbers from the platform'>↻ Refresh data</button></div></header>" +
 
-    /* One cohort filter for the whole dashboard — pick a cohort once
+    /* One cohort filter for the whole dashboard - pick a cohort once
      * and every view follows, so splitting by tag is a single tap. */
     "<div class='dbar gbar' id='g-bar' hidden><span class='dbarlabel'>Cohort</span>" +
     "<div class='chips' id='g-chips'></div></div>" +
 
     /* ---------- login (shown on 401) ---------- */
     "<section class='dview' id='v-login' hidden><div class='dcard dlogin'>" +
-    "<h2>Provider access</h2><p>Enter your Fledglings access code — your code decides which learners you see.</p>" +
-    "<p class='derr' id='login-err' hidden>That code didn&#39;t work — check it and try again.</p>" +
+    "<h2>Provider access</h2><p>Enter your Fledglings access code - your code decides which learners you see.</p>" +
+    "<p class='derr' id='login-err' hidden>That code didn&#39;t work - check it and try again.</p>" +
     "<form method='POST' action='/portal/login'><input type='hidden' name='next' value='/dashboard'>" +
     "<input type='password' name='code' placeholder='Access code' autocomplete='off' required>" +
     "<button type='submit' class='dbtn'>Open dashboard</button></form></div></section>" +
@@ -69,7 +69,7 @@ export function renderDashboardPage(): string {
     kpi("k-active", "⚡", "Active this week", "logged in within 7 days") +
     kpi("k-reflect", "💬", "Reflection answers", "in their own words") +
     "</div>" +
-    "<div class='dcard'><h2>Learner pipeline <span class='dmut' style='font-weight:500'>from enrolment to job-ready — learning and career progress in one picture</span></h2>" +
+    "<div class='dcard'><h2>Learner pipeline <span class='dmut' style='font-weight:500'>from enrolment to job-ready - learning and career progress in one picture</span></h2>" +
     "<div id='funnel'></div></div>" +
     "<div class='dsplit'>" +
     "<div><div class='dcard'><h2>Live activity <span class='livedot' aria-hidden='true'></span></h2>" +
@@ -84,7 +84,7 @@ export function renderDashboardPage(): string {
     "<div class='dtablewrap'><table class='dtable' id='att-table' aria-label='Students needing attention'>" +
     "<thead><tr><th scope='col'>Student</th><th scope='col'>Issue</th><th scope='col'>Modules</th><th scope='col'>Last active</th><th scope='col'></th></tr></thead>" +
     "<tbody id='att-body'></tbody></table>" +
-    "<div class='dempty' id='att-empty' hidden>🎉 No one flagged — everyone looks engaged.</div></div></div>" +
+    "<div class='dempty' id='att-empty' hidden>🎉 No one flagged - everyone looks engaged.</div></div></div>" +
     "</div></section>" +
 
     /* ---------- students ---------- */
@@ -112,12 +112,12 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-cohorts' hidden>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/cohorts.csv'>⬇ Cohort rollup CSV</a></div>" +
     "<div class='dcard' id='co-compare' hidden><h2>Cohorts compared " +
-    "<span class='dmut' style='font-weight:500'>averages per learner — tap a bar to open that cohort's students</span></h2>" +
+    "<span class='dmut' style='font-weight:500'>averages per learner - tap a bar to open that cohort's students</span></h2>" +
     "<h3 class='co-h'>Average modules completed</h3><div id='cmp-mods'></div>" +
     "<h3 class='co-h'>Average time on the platform</h3><div id='cmp-time'></div>" +
     "<h3 class='co-h'>Active this week</h3><div id='cmp-active'></div></div>" +
     "<div class='cogrid' id='co-grid'></div>" +
-    "<div class='dempty' id='co-empty' hidden>No cohort tags found on these learners yet — add a cohort tag to learners and they appear here.</div></section>" +
+    "<div class='dempty' id='co-empty' hidden>No cohort tags found on these learners yet - add a cohort tag to learners and they appear here.</div></section>" +
 
     /* ---------- reflections ---------- */
     "<section class='dview' id='v-reflections' hidden>" +
@@ -125,7 +125,7 @@ export function renderDashboardPage(): string {
     /* plan-gated state */
     "<div class='dcard rf-gate' id='rf-gate' hidden><h2 id='rf-gate-title'>Reflection insights are on their way</h2>" +
     "<p class='rf-p' id='rf-gate-body'>Learners already answer a written self-reflection before and after every module. " +
-    "Reading those answers into this dashboard is being switched on — check back soon.</p>" +
+    "Reading those answers into this dashboard is being switched on - check back soon.</p>" +
     /* Whole-school codes see the actionable supplier ask; scoped
      * provider codes never see vendor plumbing. */
     "<div id='rf-gate-hq' hidden>" +
@@ -145,24 +145,24 @@ export function renderDashboardPage(): string {
     "</div>" +
     "<p class='dmut' id='rf-cohort-note' hidden style='margin:-4px 0 12px'></p>" +
     "<div class='chips' id='rf-deck-chips' style='margin-bottom:14px'></div>" +
-    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing — worrying answers first <span class='dtag' id='rf-flags-count'></span></h2>" +
-    "<p class='rf-p'>Every answer is scanned against the same crisis patterns that guard the coach. Anything that matches appears here, first — read it yourself: this is a prompt to check in, not a verdict.</p>" +
+    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing - worrying answers first <span class='dtag' id='rf-flags-count'></span></h2>" +
+    "<p class='rf-p'>Every answer is scanned against the same crisis patterns that guard the coach. Anything that matches appears here, first - read it yourself: this is a prompt to check in, not a verdict.</p>" +
     "<div id='rf-flags'></div>" +
-    "<div class='dempty' id='rf-flags-empty' hidden>✅ Nothing worrying right now — every answer on record has been scanned, and the scan re-runs on every sweep. Anything that matches will appear here before everything else.</div></div>" +
+    "<div class='dempty' id='rf-flags-empty' hidden>✅ Nothing worrying right now - every answer on record has been scanned, and the scan re-runs on every sweep. Anything that matches will appear here before everything else.</div></div>" +
     "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h2>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h2>" +
     "<div id='rf-shifts'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
-    "<h2>How learners describe the modules <span class='dmut' style='font-weight:500'>their own words, counted — spellings of one word grouped together</span></h2>" +
+    "<h2>How learners describe the modules <span class='dmut' style='font-weight:500'>their own words, counted - spellings of one word grouped together</span></h2>" +
     "<div id='rf-words'></div>" +
     "<h2 style='margin-top:22px'>How the learning felt <span class='dmut' style='font-weight:500'>average of learners' own ratings</span></h2>" +
     "<div id='rf-experience'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='💡 What they asked for' id='rf-asks-card' hidden>" +
     "<h2>What learners asked for <span class='dtag' id='rf-asks-count'></span></h2>" +
-    "<p class='rf-p'>Answers to “what would you add or change”, in the learner's own words and not attributed to them — this is what the modules are missing, straight from the people taking them.</p>" +
+    "<p class='rf-p'>Answers to “what would you add or change”, in the learner's own words and not attributed to them - this is what the modules are missing, straight from the people taking them.</p>" +
     "<div id='rf-asks'></div>" +
     "<p class='dmut' id='rf-asks-more' hidden></p>" +
     "<div class='dbar'><a class='dbtn ghost' href='/dashboard/reflections.csv'>⬇ Download every reflection (CSV)</a></div></div>" +
-    "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h2>Latest answers — a sample <span class='dmut' style='font-weight:500' id='rf-recent-note'></span></h2>" +
+    "<div class='dcard rf-sec' data-rfl='💬 Latest answers' id='rf-answers-card' hidden><h2>Latest answers - a sample <span class='dmut' style='font-weight:500' id='rf-recent-note'></span></h2>" +
     "<div class='dbar'><a class='dbtn' href='/dashboard/reflections.csv'>⬇ Download every answer (Excel)</a></div>" +
     "<div class='dtablewrap'><table class='dtable' aria-label='Latest reflection answers'><thead><tr><th scope='col'>Student</th><th scope='col'>Module</th><th scope='col'>When</th><th scope='col'>Question</th><th scope='col'>Answer</th></tr></thead>" +
     "<tbody id='rf-recent'></tbody></table>" +
@@ -170,7 +170,7 @@ export function renderDashboardPage(): string {
     "</div></section>" +
 
     /* ---------- analytics ---------- */
-    /* Analytics is a chip deck — one story at a time, each with a
+    /* Analytics is a chip deck - one story at a time, each with a
      * plain-English reading, never one long wall of charts. */
     "<section class='dview' id='v-analytics' hidden>" +
     "<div class='chips' id='a-secs' style='margin-bottom:14px'></div>" +
@@ -178,15 +178,15 @@ export function renderDashboardPage(): string {
     "<div class='a-sec' data-al='📊 Cohorts compared'>" +
     "<p class='interp' id='ai-cohorts'></p>" +
     "<div class='dsplit even'>" +
-    "<div class='dcard'><h2>The shape of each cohort <span class='dmut' style='font-weight:500'>five measures, 0–100 — tap the legend to focus</span></h2>" +
+    "<div class='dcard'><h2>The shape of each cohort <span class='dmut' style='font-weight:500'>five measures, 0–100 - tap the legend to focus</span></h2>" +
     "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div>" +
     /* Right column: the numbers on top, the bubble map filling the
      * space beneath them so the section reads as one solid block. */
     "<div>" +
     "<div class='dcard'><h2>The numbers behind it <span class='dmut' style='font-weight:500'>darker = stronger, per cohort</span></h2>" +
     "<div id='ch-heat'></div></div>" +
-    "<div class='dcard'><h2>Where each cohort sits <span class='dmut' style='font-weight:500'>activity across, progress up — a bigger bubble is a bigger cohort</span></h2>" +
-    "<div id='ch-bubble'></div></div>" +
+    "<div class='dcard'><h2>Study time per learner <span class='dmut' style='font-weight:500'>average minutes each cohort has put in</span></h2>" +
+    "<div id='ch-cohtime'></div></div>" +
     "</div>" +
     "</div></div>" +
 
@@ -196,7 +196,7 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
     "<div class='dcard'><h2>When learners were last active</h2><div id='ch-recency'></div></div>" +
     "</div>" +
-    "<div class='dcard'><h2>Effort against outcome <span class='dmut' style='font-weight:500'>every learner — time put in across, modules finished up; the interesting ones sit off the crowd</span></h2>" +
+    "<div class='dcard'><h2>Effort against outcome <span class='dmut' style='font-weight:500'>every learner - time put in across, modules finished up; the interesting ones sit off the crowd</span></h2>" +
     "<div id='ch-scatter'></div></div></div>" +
 
     "<div class='a-sec' data-al='📚 Learning' hidden>" +
@@ -210,7 +210,7 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
     "</div>" +
     /* School-wide stall analysis is HQ's view of provision, not a
-     * provider's — it never shows on a scoped code. */
+     * provider's - it never shows on a scoped code. */
     "<div class='dcard' id='stalls-card'><h2>Where learners stall <span class='dmut' style='font-weight:500'>the unit in each module where most give up</span></h2>" +
     "<div id='ch-stalls' aria-live='polite'><div class='dempty'>Loading module health…</div></div></div>" +
     "</div>" +
@@ -223,10 +223,10 @@ export function renderDashboardPage(): string {
      * COMING-SOON: one inviting card, no empty charts and zero KPIs. */
     "<div class='dcard csoon' id='c-soon' hidden>" +
     "<div class='csoon-ico'>💼</div>" +
-    "<h2>Career tools — coming soon for your learners</h2>" +
+    "<h2>Career tools - coming soon for your learners</h2>" +
     "<p>Alongside their modules, every learner gets Fledge&#39;s career studio: honest CV reviews, a CV builder, " +
     "LinkedIn feedback, filmed interview practice and cover-letter drafting. None of your learners have tried them yet " +
-    "— the moment one does, this section fills with adoption, score distributions and a per-student picture.</p>" +
+    " - the moment one does, this section fills with adoption, score distributions and a per-student picture.</p>" +
     "<p class='dmut'>Learners reach the tools any time from <b>fledglings.co</b>.</p>" +
     "</div>" +
     "<div id='c-full'>" +
@@ -240,7 +240,7 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h2>Tool adoption</h2><div id='ch-adopt'></div></div>" +
     "<div class='dcard'><h2>CV score distribution</h2><div id='ch-dist'></div></div>" +
     "</div>" +
-    "<div class='dcard'><h2>Activity — last 12 weeks <span class='dtag' id='ca-note' hidden>all cohorts</span></h2><div id='ch-activity'></div></div>" +
+    "<div class='dcard'><h2>Activity - last 12 weeks <span class='dtag' id='ca-note' hidden>all cohorts</span></h2><div id='ch-activity'></div></div>" +
     "<div class='dcard'><h2>Average job-ready score by cohort</h2><div id='ch-cohorts'></div></div>" +
     "<div class='dcard'><div class='cardhead'><h2>Scores by student</h2></div>" +
     "<div class='dtablewrap'><table class='dtable' aria-label='Career-tool scores by student'>" +
@@ -253,14 +253,14 @@ export function renderDashboardPage(): string {
     /* ---------- evidence (SAR narrative + inspector link) ---------- */
     "<section class='dview' id='v-evidence' hidden>" +
     "<div class='dcard'><h2>Evidence narrative</h2>" +
-    "<p class='dmut'>Three short paragraphs drafted from your live aggregate figures — ready to paste into a self-assessment " +
+    "<p class='dmut'>Three short paragraphs drafted from your live aggregate figures - ready to paste into a self-assessment " +
     "report or personal development evidence. Honest about what the data can and cannot claim; no learner is ever named.</p>" +
-    "<div class='evnarr' id='ev-narr' aria-live='polite'><div class='dempty' id='ev-narr-wait'>Drafting from your live figures — this takes a few seconds…</div></div>" +
+    "<div class='evnarr' id='ev-narr' aria-live='polite'><div class='dempty' id='ev-narr-wait'>Drafting from your live figures - this takes a few seconds…</div></div>" +
     "<div class='dbar' style='margin-top:12px'>" +
     "<button type='button' class='dbtn ghost' id='ev-copy' hidden>📋 Copy narrative</button>" +
     "<span class='dtag' id='ev-copied' hidden>Copied ✓</span></div></div>" +
     "<div class='dcard'><h2>Inspector link</h2>" +
-    "<p class='dmut'>A read-only evidence snapshot you can hand to an inspector or governor — aggregate figures and the narrative " +
+    "<p class='dmut'>A read-only evidence snapshot you can hand to an inspector or governor - aggregate figures and the narrative " +
     "only, no learner names or emails anywhere on it. Each link works for 7 days; create a fresh one any time.</p>" +
     "<div class='dbar'><button type='button' class='dbtn' id='ev-link-make'>🔗 Create inspector link (7 days)</button></div>" +
     "<div id='ev-link-out' hidden style='margin-top:10px'>" +
@@ -271,7 +271,7 @@ export function renderDashboardPage(): string {
     "<span class='dtag' id='ev-link-copied' hidden>Copied ✓</span></div></div></div>" +
     "</section>" +
 
-    "<p class='dnote'>Scores, attempts and timestamps only — learner documents, letters and recordings are never stored. " +
+    "<p class='dnote'>Scores, attempts and timestamps only - learner documents, letters and recordings are never stored. " +
     "Self-reflections are read straight from learners&#39; own course records. Coverage: <span id='dsample'></span>.</p>" +
     "</main>" +
     "<script>" + DASH_JS + "</script>";
@@ -279,7 +279,7 @@ export function renderDashboardPage(): string {
   return (
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
-    "<meta name='robots' content='noindex'><title>Fledglings — Provider Dashboard</title>" +
+    "<meta name='robots' content='noindex'><title>Fledglings - Provider Dashboard</title>" +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
     "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'>" +
     `<style>${DASH_CSS}</style></head><body>` +
@@ -310,17 +310,17 @@ el.textContent=Math.round(to*p)+suffix;if(p<1)requestAnimationFrame(tick);})(sta
 function band(s){return s>=70?'#1A7649':s>=50?'#9A5812':'#B93A22'}
 var DATA=null,view='home',cohortFilter=null,search='';
 /* ---------- navigation ---------- */
-var TITLES={home:['Home','Outcomes, progress and attention — at a glance'],
+var TITLES={home:['Home','Outcomes, progress and attention - at a glance'],
 students:['Students','Every learner in your scope with their employability record'],
 cohorts:['Cohorts','Groups by cohort tag'],
-reflections:['Self-Reflections','What learners say before and after each module — in their own words'],
-analytics:['Analytics','Learning, engagement and where to help — visual first'],
-career:['Career tools','CV, LinkedIn, interview and cover-letter progress — all in one place'],
+reflections:['Self-Reflections','What learners say before and after each module - in their own words'],
+analytics:['Analytics','Learning, engagement and where to help - visual first'],
+career:['Career tools','CV, LinkedIn, interview and cover-letter progress - all in one place'],
 evidence:['Evidence','Inspection-ready narrative and a shareable read-only snapshot'],
-profile:['Learner profile','Their full record — modules, time, reflections, career tools']};
+profile:['Learner profile','Their full record - modules, time, reflections, career tools']};
 var userActed=false;
 ['pointerdown','keydown'].forEach(function(t){addEventListener(t,function(){userActed=true},true)});
-/* The cohort bar follows the tutor across every data view — one pick,
+/* The cohort bar follows the tutor across every data view - one pick,
  * whole dashboard. It hides where a cohort split has no meaning. */
 var GBAR_VIEWS={home:1,students:1,reflections:1,analytics:1,career:1};
 function renderGlobalChips(){if(!DATA)return;chips($('g-chips'),refresh);}
@@ -349,7 +349,7 @@ if(v==='career')renderCareer();
 if(v==='evidence')loadEvidence();
 /* After the current tick, so a profile view has overwritten the
  * heading with the learner's name before it is announced. Not on the
- * first render — nobody has asked to go anywhere yet. */
+ * first render - nobody has asked to go anywhere yet. */
 if(userActed)setTimeout(function(){var t=$('dh-title');if(!t)return;
 if(t.getAttribute('tabindex')===null)t.setAttribute('tabindex','-1');
 try{t.focus()}catch(e){}},0);}
@@ -369,14 +369,14 @@ var s="<svg viewBox='0 0 "+W+" "+H+"' class='colchart' role='img' aria-label='"+
 s+="<line x1='0' y1='"+base+"' x2='"+W+"' y2='"+base+"' stroke='#E3DDDA' stroke-width='2'/>";
 vals.forEach(function(v,i){var bw=20;var x=i*(W/n)+(W/n-bw)/2;
 var c=Array.isArray(color)?(color[i]||'#13507F'):(color||'#13507F');
-/* zero draws no bar — a phantom sliver implies data that is not there */
+/* zero draws no bar - a phantom sliver implies data that is not there */
 if(v>0){var h=Math.max(3,(v/max)*maxH);var y=base-h;
 s+="<rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='4' fill='"+c+"'/>";
 s+="<text x='"+(x+bw/2)+"' y='"+(y-5)+"' text-anchor='middle' font-size='10' font-weight='700' fill='#68788A'>"+v+"</text>";}
 else{s+="<text x='"+(x+bw/2)+"' y='"+(base-6)+"' text-anchor='middle' font-size='10' fill='#7C7573'>0</text>";}
 s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#6D777F'>"+esc2(labels[i]||'')+"</text>";});
 return s+"</svg>";}
-function miniScore(v){if(v===null||v===undefined)return "<span class='ms none'>—</span>";
+function miniScore(v){if(v===null||v===undefined)return "<span class='ms none'> - </span>";
 return "<span class='ms' style='color:"+band(v)+"'>"+v+"</span><i class='msb'><b style='width:"+v+"%;background:"+band(v)+"'></b></i>";}
 /* ---------- renders ---------- */
 function scoped(withSearch){var rows=DATA.learners;
@@ -395,8 +395,8 @@ function funnelFor(rows){return [
 {stage:'Job-ready (70+)',n:rows.filter(function(r){return (r.readiness||0)>=70}).length}];}
 function issueOf(r){var en=r.engagement;
 if(en.tier==='high')return en.daysSinceLogin===null?'Never logged in':en.daysSinceLogin+' days since login';
-if(en.tier==='medium')return en.daysSinceLogin===null?'Cooling off':'Cooling off — '+en.daysSinceLogin+' days quiet';
-if(isInactive(r))return 'Inactive — no learning progress';
+if(en.tier==='medium')return en.daysSinceLogin===null?'Cooling off':'Cooling off - '+en.daysSinceLogin+' days quiet';
+if(isInactive(r))return 'Inactive - no learning progress';
 return null;}
 var REFLECT_COUNT=null;
 function renderHome(){var rows=scoped(false);
@@ -410,8 +410,7 @@ var activeWk=rows.filter(function(r){
 return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
 countUp($('k-active'),activeWk);
 $('k-active-bar').style.width=(rows.length?Math.round(activeWk*100/rows.length):0)+'%';
-/* Reflection answers: one lazy KV read fills the whole-scope count —
- * the sub-label says so honestly when a cohort is selected. */
+/* Reflection answers: one lazy KV read fills the whole-scope count - * the sub-label says so honestly when a cohort is selected. */
 $('k-reflect-bar').parentElement.style.display='none';
 var reflectSub=$('k-reflect').parentElement.querySelector('.kpi-s');
 if(reflectSub)reflectSub.textContent=cohortFilter?'in their own words · whole scope':'in their own words';
@@ -419,8 +418,8 @@ function fillReflect(){if(REFLECT_COUNT!==null)countUp($('k-reflect'),REFLECT_CO
 if(REFLECT_COUNT!==null)fillReflect();
 else fetch('/portal/reflections').then(function(x){return x.json()}).then(function(d){
 if(d&&typeof d.rawCount==='number'){REFLECT_COUNT=d.rawCount;fillReflect();}
-else $('k-reflect').textContent='—';})
-.catch(function(){$('k-reflect').textContent='—';});
+else $('k-reflect').textContent=' - ';})
+.catch(function(){$('k-reflect').textContent=' - ';});
 /* The pipeline: both systems, one picture. Width = share of scope. */
 var fu=funnelFor(rows);var scopeN=(fu[0]&&fu[0].n)||1;
 $('funnel').innerHTML=fu.map(function(st,i){
@@ -429,7 +428,7 @@ var c=i===0?'#05253C':i<4?'#13507F':i===4?'#ED9249':'#1A7649';
 return "<div class='fu-row'><span class='fu-l'>"+esc2(st.stage)+"</span>"+
 "<div class='fu-t' role='img' aria-label='"+esc2(st.stage)+": "+st.n+" learners ("+pct+"%)'><i style='width:"+pct+"%;background:"+c+"'></i></div>"+
 "<span class='fu-v' aria-hidden='true'>"+st.n+"<i>"+pct+"%</i></span></div>";}).join('');
-/* Attention follows the cohort too — same flags the server raises,
+/* Attention follows the cohort too - same flags the server raises,
  * computed over the selected rows. */
 var att=rows.filter(function(r){return issueOf(r)!==null})
 .sort(function(a,b){var da=a.engagement.daysSinceLogin,db=b.engagement.daysSinceLogin;
@@ -447,17 +446,17 @@ return "<tr><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"<
 "<td><button type='button' class='dlink' data-drill='"+esc2(r.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
 function chips(el,onPick){
-/* The scope's own tag is every learner — "All in scope" already says
+/* The scope's own tag is every learner - "All in scope" already says
  * that, so it never appears as a cohort chip. */
 var tags=(DATA.tags||[]).filter(function(t){return t.tag!==DATA.scopedTag});
 el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' aria-pressed='"+(cohortFilter?'false':'true')+"' data-chip=''>All in scope</button>"+
 tags.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' aria-pressed='"+(cohortFilter===t.tag?'true':'false')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('');
 el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.chip||null;onPick();};});}
-function tierChipFor(en){if(!en||!en.tier)return "<span class='dmut'>—</span>";
+function tierChipFor(en){if(!en||!en.tier)return "<span class='dmut'> - </span>";
 var lbl={high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier;
 return "<span class='dtag"+(en.tier==='high'?' warn':'')+"'>"+esc2(lbl)+"</span>";}
-/* Zero learning progress = inactive, per the founder — nothing
+/* Zero learning progress = inactive, per the founder - nothing
  * completed and nothing under way. New starters get grace. */
 function isInactive(r){return r.learning.completed===0&&r.learning.inProgress===0&&r.engagement.tier!=='new'}
 function statusChipFor(r){
@@ -474,13 +473,13 @@ var modsDone=rows.reduce(function(s,r){return s+r.learning.completed},0);
 $('s-stats').innerHTML="<span>👥 Students <b>"+rows.length+"</b></span>"+
 "<span>🎓 Modules completed <b>"+modsDone+"</b></span>"+
 "<span>⚡ Active this week <b>"+activeWk+"</b></span>"+
-"<span>😴 Inactive — no progress <b>"+inactive+"</b></span>";
+"<span>😴 Inactive - no progress <b>"+inactive+"</b></span>";
 $('s-body').innerHTML=rows.map(function(r){var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
 "<td>"+r.tags.slice(0,2).map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+"</td>"+
 "<td><span class='ms'>"+lg.completed+"/"+lg.enrolled+"</span><i class='msb'><b style='width:"+modPct+"%;background:#1A7649'></b></i></td>"+
-"<td>"+(lg.minutes?fmtMins(lg.minutes):'—')+"</td>"+
+"<td>"+(lg.minutes?fmtMins(lg.minutes):' - ')+"</td>"+
 "<td class='dmut'>"+esc2(lastInFor(en))+"</td>"+
 "<td>"+statusChipFor(r)+"</td></tr>";}).join('');
 /* The whole card is the control, so the tap target is the card rather
@@ -495,7 +494,7 @@ return "<button type='button' class='scard' data-drill='"+esc2(r.email)+"'>"+
 return "<span class='dtag'>"+esc2(t)+"</span>"}).join('')+"</span>":'')+
 "<span class='sc-line'><span class='sc-k'>Modules</span><span class='sc-v'>"+lg.completed+"/"+lg.enrolled+"</span>"+
 "<i class='msb'><b style='width:"+modPct+"%;background:#1A7649'></b></i></span>"+
-"<span class='sc-line'><span class='sc-k'>Study time</span><span class='sc-v'>"+(lg.minutes?fmtMins(lg.minutes):'—')+"</span></span>"+
+"<span class='sc-line'><span class='sc-k'>Study time</span><span class='sc-v'>"+(lg.minutes?fmtMins(lg.minutes):' - ')+"</span></span>"+
 "<span class='sc-line'><span class='sc-k'>Last active</span><span class='sc-v'>"+esc2(lastInFor(en))+"</span></span>"+
 "<span class='sr-only'>Open profile</span></button>";}).join('');
 wireDrills();}
@@ -517,7 +516,7 @@ var e=r.employability,lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 var tierChip=en.tier?("<span class='dtag "+(en.tier==='high'?'warn':'')+"'>"+
 ({high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier)+"</span>"):'';
-var loginNote=en.daysSinceLogin===null?(en.tier?'Never logged in':'—'):
+var loginNote=en.daysSinceLogin===null?(en.tier?'Never logged in':' - '):
 en.daysSinceLogin===0?'Active today':en.daysSinceLogin+' day'+(en.daysSinceLogin===1?'':'s')+' ago';
 var mailHref="mailto:"+encodeURIComponent(r.email)+"?subject="+encodeURIComponent('Your Fledglings journey')+
 (en.nudge?"&body="+encodeURIComponent(en.nudge):"");
@@ -543,10 +542,10 @@ return "<div class='vs-row'><span class='vs-l'>"+esc2(label)+"</span>"+
 $('prof-body').innerHTML=
 "<div class='dcard dr-head'><div><b style='font-size:19px'>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span> "+
 r.tags.map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ')+" "+tierChip+"</div>"+
-"<span class='dr-ready' style='color:"+(r.readiness===null?'#7C7573':band(r.readiness))+"'>"+(r.readiness===null?'—':r.readiness)+"<i>job-ready</i></span></div>"+
+"<span class='dr-ready' style='color:"+(r.readiness===null?'#7C7573':band(r.readiness))+"'>"+(r.readiness===null?' - ':r.readiness)+"<i>job-ready</i></span></div>"+
 "<div class='kpigrid'>"+
 statCard(lg.completed+"<small style='font-size:16px;color:#6D777F'>/"+lg.enrolled+"</small>",'Modules completed',lg.inProgress+' in progress · '+(cohortTag?'cohort':'scope')+' avg '+avgMods,modPct,'#1A7649')+
-statCard(lg.minutes?fmtMins(lg.minutes):'—','Time on the platform',(cohortTag?'cohort':'scope')+' avg '+fmtMins(avgMins),null)+
+statCard(lg.minutes?fmtMins(lg.minutes):' - ','Time on the platform',(cohortTag?'cohort':'scope')+' avg '+fmtMins(avgMins),null)+
 statCard("<span id='prof-rf-n'>…</span>",'Reflection answers','in their own words',null)+
 statCard(esc2(loginNote),'Last active','on the platform',null)+
 "</div>"+
@@ -581,24 +580,24 @@ window.scrollTo({top:0,behavior:'smooth'});
  * count fills the stat card. */
 fetch('/dashboard/learner-reflections?email='+encodeURIComponent(r.email))
 .then(function(x){return x.json()}).then(function(rf){
-if(!rf||!rf.ok){$('prof-rf-n').textContent='—';return;}
+if(!rf||!rf.ok){$('prof-rf-n').textContent=' - ';return;}
 $('prof-rf-n').textContent=rf.count;$('prof-rf-count').textContent=rf.count+' answers';
 if((rf.flags||[]).length){$('prof-flags').innerHTML=
 "<div class='dcard dr-flagbox' style='margin-bottom:16px'><b>⚠ "+rf.flags.length+" answer"+(rf.flags.length===1?'':'s')+" worth a check-in</b>"+
 rf.flags.map(function(f){return "<div class='dr-flag'><span class='dmut'>"+esc2(f.courseTitle)+" · "+esc2(f.question)+"</span>"+
 "<div class='dr-fa'>“"+esc2(f.answer)+"”</div></div>";}).join('')+"</div>";}
 else{$('prof-flags').innerHTML='';}})
-.catch(function(){$('prof-rf-n').textContent='—';});
+.catch(function(){$('prof-rf-n').textContent=' - ';});
 /* The AI read: a short summary plus only the answers that genuinely
- * stand out — bright spots and worries, five at most. */
+ * stand out - bright spots and worries, five at most. */
 fetch('/dashboard/learner-insight?email='+encodeURIComponent(r.email))
 .then(function(x){return x.json()}).then(function(ins){
 var el=$('prof-insight');if(!el)return;
 if(!ins||!ins.ok||ins.status==='unavailable'){
-el.innerHTML="<span class='dmut'>The read of their answers is unavailable just now — every answer is in the CSV below.</span>";return;}
+el.innerHTML="<span class='dmut'>The read of their answers is unavailable just now - every answer is in the CSV below.</span>";return;}
 if(ins.status==='too_few'){
 el.innerHTML="<span class='dmut'>"+(ins.count===0?'No reflections submitted yet.':
-'Only '+ins.count+' answer'+(ins.count===1?'':'s')+' so far — too few to read a pattern. They are in the CSV below.')+"</span>";return;}
+'Only '+ins.count+' answer'+(ins.count===1?'':'s')+' so far - too few to read a pattern. They are in the CSV below.')+"</span>";return;}
 var out='';
 if(ins.summary)out+="<p class='ins-sum'>"+esc2(ins.summary)+"</p>";
 var hls=ins.highlights||[];
@@ -608,14 +607,14 @@ return "<div class='ins-hl "+(pos?'pos':'con')+"'><span class='ins-k'>"+(pos?'�
 (h.module?" <i>· "+esc2(h.module)+"</i>":'')+"</span>"+
 "<div class='ins-q'>“"+esc2(h.quote)+"”</div>"+
 (h.note?"<div class='ins-n'>"+esc2(h.note)+"</div>":'')+"</div>";}).join('')+"</div>";}
-else{out+="<p class='dmut'>Nothing stands out for a tutor to act on — their answers read as steady. All "+ins.count+" are in the CSV below.</p>";}
+else{out+="<p class='dmut'>Nothing stands out for a tutor to act on - their answers read as steady. All "+ins.count+" are in the CSV below.</p>";}
 el.innerHTML=out;})
 .catch(function(){var el=$('prof-insight');
-if(el)el.innerHTML="<span class='dmut'>Could not read their answers just now — the CSV below has all of them.</span>";});}
+if(el)el.innerHTML="<span class='dmut'>Could not read their answers just now - the CSV below has all of them.</span>";});}
 
 function renderCohorts(){var tags=DATA.tags||[];
 $('co-empty').hidden=tags.length>0;
-/* Side-by-side averages — the comparison the founder asked for. One
+/* Side-by-side averages - the comparison the founder asked for. One
  * shared row order across all three charts so a tap always means the
  * same cohort. */
 var stats=tags.map(function(t){
@@ -651,7 +650,7 @@ return "<div class='dcard cocard'><div class='co-t'>"+esc2(t.tag)+"</div>"+
 "<i class='msb wide'><b style='width:"+mp+"%;background:#1A7649'></b></i>"+
 "<div class='co-row'><span>Active this week</span><b>"+activeWk+"</b></div>"+
 "<div class='co-row'><span>Never logged in</span><b"+(neverIn?" style='color:#B93A22'":"")+">"+neverIn+"</b></div>"+
-"<div class='co-row'><span>Inactive — no progress</span><b"+(coInactive?" style='color:#B93A22'":"")+">"+coInactive+"</b></div>"+
+"<div class='co-row'><span>Inactive - no progress</span><b"+(coInactive?" style='color:#B93A22'":"")+">"+coInactive+"</b></div>"+
 "<button type='button' class='dbtn ghost co-view' data-cohort='"+esc2(t.tag)+"'>View students →</button></div>";}).join('');
 document.querySelectorAll('[data-cohort]').forEach(function(b){b.onclick=function(){
 cohortFilter=b.dataset.cohort;go('students');};});}
@@ -661,9 +660,9 @@ function loadReflections(){if(REF){renderReflections();return;}
 if(refLoading)return;refLoading=true;
 fetch('/portal/reflections').then(function(r){return r.json()}).then(function(d){
 refLoading=false;if(d&&!d.error){REF=d;renderReflections();
-/* the sweep builds incrementally — poll while building */
+/* the sweep builds incrementally - poll while building */
 if(d.status==='building'&&d.responsesEnabled!==false){setTimeout(function(){REF=null;loadReflections()},4000);}}
-else{$('rf-loading').innerHTML="<div class='dempty'>Could not load reflections — refresh to retry.</div>";}})
+else{$('rf-loading').innerHTML="<div class='dempty'>Could not load reflections - refresh to retry.</div>";}})
 .catch(function(){refLoading=false;
 $('rf-loading').innerHTML="<div class='dempty'>Could not reach the reflections service.</div>";});}
 function renderReflections(){var d=REF;if(!d)return;
@@ -675,7 +674,7 @@ $('rf-ready').hidden=gated||d.status==='building';
 if(gated){var hq=d.scoped===null;
 $('rf-gate-hq').hidden=!hq;
 if(hq){$('rf-gate-title').textContent='One switch left to flip';
-$('rf-gate-body').textContent='Every module already collects a written self-reflection before and after. Reading the answers needs one switch at the platform supplier — send them the message below and this page fills itself in, nothing to rebuild.';
+$('rf-gate-body').textContent='Every module already collects a written self-reflection before and after. Reading the answers needs one switch at the platform supplier - send them the message below and this page fills itself in, nothing to rebuild.';
 $('rf-ask').value=d.reason||'';
 $('rf-copy').onclick=function(){var ta=$('rf-ask');ta.select();
 try{navigator.clipboard.writeText(ta.value);}catch(e){document.execCommand('copy');}
@@ -684,15 +683,15 @@ var cov=(d.coverage||[]).filter(function(cv){return cv.preTitle||cv.postTitle}).
 $('rf-coverage-note').textContent=cov?cov+' modules already have their reflection questions matched and waiting.':'';
 return;}
 if(d.status==='building'){var p=d.progress||{done:0,total:1};
-$('rf-progress').textContent='Swept '+p.done+' of '+p.total+' modules so far — this page updates itself.';
+$('rf-progress').textContent='Swept '+p.done+' of '+p.total+' modules so far - this page updates itself.';
 $('rf-progress-bar').style.width=Math.round(p.done*100/Math.max(1,p.total))+'%';return;}
-/* Bars only where a real ratio exists — a full bar under a raw count
+/* Bars only where a real ratio exists - a full bar under a raw count
  * fakes a target. */
 countUp($('rf-pre'),d.preCount||0);$('rf-pre-bar').parentElement.style.display='none';
 countUp($('rf-post'),d.postCount||0);
 $('rf-post-bar').style.width=(d.preCount?Math.round((d.postCount||0)*100/d.preCount):0)+'%';
 countUp($('rf-raw'),d.rawCount||0);$('rf-raw-bar').parentElement.style.display='none';
-/* voice of the learner — words, ratings and asks */
+/* voice of the learner - words, ratings and asks */
 var ins=d.insights||{descriptors:[],experience:[],requests:[]};
 var words=ins.descriptors||[],exper=ins.experience||[],asks=ins.requests||[];
 $('rf-voice-card').hidden=!(words.length||exper.length);
@@ -711,7 +710,7 @@ $('rf-asks').innerHTML=asks.map(function(a){
 return "<div class='rf-ask-item'><div class='rf-a'>“"+esc2(a.text)+"”</div>"+
 "<div class='dmut'>"+esc2(a.courseTitle)+(a.submittedAt?' · '+new Date(a.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</div></div>";}).join('');
 $('rf-asks-more').hidden=asksTotal<=asks.length;
-$('rf-asks-more').textContent='Newest '+asks.length+' shown here — all '+asksTotal+' are in the CSV.';
+$('rf-asks-more').textContent='Newest '+asks.length+' shown here - all '+asksTotal+' are in the CSV.';
 /* The cohort filter follows here too: flags and the answer sample are
  * per-learner (filterable); the counters and charts are scope-wide
  * aggregates, and the note says so instead of pretending. */
@@ -719,11 +718,11 @@ function inCohortEmail(em){if(!cohortFilter)return true;
 var r=DATA&&DATA.learners.find(function(x){return x.email.toLowerCase()===String(em).toLowerCase()});
 return !!(r&&r.tags.indexOf(cohortFilter)>-1);}
 $('rf-cohort-note').hidden=!cohortFilter;
-if(cohortFilter)$('rf-cohort-note').textContent='Cohort “'+cohortFilter+'” — wellbeing flags and the answer sample below are filtered to this cohort; the three counters and the charts cover your whole scope.';
+if(cohortFilter)$('rf-cohort-note').textContent='Cohort “'+cohortFilter+'” - wellbeing flags and the answer sample below are filtered to this cohort; the three counters and the charts cover your whole scope.';
 var flags=(d.flags||[]).filter(function(f){return inCohortEmail(f.email)}).sort(function(a,b){return (a.acked?1:0)-(b.acked?1:0)});
 var open=flags.filter(function(f){return !f.acked}).length;
 /* Worry leads unconditionally: the card is always in the deck and
- * always opens first — an all-clear is information too. */
+ * always opens first - an all-clear is information too. */
 $('rf-flags-empty').hidden=flags.length>0;
 $('rf-flags-count').className='dtag'+(open?' warn':'');
 $('rf-flags-count').textContent=flags.length===0?'all clear':open?open+' to review':'all checked in';
@@ -753,20 +752,20 @@ return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"
 "<div class='sh-t'><i class='sh-pre' style='width:"+pre+"%'></i>"+
 "<i class='sh-post' style='width:"+post+"%"+(s.shift!==null&&s.shift<0?";background:#9A5812":"")+"'></i>"+
 (s.preAvgPct===null?'':"<b class='sh-mark' style='left:"+pre+"%'></b>")+"</div>"+
-"<span class='sh-v'>"+(s.preAvgPct===null?'—':s.preAvgPct+'%')+" → "+(s.postAvgPct===null?'—':s.postAvgPct+'%')+
+"<span class='sh-v'>"+(s.preAvgPct===null?' - ':s.preAvgPct+'%')+" → "+(s.postAvgPct===null?' - ':s.postAvgPct+'%')+
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
 "<span class='dmut'>"+s.preCount+" before · "+s.postCount+" after</span></div>";}).join('')
 :"<div class='dempty'>No scored reflections read yet.</div>";
-/* A sample only — the full record is the Excel download, per the
+/* A sample only - the full record is the Excel download, per the
  * founder: browse a taste here, download everything. */
 var recent=(d.recent||[]).filter(function(rr){return inCohortEmail(rr.email)}).slice(0,10);
 $('rf-recent-empty').hidden=recent.length>0;
-$('rf-recent-note').textContent=recent.length?('the newest '+recent.length+' of '+(d.rawCount||recent.length)+' — the Excel download has every answer'):'';
+$('rf-recent-note').textContent=recent.length?('the newest '+recent.length+' of '+(d.rawCount||recent.length)+' - the Excel download has every answer'):'';
 $('rf-recent').innerHTML=recent.map(function(r){
 return "<tr><td class='dmut'>"+esc2(r.email)+"</td><td>"+esc2(r.courseTitle)+"</td>"+
-"<td class='dmut'>"+(r.submittedAt?new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—')+"</td>"+
+"<td class='dmut'>"+(r.submittedAt?new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):' - ')+"</td>"+
 "<td class='rf-q'>"+esc2(r.question)+"</td><td class='rf-a'>"+esc2(r.answer)+"</td></tr>";}).join('');
-/* flickable sections — wellbeing is always first and always opens
+/* flickable sections - wellbeing is always first and always opens
  * first, flags or no flags */
 var rfSecs=Array.prototype.slice.call(document.querySelectorAll('.rf-sec'));
 function rfShow(i){rfSecs.forEach(function(c,j){c.hidden=j!==i});
@@ -792,7 +791,7 @@ avgMins:avgMins};}
 function renderRadar(){
 var AXES=[['Logged in','loggedIn'],['Active this week','active'],['Started learning','started'],['Completed a module','completed'],['Study time','study']];
 var tags=(DATA.tags||[]).filter(function(t){return t.tag!==DATA.scopedTag})
-/* Offering-style tags cover nearly everyone — they are the scope,
+/* Offering-style tags cover nearly everyone - they are the scope,
  * not a cohort, so they never earn a polygon. */
 .filter(function(t){return t.count<DATA.learners.length*0.9}).slice(0,5);
 if(tags.length<2){$('ch-radar').innerHTML="<div class='dempty'>The spider view appears once two or more cohorts have learners.</div>";$('radar-legend').innerHTML='';return [];}
@@ -824,29 +823,8 @@ return "<button type='button' class='chip"+(radarHidden[sr.tag]?'':' on')+"' dat
 document.querySelectorAll('[data-radar]').forEach(function(b){b.onclick=function(){
 radarHidden[b.dataset.radar]=!radarHidden[b.dataset.radar];renderRadar();};});
 return series;}
-/* Bubble chart: every cohort positioned by activity and progress,
- * sized by headcount — one glance answers "who is where". */
-function bubbleChart(series){
-if(!series||series.length<2)return "<div class='dempty'>Appears once two or more cohorts have learners.</div>";
-var maxY=Math.max.apply(null,series.map(function(sr){return sr.m.avgMods}).concat([1]));
-var maxN=Math.max.apply(null,series.map(function(sr){return sr.n}).concat([1]));
-var W=680,H=260,L=52,Rt=30,T=22,B=44;
-var px=function(v){return L+(W-L-Rt)*v/100},py=function(v){return T+(H-T-B)*(1-v/maxY)};
-var s="<svg viewBox='0 0 "+W+" "+H+"' class='scatter' role='img' aria-label='Cohorts by activity, progress and size'>";
-[0,25,50,75,100].forEach(function(gx){
-s+="<line x1='"+px(gx)+"' y1='"+T+"' x2='"+px(gx)+"' y2='"+(H-B)+"' stroke='#F0EBE9' stroke-width='1'/>";
-s+="<text x='"+px(gx)+"' y='"+(H-B+18)+"' text-anchor='middle' font-size='10.5' fill='#6A7A88'>"+gx+"%</text>";});
-s+="<line x1='"+L+"' y1='"+(H-B)+"' x2='"+(W-Rt)+"' y2='"+(H-B)+"' stroke='#E3DDDA' stroke-width='2'/>";
-s+="<text x='"+((L+W-Rt)/2)+"' y='"+(H-6)+"' text-anchor='middle' font-size='10.5' font-weight='600' fill='#6A7A88'>active this week →</text>";
-s+="<text x='14' y='"+((T+H-B)/2)+"' text-anchor='middle' font-size='10.5' font-weight='600' fill='#6A7A88' transform='rotate(-90 14 "+((T+H-B)/2)+")'>avg modules done →</text>";
-series.forEach(function(sr){
-var r=8+16*Math.sqrt(sr.n/maxN);
-var x=px(sr.m.active),y=py(sr.m.avgMods);
-s+="<circle cx='"+x+"' cy='"+y+"' r='"+r.toFixed(1)+"' fill='"+sr.c+"55' stroke='"+sr.c+"' stroke-width='2'><title>"+esc2(sr.tag)+" — "+sr.n+" learners, "+sr.m.active+"% active, "+sr.m.avgMods+" modules each</title></circle>";
-s+="<text x='"+x+"' y='"+(y-r-5)+"' text-anchor='middle' font-size='11' font-weight='700' fill='#25394B'>"+esc2(sr.tag)+"</text>";});
-return s+"</svg>";}
 /* Heat matrix: the same cohort measures as the radar, as numbers with
- * colour weight — the precise dissection next to the shape. */
+ * colour weight - the precise dissection next to the shape. */
 function heatTable(series){
 if(!series||series.length<2)return "<div class='dempty'>Appears once two or more cohorts have learners.</div>";
 var COLS=[['Learners','n'],['Logged in','loggedIn'],['Active 7d','active'],['Started','started'],['Completed','completed'],['Avg time','avgMins']];
@@ -862,7 +840,7 @@ out+="<td style='background:rgba(27,122,73,"+alpha.toFixed(2)+")'>"+label+"</td>
 out+="</tr>";});
 return out+"</tbody></table>";}
 /* Effort-vs-outcome scatter: one dot per learner, coloured by cohort
- * — the off-crowd dots are the conversation starters. */
+ * - the off-crowd dots are the conversation starters. */
 function scatterChart(rows,series){
 if(!rows.length)return "<div class='dempty'>No learners in this filter.</div>";
 var colour={};(series||[]).forEach(function(sr){colour[sr.tag]=sr.c});
@@ -885,10 +863,10 @@ rows.forEach(function(r,i){
 var tag=(r.tags||[]).filter(function(t){return colour[t]})[0];
 var c=tag?colour[tag]:'#B9AFAB';
 var jx=((i*7)%9)-4,jy=((i*11)%9)-4;
-s+="<circle cx='"+(px(r.learning.minutes)+jx).toFixed(1)+"' cy='"+(py(r.learning.completed)+jy).toFixed(1)+"' r='3.4' fill='"+c+"' fill-opacity='0.72'><title>"+esc2(r.name)+" — "+esc2(fmtMins(r.learning.minutes))+", "+r.learning.completed+" finished</title></circle>";});
+s+="<circle cx='"+(px(r.learning.minutes)+jx).toFixed(1)+"' cy='"+(py(r.learning.completed)+jy).toFixed(1)+"' r='3.4' fill='"+c+"' fill-opacity='0.72'><title>"+esc2(r.name)+" - "+esc2(fmtMins(r.learning.minutes))+", "+r.learning.completed+" finished</title></circle>";});
 return s+"</svg>";}
 /* Module composition: for each live module, who has finished, who is
- * part-way and who has not started — the dissection behind a plain
+ * part-way and who has not started - the dissection behind a plain
  * completion percentage. */
 function stackedModules(rows){
 var courses=(DATA.analytics&&DATA.analytics.courses)||[];
@@ -910,17 +888,17 @@ if(!series||series.length<2)return 'Cohort comparisons appear here once two or m
 var byActive=series.slice().sort(function(a,b){return b.m.active-a.m.active})[0];
 var byTime=series.slice().sort(function(a,b){return b.m.avgMins-a.m.avgMins})[0];
 var laggard=series.slice().sort(function(a,b){return a.m.started-b.m.started})[0];
-var s='Strongest right now: '+byActive.tag+' — '+byActive.m.active+'% of them were in this week'+
+var s='Strongest right now: '+byActive.tag+' - '+byActive.m.active+'% of them were in this week'+
 (byTime.tag===byActive.tag?', and they lead on study time too':'; '+byTime.tag+' puts in the most study time')+'. ';
-if(laggard.m.started<50)s+=laggard.tag+' needs a push — only '+laggard.m.started+'% have started learning yet.';
-else s+='Every cohort has most of its learners started — a solid spread.';
+if(laggard.m.started<50)s+=laggard.tag+' needs a push - only '+laggard.m.started+'% have started learning yet.';
+else s+='Every cohort has most of its learners started - a solid spread.';
 return s;}
 function interpEngage(rows){var n=rows.length;
 if(!n)return 'No learners in this filter.';
 var active=rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
 var never=rows.filter(function(r){return r.engagement.daysSinceLogin===null}).length;
 var s=active+' of '+n+' learners ('+Math.round(active*100/n)+'%) visited in the last 7 days. ';
-if(never>0)s+=never+' have not logged in at all yet — they show as Inactive in Students, worth a welcome nudge. ';
+if(never>0)s+=never+' have not logged in at all yet - they show as Inactive in Students, worth a welcome nudge. ';
 var newN=rows.filter(function(r){return r.engagement.tier==='new'}).length;
 if(newN>n/2)s+='Most are brand-new starters, so expect this mix to spread out as the programme opens up.';
 return s;}
@@ -928,12 +906,12 @@ function interpLearn(rows){var courses=(DATA.analytics&&DATA.analytics.courses)|
 if(!courses.length)return 'No module enrolments in this scope yet.';
 if(courses.length===1){var c1=courses[0];
 var going1=rows.filter(function(r){return (r.learning.modules||[]).some(function(m){return m.t===c1.title&&!m.done&&m.p>0})}).length;
-return 'One module is live so far: '+c1.title+' — '+c1.completed+' of '+c1.enrolled+' learners have finished it ('+c1.pct+'%)'+
+return 'One module is live so far: '+c1.title+' - '+c1.completed+' of '+c1.enrolled+' learners have finished it ('+c1.pct+'%)'+
 (going1?' and '+going1+' more are part-way through':'')+'. More modules appear here as the programme opens up.';}
 var best=courses.slice().sort(function(a,b){return b.pct-a.pct})[0];
 var worst=courses.filter(function(cs){return cs.enrolled>=5}).sort(function(a,b){return a.pct-b.pct})[0];
 return courses.length+' modules have enrolments. Best completion: '+best.title+' ('+best.pct+'%)'+
-(worst&&worst.title!==best.title?'; slowest: '+worst.title+' ('+worst.pct+'%) — worth checking what is holding learners there.':'.');}
+(worst&&worst.title!==best.title?'; slowest: '+worst.title+' ('+worst.pct+'%) - worth checking what is holding learners there.':'.');}
 /* ---------- analytics section deck ---------- */
 var aSecIdx=0;
 function aShow(i){aSecIdx=i;
@@ -973,14 +951,14 @@ s+="<text x='"+x+"' y='"+(base+18)+"' text-anchor='middle' font-size='10.5' fill
 return s+"</svg>";}
 function renderAnalytics(){
 var rows=scoped(false);
-/* Section chips — one story at a time. */
+/* Section chips - one story at a time. */
 $('a-secs').innerHTML=Array.prototype.map.call(document.querySelectorAll('.a-sec'),function(sc){
 return "<button type='button' class='chip' aria-pressed='false'>"+sc.dataset.al+"</button>"}).join('');
 document.querySelectorAll('#a-secs .chip').forEach(function(ch,i){ch.onclick=function(){aShow(i)}});
 aShow(aSecIdx);
 var series=renderRadar();
 $('ch-heat').innerHTML=heatTable(series);
-$('ch-bubble').innerHTML=bubbleChart(series);
+$('ch-cohtime').innerHTML=(series&&series.length>=2)?colChart(series.map(function(sr){return Math.round(sr.m.avgMins)}),series.map(function(sr){return sr.tag}),series.map(function(sr){return sr.c})):"<div class='dempty'>Appears once two or more cohorts have learners.</div>";
 $('ch-scatter').innerHTML=scatterChart(rows,series);
 /* Study-time histogram: learners bucketed by total time invested. */
 var HB=[['None',function(m){return m===0}],['<15m',function(m){return m>0&&m<15}],['15–30m',function(m){return m>=15&&m<30}],['30–45m',function(m){return m>=30&&m<45}],['45–60m',function(m){return m>=45&&m<60}],['1h+',function(m){return m>=60}]];
@@ -997,8 +975,7 @@ var untiered=rows.filter(function(r){return !r.engagement.tier}).length;
 if(untiered)tiers.push({l:'Not assessed',v:untiered,c:'#7C7573'});
 $('ch-tiers').innerHTML=tiers.length?donut(tiers,rows.length,'learners'):"<div class='dempty'>No learners in this filter.</div>";
 $('ch-recency').innerHTML=rows.length?recencyArea(rows):"<div class='dempty'>No learners in this filter.</div>";
-/* Learning charts come from the server rollup over the whole scope —
- * flag that honestly when a cohort chip narrows the other charts. */
+/* Learning charts come from the server rollup over the whole scope - * flag that honestly when a cohort chip narrows the other charts. */
 $('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
 $('ch-courses').innerHTML=stackedModules(rows);
 var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
@@ -1023,16 +1000,16 @@ var cvTried=tried('cv');
 var avgCv=cvTried.length?Math.round(cvTried.reduce(function(s,r){return s+(r.employability.cv.latest||0)},0)/cvTried.length):null;
 if(avgCv!==null){countUp($('c-avgcv'),avgCv);$('c-avgcv-bar').style.width=avgCv+'%';
 $('c-avgcv-bar').style.background=band(avgCv);}
-else{$('c-avgcv').textContent='—';$('c-avgcv-bar').parentElement.style.display='none';}
+else{$('c-avgcv').textContent=' - ';$('c-avgcv-bar').parentElement.style.display='none';}
 var letters=rows.reduce(function(s,r){return s+r.employability.cover.attempts},0);
 countUp($('c-letters'),letters);$('c-letters-bar').parentElement.style.display='none';
 var journeys=rows.filter(function(r){return r.tasksDone===7}).length;
 countUp($('c-journeys'),journeys);
 $('c-journeys-bar').style.width=(rows.length?Math.round(journeys*100/rows.length):0)+'%';
 var anyTool=['cv','linkedin','interview','cover'].some(function(t){return tried(t).length>0});
-var SHARE_HINT="<div class='dempty'>No career-tool use in this cohort yet — learners reach the tools from "+
+var SHARE_HINT="<div class='dempty'>No career-tool use in this cohort yet - learners reach the tools from "+
 "<b>fledglings.co</b> or you can send them the hub link directly: <b>fledglings-coach.fledglings.workers.dev/hub</b></div>";
-/* Categorical bars stay one neutral hue — red is reserved for bad
+/* Categorical bars stay one neutral hue - red is reserved for bad
  * states so it always means the same thing. */
 $('ch-adopt').innerHTML=anyTool?hbar([
 {l:'CV review',v:tried('cv').length},
@@ -1041,12 +1018,12 @@ $('ch-adopt').innerHTML=anyTool?hbar([
 {l:'Cover letter',v:tried('cover').length}],rows.length||1):SHARE_HINT;
 var buckets=[0,0,0,0,0];
 cvTried.forEach(function(r){buckets[Math.min(4,Math.floor((r.employability.cv.latest||0)/20))]++});
-/* Score buckets ARE quality bands — colour them so red only ever
+/* Score buckets ARE quality bands - colour them so red only ever
  * appears under genuinely low scores. */
 $('ch-dist').innerHTML=cvTried.length?colChart(buckets,['0-19','20-39','40-59','60-79','80+'],
 ['#B93A22','#9A5812','#ED9249','#13507F','#1A7649'])
 :"<div class='dempty'>Scores appear here after the first CV reviews.</div>";
-/* The 12-week trace is a whole-scope server rollup — say so honestly
+/* The 12-week trace is a whole-scope server rollup - say so honestly
  * when a cohort chip narrows everything else. */
 $('ca-note').hidden=!cohortFilter;
 var act=(DATA.analytics&&DATA.analytics.activity)||[];
@@ -1071,7 +1048,7 @@ var feedTimer=null;
 function loadFeed(){fetch('/portal/feed').then(function(r){return r.json()}).then(function(d){
 var el=$('feed-list');if(!el)return;
 var feed=(d&&d.feed)||[];
-if(!feed.length){el.innerHTML="<div class='dempty'>Quiet right now — completions and new joiners appear here live.</div>";return;}
+if(!feed.length){el.innerHTML="<div class='dempty'>Quiet right now - completions and new joiners appear here live.</div>";return;}
 el.innerHTML=feed.slice(0,8).map(function(f){
 var ico=f.kind==='completion'?'🎓':f.kind==='joined'?'👋':'★';
 var what=f.kind==='completion'?('completed <b>'+esc2(f.detail)+'</b>'):f.kind==='joined'?'joined the platform':'new enquiry';
@@ -1085,7 +1062,7 @@ if(stallsLoaded||(DATA&&DATA.scopedTag))return;stallsLoaded=true;
 fetch('/portal/module-health').then(function(r){return r.json()}).then(function(d){
 var el=$('ch-stalls');if(!el)return;
 var reps=(d&&d.reports)||[];
-if(!reps.length){el.innerHTML="<div class='dempty'>"+(d&&d.status==='building'?'Still measuring — check back shortly.':'No stall data yet.')+"</div>";return;}
+if(!reps.length){el.innerHTML="<div class='dempty'>"+(d&&d.status==='building'?'Still measuring - check back shortly.':'No stall data yet.')+"</div>";return;}
 el.innerHTML=hbar(reps.slice(0,8).map(function(rep){
 return {l:rep.title,v:rep.retention,r:rep.retention+'% finish'+(rep.stallUnit?' · stalls at “'+rep.stallUnit+'”':''),c:rep.retention>=60?'#1A7649':rep.retention>=35?'#ED9249':'#B93A22'};}),100);})
 .catch(function(){var el=$('ch-stalls');if(el)el.innerHTML='';});}
@@ -1093,7 +1070,7 @@ return {l:rep.title,v:rep.retention,r:rep.retention+'% finish'+(rep.stallUnit?' 
 var evidenceLoaded=false;
 function loadEvidence(){if(evidenceLoaded)return;evidenceLoaded=true;
 fetch('/portal/narrative').then(function(r){return r.json()}).then(function(d){
-var text=(d&&d.narrative)||'Narrative unavailable just now — refresh to retry.';
+var text=(d&&d.narrative)||'Narrative unavailable just now - refresh to retry.';
 $('ev-narr').innerHTML=text.split(/\n{2,}|\n/).filter(function(p){return p.trim()})
 .map(function(p){return '<p>'+esc2(p)+'</p>'}).join('');
 $('ev-copy').hidden=false;
@@ -1101,7 +1078,7 @@ $('ev-copy').onclick=function(){
 try{navigator.clipboard.writeText(text);}catch(e){}
 $('ev-copied').hidden=false;setTimeout(function(){$('ev-copied').hidden=true},1600);};})
 .catch(function(){evidenceLoaded=false;
-$('ev-narr').innerHTML="<div class='dempty'>Could not draft the narrative — leave this view and come back to retry.</div>";});}
+$('ev-narr').innerHTML="<div class='dempty'>Could not draft the narrative - leave this view and come back to retry.</div>";});}
 $('ev-link-make').onclick=function(){
 $('ev-link-make').disabled=true;
 fetch('/portal/inspect-link',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
@@ -1121,7 +1098,7 @@ $('dsample').textContent=(d.scopedTag?
 'your '+d.sampleSize+' learners covered':
 (d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?'all '+d.totalUsers+' accounts covered':
 d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled')+
-', refreshed automatically twice a day — the Refresh button pulls the latest';
+', refreshed automatically twice a day - the Refresh button pulls the latest';
 $('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
 $('g-bar').hidden=!GBAR_VIEWS[view];renderGlobalChips();
 refresh();if(view!=='home')renderHome();}
@@ -1132,10 +1109,10 @@ if(location.search.indexOf('login=failed')>-1)$('login-err').hidden=false;
 return null;}
 return r.json();}).then(function(d){
 if(!d)return;
-if(d.error){$('dh-sub').textContent='Could not load data — '+d.error;return;}
+if(d.error){$('dh-sub').textContent='Could not load data - '+d.error;return;}
 applyData(d);
 loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
-.catch(function(){$('dh-sub').textContent='Could not reach the dashboard service — refresh to retry.';});
+.catch(function(){$('dh-sub').textContent='Could not reach the dashboard service - refresh to retry.';});
 /* ---------- the provider's own Refresh button ---------- */
 var refreshTimers=[];
 function refetchFresh(final){fetch('/dashboard/data?fresh=1').then(function(r){return r.json()}).then(function(d){
@@ -1149,7 +1126,7 @@ fetch('/dashboard/refresh',{method:'POST'}).then(function(r){return r.json()}).t
 if(d&&d.cooling){b.textContent='Fresh numbers already on their way…';}
 refreshTimers.forEach(clearTimeout);
 /* Numbers land over a couple of minutes as the cycle walks the
- * learners — pull twice so the page catches up without a reload. */
+ * learners - pull twice so the page catches up without a reload. */
 refreshTimers=[setTimeout(function(){refetchFresh(false)},45000),
 setTimeout(function(){refetchFresh(true)},150000)];})
 .catch(function(){b.disabled=false;b.textContent='↻ Refresh data';});});
@@ -1158,12 +1135,12 @@ setTimeout(function(){refetchFresh(true)},150000)];})
 const DASH_CSS = `
 :root{--navy:#05253C;--orange:#D9452B;--mango:#ED9249;--blue:#13507F;--off:#ECE7E6;--canvas:#F4F1EF;
 /* Brand orange carrying WHITE text only. #D9452B is 4.34:1 against
- * white, just under WCAG AA's 4.5 — this shade is 4.59 and reads as
+ * white, just under WCAG AA's 4.5 - this shade is 4.59 and reads as
  * the same orange. The brand colour itself is untouched: as text on a
  * pale tint, and in the logo, it is unchanged. */
 --orange-btn:#D2432A;
 /* Brand orange as TEXT on the pale tint. #D9452B reads 3.72:1 there,
- * and no amount of lightening the tint can fix it — the ceiling is
+ * and no amount of lightening the tint can fix it - the ceiling is
  * white at 4.34, still under AA. So the text darkens instead, to the
  * shade the palette already uses for the button's hover state. */
 --orange-deep:#B93A22;
@@ -1322,7 +1299,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
   font-size:12.5px;color:var(--ink);background:#FBFAF9;resize:vertical;margin-bottom:10px;}
 .rf-flags{border-left:4px solid var(--orange);}
 .rf-flag{border:1.5px solid #F3C9C0;background:#FDF6F4;border-radius:12px;padding:12px;margin-bottom:9px;font-size:13px;}
-/* An ask is a suggestion, not a concern — neutral card, no alarm colour. */
+/* An ask is a suggestion, not a concern - neutral card, no alarm colour. */
 .rf-ask-item{border:1px solid #E7EAF0;background:#FBFCFD;border-radius:12px;padding:11px 13px;margin-bottom:8px;font-size:13px;}
 .rf-ask-item .rf-a{margin-bottom:5px;}
 .rf-flag.acked{border-color:var(--line);background:#FBFAF9;opacity:.75;}
@@ -1345,13 +1322,13 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .sh-v b.down{color:#B93A22;}
 @media(max-width:760px){.sh-row{grid-template-columns:1fr 90px;grid-auto-flow:dense;}
 .sh-t{grid-column:1/-1;}
-/* On a phone the answers ARE the content — stack each response as a
+/* On a phone the answers ARE the content - stack each response as a
  * card instead of pushing Question/Answer off-screen. */
 #v-reflections thead{display:none;}
 #rf-recent tr{display:block;border-bottom:1px solid var(--off);padding:10px 0;}
 #rf-recent td{display:block;padding:2px 0;border:none;}
 #rf-recent td.rf-q{margin-top:4px;}
-/* Attention table stacks as cards too — five columns cannot share
+/* Attention table stacks as cards too - five columns cannot share
  * 390px without crushing the issue chips. */
 #att-table thead{display:none;}
 #att-body tr{display:block;border-bottom:1px solid var(--off);padding:10px 0;}
@@ -1457,8 +1434,8 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .sc-tool b{font-weight:800;}
 /* Phone layout for the shell. The 74px icon rail was taking almost a
  * quarter of a 320px screen and still only showed icons. Below 560px
- * it becomes a horizontal strip across the top — the same shape the
- * learner pages already use — so the content gets the full width and
+ * it becomes a horizontal strip across the top - the same shape the
+ * learner pages already use - so the content gets the full width and
  * the labels come back. It stays pinned while the page scrolls, and
  * nothing is dropped: the scope and sign-out ride along at the end of
  * the strip rather than being hidden. Must sit after the 820px rule,

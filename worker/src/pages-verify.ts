@@ -1,4 +1,4 @@
-/* /ops/verify — the founder's verification console. A live test bench
+/* /ops/verify - the founder's verification console. A live test bench
  * over the whole pipeline: platform roles, cohort structure, code
  * scoping, security invariants and data-pull freshness, each rendered
  * with an honest PASS / WARN / FAIL verdict. Founder-only (opsSession
@@ -7,7 +7,7 @@
 export function renderVerifyPage(): string {
   const body =
     "<header class='vh'><div><h1>Verification console</h1>" +
-    "<p>Live checks over roles, cohorts, scoping, security and data pulls — refresh any time.</p></div>" +
+    "<p>Live checks over roles, cohorts, scoping, security and data pulls - refresh any time.</p></div>" +
     "<div><span class='vstamp' id='v-stamp'>loading…</span> " +
     "<button type='button' class='vbtn' onclick='location.reload()'>↻ Refresh</button></div></header>" +
     "<div id='v-body'><div class='vempty'>Running the checks…</div></div>" +
@@ -16,7 +16,7 @@ export function renderVerifyPage(): string {
   return (
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
-    "<meta name='robots' content='noindex'><title>Fledglings — Verification Console</title>" +
+    "<meta name='robots' content='noindex'><title>Fledglings - Verification Console</title>" +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
     "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'>" +
     `<style>${VERIFY_CSS}</style></head><body>` +
@@ -32,7 +32,7 @@ function card(title,state,inner){return "<section class='vcard'><h2>"+esc(title)
 function table(headers,rows){return "<table><thead><tr>"+headers.map(function(h){return "<th>"+esc(h)+"</th>"}).join('')+
 "</tr></thead><tbody>"+rows.map(function(r){return "<tr>"+r.map(function(c){return "<td>"+c+"</td>"}).join('')+"</tr>"}).join('')+"</tbody></table>"}
 fetch('/ops/verify.json').then(function(r){return r.json()}).then(function(d){
-if(!d||d.error){document.getElementById('v-body').innerHTML="<div class='vempty'>Could not run the checks — "+esc((d&&d.error)||'no response')+"</div>";return;}
+if(!d||d.error){document.getElementById('v-body').innerHTML="<div class='vempty'>Could not run the checks - "+esc((d&&d.error)||'no response')+"</div>";return;}
 document.getElementById('v-stamp').textContent='generated '+new Date(d.generatedAt).toLocaleTimeString('en-GB');
 var out='';
 
@@ -52,21 +52,21 @@ out+=card('Learner reconciliation',rec.agree?'PASS':'FAIL',
 table(['Source','Learners'],[['Role census (live from the platform)',String(rec.census)],
 ['Rolling roster (what refreshes hourly)',String(rec.roster)],
 ['Dashboard rows (what providers see)',String(rec.dashboard)]])+
-(rec.agree?"":"<p class='vp vwarn'>Counts disagree — the roster reconciles on the next hourly tick; if this persists past an hour, something is wrong.</p>"));
+(rec.agree?"":"<p class='vp vwarn'>Counts disagree - the roster reconciles on the next hourly tick; if this persists past an hour, something is wrong.</p>"));
 
 /* structure */
 var oddState=d.structure.oddities.length?'WARN':'PASS';
 out+=card('Cohort structure',oddState,
-"<p class='vp'>Exactly which tag combinations learners carry — the offering tag plus one cohort tag should dominate.</p>"+
+"<p class='vp'>Exactly which tag combinations learners carry - the offering tag plus one cohort tag should dominate.</p>"+
 table(['Tags on the account','Learners'],d.structure.combinations.slice(0,25).map(function(cm){return [esc(cm.tags),String(cm.learners)]}))+
-(d.structure.oddities.length?"<p class='vp vwarn'>⚠ Counted as learners because their platform role is 'user', but their tags look like staff — change their role on the platform if they are staff:</p>"+
+(d.structure.oddities.length?"<p class='vp vwarn'>⚠ Counted as learners because their platform role is 'user', but their tags look like staff - change their role on the platform if they are staff:</p>"+
 table(['Email','Tags'],d.structure.oddities.map(function(o){return [esc(o.email),esc(o.tags.join(', '))]})):''));
 
 /* groups */
 if((d.groups||[]).length){
 var gWarn=d.groups.some(function(g){return g.staffMembers.length||g.missingFromRoster.length});
 out+=card('User groups',gWarn?'WARN':'PASS',
-"<p class='vp'>Provider-managed groups are the live cohort truth — each group title also behaves as a tag for scoping, so a learner missed by tagging is still seen.</p>"+
+"<p class='vp'>Provider-managed groups are the live cohort truth - each group title also behaves as a tag for scoping, so a learner missed by tagging is still seen.</p>"+
 table(['Group','Members','Learners','Notes'],d.groups.map(function(g){
 var notes=[];
 if(g.staffMembers.length)notes.push('staff in group: '+g.staffMembers.join(', '));
@@ -84,8 +84,8 @@ return [esc(cd.label),esc(cd.tag||'whole school'),String(cd.inScope),cd.ops?'<b>
 var secState=d.security.staffInRoster>0?'FAIL':(d.security.staffAnswerAccounts.length?'WARN':'PASS');
 out+=card('Security invariants',secState,
 table(['Check','Result'],[
-['Staff or admin accounts inside the learner roster',d.security.staffInRoster===0?'none ✓':"<b class='vbad'>"+d.security.staffInRoster+" — investigate now</b>"],
-['Reflection answers from non-learner accounts',d.security.staffAnswerAccounts.length===0?'none ✓':"<b>"+d.security.staffAnswerAccounts.length+"</b> account(s) — clears automatically at the next nightly rebuild ("+d.security.staffAnswerAccounts.map(esc).join(', ')+")"],
+['Staff or admin accounts inside the learner roster',d.security.staffInRoster===0?'none ✓':"<b class='vbad'>"+d.security.staffInRoster+" - investigate now</b>"],
+['Reflection answers from non-learner accounts',d.security.staffAnswerAccounts.length===0?'none ✓':"<b>"+d.security.staffAnswerAccounts.length+"</b> account(s) - clears automatically at the next nightly rebuild ("+d.security.staffAnswerAccounts.map(esc).join(', ')+")"],
 ['Activity webhooks signature-checked',d.pulls.webhooksSigned?'yes ✓':"<b class='vbad'>not configured</b>"],
 ['Reflections sweep filters to learner accounts',d.pulls.reflections.learnerFilterActive?'yes ✓':'rebuild pending']]));
 
@@ -96,16 +96,16 @@ var pullWarn=coverageShort||ro.awaitingFirstFetch>0||p.accountCapacity.seen/p.ac
 out+=card('Data pulls',pullWarn?'WARN':'PASS',
 table(['Pull','State'],[
 ['Learner list sync',ro.listSyncedMinutesAgo===null?'never':ro.listSyncedMinutesAgo+' minutes ago'],
-['Course data — freshest learner',ro.newestCourseFetchMinutesAgo===null?'—':ro.newestCourseFetchMinutesAgo+' minutes ago'],
-['Course data — stalest learner',ro.oldestCourseFetchMinutesAgo===null?'—':ro.oldestCourseFetchMinutesAgo+' minutes ago'],
-['Refresh cadence',ro.refreshedPerHourlyTick+' learners per hourly tick — full cycle ≈ '+ro.fullCycleHours+' hours at '+ro.size+' learners'],
+['Course data - freshest learner',ro.newestCourseFetchMinutesAgo===null?' - ':ro.newestCourseFetchMinutesAgo+' minutes ago'],
+['Course data - stalest learner',ro.oldestCourseFetchMinutesAgo===null?' - ':ro.oldestCourseFetchMinutesAgo+' minutes ago'],
+['Refresh cadence',ro.refreshedPerHourlyTick+' learners per hourly tick - full cycle ≈ '+ro.fullCycleHours+' hours at '+ro.size+' learners'],
 ['Learners awaiting their first course pull',ro.awaitingFirstFetch===0?'none ✓':"<b>"+ro.awaitingFirstFetch+"</b>"],
 ['Reflections snapshot',esc(p.reflections.status)+' · '+p.reflections.answersOnRecord+' answers · built '+p.reflections.builtHoursAgo+'h ago'],
-['Reflections module coverage',p.reflections.coveredCourses+' of '+p.reflections.totalCourses+' modules swept'+(coverageShort?" — <b class='vbad'>rebuilding; fills over the next few hours</b>":' ✓')],
-['Account capacity',p.accountCapacity.seen+' of '+p.accountCapacity.max+' the pull can cover'+(p.accountCapacity.seen/p.accountCapacity.max>0.9?" — <b class='vbad'>raise the page cap soon</b>":'')]]));
+['Reflections module coverage',p.reflections.coveredCourses+' of '+p.reflections.totalCourses+' modules swept'+(coverageShort?" - <b class='vbad'>rebuilding; fills over the next few hours</b>":' ✓')],
+['Account capacity',p.accountCapacity.seen+' of '+p.accountCapacity.max+' the pull can cover'+(p.accountCapacity.seen/p.accountCapacity.max>0.9?" - <b class='vbad'>raise the page cap soon</b>":'')]]));
 
 document.getElementById('v-body').innerHTML=out;})
-.catch(function(){document.getElementById('v-body').innerHTML="<div class='vempty'>Could not reach the console service — refresh to retry.</div>";});
+.catch(function(){document.getElementById('v-body').innerHTML="<div class='vempty'>Could not reach the console service - refresh to retry.</div>";});
 })();`;
 
 const VERIFY_CSS = `
