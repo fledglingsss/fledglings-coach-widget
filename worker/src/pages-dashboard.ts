@@ -176,20 +176,26 @@ export function renderDashboardPage(): string {
     "<div class='chips' id='a-secs' style='margin-bottom:14px'></div>" +
 
     "<div class='a-sec' data-al='📊 Cohorts compared'>" +
-    "<div class='dcard'><h2>Cohorts compared <span class='dmut' style='font-weight:500'>five measures, 0–100 — tap a cohort in the legend to focus it</span></h2>" +
     "<p class='interp' id='ai-cohorts'></p>" +
-    "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div></div>" +
+    "<div class='dsplit even'>" +
+    "<div class='dcard'><h2>The shape of each cohort <span class='dmut' style='font-weight:500'>five measures, 0–100 — tap the legend to focus</span></h2>" +
+    "<div id='ch-radar'></div><div class='chips' id='radar-legend' style='margin-top:10px'></div></div>" +
+    "<div class='dcard'><h2>The numbers behind it <span class='dmut' style='font-weight:500'>darker = stronger, per cohort</span></h2>" +
+    "<div id='ch-heat'></div></div>" +
+    "</div></div>" +
 
     "<div class='a-sec' data-al='⚡ Engagement' hidden>" +
     "<p class='interp' id='ai-engage'></p>" +
     "<div class='dsplit even'>" +
     "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
     "<div class='dcard'><h2>When learners were last active</h2><div id='ch-recency'></div></div>" +
-    "</div></div>" +
+    "</div>" +
+    "<div class='dcard'><h2>Effort against outcome <span class='dmut' style='font-weight:500'>every learner — time put in across, modules finished up; the interesting ones sit off the crowd</span></h2>" +
+    "<div id='ch-scatter'></div></div></div>" +
 
     "<div class='a-sec' data-al='📚 Learning' hidden>" +
     "<p class='interp' id='ai-learn'></p>" +
-    "<div class='dcard'><div class='cardhead'><h2>Every module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
+    "<div class='dcard'><div class='cardhead'><h2>Where every learner sits, module by module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
     "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
@@ -806,6 +812,65 @@ return "<button type='button' class='chip"+(radarHidden[sr.tag]?'':' on')+"' dat
 document.querySelectorAll('[data-radar]').forEach(function(b){b.onclick=function(){
 radarHidden[b.dataset.radar]=!radarHidden[b.dataset.radar];renderRadar();};});
 return series;}
+/* Heat matrix: the same cohort measures as the radar, as numbers with
+ * colour weight — the precise dissection next to the shape. */
+function heatTable(series){
+if(!series||series.length<2)return "<div class='dempty'>Appears once two or more cohorts have learners.</div>";
+var COLS=[['Learners','n'],['Logged in','loggedIn'],['Active 7d','active'],['Started','started'],['Completed','completed'],['Avg time','avgMins']];
+var maxMins=Math.max.apply(null,series.map(function(s){return s.m.avgMins}).concat([1]));
+var out="<table class='heat'><thead><tr><th></th>"+COLS.map(function(cl){return "<th>"+esc2(cl[0])+"</th>"}).join('')+"</tr></thead><tbody>";
+series.forEach(function(sr){
+out+="<tr><th><i class='dotc' style='background:"+sr.c+"'></i>"+esc2(sr.tag)+"</th>";
+COLS.forEach(function(cl){
+var raw=cl[1]==='n'?sr.n:sr.m[cl[1]];
+var alpha=cl[1]==='n'?0:cl[1]==='avgMins'?(raw/maxMins)*0.5:(raw/100)*0.5;
+var label=cl[1]==='n'?String(raw):cl[1]==='avgMins'?fmtMins(Math.round(raw)):raw+'%';
+out+="<td style='background:rgba(27,122,73,"+alpha.toFixed(2)+")'>"+label+"</td>";});
+out+="</tr>";});
+return out+"</tbody></table>";}
+/* Effort-vs-outcome scatter: one dot per learner, coloured by cohort
+ * — the off-crowd dots are the conversation starters. */
+function scatterChart(rows,series){
+if(!rows.length)return "<div class='dempty'>No learners in this filter.</div>";
+var colour={};(series||[]).forEach(function(sr){colour[sr.tag]=sr.c});
+var maxX=Math.max.apply(null,rows.map(function(r){return r.learning.minutes}).concat([10]));
+/* A floor on the y-range keeps early data proportionate, and a
+ * square-root x-scale stops one marathon learner squashing the crowd
+ * against the left edge. */
+var maxY=Math.max.apply(null,rows.map(function(r){return r.learning.completed}).concat([3]));
+var W=680,H=280,L=52,Rt=16,T=14,B=42;
+var px=function(v){return L+(W-L-Rt)*Math.sqrt(Math.max(0,v)/maxX)},py=function(v){return T+(H-T-B)*(1-v/maxY)};
+var s="<svg viewBox='0 0 "+W+" "+H+"' class='scatter' role='img' aria-label='Study time against modules completed for every learner'>";
+for(var gy=0;gy<=maxY;gy++){s+="<line x1='"+L+"' y1='"+py(gy)+"' x2='"+(W-Rt)+"' y2='"+py(gy)+"' stroke='#F0EBE9' stroke-width='1'/>";
+s+="<text x='"+(L-8)+"' y='"+(py(gy)+4)+"' text-anchor='end' font-size='10.5' fill='#6A7A88'>"+gy+"</text>";}
+[0,0.25,0.5,0.75,1].forEach(function(f){var mins=Math.round(maxX*f*f);
+s+="<text x='"+px(mins)+"' y='"+(H-B+18)+"' text-anchor='middle' font-size='10.5' fill='#6A7A88'>"+esc2(fmtMins(mins))+"</text>";});
+s+="<line x1='"+L+"' y1='"+py(0)+"' x2='"+(W-Rt)+"' y2='"+py(0)+"' stroke='#E3DDDA' stroke-width='2'/>";
+s+="<text x='"+((L+W-Rt)/2)+"' y='"+(H-6)+"' text-anchor='middle' font-size='10.5' font-weight='600' fill='#6A7A88'>time on the platform →</text>";
+s+="<text x='14' y='"+((T+H-B)/2)+"' text-anchor='middle' font-size='10.5' font-weight='600' fill='#6A7A88' transform='rotate(-90 14 "+((T+H-B)/2)+")'>modules finished →</text>";
+rows.forEach(function(r,i){
+var tag=(r.tags||[]).filter(function(t){return colour[t]})[0];
+var c=tag?colour[tag]:'#B9AFAB';
+var jx=((i*7)%9)-4,jy=((i*11)%9)-4;
+s+="<circle cx='"+(px(r.learning.minutes)+jx).toFixed(1)+"' cy='"+(py(r.learning.completed)+jy).toFixed(1)+"' r='3.4' fill='"+c+"' fill-opacity='0.72'><title>"+esc2(r.name)+" — "+esc2(fmtMins(r.learning.minutes))+", "+r.learning.completed+" finished</title></circle>";});
+return s+"</svg>";}
+/* Module composition: for each live module, who has finished, who is
+ * part-way and who has not started — the dissection behind a plain
+ * completion percentage. */
+function stackedModules(rows){
+var courses=(DATA.analytics&&DATA.analytics.courses)||[];
+if(!courses.length)return "<div class='dempty'>No module enrolments in this scope yet.</div>";
+return courses.map(function(cs){
+var going=rows.filter(function(r){return (r.learning.modules||[]).some(function(m){return m.t===cs.title&&!m.done&&m.p>0})}).length;
+var done=cs.completed,total=Math.max(cs.enrolled,done+going),idle=Math.max(0,total-done-going);
+var p=function(v){return (v*100/Math.max(1,total)).toFixed(1)};
+return "<div class='stk'><span class='stk-l' title='"+esc2(cs.title)+"'>"+esc2(cs.title)+"</span>"+
+"<div class='stk-t' role='img' aria-label='"+esc2(cs.title)+": "+done+" finished, "+going+" part-way, "+idle+" not started'>"+
+(done?"<i style='width:"+p(done)+"%;background:#1B7A4B'></i>":'')+
+(going?"<i style='width:"+p(going)+"%;background:#13507F'></i>":'')+
+(idle?"<i style='width:"+p(idle)+"%;background:#E3DDDA'></i>":'')+"</div>"+
+"<span class='stk-v'><b style='color:#1B7A4B'>"+done+"</b> done · <b style='color:#13507F'>"+going+"</b> part-way · "+idle+" not started</span></div>";}).join('')+
+"<div class='dmut' style='margin-top:8px;font-size:12px'><i class='dotc' style='background:#1B7A4B'></i>finished <i class='dotc' style='background:#13507F;margin-left:10px'></i>part-way <i class='dotc' style='background:#E3DDDA;margin-left:10px'></i>not started</div>";}
 /* ---------- plain-English readings under each chart ---------- */
 function interpCohorts(series){
 if(!series||series.length<2)return 'Cohort comparisons appear here once two or more cohorts have learners.';
@@ -826,10 +891,12 @@ if(never>0)s+=never+' have not logged in at all yet — they show as Inactive in
 var newN=rows.filter(function(r){return r.engagement.tier==='new'}).length;
 if(newN>n/2)s+='Most are brand-new starters, so expect this mix to spread out as the programme opens up.';
 return s;}
-function interpLearn(){var courses=(DATA.analytics&&DATA.analytics.courses)||[];
+function interpLearn(rows){var courses=(DATA.analytics&&DATA.analytics.courses)||[];
 if(!courses.length)return 'No module enrolments in this scope yet.';
 if(courses.length===1){var c1=courses[0];
-return 'One module is live so far: '+c1.title+' — '+c1.completed+' of '+c1.enrolled+' learners have finished it ('+c1.pct+'%). More modules appear here as the programme opens up.';}
+var going1=rows.filter(function(r){return (r.learning.modules||[]).some(function(m){return m.t===c1.title&&!m.done&&m.p>0})}).length;
+return 'One module is live so far: '+c1.title+' — '+c1.completed+' of '+c1.enrolled+' learners have finished it ('+c1.pct+'%)'+
+(going1?' and '+going1+' more are part-way through':'')+'. More modules appear here as the programme opens up.';}
 var best=courses.slice().sort(function(a,b){return b.pct-a.pct})[0];
 var worst=courses.filter(function(cs){return cs.enrolled>=5}).sort(function(a,b){return a.pct-b.pct})[0];
 return courses.length+' modules have enrolments. Best completion: '+best.title+' ('+best.pct+'%)'+
@@ -879,9 +946,11 @@ return "<button type='button' class='chip' aria-pressed='false'>"+sc.dataset.al+
 document.querySelectorAll('#a-secs .chip').forEach(function(ch,i){ch.onclick=function(){aShow(i)}});
 aShow(aSecIdx);
 var series=renderRadar();
+$('ch-heat').innerHTML=heatTable(series);
+$('ch-scatter').innerHTML=scatterChart(rows,series);
 $('ai-cohorts').textContent=interpCohorts(series);
 $('ai-engage').textContent=interpEngage(rows);
-$('ai-learn').textContent=interpLearn();
+$('ai-learn').textContent=interpLearn(rows);
 var TIER_ORDER=[['ok','Engaged','#1A7649'],['new','New starters','#13507F'],['watch','Watch list','#ED9249'],['medium','Cooling off','#9A5812'],['high','Needs contact','#B93A22']];
 var tiers=TIER_ORDER.map(function(t){
 return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).length,c:t[2]};})
@@ -893,10 +962,7 @@ $('ch-recency').innerHTML=rows.length?recencyArea(rows):"<div class='dempty'>No 
 /* Learning charts come from the server rollup over the whole scope —
  * flag that honestly when a cohort chip narrows the other charts. */
 $('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
-var courses=(DATA.analytics&&DATA.analytics.courses)||[];
-$('ch-courses').innerHTML=courses.length?hbar(courses.map(function(cs){
-return {l:cs.title,v:cs.pct,r:cs.completed+'/'+cs.enrolled,c:'#1A7649'};}),100)
-:"<div class='dempty'>No module enrolments in this scope yet.</div>";
+$('ch-courses').innerHTML=stackedModules(rows);
 var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
 $('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
 return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
@@ -1262,6 +1328,18 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .interp{background:#FAF8F7;border:1px solid var(--line);border-left:3px solid var(--orange);
   border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;line-height:1.6;color:var(--ink);}
 .dcard .interp{margin-top:2px;}
+.heat{width:100%;border-collapse:collapse;font-size:12.5px;}
+.heat th{text-align:left;color:var(--mut);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+  padding:6px 8px 6px 0;font-weight:700;}
+.heat tbody th{font-size:12.5px;text-transform:none;letter-spacing:0;color:var(--ink);white-space:nowrap;}
+.heat td{padding:8px;text-align:center;font-weight:700;color:var(--ink);border-radius:6px;}
+.scatter{width:100%;height:auto;display:block;}
+.stk{display:grid;grid-template-columns:200px 1fr 250px;gap:12px;align-items:center;margin-bottom:10px;}
+.stk-l{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stk-t{display:flex;height:16px;border-radius:999px;overflow:hidden;background:var(--off);}
+.stk-t i{display:block;height:100%;}
+.stk-v{font-size:12px;color:var(--mut);white-space:nowrap;}
+@media(max-width:760px){.stk{grid-template-columns:1fr;gap:4px;}.heat{font-size:11px;}.heat td{padding:6px 4px;}}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
 .chips .chip .dotc{margin-right:6px;}
 .co-h{margin:16px 0 8px;font-size:13px;font-weight:700;color:var(--mut);letter-spacing:.02em;text-transform:uppercase;}
