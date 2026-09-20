@@ -193,21 +193,25 @@ export function renderDashboardPage(): string {
     "<div class='a-sec' data-al='⚡ Engagement' hidden>" +
     "<p class='interp' id='ai-engage'></p>" +
     "<div class='dsplit even'>" +
+    "<div class='dcard'><h2>Effort against outcome <span class='dmut' style='font-weight:500'>every learner - time put in across, modules finished up</span></h2>" +
+    "<div id='ch-scatter'></div></div>" +
+    "<div>" +
     "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
     "<div class='dcard'><h2>When learners were last active</h2><div id='ch-recency'></div></div>" +
     "</div>" +
-    "<div class='dcard'><h2>Effort against outcome <span class='dmut' style='font-weight:500'>every learner - time put in across, modules finished up; the interesting ones sit off the crowd</span></h2>" +
-    "<div id='ch-scatter'></div></div></div>" +
+    "</div></div>" +
 
     "<div class='a-sec' data-al='📚 Learning' hidden>" +
     "<p class='interp' id='ai-learn'></p>" +
-    "<div class='dcard'><div class='cardhead'><h2>Where every learner sits, module by module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
+    "<div class='dsplit even'>" +
+    "<div class='dcard'><div class='cardhead'><h2>Module by module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
-    "<div class='dsplit even'>" +
+    "<div>" +
     "<div class='dcard'><h2>Time invested so far <span class='dmut' style='font-weight:500'>learners by total study time</span></h2>" +
     "<div id='ch-hist'></div></div>" +
     "<div class='dcard'><h2>Curriculum impact <span class='dtag' id='cu-note' hidden>all cohorts</span></h2><div id='ch-curriculum'></div></div>" +
+    "</div>" +
     "</div>" +
     /* School-wide stall analysis is HQ's view of provision, not a
      * provider's - it never shows on a scoped code. */
@@ -1349,7 +1353,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .heat tbody th{font-size:12.5px;text-transform:none;letter-spacing:0;color:var(--ink);white-space:nowrap;}
 .heat td{padding:8px;text-align:center;font-weight:700;color:var(--ink);border-radius:6px;}
 .scatter{width:100%;height:auto;display:block;}
-.stk{display:grid;grid-template-columns:200px 1fr 250px;gap:12px;align-items:center;margin-bottom:10px;}
+.stk{display:grid;grid-template-columns:150px 1fr 205px;gap:10px;align-items:center;margin-bottom:10px;}
 .stk-l{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .stk-t{display:flex;height:16px;border-radius:999px;overflow:hidden;background:var(--off);}
 .stk-t i{display:block;height:100%;}
