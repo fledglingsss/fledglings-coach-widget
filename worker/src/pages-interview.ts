@@ -1,4 +1,4 @@
-/* /interview — the Interview Studio. Hiration-style video mock
+/* /interview - the Interview Studio. Hiration-style video mock
  * interview that stays radically private: camera + microphone run
  * entirely on-device (MediaRecorder blobs never leave the browser),
  * speech is transcribed by the browser's own SpeechRecognition, and
@@ -24,7 +24,7 @@ export function renderInterviewPage(): string {
   const body =
     "<main class='wrap' style='max-width:940px'>" +
     "<h2 class='page'>Interview Studio</h2>" +
-    "<p class='sub'>Practise real interviews out loud, on camera, with honest AI feedback — and total privacy: " +
+    "<p class='sub'>Practise real interviews out loud, on camera, with honest AI feedback - and total privacy: " +
     "your video and voice never leave your device. Fledge only ever sees your words.</p>" +
 
     /* ---------- stage: home ---------- */
@@ -41,21 +41,21 @@ export function renderInterviewPage(): string {
     "<div class='modgrid' id='learn-list'></div>" +
     "<div id='learn-reader' hidden></div>" +
     "<h3 class='learn-sec'>Practise by role</h3>" +
-    "<p class='sub' style='margin-bottom:12px'>Pick a role to see its questions — practise any single one on camera " +
+    "<p class='sub' style='margin-bottom:12px'>Pick a role to see its questions - practise any single one on camera " +
     "with the full AI review.</p>" +
     "<div class='rolegrid' id='qbank-roles'></div>" +
     "<div id='qbank' hidden></div></div>" +
     "<div id='home-recs' hidden>" +
     "<div class='card'><h3>Your practice library</h3>" +
-    "<p class='sub' style='margin-bottom:12px'>Every practice saves here the moment you finish — video, answers and " +
-    "report — stored only in this browser, never uploaded. No waiting for the AI: rewatch instantly, and the report " +
+    "<p class='sub' style='margin-bottom:12px'>Every practice saves here the moment you finish - video, answers and " +
+    "report - stored only in this browser, never uploaded. No waiting for the AI: rewatch instantly, and the report " +
     "attaches itself when it's ready.</p>" +
     "<div id='recs-list'></div></div></div>" +
     "<div id='home-practice'>" +
     "<div class='card hero'>" +
     "<span class='hero-tag'>✦ Try this first</span>" +
     "<h3 class='hero-h'>Your pitch doesn't need to be perfect. <em>It just needs to exist.</em></h3>" +
-    "<p class='hero-p'>60 seconds. Say who you are and why you care. That's it — Fledge will sharpen it from there.</p>" +
+    "<p class='hero-p'>60 seconds. Say who you are and why you care. That's it - Fledge will sharpen it from there.</p>" +
     "<div class='btnrow'><button type='button' class='btn' id='pitchbtn'>Practise your pitch →</button>" +
     "<span class='hero-note'>Takes 2 min. No prep needed.</span></div>" +
     "<div class='trustrow'>" +
@@ -66,7 +66,7 @@ export function renderInterviewPage(): string {
     "<p class='sub' style='margin-bottom:14px'>Five questions a real interviewer for that kind of role would ask.</p>" +
     `<div class='roles'>${roleButtons}</div></div>` +
     "<div class='card'><h3>🚀 Generate your own interview</h3>" +
-    "<p class='sub' style='margin-bottom:14px'>Choose how to build your five personalised questions — Fledge writes " +
+    "<p class='sub' style='margin-bottom:14px'>Choose how to build your five personalised questions - Fledge writes " +
     "what that interviewer would actually ask.</p>" +
     "<div class='srccard' data-src='jd'>" +
     "<button type='button' class='srchead' aria-expanded='true'><span class='srcico' style='background:#EAF2FA'>📋</span>" +
@@ -75,16 +75,16 @@ export function renderInterviewPage(): string {
     "<div class='srcbody' id='src-jd'><textarea id='jd' aria-label='Paste the job advert' rows='4' maxlength='3000' placeholder='Paste the job advert here…'></textarea></div></div>" +
     "<div class='srccard closed' data-src='cv'>" +
     "<button type='button' class='srchead' aria-expanded='false'><span class='srcico' style='background:#FDF3EC'>📄</span>" +
-    "<span class='srctxt'><b>From your CV</b><i>Questions that dig into your genuine experience — great for “walk me through your CV”</i></span>" +
+    "<span class='srctxt'><b>From your CV</b><i>Questions that dig into your genuine experience - great for “walk me through your CV”</i></span>" +
     "<span class='srcchev'>▾</span></button>" +
     "<div class='srcbody' id='src-cv' hidden><textarea id='gen-cv' rows='4' maxlength='9000' placeholder='Paste your CV text here…'></textarea></div></div>" +
     "<div class='srccard closed' data-src='admission'>" +
     "<button type='button' class='srchead' aria-expanded='false'><span class='srcico' style='background:#F0EFFB'>🎓</span>" +
-    "<span class='srctxt'><b>Admission interview</b><i>For a course, college or university place — tailored to your programme</i></span>" +
+    "<span class='srctxt'><b>Admission interview</b><i>For a course, college or university place - tailored to your programme</i></span>" +
     "<span class='srcchev'>▾</span></button>" +
     "<div class='srcbody' id='src-admission' hidden>" +
     "<input type='text' id='gen-degree' maxlength='120' placeholder='The course or degree, e.g. Business BTEC, Psychology BSc'>" +
-    "<textarea id='gen-course' rows='2' maxlength='3000' style='margin-top:10px' placeholder='Course description (optional — sharpens the questions)'></textarea>" +
+    "<textarea id='gen-course' rows='2' maxlength='3000' style='margin-top:10px' placeholder='Course description (optional - sharpens the questions)'></textarea>" +
     "<textarea id='gen-adm-cv' rows='2' maxlength='9000' style='margin-top:10px' placeholder='Your CV or personal statement (optional)'></textarea></div></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn' id='genbtn'>Generate AI interview</button>" +
     "<span class='hero-note' id='genstate' role='status'>Up to 5 custom interviews a day</span></div></div>" +
@@ -93,7 +93,7 @@ export function renderInterviewPage(): string {
 
     /* ---------- stage: camera setup ---------- */
     "<div id='s-setup' hidden>" +
-    "<div class='note-a11y'>ℹ️ <b>Accessibility note:</b> the camera checks are optional feedback to help you set up — " +
+    "<div class='note-a11y'>ℹ️ <b>Accessibility note:</b> the camera checks are optional feedback to help you set up - " +
     "nothing more. If a disability or medical condition affects your posture or movement, ignore them or practise " +
     "without the camera; your answers are what get scored.</div>" +
     "<div class='note-focus'>⚠ <b>Focus on your answers.</b> Camera position helps, but what you say matters far more " +
@@ -144,7 +144,7 @@ export function renderInterviewPage(): string {
     /* A question you cannot answer should not be able to trap you in
      * the studio. Skipping keeps the practice going; finishing early
      * still gets a real review of what you did do. Both are quiet
-     * links, not buttons — they are the way out, not the way on. */
+     * links, not buttons - they are the way out, not the way on. */
     "<div class='outrow'>" +
     "<button type='button' class='outlink' id='skipq'>Skip this question</button>" +
     "<button type='button' class='outlink' id='finishearly'>Finish early and get my feedback</button>" +
@@ -155,7 +155,7 @@ export function renderInterviewPage(): string {
     /* ---------- stage: review recordings ---------- */
     "<div id='s-review' hidden>" +
     "<div class='card'><h3>Your answers</h3>" +
-    "<p class='sub' style='margin-bottom:6px'>Watch anything back and re-record if you want — then send the words to " +
+    "<p class='sub' style='margin-bottom:6px'>Watch anything back and re-record if you want - then send the words to " +
     "Fledge for scoring. The videos themselves never leave your device.</p></div>" +
     "<div id='rev-list'></div>" +
     "<div class='hero-note' id='rev-count' aria-live='polite' style='margin:4px 0 10px'></div>" +
@@ -179,8 +179,8 @@ export function renderInterviewPage(): string {
     "<div class='ivtabs no-print'>" +
     "<button type='button' class='ivtab on' id='rtab-ai'>AI Review</button>" +
     "<button type='button' class='ivtab' id='rtab-self'>Self Review</button></div>" +
-    /* self review — watch yourself back and judge like an interviewer */
-    "<div id='rep-self' hidden><div class='card'><h3>Watch yourself back — honestly</h3>" +
+    /* self review - watch yourself back and judge like an interviewer */
+    "<div id='rep-self' hidden><div class='card'><h3>Watch yourself back - honestly</h3>" +
     "<p class='sub' style='margin-bottom:14px'>Interviewers say self-awareness is what separates candidates. Replay your " +
     "answers below, then tick what you genuinely did. Saved with this recording, just for you.</p>" +
     "<ul class='selflist' id='selflist'></ul></div></div>" +
@@ -190,7 +190,7 @@ export function renderInterviewPage(): string {
     "<div class='r-headtxt'><div class='r-kind'>MOCK INTERVIEW · AI REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-meta'></div></div></div>" +
-    /* report sections — focused screens, print reveals everything */
+    /* report sections - focused screens, print reveals everything */
     "<div class='rtabs no-print' role='tablist'>" +
     "<button type='button' class='rtab on' data-rp='overview' role='tab'>Overview</button>" +
     "<button type='button' class='rtab' data-rp='delivery' role='tab'>Speech &amp; presence</button>" +
@@ -199,7 +199,7 @@ export function renderInterviewPage(): string {
 
     /* ---- overview ---- */
     "<div class='rpanel' id='rp-overview'>" +
-    /* breakdown — segmented pill bars like the reference design */
+    /* breakdown - segmented pill bars like the reference design */
     "<div class='bgrid'>" +
     "<div class='bcard'><div class='b-l'>💬 Answer evaluation</div>" +
     "<div class='seg5' id='b-answer-bar' aria-hidden='true'></div>" +
@@ -211,7 +211,7 @@ export function renderInterviewPage(): string {
     "<div class='seg5' id='b-presence-bar' aria-hidden='true'></div>" +
     "<div class='b-n' id='b-presence'>–</div><div class='b-v' id='b-presence-v'></div><div class='b-s' id='b-presence-s'></div></div>" +
     "</div>" +
-    /* answers at a glance — score bar chart */
+    /* answers at a glance - score bar chart */
     "<div class='card' id='qs-card' hidden><h3>Your answers at a glance</h3>" +
     "<div id='qs-chart'></div>" +
     "<p class='kw-note' style='margin:8px 0 0'>Tap a bar to jump to that answer's full breakdown.</p></div>" +
@@ -221,7 +221,7 @@ export function renderInterviewPage(): string {
 
     /* ---- speech & presence ---- */
     "<div class='rpanel' id='rp-delivery' hidden>" +
-    /* speech detail — gauge, fraction bars and a per-answer time chart */
+    /* speech detail - gauge, fraction bars and a per-answer time chart */
     "<div class='card' id='sp-card' hidden><h3>Speech evaluation <span class='badge' id='sp-badge'></span></h3>" +
     "<div class='spgrid'>" +
     "<div class='spbox'><div class='sp-h'>SPEECH RATE <b class='sp-frac' id='sp-rate-frac'></b></div>" +
@@ -237,10 +237,10 @@ export function renderInterviewPage(): string {
     "</div>" +
     "<div class='sp-h' style='margin:16px 0 8px'>TIME PER ANSWER</div>" +
     "<div id='sp-times'></div></div>" +
-    /* presence detail — five measured signals, Hiration-style */
+    /* presence detail - five measured signals, Hiration-style */
     "<div class='card' id='pr-card' hidden><h3>Camera presence <span class='badge' id='pr-badge'></span></h3>" +
     "<div class='note-a11y' style='margin:10px 0'>ℹ️ <b>How this is used:</b> framing, head position and eye contact count " +
-    "for up to 10 of your 100. <b>Warmth, posture and stillness are feedback only — they are never scored.</b> " +
+    "for up to 10 of your 100. <b>Warmth, posture and stillness are feedback only - they are never scored.</b> " +
     "All of it is measured on your device, and all of it is safely ignored if a disability, medical condition or " +
     "how you naturally are affects your expression, posture, movement or eye contact.</div>" +
     "<div class='prgrid' id='prgrid'></div></div>" +
@@ -250,7 +250,7 @@ export function renderInterviewPage(): string {
     "<div class='rpanel' id='rp-answers' hidden>" +
     /* scoring-in-progress banner */
     "<div class='scoringbar' id='scoringbar' hidden><span class='scoringdot' aria-hidden='true'></span>" +
-    "<div><b>Fledge is scoring your interview…</b> Your recordings are already saved in <b>My recordings</b> — " +
+    "<div><b>Fledge is scoring your interview…</b> Your recordings are already saved in <b>My recordings</b> - " +
     "rewatch them below, or leave and come back; the report attaches when it's ready.</div></div>" +
     "<div class='qnav no-print' id='qnav' hidden>" +
     "<button type='button' class='secarrow' id='q-prev' aria-label='Previous answer'>←</button>" +
@@ -268,7 +268,7 @@ export function renderInterviewPage(): string {
     "</div>" +
 
     "<p class='sub' style='font-size:12.5px;margin-top:18px'>Up to 3 AI-reviewed interviews a day. Recording works best in Chrome or " +
-    "Edge; if your browser can't listen or record, the typing option always works. Nothing you record is uploaded or stored — " +
+    "Edge; if your browser can't listen or record, the typing option always works. Nothing you record is uploaded or stored - " +
     "only your words are reviewed, and if anything you say worries Fledge about your wellbeing it will point you to real support " +
     "instead of scoring.</p>" +
     "</main>" +
@@ -276,7 +276,7 @@ export function renderInterviewPage(): string {
     "<script>" + INTERVIEW_APP_JS + "</script>";
 
   return appShell({
-    title: "Fledglings — Interview Studio",
+    title: "Fledglings - Interview Studio",
     active: "interview",
     bodyHtml: body,
     extraCss: INTERVIEW_CSS,
@@ -305,7 +305,7 @@ var presence={frames:0,faceVisible:0,centred:0,goodDistance:0,headStraight:0,loo
 exprFrames:0,smiling:0,poseFrames:0,upright:0,settled:0};
 var faceDet=null,mpDetector=null,mpFaceLm=null,mpPose=null,mpLoading=false,sampleTimer=null;
 /* The per-answer timeline: one entry per sample, booleans only, kept
- * on this device and never sent — it draws the strip under each
+ * on this device and never sent - it draws the strip under each
  * answer that shows WHEN eye contact dropped or a smile appeared. */
 var currentTrack=null,trackT0=0;
 var THINK_SECS=30,MAX_ANSWER_SECS=180,MIN_ANSWER_CHARS=20;
@@ -336,13 +336,13 @@ function checkReady(){$('next').disabled=currentAnswer().length<20;}
 /* ---------------- camera / setup ----------------
  * Face analysis runs entirely ON-DEVICE. Primary: MediaPipe BlazeFace
  * (works in every modern browser; ~230KB model) giving a bounding box
- * plus eye/nose keypoints — enough for framing, head tilt (roll) and
+ * plus eye/nose keypoints - enough for framing, head tilt (roll) and
  * an eye-contact proxy (facing the camera). Fallback: the native
  * FaceDetector API (framing only). Nothing is ever uploaded. */
 /* Three on-device models, each optional. The face detector (~230KB)
  * gives framing as before. The face landmarker (~3.6MB) adds a
  * proper head pose and expression; the pose landmarker (~5.5MB) adds
- * posture. The two bigger ones load AFTER the first and fail alone —
+ * posture. The two bigger ones load AFTER the first and fail alone -
  * a phone on a slow connection still gets framing within a second,
  * and anything that never loaded is reported as not measured rather
  * than guessed. Nothing leaves the device. */
@@ -362,7 +362,7 @@ return mod.FaceDetector.createFromOptions(files,{baseOptions:{modelAssetPath:MP_
 .catch(function(){mpDetector=null;});}
 /* Expression and head pose from the face landmarker. Smile = the two
  * mouth-smile blendshapes averaged. Eye contact and head level come
- * from landmark geometry — nose tip 1, eye corners 33/263, chin 152 —
+ * from landmark geometry - nose tip 1, eye corners 33/263, chin 152 -
  * rather than the transformation matrix, so there is no axis
  * convention to get wrong. null = model not loaded or no face. */
 function analyseExpression(v){
@@ -382,7 +382,7 @@ return {smiling:smile>=0.3,lookingAhead:yawRatio<=0.35&&pitchT>=0.2&&pitchT<=0.7
 /* Posture from the pose landmarker: shoulders 11/12, nose 0. Upright =
  * shoulders level and the head carried above them rather than sunk;
  * settled = the shoulders barely moved since the last sample. Coarse
- * on purpose — sampled every ~1.2s it reads slouching and fidgeting,
+ * on purpose - sampled every ~1.2s it reads slouching and fidgeting,
  * not gestures. Feedback only; it counts for nothing. */
 var lastShoulderMid=null;
 function analysePose(v){
@@ -436,7 +436,7 @@ ckSet('ck-mic',true,at&&at.label?at.label:'Connected');
 setTimeout(checkFrame,900);
 if(!setupTimer)setupTimer=setInterval(function(){if(!$('s-setup').hidden)checkFrame()},2500);
 }).catch(function(){
-ckSet('ck-cam',false,'Blocked or unavailable — allow camera access, or practise without it.');
+ckSet('ck-cam',false,'Blocked or unavailable - allow camera access, or practise without it.');
 ckSet('ck-mic',false,'Blocked or unavailable.');
 ckSet('ck-face',false,'Needs the camera.');ckSet('ck-light',false,'Needs the camera.');});}
 function checkFrame(){var v=$('setup-video');if(!v.videoWidth)return;
@@ -445,21 +445,21 @@ var ctx=cv.getContext('2d');ctx.drawImage(v,0,0,120,68);
 try{var d=ctx.getImageData(0,0,120,68).data,sum=0;
 for(var i=0;i<d.length;i+=16){sum+=(d[i]+d[i+1]+d[i+2])/3}
 var avg=sum/(d.length/16);
-ckSet('ck-light',avg>40,avg>40?'Looks fine':'Quite dark — face a window or lamp if you can.');}catch(e){}
+ckSet('ck-light',avg>40,avg>40?'Looks fine':'Quite dark - face a window or lamp if you can.');}catch(e){}
 var r=analyseFrame(v);
-if(r===null){ckSet('ck-face',null,'Line yourself up in the preview — face checks are still loading.');return;}
+if(r===null){ckSet('ck-face',null,'Line yourself up in the preview - face checks are still loading.');return;}
 Promise.resolve(r).then(function(f){
-if(!f){ckSet('ck-face',null,'Line yourself up in the preview — this browser cannot auto-check.');return;}
-if(!f.face){ckSet('ck-face',false,'Cannot see a face yet — sit facing the camera.');return;}
+if(!f){ckSet('ck-face',null,'Line yourself up in the preview - this browser cannot auto-check.');return;}
+if(!f.face){ckSet('ck-face',false,'Cannot see a face yet - sit facing the camera.');return;}
 var msg;
 if(!f.centred)msg='Move toward the centre of the frame';
-else if(!f.goodDistance)msg='Adjust your distance — head and shoulders in shot';
-else if(f.kp&&f.headStraight===false)msg='Nearly — level your head a touch';
-else if(f.kp&&f.lookingAhead===false)msg='Nicely framed — look towards the camera';
+else if(!f.goodDistance)msg='Adjust your distance - head and shoulders in shot';
+else if(f.kp&&f.headStraight===false)msg='Nearly - level your head a touch';
+else if(f.kp&&f.lookingAhead===false)msg='Nicely framed - look towards the camera';
 else msg=f.kp?'Nicely framed, head level, looking at the camera':'Nicely framed';
 ckSet('ck-face',Boolean(f.centred&&f.goodDistance),msg);});}
 
-/* presence sampling while recording — tallies framing plus, when the
+/* presence sampling while recording - tallies framing plus, when the
  * keypoint detector is live, head straightness + eye contact */
 var kpMeasured=false;
 function sampleStart(){if(!stream)return;
@@ -495,7 +495,7 @@ function showQuestion(){finalText='';$('typed').value='';$('redo').hidden=true;r
 $('qnum').textContent='Question '+(idx+1)+' of '+qs.length;
 $('qtext').textContent=qs[idx];
 $('int-meta').textContent='Think time: '+THINK_SECS+'s · Max answer: 3 min · Re-record any answer before submitting';
-$('next').textContent=idx===qs.length-1?'Finish — review my answers':'Next question';
+$('next').textContent=idx===qs.length-1?'Finish - review my answers':'Next question';
 $('vidcard').hidden=mode!=='video';$('voicecard').hidden=mode==='video';
 checkReady();
 if(mode==='video'){$('live-video').srcObject=stream;startThink();}
@@ -503,7 +503,7 @@ else{$('micstate').textContent='Tap to answer out loud';}}
 function clearThink(){if(thinkTimer){clearInterval(thinkTimer);thinkTimer=null}}
 function startThink(){clearThink();$('think-over').hidden=false;$('recbar').hidden=true;
 var left=THINK_SECS;$('think-n').textContent=left;
-/* The interval clears ITSELF via its own id — a stale tick can never
+/* The interval clears ITSELF via its own id - a stale tick can never
  * kill a newer countdown or restart recording. */
 var id=setInterval(function(){left--;$('think-n').textContent=left;
 if(left<=0){clearInterval(id);if(thinkTimer===id)thinkTimer=null;startRecording();}},1000);
@@ -517,14 +517,14 @@ try{var mt=pickMime();recorder=new MediaRecorder(stream,mt?{mimeType:mt,videoBit
 recorder.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
 recorder.start(1000);}catch(e){recorder=null}
 recStartAt=Date.now();sampleStart();
-startSR(function(){$('captions').textContent='This browser cannot transcribe speech — type what you said below.';$('typefall').open=true;});
+startSR(function(){$('captions').textContent='This browser cannot transcribe speech - type what you said below.';$('typefall').open=true;});
 recTimer=setInterval(function(){var s=(Date.now()-recStartAt)/1000;$('rec-t').textContent=fmt(s);
 if(s>=MAX_ANSWER_SECS)stopRecording();},250);}
 function stopRecording(){if(recTimer){clearInterval(recTimer);recTimer=null}
 sampleStop();stopSR();
 var secs=Math.round((Date.now()-recStartAt)/1000);
 /* Write duration synchronously; the blob URL lands by mutation when
- * the recorder's async onstop fires — nothing can clobber the answer. */
+ * the recorder's async onstop fires - nothing can clobber the answer. */
 var prev=answers[idx]||{};
 answers[idx]={question:qs[idx],answer:prev.answer||'',duration_secs:Math.max(1,secs),blobUrl:prev.blobUrl||'',
 track:currentTrack||[]};
@@ -539,12 +539,12 @@ $('rec-stop').addEventListener('click',stopRecording);
 /* voice-only capture */
 $('mic').addEventListener('click',function(){
 if(listening){stopSR();voiceSecs+=Math.round((Date.now()-voiceStartAt)/1000);
-$('mic').classList.remove('on');$('micstate').textContent='Got it — tap to add more, or move on.';$('redo').hidden=false;}
+$('mic').classList.remove('on');$('micstate').textContent='Got it - tap to add more, or move on.';$('redo').hidden=false;}
 else{voiceStartAt=Date.now();
-startSR(function(){$('micstate').textContent='This browser cannot listen — use the typing option below.';$('typefall').open=true;});
+startSR(function(){$('micstate').textContent='This browser cannot listen - use the typing option below.';$('typefall').open=true;});
 if(listening){$('mic').classList.add('on');$('micstate').textContent='Listening… tap again when you have finished';}}});
 $('redo').addEventListener('click',function(){
-/* Kill any live listening session FIRST — its closure still holds the
+/* Kill any live listening session FIRST - its closure still holds the
  * old transcript and would resurrect it on the next result. */
 stopSR();$('mic').classList.remove('on');
 finalText='';$('typed').value='';renderTranscript('');$('redo').hidden=true;voiceSecs=0;
@@ -563,10 +563,10 @@ else if(listening){stopSR();$('mic').classList.remove('on');}
 voiceSecs=0;}
 /* The answers that actually go for scoring, in order. The report's
  * per-answer feedback comes back in THIS order, so every render must
- * index against this list — indexing the full list would pin Q3's
+ * index against this list - indexing the full list would pin Q3's
  * feedback onto a skipped Q2. */
 function trackStrip(raw){
-/* A three-minute answer is 150 samples — too many blocks for a phone.
+/* A three-minute answer is 150 samples - too many blocks for a phone.
  * Fold long runs into at most 40 buckets by majority (40 blocks at
  * their 2px minimum plus gaps fit a 320px screen with room to spare),
  * so every strip fits and a block always means the same stretch. */
@@ -604,7 +604,7 @@ if(a.answer.trim().length<MIN_ANSWER_CHARS&&!a.blobUrl)a.skipped=true;
 answers=answers.slice(0,idx+1);
 reviewReturn=false;
 if(answeredCount()===0){$('int-meta').textContent=
-'Answer at least one question and Fledge can review it — or head back and pick a shorter set.';return;}
+'Answer at least one question and Fledge can review it - or head back and pick a shorter set.';return;}
 setTimeout(function(){renderReview();show('s-review');window.scrollTo({top:0});},250);});
 
 $('next').addEventListener('click',function(){clearThink();
@@ -655,14 +655,14 @@ fetch('/api/interview-questions',{method:'POST',headers:{'Content-Type':'applica
 body:JSON.stringify(payload)})
 .then(function(r){return r.json()}).then(function(d){$('genbtn').disabled=false;
 if(d&&d.questions){role='custom';roleLabel=d.role_label||'Your chosen role';qs=d.questions;sig=d.sig||'';sigIat=d.iat||0;
-$('genstate').textContent='Ready — '+roleLabel;toSetup();return;}
-$('genstate').textContent=(d&&d.reply)||'Could not generate — try again in a minute.';})
-.catch(function(){$('genbtn').disabled=false;$('genstate').textContent='Could not reach Fledge — try again in a minute.';});});
+$('genstate').textContent='Ready - '+roleLabel;toSetup();return;}
+$('genstate').textContent=(d&&d.reply)||'Could not generate - try again in a minute.';})
+.catch(function(){$('genbtn').disabled=false;$('genstate').textContent='Could not reach Fledge - try again in a minute.';});});
 function toSetup(){if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder){openSetup();}
 else{beginInterview('voice');}}
 $('setup-go').addEventListener('click',function(){beginInterview('video')});
 $('setup-novid').addEventListener('click',function(){
-/* Release the WHOLE stream — leaving the audio track open keeps the
+/* Release the WHOLE stream - leaving the audio track open keeps the
  * browser's mic-in-use light on for the entire voice practice. */
 if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}
 beginInterview('voice');});
@@ -676,27 +676,27 @@ out+="<div class='card revcard"+(skipped?" skipped":"")+"'><div class='qc-head'>
 "<button type='button' class='rev-redo' data-i='"+i+"'>"+(skipped?'Answer it':'Re-record')+"</button></div>";
 if(a.blobUrl&&!skipped){out+="<video class='rev-vid' src='"+a.blobUrl+"' controls playsinline></video>";}
 out+="<div class='rev-tx'>"+(skipped
-?"<i>Skipped — this one is left out of your feedback. Nothing is marked down for it.</i>"
-:(a.answer?esc2(a.answer):"<i>No words captured — re-record or type this answer.</i>"))+"</div></div>";});
+?"<i>Skipped - this one is left out of your feedback. Nothing is marked down for it.</i>"
+:(a.answer?esc2(a.answer):"<i>No words captured - re-record or type this answer.</i>"))+"</div></div>";});
 $('rev-list').innerHTML=out;
 var done=answeredCount();
 $('rev-count').textContent=done===0
-?'Nothing to review yet — answer at least one question.'
+?'Nothing to review yet - answer at least one question.'
 :'Fledge will review the '+done+' question'+(done===1?'':'s')+' you answered.';
 $('rev-submit').disabled=done===0;
-/* Scope to the review list — .rev-redo is reused as a button style by
+/* Scope to the review list - .rev-redo is reused as a button style by
  * the library and question bank, and a document-wide bind would hijack
  * those buttons with stale re-record handlers. */
 $('rev-list').querySelectorAll('.rev-redo').forEach(function(b){b.addEventListener('click',function(){
 idx=parseInt(b.dataset.i,10);reviewReturn=true;showQuestion();show('s-int');window.scrollTo({top:0});});});}
 $('rev-submit').addEventListener('click',function(){
-/* Only answers the learner MEANT to give must clear the bar — a
+/* Only answers the learner MEANT to give must clear the bar - a
  * skipped question is a deliberate choice, not a too-short answer,
  * and sending them back to it would defeat the point of skipping. */
 var short=answers.findIndex(function(a){
 return a&&!a.skipped&&(!a.answer||a.answer.trim().length<MIN_ANSWER_CHARS);});
 if(short!==-1){idx=short;reviewReturn=true;showQuestion();show('s-int');
-$('int-meta').textContent='This answer needs at least a sentence or two — speak it, type it, or skip it.';return;}
+$('int-meta').textContent='This answer needs at least a sentence or two - speak it, type it, or skip it.';return;}
 if(answeredCount()===0){$('rev-count').textContent=
 'Answer at least one question before asking for feedback.';return;}
 submit();});
@@ -728,12 +728,12 @@ function fmtDate(t){try{return new Date(t).toLocaleDateString('en-GB',{day:'nume
 function renderRecordings(){idbAll().then(function(all){
 all.sort(function(a,b){return b.at-a.at});
 var out='';
-if(!all.length)out="<div class='hero-note'>Nothing here yet — finish a practice and it appears instantly.</div>";
+if(!all.length)out="<div class='hero-note'>Nothing here yet - finish a practice and it appears instantly.</div>";
 all.forEach(function(s){var score=s.report?s.report.overall:null;
 out+="<div class='reclib'><div class='reclib-main'><b>"+esc2(s.roleLabel||'Practice interview')+"</b>"+
 "<span>"+esc2(fmtDate(s.at))+" · "+s.answers.length+" question"+(s.answers.length===1?'':'s')+
 (s.status==='scoring'?" · <i class='rl-tag'>report pending</i>":s.status==='unscored'?" · <i class='rl-tag'>recording only</i>":"")+"</span></div>"+
-(score!==null?"<span class='reclib-score' style='color:"+band(score)+"'>"+score+"</span>":"<span class='reclib-score dim'>—</span>")+
+(score!==null?"<span class='reclib-score' style='color:"+band(score)+"'>"+score+"</span>":"<span class='reclib-score dim'> - </span>")+
 "<button type='button' class='rev-redo' data-open-rec='"+s.id+"'>Open</button>"+
 "<button type='button' class='rev-redo' data-del-rec='"+s.id+"'>Delete</button></div>";});
 $('recs-list').innerHTML=out;
@@ -744,7 +744,7 @@ idbDel(b.dataset.delRec).then(function(){renderRecordings();refreshRecCount();})
 function openRecording(id){idbAll().then(function(all){
 var s=all.find(function(x){return x.id===id});if(!s)return;
 /* Release the previous session's object URLs before minting new ones
- * — repeatedly opening recordings must not pin blobs in memory. */
+ * - repeatedly opening recordings must not pin blobs in memory. */
 revokeAllBlobs();
 currentSession=s;roleLabel=s.roleLabel||'Practice interview';mode=s.mode||'video';
 answers=s.answers.map(function(a,i){var blob=s.videos&&s.videos[i];
@@ -784,7 +784,7 @@ if(on)rpGo('answers');}
 function renderPendingReport(scoring){
 /* Recordings-first view: watchable instantly, report joins later.
  * Reset EVERY piece of report chrome a previously viewed scored
- * recording may have painted — ring, bars, verdict words, chart. */
+ * recording may have painted - ring, bars, verdict words, chart. */
 $('r-score').textContent='–';$('r-score').style.color='';
 $('r-ring').style.background='#ECE7E6';
 $('r-verdict').textContent=scoring?'Being scored…':'Your recording';
@@ -815,14 +815,14 @@ var scored=scoredAnswers();
 var payload={learner_id:lid,session_id:sid,role:role,role_label:roleLabel,token:flToken(),
 answers:scored.map(function(a){return {question:a.question,answer:a.answer,duration_secs:a.duration_secs}})};
 /* The full question set still goes up: its signature covers all five,
- * and the server only requires each answer to belong to that set —
+ * and the server only requires each answer to belong to that set -
  * not that every question was answered. */
 if(role==='custom'){payload.questions=qs;payload.sig=sig;payload.iat=sigIat;}
 if(presence.frames>=3){var pr={frames:presence.frames,faceVisible:presence.faceVisible,
 centred:presence.centred,goodDistance:presence.goodDistance};
 if(kpMeasured){pr.headStraight=presence.headStraight;pr.lookingAhead=presence.lookingAhead;}
 /* Feedback-only tallies ride along only when their model actually
- * sampled — the server treats a missing pair as "not measured". */
+ * sampled - the server treats a missing pair as "not measured". */
 if(presence.exprFrames>=3){pr.exprFrames=presence.exprFrames;pr.smiling=presence.smiling;}
 if(presence.poseFrames>=3){pr.poseFrames=presence.poseFrames;pr.upright=presence.upright;pr.settled=presence.settled;}
 payload.presence=pr;}
@@ -830,11 +830,11 @@ fetch('/api/interview',{method:'POST',headers:{'Content-Type':'application/json'
 .then(function(r){return r.json()}).then(function(d){
 if(d&&d.report){saveSession('done',d.report);repShowScoring(false);renderReport(d.report);return;}
 saveSession('unscored',null);repShowScoring(false);
-$('r-verdict').textContent='Recording saved — scoring unavailable';
-$('r-meta').textContent=(d&&d.reply)||'Fledge could not score this one — your recording is safe in My recordings.';})
+$('r-verdict').textContent='Recording saved - scoring unavailable';
+$('r-meta').textContent=(d&&d.reply)||'Fledge could not score this one - your recording is safe in My recordings.';})
 .catch(function(){saveSession('unscored',null);repShowScoring(false);
-$('r-verdict').textContent='Recording saved — scoring unavailable';
-$('r-meta').textContent='Could not reach Fledge — your recording is safe in My recordings.';});}
+$('r-verdict').textContent='Recording saved - scoring unavailable';
+$('r-meta').textContent='Could not reach Fledge - your recording is safe in My recordings.';});}
 /* A missing score must not read as a bad one: undefined fell through
  * every comparison and came out as "Needs work" beside a dash. */
 function scoreLabel(s){if(typeof s!=='number'||!isFinite(s))return 'Not measured';
@@ -870,7 +870,7 @@ out+="<div class='tc-row'><span class='tc-l'>Q"+(i+1)+"</span><div class='tc-tra
 return out+"</div>";}
 var PR_ICONS={face:'👤',centre:'🎯',dist:'↔️',head:'📐',eye:'👁️',warm:'🙂',posture:'🧍',still:'🪨'};
 function prStat(label,icon,metric,unavailableNote){
-/* a metric without a usable pct is an unavailable metric — never
+/* a metric without a usable pct is an unavailable metric - never
  * print 'undefined%' at a learner */
 if(metric&&(typeof metric.pct!=='number'||!isFinite(metric.pct)))metric=null;
 if(metric===null)return "<div class='prstat na'><div class='prring'><em>"+icon+"</em></div><b>"+esc2(label)+"</b><span>"+esc2(unavailableNote||'Not measured')+"</span></div>";
@@ -894,13 +894,13 @@ if(r.speech){$('b-speech').textContent=r.speech.score+' / 10';
 $('b-speech-bar').innerHTML=seg5(Math.round(r.speech.score/2),band(r.speech.score*10));
 $('b-speech-v').textContent=tenLabel(r.speech.score);$('b-speech-v').style.color=band(r.speech.score*10);
 $('b-speech-s').textContent='Pace and filler words, measured from your answers';}
-else{$('b-speech').textContent='—';$('b-speech-bar').innerHTML=seg5(0,'');$('b-speech-v').textContent='';
+else{$('b-speech').textContent=' - ';$('b-speech-bar').innerHTML=seg5(0,'');$('b-speech-v').textContent='';
 $('b-speech-s').textContent='Not measured (no timed spoken answers)';}
 if(r.presence){$('b-presence').textContent=r.presence.score+' / 10';
 $('b-presence-bar').innerHTML=seg5(Math.round(r.presence.score/2),band(r.presence.score*10));
 $('b-presence-v').textContent=tenLabel(r.presence.score);$('b-presence-v').style.color=band(r.presence.score*10);
-$('b-presence-s').textContent='Framing, head position and eye contact — plus expression and posture as feedback — all measured on your device';}
-else{$('b-presence').textContent='—';$('b-presence-bar').innerHTML=seg5(0,'');$('b-presence-v').textContent='';
+$('b-presence-s').textContent='Framing, head position and eye contact - plus expression and posture as feedback - all measured on your device';}
+else{$('b-presence').textContent=' - ';$('b-presence-bar').innerHTML=seg5(0,'');$('b-presence-v').textContent='';
 $('b-presence-s').textContent='Not measured (no camera, or face checks unavailable)';}
 /* scores at a glance */
 if(r.answers&&r.answers.length){$('qs-card').hidden=false;
@@ -909,7 +909,7 @@ document.querySelectorAll('#qs-chart [data-qjump]').forEach(function(a){a.onclic
 ev.preventDefault();rpGo('answers');qShow(parseInt(a.dataset.qjump,10)||0);};});}
 else{$('qs-card').hidden=true;}
 if(r.speech){$('sp-card').hidden=false;$('sp-badge').textContent=r.speech.score+' / 10';
-/* every subfield guarded — a partial payload must never print
+/* every subfield guarded - a partial payload must never print
  * 'undefined' or 'NaN' at a learner */
 var ps=typeof r.speech.paceScore==='number'?r.speech.paceScore:null;
 var fs=typeof r.speech.fillerScore==='number'?r.speech.fillerScore:null;
@@ -918,13 +918,13 @@ $('sp-rate-frac').textContent=ps===null?'':ps+'/5';
 var wpmOk=typeof r.speech.wpm==='number'&&isFinite(r.speech.wpm);
 var gp=wpmOk?Math.max(2,Math.min(98,(r.speech.wpm/250)*100)):50;
 $('sp-pin').style.left=gp+'%';$('sp-pin-l').textContent=wpmOk?r.speech.wpm+' wpm':'';
-$('sp-wpm-d').textContent=r.speech.paceBand==='good'?'A natural, confident pace.':r.speech.paceBand==='slow'?'On the slow side — practising out loud builds pace without rushing.':r.speech.paceBand==='fast'?'Quick — a breath between points gives your answers room to land.':'';
+$('sp-wpm-d').textContent=r.speech.paceBand==='good'?'A natural, confident pace.':r.speech.paceBand==='slow'?'On the slow side - practising out loud builds pace without rushing.':r.speech.paceBand==='fast'?'Quick - a breath between points gives your answers room to land.':'';
 $('sp-fill-frac').textContent=fs===null?'':fs+'/5';
-$('sp-fill').textContent=typeof r.speech.fillerCount==='number'?r.speech.fillerCount+(r.speech.fillerCount===1?' word':' words'):'—';
+$('sp-fill').textContent=typeof r.speech.fillerCount==='number'?r.speech.fillerCount+(r.speech.fillerCount===1?' word':' words'):' - ';
 $('sp-fill-bar').style.width=(fs===null?0:fs*20)+'%';
 $('sp-fill-bar').style.background=fs===null?'#E3DDDA':band(fs*20);
-$('sp-fill-d').textContent=r.speech.fillerCount===0?'Clean answers — no crutch words caught.':typeof r.speech.fillerCount==='number'?'Caught in your transcript (um, basically, sort of…). A short pause beats a filler.':'';
-$('sp-time').textContent=(typeof r.speech.totalSecs==='number'&&isFinite(r.speech.totalSecs))?fmt(r.speech.totalSecs):'—';
+$('sp-fill-d').textContent=r.speech.fillerCount===0?'Clean answers - no crutch words caught.':typeof r.speech.fillerCount==='number'?'Caught in your transcript (um, basically, sort of…). A short pause beats a filler.':'';
+$('sp-time').textContent=(typeof r.speech.totalSecs==='number'&&isFinite(r.speech.totalSecs))?fmt(r.speech.totalSecs):' - ';
 $('sp-times').innerHTML=timeChart(answers);}else{$('sp-card').hidden=true;}
 if(r.presence){$('pr-card').hidden=false;$('pr-badge').textContent=r.presence.score+' / 10';
 var m=r.presence.metrics||{};
@@ -935,7 +935,7 @@ prStat('Centre of screen',PR_ICONS.centre,m.centred||{pct:r.presence.centredPct,
 prStat('Distance',PR_ICONS.dist,m.distance||{pct:r.presence.goodDistancePct,band:'okay'},'')+
 prStat('Straight head',PR_ICONS.head,m.headStraight||null,noKp)+
 prStat('Eye contact',PR_ICONS.eye,m.eyeContact||null,noKp)+
-/* Feedback only, never scored — the a11y note above the grid says so. */
+/* Feedback only, never scored - the a11y note above the grid says so. */
 prStat('Warmth',PR_ICONS.warm,m.warmth||null,noKp)+
 prStat('Posture',PR_ICONS.posture,m.posture||null,noKp)+
 prStat('Stillness',PR_ICONS.still,m.stillness||null,noKp);}
@@ -943,7 +943,7 @@ else{$('pr-card').hidden=true;}
 /* Per-question: Hiration-style assessment (left) + guidance (right) */
 var out='';var SC=scoredAnswers();r.answers.forEach(function(a,i){var c=band(a.score);
 /* the marking scheme, from the same constant the prompt was built
- * from — a learner sees what the score judged and what the band above
+ * from - a learner sees what the score judged and what the band above
  * asks for */
 var FL_IV_RUBRIC=${JSON.stringify(ANSWER_RUBRIC)};
 function ivLadder(score){var rb=FL_IV_RUBRIC;var here=null;
@@ -960,14 +960,14 @@ out+="<div class='card qrep' id='qrep-"+i+"'><div class='qc-head'><span class='q
 if(SC[i]&&SC[i].blobUrl){out+="<video class='rev-vid inrep' src='"+SC[i].blobUrl+"' controls playsinline></video>";}
 /* WHEN, not just how much: one cell per sample, so a learner can see
  * that eye contact held for the story and dropped at the end, or that
- * they only smiled once. Drawn from booleans kept on this device —
+ * they only smiled once. Drawn from booleans kept on this device -
  * nothing here was ever sent. */
 if(SC[i]&&SC[i].track&&SC[i].track.length>=3){out+=trackStrip(SC[i].track);}
 out+="<div class='qcols'>"+
 "<div class='qcol'><div class='qcol-t'>ANSWER ASSESSMENT</div>"+
 "<div class='meter'><i style='width:"+a.score+"%;background:"+c+"'></i></div>"+
 "<div class='meter-l' style='color:"+c+"'>"+scoreLabel(a.score)+"</div>"+
-/* Blank when the praise didn't quote what they actually said — the
+/* Blank when the praise didn't quote what they actually said - the
  * server drops it rather than showing words they never used. */
 (a.strength?"<div class='panel pgood'><b>What went well</b>"+esc2(a.strength)+"</div>":"")+
 "<div class='panel pbad'><b>What needs improvement</b>"+esc2(a.improve)+"</div>"+ivLadder(a.score)+"</div>"+
@@ -983,36 +983,36 @@ if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}}
 /* ---------------- learning: prep tracks + question bank ---------------- */
 var LEARN=[
 {id:'rounds',track:'fast',title:'How interviews actually work',mins:3,
-body:'Most first-job hiring runs in rounds: a short phone or video screen (are you real, keen and available?), then a face-to-face or panel (can you do the job and fit the team?), sometimes a task or trial shift. Each round checks something different — so match your energy to it.',
+body:'Most first-job hiring runs in rounds: a short phone or video screen (are you real, keen and available?), then a face-to-face or panel (can you do the job and fit the team?), sometimes a task or trial shift. Each round checks something different - so match your energy to it.',
 moves:['Phone screen: stand up, smile, have your dates and travel plan ready','Face-to-face: three prepared stories beat twenty memorised answers','Trial shift: ask what good looks like, then visibly do it']},
 {id:'star',track:'fast',title:'The STAR shape',mins:4,
-body:'Almost every behavioural question wants the same shape: the Situation you were in, the Task in front of you, the Action YOU took, and the Result. Most people stop at action — the result is where the interviewer decides.',
-moves:['One sentence of situation — resist the backstory','Say "I", not "we" — your part is the answer','End with what changed: a number, a thank-you, a habit that stuck'],
+body:'Almost every behavioural question wants the same shape: the Situation you were in, the Task in front of you, the Action YOU took, and the Result. Most people stop at action - the result is where the interviewer decides.',
+moves:['One sentence of situation - resist the backstory','Say "I", not "we" - your part is the answer','End with what changed: a number, a thank-you, a habit that stuck'],
 example:{q:'Tell me about a time you worked with other people to get something done.',
 weak:'We were really busy at Christmas and everyone worked hard, and we got through it as a team. It was stressful but we managed.',
 star:[['Situation','It was the Saturday before Christmas at the garden centre and the queue was out the door.'],
 ['Task','I was on the till, and we had two people off sick.'],
-['Action','I asked the supervisor if we could split it — I stayed on the till, one person restocked the bags and cups, and one took card-only customers at the second till.'],
+['Action','I asked the supervisor if we could split it - I stayed on the till, one person restocked the bags and cups, and one took card-only customers at the second till.'],
 ['Result','We cleared the queue in about twenty minutes and never had to close a till. We used the same split every Saturday after that.']],
-why:'Same story. The first version tells them nothing about you — no "I", no result. The second is 40 seconds and every line is checkable.'}},
+why:'Same story. The first version tells them nothing about you - no "I", no result. The second is 40 seconds and every line is checkable.'}},
 {id:'prep',track:'fast',title:'Prepare like a pro',mins:4,
 body:'Preparation is mostly knowing three things cold: what the company actually does (their website, one recent thing about them), what the advert asks for (reread it the night before), and which three real stories of yours prove you fit it.',
-moves:['Reread the advert and underline the three things they repeat','Pick three stories from work, school or volunteering that map to them','Plan the journey and arrive ten minutes early — reliability is the first test']},
+moves:['Reread the advert and underline the three things they repeat','Pick three stories from work, school or volunteering that map to them','Plan the journey and arrive ten minutes early - reliability is the first test']},
 {id:'ask',track:'fast',title:'Questions to ask them',mins:3,
-body:'"Any questions for us?" is not a formality — it is your last impression. Asking nothing reads as not caring; asking about pay first reads as only caring about that.',
+body:'"Any questions for us?" is not a formality - it is your last impression. Asking nothing reads as not caring; asking about pay first reads as only caring about that.',
 moves:['"What does a really good first three months look like in this role?"','"What do people who love working here say they love?"','"What would my first week actually look like?"','Save pay and holidays for after the offer']},
 {id:'unknown',track:'comp',title:'When you do not know the answer',mins:3,
-body:'Every interviewer asks something you cannot answer. What they are watching is what you do next — bluffing fails, freezing fails, honest thinking wins.',
-moves:['Say what you DO know that is nearby','"I have not done that yet — here is how I would find out"','Ask a clarifying question; thinking aloud is allowed']},
+body:'Every interviewer asks something you cannot answer. What they are watching is what you do next - bluffing fails, freezing fails, honest thinking wins.',
+moves:['Say what you DO know that is nearby','"I have not done that yet - here is how I would find out"','Ask a clarifying question; thinking aloud is allowed']},
 {id:'video',track:'comp',title:'Video interview craft',mins:3,
 body:'Video interviews are won on setup and eye contact. The camera is the interviewer: look at it when you speak, not at your own face.',
-moves:['Camera at eye level, window in front of you not behind','Notes are fine — three bullet words, not a script to read','Close every other tab; log in ten minutes early','If tech fails, stay calm and phone them — handling it well IS the test']},
+moves:['Camera at eye level, window in front of you not behind','Notes are fine - three bullet words, not a script to read','Close every other tab; log in ten minutes early','If tech fails, stay calm and phone them - handling it well IS the test']},
 {id:'logistics',track:'comp',title:'The straight-answer questions',mins:3,
-body:'Availability, notice, pay expectations, references — these have right answers: prompt, honest, unembellished ones. Fumbling logistics undoes a good interview.',
+body:'Availability, notice, pay expectations, references - these have right answers: prompt, honest, unembellished ones. Fumbling logistics undoes a good interview.',
 moves:['Know your true availability before you walk in','Pay: "What is the range for this role?" is a fine answer early on','Have two referees who know they might be called']},
 {id:'after',track:'comp',title:'After the interview',mins:3,
-body:'The candidates who follow up stand out — and the ones who treat a no as information come back stronger. Every interview is practice for the one that says yes.',
-moves:['Same-day short thank-you email — two sentences, name something you discussed','Write down the questions you were asked while fresh','If it is a no, ask for one piece of feedback — then practise exactly that here']}];
+body:'The candidates who follow up stand out - and the ones who treat a no as information come back stronger. Every interview is practice for the one that says yes.',
+moves:['Same-day short thank-you email - two sentences, name something you discussed','Write down the questions you were asked while fresh','If it is a no, ask for one piece of feedback - then practise exactly that here']}];
 var LEARN_KEY='fl_iv_learn_v1';
 function learnRead(){try{return JSON.parse(localStorage.getItem(LEARN_KEY)||'[]')}catch(e){return []}}
 function learnMark(id){var r=learnRead();if(r.indexOf(id)===-1){r.push(id);
@@ -1121,7 +1121,7 @@ $('tab-recs').onclick=function(){showTab('recs')};
 $('tab-learn').onclick=function(){showTab('learn')};
 refreshRecCount();
 /* QA hook: lets automated tests render a report without a model call.
- * Operates only on this page's own DOM — no data leaves the device. */
+ * Operates only on this page's own DOM - no data leaves the device. */
 /* Test seam: lets a visual check attach a presence timeline to an
  * answer so the strip can be rendered without a camera. Touches only
  * this page's in-memory state; nothing is sent or stored. */
@@ -1130,7 +1130,7 @@ window.__flRenderReport=function(rep,ans){if(ans)answers=ans;renderReport(rep);s
 document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
 fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,tool:'interview',helpful:b.dataset.fb==='1'})}).catch(function(){});
-$('fbrow').textContent='Thanks — that helps Fledge improve.';};});
+$('fbrow').textContent='Thanks - that helps Fledge improve.';};});
 })();`;
 
 const INTERVIEW_CSS = `
@@ -1143,7 +1143,7 @@ const INTERVIEW_CSS = `
 .ivcount{background:var(--orange);color:#fff;border-radius:999px;min-width:20px;height:20px;font-size:11px;
   display:inline-flex;align-items:center;justify-content:center;padding:0 6px;}
 .ivtab.on .ivcount{background:var(--mango);}
-/* generate chooser — expandable icon cards */
+/* generate chooser - expandable icon cards */
 .srccard{border:1.5px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:#fff;
   transition:border-color .12s,box-shadow .12s;}
 .srccard:not(.closed){border-color:#B93A22;box-shadow:0 0 0 2px rgba(217,69,43,.12);}
@@ -1217,7 +1217,7 @@ const INTERVIEW_CSS = `
 .qb-n{font-size:11px;font-weight:800;color:#B93A22;flex:none;}
 .qb-q span{flex:1;line-height:1.5;}
 .qb-go{padding:8px 16px;min-height:36px;font-size:12.5px;flex:none;}
-/* self review — toggle cards */
+/* self review - toggle cards */
 .selflist{list-style:none;}
 .selflist li{margin-bottom:8px;}
 .selflist label{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:12px;
@@ -1406,7 +1406,7 @@ const INTERVIEW_CSS = `
 .bandc.on.good{background:#1A7649;}
 .qcard{padding:0;overflow:hidden;}
 /* presence timeline: one small block per sample, lit when the signal
- * held. Reads as a barcode of the answer — long lit runs are good. */
+ * held. Reads as a barcode of the answer - long lit runs are good. */
 .ptrack{padding:12px 20px 14px;border-bottom:1px solid var(--off);background:#FCFBFA;}
 .ptrack-t{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px;}
 .ptrack-t span{font-weight:500;color:var(--mut);margin-left:8px;}

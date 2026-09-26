@@ -1,8 +1,8 @@
-/* Employability Hub — score history + readiness computation.
+/* Employability Hub - score history + readiness computation.
  *
  * Privacy contract: we store ONLY integer scores and timestamps,
  * keyed by a hash (email when the hub knows it, device id otherwise).
- * Never any CV text, transcript, or answer — those remain unstored by
+ * Never any CV text, transcript, or answer - those remain unstored by
  * design. History is capped so a learner's record stays tiny. */
 
 export type HubTool = "cv" | "linkedin" | "interview" | "cover";
@@ -152,13 +152,13 @@ export function summariseHub(scores: HubScores): HubSummary {
    * Interview -> Cover letter), then the weakest score. */
   let next: HubSummary["next"];
   if (cv.latest === null) {
-    next = { tool: "cv", reason: "Start here — a scored CV review is the foundation for everything else." };
+    next = { tool: "cv", reason: "Start here - a scored CV review is the foundation for everything else." };
   } else if (linkedin.latest === null) {
-    next = { tool: "linkedin", reason: "Your CV is scored — now get your LinkedIn profile to match it." };
+    next = { tool: "linkedin", reason: "Your CV is scored - now get your LinkedIn profile to match it." };
   } else if (interview.latest === null) {
-    next = { tool: "interview", reason: "Paper's sorted — time to practise saying it out loud." };
+    next = { tool: "interview", reason: "Paper's sorted - time to practise saying it out loud." };
   } else if (cover.latest === null) {
-    next = { tool: "cover", reason: "Last step of the journey — a cover letter that sounds like you, for a job you actually want." };
+    next = { tool: "cover", reason: "Last step of the journey - a cover letter that sounds like you, for a job you actually want." };
   } else {
     const lowest = [
       { tool: "cv" as const, v: cv.latest },
@@ -167,7 +167,7 @@ export function summariseHub(scores: HubScores): HubSummary {
     ].sort((a, b) => a.v - b.v)[0]!;
     next = {
       tool: lowest.tool,
-      reason: `Your ${lowest.tool === "cv" ? "CV" : lowest.tool === "linkedin" ? "LinkedIn" : "interview"} score (${lowest.v}) is the one holding your readiness back — one more round.`,
+      reason: `Your ${lowest.tool === "cv" ? "CV" : lowest.tool === "linkedin" ? "LinkedIn" : "interview"} score (${lowest.v}) is the one holding your readiness back - one more round.`,
     };
   }
 

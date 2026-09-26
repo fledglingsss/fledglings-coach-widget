@@ -1,4 +1,4 @@
-/* Employability Hub — the Hiration-style home of the suite, matching
+/* Employability Hub - the Hiration-style home of the suite, matching
  * the founder's reference design: light app shell with sidebar, a
  * "kickstart your career journey" header with a Career Readiness ring
  * (x/7 tasks), an icon journey stepper with dashed connectors, four
@@ -58,7 +58,7 @@ export function renderHubPage(): string {
     /* header row */
     "<div class='hubhead'>" +
     "<div><h2 class='page' id='hub-hi'>Let's kickstart your career journey</h2>" +
-    "<p class='sub' style='margin-bottom:0'>We've got your back — with tools to help you build a strong CV, " +
+    "<p class='sub' style='margin-bottom:0'>We've got your back - with tools to help you build a strong CV, " +
     "prep for interviews, and stand out confidently.</p></div>" +
     "<div class='statrow'>" +
     "<div class='crbox'><div class='cr-t'><b>Career Readiness (%)</b><span id='cr-tasks'>0/7 tasks done</span></div>" +
@@ -70,7 +70,7 @@ export function renderHubPage(): string {
     "</div></div>" +
     /* journey stepper */
     `<div class='journey'>${stepper}</div>` +
-    /* continue-learning band — the learning side of the same journey */
+    /* continue-learning band - the learning side of the same journey */
     "<div class='card learnband' id='learn-card' hidden>" +
     "<div class='lb-body'><span class='lb-label'>CONTINUE YOUR LEARNING</span>" +
     "<b id='learn-title'></b><div class='lb-bar'><i id='learn-bar'></i></div></div>" +
@@ -82,7 +82,7 @@ export function renderHubPage(): string {
      * done anything is the platform talking about itself: it lands as
      * pressure, not reassurance. The rubric belongs beside the score
      * it explains, where the learner is actually asking "why that
-     * number?" — so it lives in each report, and the home page just
+     * number?" - so it lives in each report, and the home page just
      * shows them their work and the next thing to do. */
     /* guided next step */
     "<div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div>" +
@@ -96,7 +96,7 @@ export function renderHubPage(): string {
     /* identity */
     "<div class='card idcard' id='account'>" +
     "<div id='id-known' hidden>💾 <b>Progress saving as <span id='id-email'></span></b>" +
-    "<span class='id-sub'>Your scores follow this email — here, standalone, and inside your Fledglings courses.</span>" +
+    "<span class='id-sub'>Your scores follow this email - here, standalone, and inside your Fledglings courses.</span>" +
     "<div class='idbtns'><button type='button' class='idlink' id='id-adddevice'>Link another device</button>" +
     "<button type='button' class='idlink' id='id-change'>Use a different email</button></div>" +
     /* the code this device issues for another one */
@@ -108,15 +108,15 @@ export function renderHubPage(): string {
     "<div class='id-err' id='lc-err' hidden></div></div></div>" +
     "<div id='id-anon' hidden><b>Keep your scores?</b>" +
     "<span class='id-sub'>Sign in with your school account and your progress follows you on any device or page. " +
-    "No password is ever typed here — your school stays the front door.</span>" +
+    "No password is ever typed here - your school stays the front door.</span>" +
     "<div class='idrow'><button type='button' class='btn' id='sso-go'>Sign in with your school account</button></div>" +
     /* the one-time code + where to take it */
     "<div class='linkbox' id='sso-box' hidden>" +
     "<b>Your sign-in code</b>" +
     "<div class='lc-code' id='sso-code'>------</div>" +
-    "<span class='id-sub'><b>1.</b> Open your school (button below — log in if it asks). " +
+    "<span class='id-sub'><b>1.</b> Open your school (button below - log in if it asks). " +
     "<b>2.</b> Type this code into the box on that page and submit it. " +
-    "<b>3.</b> Come back here — this page signs you in by itself. " +
+    "<b>3.</b> Come back here - this page signs you in by itself. " +
     "The code works once and expires in <span id='sso-left'>10:00</span>.</span>" +
     "<div class='idrow'><a class='btn' id='sso-open' href='#' target='_blank' rel='noopener'>Open my school</a>" +
     "<button type='button' class='idlink' id='sso-cancel'>Cancel</button></div>" +
@@ -125,7 +125,7 @@ export function renderHubPage(): string {
     "<span class='id-sub' style='margin-top:10px'>Or link with just your email:</span>" +
     "<div class='idrow'><input type='email' id='id-input' maxlength='80' placeholder='you@example.com' aria-label='Your email'>" +
     "<button type='button' class='btn' id='id-save'>Save my progress</button></div>" +
-    "<div class='id-err' id='id-err' hidden>That doesn't look like an email — check it and try again.</div>" +
+    "<div class='id-err' id='id-err' hidden>That doesn't look like an email - check it and try again.</div>" +
     /* redeem a code issued by a device the learner already uses */
     "<div class='lc-alt'><button type='button' class='idlink' id='lc-show'>I already use Fledglings on another device</button>" +
     "<div id='lc-enter' hidden>" +
@@ -142,7 +142,7 @@ export function renderHubPage(): string {
     "<script>" + HUB_JS + "</script>";
 
   return appShell({
-    title: "Fledglings — Employability Hub",
+    title: "Fledglings - Employability Hub",
     active: "home",
     bodyHtml: body,
     extraCss: HUB_CSS,
@@ -157,19 +157,19 @@ function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 var viewOnly=flViewOnly();
 /* Normally identity comes from the signed token. In a provider view
  * the address rides on the URL and the SERVER authorises the read
- * against their portal session — nothing is stored on this device. */
+ * against their portal session - nothing is stored on this device. */
 var email=viewOnly?flEmbedEmail():flResolveEmail();
-/* Carry the signed token between surfaces — never a bare address. */
+/* Carry the signed token between surfaces - never a bare address. */
 function toolHref(base){if(viewOnly)return base;
 var ev=flToken();
 return base+(base.indexOf('?')>-1?'&':'?')+(ev?'t='+encodeURIComponent(ev)+'&':'')+'hub=1';}
 document.querySelectorAll('a[data-tool]').forEach(function(a){a.href=toolHref(a.getAttribute('href'));});
 /* identity card */
 function renderIdentity(){if(viewOnly){
-/* Hide, never destroy — later code binds handlers to these nodes. */
+/* Hide, never destroy - later code binds handlers to these nodes. */
 $('id-known').hidden=true;$('id-anon').hidden=true;
 var b=document.createElement('div');
-b.innerHTML="<b>👁 Provider view</b><span class='id-sub'>You are looking at the journey for "+esc2(email)+" — nothing here saves to your device.</span>";
+b.innerHTML="<b>👁 Provider view</b><span class='id-sub'>You are looking at the journey for "+esc2(email)+" - nothing here saves to your device.</span>";
 $('account').appendChild(b);
 return;}
 var known=email.length>0;
@@ -183,14 +183,14 @@ if(!viewOnly&&!email){try{flAdoptEmbedEmail(lid);}catch(e){}}
  * (address already in use on another device, or not a Fledglings
  * learner) and the learner gets told plainly what to do instead. */
 var ID_REFUSALS={
-claimed_elsewhere:"That email is already linked to another device — that's your protection working. Sign in with your school account above to prove it's yours, or type a code from your other device below.",
-cannot_link:"We couldn't link that email — check it's the address you use with Fledglings, or sign in with your school account above. You can also carry on without linking; your scores still save on this device.",
-too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it, or carry on without linking — your scores still save on this device.",
-unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking — your scores still save on this device.",
-bad_email:"That doesn't look like an email — check it and try again.",
+claimed_elsewhere:"That email is already linked to another device - that's your protection working. Sign in with your school account above to prove it's yours, or type a code from your other device below.",
+cannot_link:"We couldn't link that email - check it's the address you use with Fledglings, or sign in with your school account above. You can also carry on without linking; your scores still save on this device.",
+too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it, or carry on without linking - your scores still save on this device.",
+unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking - your scores still save on this device.",
+bad_email:"That doesn't look like an email - check it and try again.",
 rate_limited:"That's a lot of linking attempts for one day. Try again tomorrow.",
-offline:"Couldn't reach Fledglings just now — check your connection and try again.",
-unavailable:"Linking is unavailable right now — your scores still save on this device."};
+offline:"Couldn't reach Fledglings just now - check your connection and try again.",
+unavailable:"Linking is unavailable right now - your scores still save on this device."};
 $('id-save').onclick=function(){var btn=this;
 var raw=$('id-input').value;
 $('id-err').hidden=true;btn.disabled=true;btn.textContent='Linking…';
@@ -199,7 +199,7 @@ if(r.ok){location.reload();return;}
 btn.disabled=false;btn.textContent='Save my progress';
 $('id-err').textContent=ID_REFUSALS[r.reason]||ID_REFUSALS.unavailable;
 $('id-err').hidden=false;
-/* Already in use elsewhere? The code path is the way through — open
+/* Already in use elsewhere? The code path is the way through - open
  * it for them rather than leaving a dead end. */
 if(r.reason==='claimed_elsewhere'){$('lc-enter').hidden=false;$('lc-show').hidden=true;
 $('lc-input').focus();}});};
@@ -212,7 +212,7 @@ var m=Math.floor(left/60),s=left%60;
 $('lc-left').textContent=m+':'+(s<10?'0':'')+s;
 if(left<=0){clearInterval(lcTimer);lcTimer=null;
 $('lc-code').textContent='------';
-$('lc-err').textContent='That code has expired — tap “Link another device” for a fresh one.';
+$('lc-err').textContent='That code has expired - tap “Link another device” for a fresh one.';
 $('lc-err').hidden=false;}}
 tick();lcTimer=setInterval(tick,1000);}
 $('id-adddevice').onclick=function(){var btn=this;
@@ -226,18 +226,18 @@ $('lc-code').textContent=d.display||d.code;
 lcCountdown(d.expires_at);return;}
 $('lc-box').hidden=false;$('lc-code').textContent='------';
 $('lc-err').textContent=(d&&d.reason==='rate_limited')
-?'That is a lot of codes for one day — try again tomorrow.'
-:'Could not get a code just now — try again in a minute.';
+?'That is a lot of codes for one day - try again tomorrow.'
+:'Could not get a code just now - try again in a minute.';
 $('lc-err').hidden=false;})
 .catch(function(){btn.disabled=false;btn.textContent='Link another device';
-$('lc-box').hidden=false;$('lc-err').textContent='Could not reach Fledglings — check your connection.';
+$('lc-box').hidden=false;$('lc-err').textContent='Could not reach Fledglings - check your connection.';
 $('lc-err').hidden=false;});};
 $('lc-show').onclick=function(){$('lc-enter').hidden=false;this.hidden=true;$('lc-input').focus();};
 var LC_REFUSALS={
-bad_code:"That code didn't work — check it, or get a fresh one on your other device (they last ten minutes and work once).",
+bad_code:"That code didn't work - check it, or get a fresh one on your other device (they last ten minutes and work once).",
 too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it.",
-rate_limited:"Too many tries for one day — have another go tomorrow.",
-offline:"Couldn't reach Fledglings just now — check your connection and try again."};
+rate_limited:"Too many tries for one day - have another go tomorrow.",
+offline:"Couldn't reach Fledglings just now - check your connection and try again."};
 $('lc-go').onclick=function(){var btn=this;
 $('lc-enter-err').hidden=true;btn.disabled=true;btn.textContent='Linking…';
 fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -267,7 +267,7 @@ function ssoCountdown(until){if(ssoTimer)clearInterval(ssoTimer);
 function tick(){var left=Math.max(0,Math.round(until-Date.now()/1000));
 var m=Math.floor(left/60),s=left%60;
 $('sso-left').textContent=m+':'+(s<10?'0':'')+s;
-if(left<=0)ssoFail('That code has expired — tap “Sign in with your school account” for a fresh one.');}
+if(left<=0)ssoFail('That code has expired - tap “Sign in with your school account” for a fresh one.');}
 tick();ssoTimer=setInterval(tick,1000);}
 function ssoCheck(){if(!ssoCode||document.hidden)return;
 fetch('/api/sso/check',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -275,15 +275,15 @@ body:JSON.stringify({learner_id:lid,code:ssoCode})})
 .then(function(r){return r.json()}).then(function(d){
 if(!ssoCode)return;
 if(d&&d.ok&&d.token){ssoStop();
-$('sso-status').textContent='Signed in — loading your hub…';$('sso-status').hidden=false;
+$('sso-status').textContent='Signed in - loading your hub…';$('sso-status').hidden=false;
 try{localStorage.setItem('fl_hub_token_v1',d.token)}catch(e){}
 location.replace('/hub?t='+encodeURIComponent(d.token));return;}
 if(d&&d.ok&&d.pending)return;
-if(d&&d.reason==='expired')ssoFail('That code has expired — start again for a fresh one.');
-else if(d&&d.reason==='not_set_up')ssoFail('School sign-in is not switched on yet — link with your email below instead.');
-/* Anything else is transient — keep polling; the next tick retries. */
+if(d&&d.reason==='expired')ssoFail('That code has expired - start again for a fresh one.');
+else if(d&&d.reason==='not_set_up')ssoFail('School sign-in is not switched on yet - link with your email below instead.');
+/* Anything else is transient - keep polling; the next tick retries. */
 })
-.catch(function(){/* transient network blip — the next poll retries */});}
+.catch(function(){/* transient network blip - the next poll retries */});}
 $('sso-go').onclick=function(){var btn=this;
 btn.disabled=true;btn.textContent='Getting your code…';
 $('sso-err').hidden=true;
@@ -294,24 +294,24 @@ btn.disabled=false;btn.textContent='Sign in with your school account';
 if(d&&d.ok&&d.code){ssoCode=d.code;
 $('sso-box').hidden=false;$('sso-code').textContent=d.display||d.code;
 $('sso-open').href=d.course_url;
-$('sso-status').textContent='Waiting — submit the code on your school page, then come back here.';
+$('sso-status').textContent='Waiting - submit the code on your school page, then come back here.';
 $('sso-status').hidden=false;ssoCountdown(d.expires_at);
 if(ssoPoll)clearInterval(ssoPoll);ssoPoll=setInterval(ssoCheck,4000);return;}
 $('sso-box').hidden=false;$('sso-code').textContent='------';
-if(d&&d.reason==='not_set_up')ssoFail('School sign-in is not switched on yet — link with your email below instead.');
-else if(d&&d.reason==='rate_limited')ssoFail('That is a lot of sign-in codes for one day — try again tomorrow, or link with your email below.');
-else ssoFail('Could not start sign-in just now — try again in a minute, or link with your email below.');})
+if(d&&d.reason==='not_set_up')ssoFail('School sign-in is not switched on yet - link with your email below instead.');
+else if(d&&d.reason==='rate_limited')ssoFail('That is a lot of sign-in codes for one day - try again tomorrow, or link with your email below.');
+else ssoFail('Could not start sign-in just now - try again in a minute, or link with your email below.');})
 .catch(function(){btn.disabled=false;btn.textContent='Sign in with your school account';
-$('sso-box').hidden=false;ssoFail('Could not reach Fledglings — check your connection and try again.');});};
+$('sso-box').hidden=false;ssoFail('Could not reach Fledglings - check your connection and try again.');});};
 $('sso-cancel').onclick=function(){ssoStop();$('sso-box').hidden=true;};
 /* Coming back from the school tab is the moment the answer is most
- * likely ready — check immediately rather than waiting out the poll. */
+ * likely ready - check immediately rather than waiting out the poll. */
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&ssoCode)ssoCheck();});
-/* Must strip ?t= as well — a plain reload would re-adopt the token
+/* Must strip ?t= as well - a plain reload would re-adopt the token
  * sitting in the URL and sign the same learner straight back in. */
 $('id-change').onclick=flSignOutHere;
 function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#B93A22'}
-/* A tiny line of every attempt so far — the shape of the climb is the
+/* A tiny line of every attempt so far - the shape of the climb is the
  * most motivating thing on this page, and it costs nothing to show. */
 function spark(h,color){var W=84,H=26,n=h.length;if(n<2)return '';
 var pts=h.map(function(v,i){return (4+(W-8)*i/(n-1)).toFixed(1)+','+(H-3-(H-6)*Math.max(0,Math.min(100,v))/100).toFixed(1)});
@@ -469,7 +469,7 @@ const HUB_CSS = `
 .tasklist li.done{color:var(--navy);}
 .tasklist li.done i{background:#E3F4EA;color:var(--ok);}
 /* This card is the one instruction on the page, so it should read as
- * a card with an action — not a paragraph with a red word under it.
+ * a card with an action - not a paragraph with a red word under it.
  * The old rule stripped the button's own background to white, which
  * left the call to action looking like leftover text. */
 .spark{width:84px;height:26px;vertical-align:middle;margin-left:10px;overflow:visible;}
@@ -502,7 +502,7 @@ const HUB_CSS = `
 .idrow input{flex:1;min-width:220px;}
 .id-err{color:#B93A22;font-weight:600;font-size:12.5px;margin-top:8px;}
 .idbtns{display:flex;gap:18px;flex-wrap:wrap;}
-/* device link code — meant to be read off one screen and typed on another */
+/* device link code - meant to be read off one screen and typed on another */
 .linkbox{margin-top:14px;padding:14px 16px;border:1.5px dashed var(--pri);border-radius:14px;
   background:rgba(19,80,127,.04);}
 .lc-code{font-size:34px;font-weight:800;letter-spacing:.16em;color:var(--navy);margin:8px 0 6px;

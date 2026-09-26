@@ -1,10 +1,10 @@
-/* #4 — Readiness Passport: a learner-facing, printable evidence
+/* #4 - Readiness Passport: a learner-facing, printable evidence
  * summary built from LearnWorlds enrolment/progress data.
  *
  * Deliberately modest data surface: first name, member-since year,
  * completed module titles, in-progress module titles with percentage,
  * and totals. No scores, no judgements, no personal data beyond the
- * first name — evidence of practice, not a rating of the person. */
+ * first name - evidence of practice, not a rating of the person. */
 
 import { EXCLUDED_TITLES } from "./skills-passport";
 import type { LwUser, LwUserCourse } from "./learnworlds";
@@ -66,7 +66,7 @@ export function isPassportData(v: unknown): v is PassportData {
   );
 }
 
-/** Days between issue and now — links expire after 7 days. */
+/** Days between issue and now - links expire after 7 days. */
 export function passportAgeDays(data: PassportData, now: Date): number {
   const issued = Date.parse(data.issuedAt);
   if (Number.isNaN(issued)) return Infinity;
@@ -74,7 +74,7 @@ export function passportAgeDays(data: PassportData, now: Date): number {
 }
 
 /* ------------------------------------------------------------------
- * Curriculum grouping — LearnWorlds titles differ slightly from the
+ * Curriculum grouping - LearnWorlds titles differ slightly from the
  * site catalogue (hyphens vs em-dashes, dropped parentheticals,
  * trailing spaces), so matching is on normalised text with prefix
  * tolerance.
@@ -95,7 +95,7 @@ const GROUP_DEFS: Array<{ group: string; titles: string[] }> = [
       "Saving, Emergency Funds & Building a Safety Net",
       "Pay, Payslips, and Planning for Tax & NI",
       "Smart Spending: Big Purchases, Contracts & Consumer Rights",
-      "Living Independently — Housing & Household Bills",
+      "Living Independently - Housing & Household Bills",
       "Financial Literacy Mastery",
     ],
   },
@@ -117,11 +117,11 @@ const GROUP_DEFS: Array<{ group: string; titles: string[] }> = [
       "Confidence & Resilience Introduction",
       "What They Are & How to Build Them",
       "Building Real Confidence (Even When You Feel None)",
-      "Resilience in Practice — Pressure, Setbacks & Bounce-Back Plans",
+      "Resilience in Practice - Pressure, Setbacks & Bounce-Back Plans",
       "Communicating Under Pressure: Calm Voice, Clear Steps, Trusted Results",
-      "Grit & Growth — Motivation That Lasts (Goals, Habits, Accountability)",
-      "Handling Change & Uncertainty — Adaptability You Can Trust",
-      "Assertive Boundaries — Saying No Well & Protecting Your Focus",
+      "Grit & Growth - Motivation That Lasts (Goals, Habits, Accountability)",
+      "Handling Change & Uncertainty - Adaptability You Can Trust",
+      "Assertive Boundaries - Saying No Well & Protecting Your Focus",
       "Feedback, Reviews & Continuous Growth",
       "Confidence & Resilience Showcase",
     ],

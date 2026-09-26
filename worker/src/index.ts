@@ -426,7 +426,7 @@ async function modelSpendAllowed(c: { env: Env; req: { header(n: string): string
   }
 }
 
-/** Read a JSON body with a hard size cap (mirrors /api/coach's rail —
+/** Read a JSON body with a hard size cap (mirrors /api/coach's rail -
  * field-level sanitisation only runs AFTER JSON.parse, so the raw
  * body must be bounded first). Returns null when oversized/invalid. */
 async function readJsonCapped(
@@ -794,7 +794,7 @@ app.get("/skills-passport", async (c) => {
   /* IDOR guard (QA 2026-07-22): a live passport carries a learner's
    * name, cohort and progress, so the email form is only honoured when
    * the request comes from an allowlisted embedding page (the
-   * LearnWorlds iframe sends its origin as Referer). Anything else —
+   * LearnWorlds iframe sends its origin as Referer). Anything else -
    * including a URL typed straight into a browser - gets the sample.
    * Header-forgery remains possible outside a browser; the data is
    * low-sensitivity but this closes the casual guess-an-email path. */
@@ -844,7 +844,7 @@ app.get("/skills-passport", async (c) => {
     const enrolments = (await getEnrolments(c.env, user.id)).filter((e) =>
       isModuleTitle(e.title),
     );
-    /* One /users/{id}/progress call carries every course's real state —
+    /* One /users/{id}/progress call carries every course's real state -
      * joined to enrolments for titles/curriculum labels. (Replaced the
      * 36-per-course-call batch on 2026-07-21.) */
     const progressAll = await getUserProgressAll(c.env, user.id);
@@ -1077,7 +1077,7 @@ interface PathwayBody {
   focus?: unknown;
 }
 
-/* Recommendations ONLY. This route never writes anything anywhere —
+/* Recommendations ONLY. This route never writes anything anywhere -
  * enrolment happens solely via POST /api/enrol, one module at a time,
  * after the learner confirms that module by name. */
 app.post("/api/pathway", async (c) => {
@@ -1426,7 +1426,7 @@ HARD RULES
 4. If a target role was provided, angle the wording toward it honestly.
 5. If anything suggests distress or risk, respond with exactly {"crisis":true} and nothing else.
 6. STRICT JSON only.
-WHAT GOOD LOOKS LIKE (from LinkedIn's own published profile guidance —
+WHAT GOOD LOOKS LIKE (from LinkedIn's own published profile guidance -
 these are their rules, not ours):
 - The HEADLINE is not a job title. LinkedIn says it carries the most
   weight in their search, so it needs the words a recruiter would
@@ -1437,7 +1437,7 @@ these are their rules, not ours):
   studying and what they are looking for beats an empty line.
 - The ABOUT section is first person, opens with the strongest real
   thing rather than a wind-up, and carries the keywords of the roles
-  they want. LinkedIn's limit is 2,600 characters; aim far shorter —
+  they want. LinkedIn's limit is 2,600 characters; aim far shorter -
   three short paragraphs a person will actually read. No "hardworking
   and passionate" opener: name a real thing they did instead.
   The three paragraphs must run in this order, and each must follow on
@@ -1567,7 +1567,7 @@ app.post("/api/builder-check", async (c) => {
       });
     }
     const checks = runCvChecks(text, "cv");
-    /* The weighted category review IS the score the sidebar shows —
+    /* The weighted category review IS the score the sidebar shows -
      * six categories summing to 100, deterministic every run. */
     const review = buildCategoryReview(cv, checks);
     const score = review.total;
@@ -1915,7 +1915,7 @@ const PORTAL_COOKIE = "fl_portal";
  * cookie's Max-Age (which a client can ignore). */
 const PORTAL_SESSION_SECS = 8 * 3600;
 
-/* A portal code grants either the whole school or ONE cohort tag —
+/* A portal code grants either the whole school or ONE cohort tag -
  * tag scoping is enforced server-side on every data/CSV response, so a
  * scoped code can never see another provider's learners. */
 interface PortalAccess {
@@ -2217,7 +2217,7 @@ async function getRiskReport(env: Env, forceRefresh = false): Promise<RiskReport
 
 const REFLECT_KV_KEY = "portal:reflect:v4"; // v4: raw responses retained
 const REFLECT_TAGS_PATCH_KEY = "portal:reflect:tags-patch";
-/* 26h: rebuilt by the nightly cron and advanced by roster ticks —
+/* 26h: rebuilt by the nightly cron and advanced by roster ticks -
  * visits only read. */
 const REFLECT_MAX_AGE_MS = 26 * 3600 * 1000;
 const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
@@ -3594,7 +3594,7 @@ app.post("/api/sso/check", async (c) => {
     } catch {
       request = null;
     }
-    /* A missing code and someone else's code answer identically —
+    /* A missing code and someone else's code answer identically -
      * polling must not confirm which codes are live. */
     if (!request || request.d !== deviceHash16) {
       return c.json({ ok: false, reason: "expired" }, 200);
@@ -3738,7 +3738,7 @@ app.post("/api/hub", async (c) => {
     /* First name for the greeting - cached 6h per email (misses too,
      * so an unknown email costs one LearnWorlds call a day, not one
      * per visit). Never allowed to break the hub. */
-    /* One account lookup shared by the name and learning blocks —
+    /* One account lookup shared by the name and learning blocks -
      * undefined = not fetched yet, null = fetched and absent. */
     let lookedUp: Awaited<ReturnType<typeof getUserByEmail>> | undefined;
     const lookupUser = async () => {
@@ -3775,7 +3775,7 @@ app.post("/api/hub", async (c) => {
     let learning: { enrolled: number; completed: number; inProgress: number } | null = null;
     if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
       try {
-        /* The rolling roster already holds every learner's modules —
+        /* The rolling roster already holds every learner's modules -
          * zero API calls, at most an hour old, and activity webhooks
          * fast-track refreshes. Live fetch only for accounts the
          * roster has not covered yet. */
@@ -3878,7 +3878,7 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
   } else {
     ({ totalUsers, sample } = await portalSample(env, tag));
   }
-  /* Engagement tiers come from the nightly risk report (6h cache) —
+  /* Engagement tiers come from the nightly risk report (6h cache) -
    * an empty join must never sink the dashboard. */
   const riskByEmail = new Map<string, { tier: string; daysSinceLogin: number | null; nudge: string }>();
   try {
@@ -4019,7 +4019,7 @@ app.get("/dashboard/data", async (c) => {
       buckets[Math.min(4, Math.floor((r.employability.cv!.latest ?? 0) / 20))] += 1;
     }
     /* Attention: disengaged from the platform first (the risk engine's
-     * signal), then never-started / weak / stalled tool journeys —
+     * signal), then never-started / weak / stalled tool journeys -
      * weakest first, never-engaged weakest of all. */
     /* Home's attention list is pastoral: it flags ENGAGEMENT problems
      * (gone quiet, never arrived, learning stalled). Career-tool
@@ -4087,7 +4087,7 @@ app.get("/dashboard/data", async (c) => {
       }))
       .sort((a, b) => b.enrolled - a.enrolled);
 
-    /* The intertwine centrepiece: one funnel spanning both systems —
+    /* The intertwine centrepiece: one funnel spanning both systems -
      * LearnWorlds presence and learning on the left, career-tool
      * progress and job-readiness on the right. Stage counts, not
      * forced-monotonic: a learner can use the tools standalone. */
@@ -4366,7 +4366,7 @@ app.get("/dashboard/reflections.csv", async (c) => {
   }
 });
 
-/** Quote a CSV field AND neutralise spreadsheet formula injection —
+/** Quote a CSV field AND neutralise spreadsheet formula injection -
  * learner-authored text starting with = + - or @ must never execute
  * when the provider opens the export in Excel. */
 export function csvField(v: unknown): string {
@@ -5600,7 +5600,7 @@ app.post("/internal/job", async (c) => {
   }
 });
 
-/** Read the reflections snapshot without ever advancing the build —
+/** Read the reflections snapshot without ever advancing the build -
  * provider visits are pure reads; the cron owns freshness. Serves the
  * last COMPLETE snapshot even during a rebuild; only before the very
  * first build finishes does it show the in-progress state. */

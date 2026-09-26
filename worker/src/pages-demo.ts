@@ -1,10 +1,10 @@
-/* Personalised instant demo — the landing page every outreach email
+/* Personalised instant demo - the landing page every outreach email
  * links to (#8: reply -> live demo, no call needed). /demo?p=<b64url
  * provider name> greets the provider by name and puts the REAL
  * learner-facing product in front of them: the live coach widget on
  * the page itself, the sample Skills Passport embedded, and the CV
  * review tools one click away. No learner data is reachable from
- * here — the portal is described, never shown, because it contains
+ * here - the portal is described, never shown, because it contains
  * real records. */
 
 import { esc } from "./pages";
@@ -94,9 +94,9 @@ export function renderDemoPage(provider: string | null): string {
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
     "<meta name='robots' content='noindex'>" +
-    `<title>Fledglings demo — ${esc(who)}</title>` +
+    `<title>Fledglings demo - ${esc(who)}</title>` +
     `<meta property='og:title' content='Your Fledglings demo'>` +
-    "<meta property='og:description' content='Life-skills modules, an AI coach with real guardrails, and Ofsted-ready personal development evidence — live, right now.'>" +
+    "<meta property='og:description' content='Life-skills modules, an AI coach with real guardrails, and Ofsted-ready personal development evidence - live, right now.'>" +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
     "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'>" +
     `<style>${DEMO_CSS}</style></head><body>` +
@@ -108,45 +108,45 @@ export function renderDemoPage(provider: string | null): string {
     `<span class='wordmark'>${WORDMARK_DARK}</span>` +
     `<span class='for'>Built for ${esc(who)}</span>` +
     `<h1>${heroTitle}</h1>` +
-    "<p>This isn't a slide deck — everything below is the live platform your learners would use: " +
+    "<p>This isn't a slide deck - everything below is the live platform your learners would use: " +
     "interactive life-skills modules, an AI coach with serious safeguarding guardrails, and the " +
     "evidence machinery your self-assessment report has been missing.</p>" +
-    "<div class='try'><span class='dot'></span>The coach in the corner of this page is live — ask it something.</div>" +
+    "<div class='try'><span class='dot'></span>The coach in the corner of this page is live - ask it something.</div>" +
     "</div></header>" +
     "<main class='wrap'>" +
     /* passport demo */
     "<div class='sect'><span class='bd'>" + BIRD_MARK + "</span><h2>What your learners see</h2></div>" +
-    "<p class='lead'>Every learner gets a live Skills Passport — score, streak, badges, cohort leaderboard — " +
+    "<p class='lead'>Every learner gets a live Skills Passport - score, streak, badges, cohort leaderboard - " +
     "built automatically from their module activity. This one is sample data; scroll it, click the tabs.</p>" +
     "<div class='frame'><iframe src='/skills-passport?demo=1' title='Sample Skills Passport' loading='lazy'></iframe></div>" +
     /* tools */
     "<div class='sect'><span class='bd'>" + BIRD_MARK + "</span><h2>Try the employability tools</h2></div>" +
     "<div class='tools'>" +
     "<div class='tool'><h3>CV &amp; LinkedIn review</h3>" +
-    "<p>Learners upload a PDF and get a recruiter-grade scored report — ATS checks, keyword match against a " +
+    "<p>Learners upload a PDF and get a recruiter-grade scored report - ATS checks, keyword match against a " +
     "real job advert, and honest feedback that never invents experience for them.</p>" +
     "<a href='/tools'>Open the live tool ↗</a></div>" +
     "<div class='tool'><h3>Readiness Passport</h3>" +
-    "<p>A shareable, verifiable record of the life-skills modules a learner has completed — the artefact " +
+    "<p>A shareable, verifiable record of the life-skills modules a learner has completed - the artefact " +
     "they attach to applications, and you attach to reviews.</p>" +
     "<a class='sec' href='/passport/sample'>See a sample ↗</a></div>" +
     "</div>" +
     /* provider side */
     "<div class='sect'><span class='bd'>" + BIRD_MARK + "</span><h2>What your staff see</h2></div>" +
-    "<p class='lead'>The provider portal is where Fledglings earns its keep with Ofsted — we don't show it " +
+    "<p class='lead'>The provider portal is where Fledglings earns its keep with Ofsted - we don't show it " +
     "here because it holds real learner records, but yours would include:</p>" +
     "<ul class='plist'>" +
-    "<li><i>✓</i><b>Live engagement figures</b>&nbsp;— cohort pulse, trend, and who was last seen when, scoped to your learners only.</li>" +
-    "<li><i>✓</i><b>Early-warning view</b>&nbsp;— learners going quiet, tiered by urgency, each with a ready-to-send encouraging nudge.</li>" +
-    "<li><i>✓</i><b>Pre/post reflection shift</b>&nbsp;— learners' own before-and-after confidence ratings per module: personal development evidence in their own words.</li>" +
-    "<li><i>✓</i><b>Safeguarding flags</b>&nbsp;— reflection answers screened for crisis language, surfaced to your safeguarding lead the same day.</li>" +
-    "<li><i>✓</i><b>An evidence narrative</b>&nbsp;— drafted for your SAR, honest about what the data can and cannot claim.</li>" +
+    "<li><i>✓</i><b>Live engagement figures</b>&nbsp;- cohort pulse, trend, and who was last seen when, scoped to your learners only.</li>" +
+    "<li><i>✓</i><b>Early-warning view</b>&nbsp;- learners going quiet, tiered by urgency, each with a ready-to-send encouraging nudge.</li>" +
+    "<li><i>✓</i><b>Pre/post reflection shift</b>&nbsp;- learners' own before-and-after confidence ratings per module: personal development evidence in their own words.</li>" +
+    "<li><i>✓</i><b>Safeguarding flags</b>&nbsp;- reflection answers screened for crisis language, surfaced to your safeguarding lead the same day.</li>" +
+    "<li><i>✓</i><b>An evidence narrative</b>&nbsp;- drafted for your SAR, honest about what the data can and cannot claim.</li>" +
     "</ul>" +
     /* cta */
     "<div class='cta'>" +
     `<div class='bird'>${BIRD_MARK}</div>` +
     `<div><h3>Fifteen minutes, ${esc(who)}.</h3>` +
-    "<p>Reply to the email that brought you here, or drop us a line — we'll set up a portal " +
+    "<p>Reply to the email that brought you here, or drop us a line - we'll set up a portal " +
     "scoped to your cohort so you can see it with your own learners.</p></div>" +
     "<a href='mailto:owais@fledglings.co?subject=Fledglings%20demo'>Talk to Fledglings</a>" +
     "</div>" +

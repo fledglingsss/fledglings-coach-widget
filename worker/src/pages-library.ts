@@ -1,4 +1,4 @@
-/* "My work" — the learner's own library of everything they have had
+/* "My work" - the learner's own library of everything they have had
  * reviewed, with the feedback it earned.
  *
  * The gap this closes: a learner wrote a CV, got a report full of
@@ -7,7 +7,7 @@
  * the advice was gone. Practice you cannot return to is not practice.
  *
  * Everything here is read from the learner's own browser (see the
- * flLib* helpers in pages.ts) — the documents were never sent anywhere
+ * flLib* helpers in pages.ts) - the documents were never sent anywhere
  * to be stored, and this page does not change that. The trade-off is
  * stated on the page rather than hidden: clear your browser data and
  * this empties.
@@ -31,7 +31,7 @@ const LIBRARY_CSS = `
 .lib-kind{align-self:flex-start;font:700 11px/1 inherit;text-transform:uppercase;
   padding:6px 9px;border-radius:6px;background:var(--off);color:var(--blue);white-space:nowrap;}
 /* Title and timestamp are separate lines. As inline spans a long
- * title ran straight into "Reviewed just now" with no break —
+ * title ran straight into "Reviewed just now" with no break -
  * "…September revisionReviewed just now". */
 .lib-h{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px;}
 .lib-t{display:block;font-weight:700;font-size:15.5px;line-height:1.35;color:var(--ink);
@@ -87,7 +87,7 @@ export function renderLibraryPage(): string {
     "<script>" + LIBRARY_JS + "</script>";
 
   return appShell({
-    title: "Fledglings — My work",
+    title: "Fledglings - My work",
     active: "library",
     bodyHtml: body,
     extraCss: LIBRARY_CSS,
@@ -107,13 +107,13 @@ function ago(at){var d=Math.floor((Date.now()/1000-at)/86400);
 if(d<=0){var h=Math.floor((Date.now()/1000-at)/3600);
 return h<=0?'just now':h===1?'an hour ago':h+' hours ago';}
 return d===1?'yesterday':d<7?d+' days ago':d<30?Math.round(d/7)+' weeks ago':Math.round(d/30)+' months ago';}
-/* The single most useful thing to see again is the top fix — the
+/* The single most useful thing to see again is the top fix - the
  * reason the score is what it is. */
 function topFix(r){if(!r||!r.report)return '';
 var rep=r.report;
 if(rep.next_step)return String(rep.next_step);
 if(rep.improvements&&rep.improvements.length){var i=rep.improvements[0];
-return (i.title?i.title+' — ':'')+(i.detail||'');}
+return (i.title?i.title+' - ':'')+(i.detail||'');}
 return '';}
 function card(r){var k=KINDS[r.kind]||{label:r.kind,href:'/hub'};
 var sc=typeof r.score==='number'?r.score:null;
@@ -142,19 +142,19 @@ $('lib-grid').innerHTML="<div class='lib-empty'><h3>"+
 (rows.length?"Nothing here yet in this type":"Your work will collect here")+"</h3>"+
 "<p>"+(rows.length
 ?"Try another filter, or review something new."
-:"Every CV, cover letter and profile you have reviewed gets saved here automatically, with its feedback — so you can come back and improve it.")+
+:"Every CV, cover letter and profile you have reviewed gets saved here automatically, with its feedback - so you can come back and improve it.")+
 "</p><a class='lib-btn' href='/tools'>Review a CV</a></div>";return;}
 $('lib-grid').innerHTML=list.map(card).join('');
 $('lib-grid').querySelectorAll('[data-toggle]').forEach(function(b){b.addEventListener('click',function(){
 var id=b.getAttribute('data-toggle');var box=$('full-'+id);var row=rows.filter(function(r){return r.id===id})[0];
 if(!box||!row)return;
 if(!box.hidden){box.hidden=true;b.textContent='Read it all';return;}
-/* A document saved on another device has no words here yet — fetch
+/* A document saved on another device has no words here yet - fetch
  * them on demand rather than pulling every body into the list. */
 b.disabled=true;b.textContent='Opening…';
 flLibText(row).then(function(txt){b.disabled=false;
 if(!txt){b.textContent='Read it all';
-box.textContent='Could not load this one just now — check your connection and try again.';
+box.textContent='Could not load this one just now - check your connection and try again.';
 box.hidden=false;return;}
 row.text=txt;box.textContent=txt;box.hidden=false;b.textContent='Hide';});});});
 /* Into the builder: same handoff, then the builder parses the words
@@ -179,8 +179,8 @@ if(!window.confirm('Delete this from your library? The feedback goes with it.'))
 flLibRemove(id).then(function(){rows=rows.filter(function(r){return r.id!==id});render();note();});});});}
 function note(){if(!rows.length){$('lib-note').textContent='';return;}
 $('lib-note').textContent=flResolveEmail()
-?'Signed in, so your work follows you — open the hub on your phone or a school computer and it is all here. Delete something and it goes from every device.'
-:'Saved in this browser only. Sign in on the hub and your work follows you to any device — otherwise clearing your browser data clears this.';}
+?'Signed in, so your work follows you - open the hub on your phone or a school computer and it is all here. Delete something and it goes from every device.'
+:'Saved in this browser only. Sign in on the hub and your work follows you to any device - otherwise clearing your browser data clears this.';}
 document.querySelectorAll('.lib-f').forEach(function(b){b.addEventListener('click',function(){
 document.querySelectorAll('.lib-f').forEach(function(o){o.classList.toggle('on',o===b)});
 filter=b.getAttribute('data-k');render();});});

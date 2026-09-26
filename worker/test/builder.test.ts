@@ -77,7 +77,7 @@ describe("assembleCvText", () => {
     expect(text).toContain("SAM TAYLOR");
     expect(text).toContain("PERSONAL STATEMENT");
     expect(text).toContain("WORK & VOLUNTEERING");
-    expect(text).toContain("Volunteer — Oxfam");
+    expect(text).toContain("Volunteer - Oxfam");
     expect(text).toContain("- Served 40+ customers per shift on the till");
     expect(text).toContain("EDUCATION");
     expect(text).toContain("SKILLS");
@@ -104,7 +104,7 @@ describe("CV starters", () => {
     }
   });
 
-  it("every starter demonstrates the standard — 70+ on the recruiter checks", () => {
+  it("every starter demonstrates the standard - 70+ on the recruiter checks", () => {
     for (const s of CV_STARTERS) {
       const cv = sanitiseBuilderCv(s.data);
       cv.name = "Sam Taylor";
@@ -197,7 +197,7 @@ describe("buildCategoryReview", () => {
     expect(chronologyItem(vague).status).toBe("warn");
   });
 
-  it("is deterministic — identical input, identical review", () => {
+  it("is deterministic - identical input, identical review", () => {
     const cv = fullCv();
     const checks = runCvChecks(assembleCvText(cv), "cv");
     expect(buildCategoryReview(cv, checks)).toEqual(buildCategoryReview(cv, checks));

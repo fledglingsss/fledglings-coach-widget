@@ -1,4 +1,4 @@
-/* Resume Builder — pure logic. The builder page keeps everything in
+/* Resume Builder - pure logic. The builder page keeps everything in
  * the learner's browser (localStorage); the worker only ever sees the
  * structured sections when the learner asks for a check, assembles
  * them into the canonical plain text, runs the deterministic recruiter
@@ -107,7 +107,7 @@ export function sanitiseBuilderCv(raw: unknown): BuilderCv {
   };
 }
 
-/** Canonical plain-text CV — the exact text the recruiter checks (and
+/** Canonical plain-text CV - the exact text the recruiter checks (and
  * the full AI review, if the learner sends it on) will read. */
 export function assembleCvText(cv: BuilderCv): string {
   const parts: string[] = [];
@@ -119,7 +119,7 @@ export function assembleCvText(cv: BuilderCv): string {
   if (cv.summary) parts.push("\nPERSONAL STATEMENT\n" + cv.summary);
   if (cv.experience.length) {
     const entries = cv.experience.map((e) => {
-      const head = [e.role, e.org].filter(Boolean).join(" — ");
+      const head = [e.role, e.org].filter(Boolean).join(" - ");
       const where = [e.location, [e.from, e.to].filter(Boolean).join(" to ")]
         .filter(Boolean)
         .join(", ");
@@ -133,7 +133,7 @@ export function assembleCvText(cv: BuilderCv): string {
     const entries = cv.education.map((e) => {
       const head = [e.school, [e.from, e.to].filter(Boolean).join(" to ")]
         .filter(Boolean)
-        .join(" — ");
+        .join(" - ");
       return [head, e.quals, e.detail].filter(Boolean).join("\n");
     });
     parts.push("\nEDUCATION\n" + entries.join("\n\n"));
@@ -156,10 +156,10 @@ export function builderScore(checks: ChecksResult): number {
 }
 
 /* ------------------------------------------------------------------
- * Category review — the recruiter checks re-shaped into the weighted,
+ * Category review - the recruiter checks re-shaped into the weighted,
  * per-category format of the reference design's review sidebar:
  * Contact Info /5, Reverse Chronology /10, Structure /15, ATS
- * Compatibility /20, Brevity /10, Bullet Analysis /40 — summing to
+ * Compatibility /20, Brevity /10, Bullet Analysis /40 - summing to
  * 100 so the total IS the builder score. Deterministic: same CV, same
  * numbers, every single run.
  * ------------------------------------------------------------------ */
@@ -225,14 +225,14 @@ export function chronologyItem(cv: BuilderCv): CategoryItem {
     return {
       label: "Reverse chronology (newest first)",
       status: "pass",
-      detail: "With a single entry there is nothing out of order — as you add roles, keep the newest at the top.",
+      detail: "With a single entry there is nothing out of order - as you add roles, keep the newest at the top.",
     };
   }
   if (years.length < cv.experience.length) {
     return {
       label: "Reverse chronology (newest first)",
       status: "warn",
-      detail: "Some entries have no readable year, so the order can't be fully checked — use formats like 'Jun 2025'.",
+      detail: "Some entries have no readable year, so the order can't be fully checked - use formats like 'Jun 2025'.",
     };
   }
   const ordered = years.every((y, i) => i === 0 || y <= years[i - 1]!);
@@ -240,12 +240,12 @@ export function chronologyItem(cv: BuilderCv): CategoryItem {
     ? {
         label: "Reverse chronology (newest first)",
         status: "pass",
-        detail: "Your most recent role leads — exactly the order recruiters expect.",
+        detail: "Your most recent role leads - exactly the order recruiters expect.",
       }
     : {
         label: "Reverse chronology (newest first)",
         status: "fail",
-        detail: "Your roles are not newest-first. Recruiters read the top entry hardest — reorder so the most recent leads.",
+        detail: "Your roles are not newest-first. Recruiters read the top entry hardest - reorder so the most recent leads.",
       };
 }
 
@@ -257,18 +257,18 @@ export function contactItems(cv: BuilderCv): CategoryItem[] {
     detail,
   });
   return [
-    field(cv.name.length > 1, "Name", cv.name ? "Present." : "Add your full name — it is the headline of the page."),
+    field(cv.name.length > 1, "Name", cv.name ? "Present." : "Add your full name - it is the headline of the page."),
     field(
       /@/.test(cv.email),
       "Email address",
-      /@/.test(cv.email) ? "Present." : "Add an email — a sensible one, not a joke address from Year 8.",
+      /@/.test(cv.email) ? "Present." : "Add an email - a sensible one, not a joke address from Year 8.",
     ),
     field(
       cv.phone.replace(/\D/g, "").length >= 10,
       "Phone number",
-      cv.phone ? "Present." : "Add a phone number — many recruiters call first.",
+      cv.phone ? "Present." : "Add a phone number - many recruiters call first.",
     ),
-    field(cv.town.length > 1, "Town / city", cv.town ? "Present." : "Add your town — local roles filter by it."),
+    field(cv.town.length > 1, "Town / city", cv.town ? "Present." : "Add your town - local roles filter by it."),
   ];
 }
 
@@ -284,7 +284,7 @@ export function structureItems(cv: BuilderCv): CategoryItem[] {
     has(
       cv.experience.some((e) => e.bullets.length > 0),
       "Work & volunteering with bullet points",
-      "At least one entry with bullets — school events and volunteering count.",
+      "At least one entry with bullets - school events and volunteering count.",
     ),
     has(cv.education.length > 0, "Education", "Add your school or college with your qualifications."),
     has(cv.skills.length >= 3, "Skills (3 or more)", "List at least three specific skills."),
@@ -321,13 +321,13 @@ export function buildCategoryReview(cv: BuilderCv, checks: ChecksResult): Catego
 }
 
 /* ------------------------------------------------------------------
- * ATS-ready starters — pick one, then make every line true about YOU.
+ * ATS-ready starters - pick one, then make every line true about YOU.
  *
  * These are teaching scaffolds, not content to submit: every employer
  * and school name carries the EXAMPLE_MARKER, and the builder shows a
  * warning until all example content has been replaced. The bullets
- * demonstrate the standard the recruiter checks reward — action verb
- * first, a number that proves scale, under ~30 words — so the learner
+ * demonstrate the standard the recruiter checks reward - action verb
+ * first, a number that proves scale, under ~30 words - so the learner
  * starts from a CV that scores well and learns the pattern by
  * replacing it with their own truth. No-fabrication law upheld: the
  * scaffold teaches the shape; the learner supplies the facts.
@@ -344,7 +344,7 @@ export interface CvStarter {
 
 const EDU_EXAMPLE: BuilderEducation = {
   school: `Your school or college ${EXAMPLE_MARKER}`,
-  quals: "GCSEs: English (6), Maths (5) — 8 subjects",
+  quals: "GCSEs: English (6), Maths (5) - 8 subjects",
   from: "2021",
   to: "2026",
   detail: "Add anything notable: prefect, sports team, attendance award",
@@ -354,7 +354,7 @@ export const CV_STARTERS: CvStarter[] = [
   {
     id: "retail",
     label: "Retail & customer service",
-    blurb: "Tills, shop floor, weekend jobs — shows customer impact with numbers.",
+    blurb: "Tills, shop floor, weekend jobs - shows customer impact with numbers.",
     data: {
       name: "",
       phone: "",
@@ -362,7 +362,7 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "[College student] with [one year] of weekend work on a busy shop floor — serving customers, working the till and keeping stock tidy. Looking for [the role you want], where I can carry on working with people face to face.",
+        "[College student] with [one year] of weekend work on a busy shop floor - serving customers, working the till and keeping stock tidy. Looking for [the role you want], where I can carry on working with people face to face.",
       experience: [
         {
           role: "Sales Assistant",
@@ -379,13 +379,13 @@ export const CV_STARTERS: CvStarter[] = [
       ],
       education: [EDU_EXAMPLE],
       skills: ["Till operation", "Card & cash handling", "Stock rotation", "Complaint handling"],
-      extras: ["Won employee of the month after 8 weeks (example — replace with yours)"],
+      extras: ["Won employee of the month after 8 weeks (example - replace with yours)"],
     },
   },
   {
     id: "warehouse",
     label: "Warehouse & logistics",
-    blurb: "Picking, packing, safety — the practical language adverts scan for.",
+    blurb: "Picking, packing, safety - the practical language adverts scan for.",
     data: {
       name: "",
       phone: "",
@@ -393,7 +393,7 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "[School leaver] looking for a warehouse operative role. I have [six months] of picking and packing to timed targets, and I follow safety procedures properly — [add one real proof, e.g. never missed a shift in a year].",
+        "[School leaver] looking for a warehouse operative role. I have [six months] of picking and packing to timed targets, and I follow safety procedures properly - [add one real proof, e.g. never missed a shift in a year].",
       experience: [
         {
           role: "Picker / General Assistant",
@@ -410,13 +410,13 @@ export const CV_STARTERS: CvStarter[] = [
       ],
       education: [EDU_EXAMPLE],
       skills: ["Picking & packing", "Manual handling awareness", "Scanner operation", "Timed targets"],
-      extras: ["Completed a manual handling awareness course (example — replace with yours)"],
+      extras: ["Completed a manual handling awareness course (example - replace with yours)"],
     },
   },
   {
     id: "office",
     label: "Office & admin",
-    blurb: "Organisation, accuracy and systems — for admin apprenticeships.",
+    blurb: "Organisation, accuracy and systems - for admin apprenticeships.",
     data: {
       name: "",
       phone: "",
@@ -424,7 +424,7 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "[College student] studying [your course], looking for a business administration apprenticeship. I have done [two weeks] of office work experience — records, calls and filing — and I am happiest when a system is kept up to date.",
+        "[College student] studying [your course], looking for a business administration apprenticeship. I have done [two weeks] of office work experience - records, calls and filing - and I am happiest when a system is kept up to date.",
       experience: [
         {
           role: "Office Assistant (work experience)",
@@ -441,13 +441,13 @@ export const CV_STARTERS: CvStarter[] = [
       ],
       education: [EDU_EXAMPLE],
       skills: ["Microsoft Word & Excel", "Data entry", "Telephone manner", "Diary management"],
-      extras: ["Ran the ticketing spreadsheet for the school show (example — replace with yours)"],
+      extras: ["Ran the ticketing spreadsheet for the school show (example - replace with yours)"],
     },
   },
   {
     id: "hospitality",
     label: "Hospitality",
-    blurb: "Cafés, kitchens, front of house — pace and service under pressure.",
+    blurb: "Cafés, kitchens, front of house - pace and service under pressure.",
     data: {
       name: "",
       phone: "",
@@ -455,7 +455,7 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "[School leaver] with [a year] of Saturdays in a café — front of house, drinks and clearing down. Looking for a hospitality role in a busy kitchen or dining room, and happy to start at the bottom and learn the section.",
+        "[School leaver] with [a year] of Saturdays in a café - front of house, drinks and clearing down. Looking for a hospitality role in a busy kitchen or dining room, and happy to start at the bottom and learn the section.",
       experience: [
         {
           role: "Front of House / Team Member",
@@ -472,7 +472,7 @@ export const CV_STARTERS: CvStarter[] = [
       ],
       education: [EDU_EXAMPLE],
       skills: ["Food hygiene basics", "Till & card payments", "Table service", "Allergen awareness"],
-      extras: ["Level 2 Food Hygiene certificate (example — replace with yours)"],
+      extras: ["Level 2 Food Hygiene certificate (example - replace with yours)"],
     },
   },
   {
@@ -486,7 +486,7 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "[College student] looking for a care assistant role. I volunteer [weekly] at a community centre supporting older visitors, and I have [helped care for a family member] — so I know the work is about time and patience, not speed.",
+        "[College student] looking for a care assistant role. I volunteer [weekly] at a community centre supporting older visitors, and I have [helped care for a family member] - so I know the work is about time and patience, not speed.",
       experience: [
         {
           role: "Volunteer Befriender",
@@ -503,13 +503,13 @@ export const CV_STARTERS: CvStarter[] = [
       ],
       education: [EDU_EXAMPLE],
       skills: ["Active listening", "Safeguarding awareness", "Reliability", "Basic first aid"],
-      extras: ["St John Ambulance first aid course (example — replace with yours)"],
+      extras: ["St John Ambulance first aid course (example - replace with yours)"],
     },
   },
   {
     id: "first-cv",
     label: "My first CV (no work history)",
-    blurb: "School, volunteering and projects count — proof without a payslip.",
+    blurb: "School, volunteering and projects count - proof without a payslip.",
     data: {
       name: "",
       phone: "",
@@ -517,7 +517,7 @@ export const CV_STARTERS: CvStarter[] = [
       town: "",
       linkedin: "",
       summary:
-        "[Year 11] student looking for [a part-time job / an apprenticeship in …]. I have not had a paid job yet, so this CV shows what I have actually done instead — [volunteering at the summer fair] and [captaining the football team].",
+        "[Year 11] student looking for [a part-time job / an apprenticeship in …]. I have not had a paid job yet, so this CV shows what I have actually done instead - [volunteering at the summer fair] and [captaining the football team].",
       experience: [
         {
           role: "Volunteer",
@@ -544,7 +544,7 @@ export const CV_STARTERS: CvStarter[] = [
       ],
       education: [EDU_EXAMPLE],
       skills: ["Teamwork", "Cash handling", "Punctuality", "Organising people"],
-      extras: ["Duke of Edinburgh Bronze award (example — replace with yours)"],
+      extras: ["Duke of Edinburgh Bronze award (example - replace with yours)"],
     },
   },
 ];

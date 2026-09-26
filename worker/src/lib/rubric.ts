@@ -3,7 +3,7 @@
  * The dimensions were already described to the model inside the review
  * prompt, but a learner only ever saw the resulting number: "Impact
  * 35". Nothing told them what Impact is judged on, what 35 means, or
- * what a better answer would look like — which makes a score feel like
+ * what a better answer would look like - which makes a score feel like
  * a verdict handed down rather than something they can act on.
  *
  * So the rubric lives here, in one place, and is used twice: to brief
@@ -15,7 +15,7 @@ export interface RubricBand {
   /** Lowest score in this band. */
   min: number;
   label: string;
-  /** What a document in this band actually looks like — concrete, in
+  /** What a document in this band actually looks like - concrete, in
    * the learner's terms, never "good" or "poor". */
   means: string;
 }
@@ -27,7 +27,7 @@ export interface RubricDimension {
   weight: number;
   /** One line: what this dimension is judging. */
   measures: string;
-  /** Where this standard comes from in the real hiring world — a
+  /** Where this standard comes from in the real hiring world - a
    * published, checkable practice, never an invented endorsement. */
   source: string;
   /** Highest band first. */
@@ -44,15 +44,15 @@ export const CV_RUBRIC: RubricDimension[] = [
     label: "Impact",
     weight: 35,
     measures:
-      "Whether your lines prove what changed because you were there — not just what you were told to do.",
+      "Whether your lines prove what changed because you were there - not just what you were told to do.",
     source:
-      "This is the “accomplished X, measured by Y, by doing Z” formula from Google’s own published CV guidance — you are marked the way Google tells its candidates to write.",
+      "This is the “accomplished X, measured by Y, by doing Z” formula from Google’s own published CV guidance - you are marked the way Google tells its candidates to write.",
     bands: [
       {
         min: 70,
         label: "Strong",
         means:
-          "Most lines name a result, a number or a scale — “served 200+ customers a shift”, “trained two new starters”.",
+          "Most lines name a result, a number or a scale - “served 200+ customers a shift”, “trained two new starters”.",
       },
       {
         min: 50,
@@ -64,7 +64,7 @@ export const CV_RUBRIC: RubricDimension[] = [
         min: 0,
         label: "Needs work",
         means:
-          "Lines describe responsibilities — “responsible for”, “helped with” — without showing what came of them.",
+          "Lines describe responsibilities - “responsible for”, “helped with” - without showing what came of them.",
       },
     ],
   },
@@ -102,7 +102,7 @@ export const CV_RUBRIC: RubricDimension[] = [
     weight: 20,
     measures: "Whether a recruiter skimming for six seconds finds the important things first.",
     source:
-      "Recruiter eye-tracking studies put the first skim at 6–8 seconds — this dimension marks what that first skim actually finds.",
+      "Recruiter eye-tracking studies put the first skim at 6–8 seconds - this dimension marks what that first skim actually finds.",
     bands: [
       {
         min: 70,
@@ -118,7 +118,7 @@ export const CV_RUBRIC: RubricDimension[] = [
       {
         min: 0,
         label: "Needs work",
-        means: "Hard to skim — missing sections, or experience written as flowing prose.",
+        means: "Hard to skim - missing sections, or experience written as flowing prose.",
       },
     ],
   },
@@ -127,9 +127,9 @@ export const CV_RUBRIC: RubricDimension[] = [
     label: "Tailoring",
     weight: 20,
     measures:
-      "Whether this reads as written for the role you are aiming at, rather than sent to everyone. If no advert was given, this is judged on how clearly the CV points somewhere at all — never marked down for the advert being missing.",
+      "Whether this reads as written for the role you are aiming at, rather than sent to everyone. If no advert was given, this is judged on how clearly the CV points somewhere at all - never marked down for the advert being missing.",
     source:
-      "UCAS and the National Careers Service publish the same first rule: tailor every application to the role — the one that could have been sent anywhere is the one that gets rejected.",
+      "UCAS and the National Careers Service publish the same first rule: tailor every application to the role - the one that could have been sent anywhere is the one that gets rejected.",
     bands: [
       {
         min: 70,
@@ -145,7 +145,7 @@ export const CV_RUBRIC: RubricDimension[] = [
       {
         min: 0,
         label: "Needs work",
-        means: "Nothing signals which job this is for — it could have been sent anywhere.",
+        means: "Nothing signals which job this is for - it could have been sent anywhere.",
       },
     ],
   },
@@ -157,7 +157,7 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     label: "Headline",
     weight: 30,
     measures:
-      "The one line under your name — whether it says what you are and where you are heading.",
+      "The one line under your name - whether it says what you are and where you are heading.",
     source:
       "LinkedIn’s own profile guidance: your headline is your search result, not your job title.",
     bands: [
@@ -185,7 +185,7 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     weight: 25,
     measures: "Whether it sounds like a person worth talking to, with specifics rather than adjectives.",
     source:
-      "Straight from LinkedIn’s published profile tips — real examples and your own voice, not a list of adjectives.",
+      "Straight from LinkedIn’s published profile tips - real examples and your own voice, not a list of adjectives.",
     bands: [
       {
         min: 70,
@@ -207,7 +207,7 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     weight: 25,
     measures: "Whether each entry shows what you actually did, not just where you were.",
     source:
-      "The same standard as your CV — recruiters search LinkedIn by the words in your entries, so a bare job title is invisible.",
+      "The same standard as your CV - recruiters search LinkedIn by the words in your entries, so a bare job title is invisible.",
     bands: [
       {
         min: 70,
@@ -227,7 +227,7 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
     label: "Starter habits",
     weight: 20,
     measures:
-      "The things that make a new profile look alive — skills, a photo, some activity. Judged fairly for someone starting out.",
+      "The things that make a new profile look alive - skills, a photo, some activity. Judged fairly for someone starting out.",
     source:
       "LinkedIn publishes this itself: profiles with skills listed and a photo show up in far more recruiter searches.",
     bands: [
@@ -240,7 +240,7 @@ export const LINKEDIN_RUBRIC: RubricDimension[] = [
       {
         min: 0,
         label: "Needs work",
-        means: "The profile looks unused — no skills, no photo, no activity.",
+        means: "The profile looks unused - no skills, no photo, no activity.",
       },
     ],
   },
@@ -303,6 +303,6 @@ export function dimensionBrief(rubric: RubricDimension[]): string {
   return (
     `The four dimensions, in order: ${list}\n` +
     `Score each 0-100 against these bands: ${bands}. ` +
-    `Do NOT invent an overall score — it is derived from your dimension scores and their weights.`
+    `Do NOT invent an overall score - it is derived from your dimension scores and their weights.`
   );
 }

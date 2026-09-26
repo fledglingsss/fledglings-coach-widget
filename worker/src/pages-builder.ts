@@ -1,9 +1,9 @@
-/* /builder — the Resume Builder, document-first. The learner types
+/* /builder - the Resume Builder, document-first. The learner types
  * straight onto the styled CV (contenteditable fields on the rendered
- * document — Enter adds a bullet, Backspace on an empty one removes
+ * document - Enter adds a bullet, Backspace on an empty one removes
  * it, every line carries a live quality marker), with the Resume
- * Review sidebar alongside. Six structurally distinct designs —
- * five single-column ATS-safe, one two-column labelled in-person —
+ * Review sidebar alongside. Six structurally distinct designs -
+ * five single-column ATS-safe, one two-column labelled in-person -
  * designs chosen from a gallery of real rendered miniatures.
  * Everything lives in the learner's browser (localStorage, autosave);
  * the worker only sees the sections when a check runs, and forgets
@@ -15,7 +15,7 @@ import { CV_STARTERS } from "./lib/builder";
 export function renderBuilderPage(): string {
   const starterCards =
     "<button type='button' class='startcard' data-starter=''><b>Blank CV</b>" +
-    "<p>Start from nothing — placeholders guide every section.</p>" +
+    "<p>Start from nothing - placeholders guide every section.</p>" +
     "<span class='startgo'>Start blank →</span></button>" +
     CV_STARTERS.map(
       (s) =>
@@ -30,7 +30,7 @@ export function renderBuilderPage(): string {
   const body =
     "<main class='wrap' style='max-width:1180px'>" +
     "<h2 class='page'>Resume Builder</h2>" +
-    "<p class='sub'>Type straight onto your CV — no forms, no boxes. Pick a design, click any line and write; " +
+    "<p class='sub'>Type straight onto your CV - no forms, no boxes. Pick a design, click any line and write; " +
     "every bullet gets a live quality marker and the review updates as you go. Saved in your browser as you type, " +
     "prints straight to PDF.</p>" +
 
@@ -39,17 +39,17 @@ export function renderBuilderPage(): string {
     "<div class='card'><div class='listhead'><h3>My CVs</h3>" +
     "<button type='button' class='btn' id='newcv'>+ Create a new CV</button></div>" +
     "<div id='cvlist' class='cvgrid'></div>" +
-    "<p class='sub' style='font-size:12.5px;margin:14px 0 0'>Stored only in this browser — nothing is uploaded. " +
+    "<p class='sub' style='font-size:12.5px;margin:14px 0 0'>Stored only in this browser - nothing is uploaded. " +
     "Clearing your browsing data clears your CVs, so download a PDF when you're happy.</p></div></div>" +
 
     /* ---------- design gallery (real rendered miniatures) ---------- */
     "<div id='s-design' hidden><div class='card'>" +
     "<div class='listhead'><div><h3 style='margin-bottom:2px'>Choose a design</h3>" +
-    "<p class='atsexplain'>Every design here is <b>ATS-safe</b> — that means it reads correctly in the software " +
+    "<p class='atsexplain'>Every design here is <b>ATS-safe</b> - that means it reads correctly in the software " +
     "most employers use to scan applications before a person sees them. Software like that gets confused by " +
     "columns, tables and text boxes, so all of these keep to a single flow. Pick whichever you like the look of.</p>" +
     "<p class='fieldtip' style='margin:0'>Six genuinely different layouts, all ATS-safe, shown exactly as they print. " +
-    "Change any time — your content never changes with the design.</p></div>" +
+    "Change any time - your content never changes with the design.</p></div>" +
     "<button type='button' class='btn ghost' id='designback'>← Back</button></div>" +
     "<div class='designgrid' id='designgrid'></div></div></div>" +
 
@@ -57,7 +57,7 @@ export function renderBuilderPage(): string {
     "<div id='s-pick' hidden><div class='card'>" +
     "<div class='listhead'><h3>Choose your starting point</h3>" +
     "<button type='button' class='btn ghost' id='pickback'>← Design</button></div>" +
-    "<p class='fieldtip'>An example start shows you the standard — then make every line true about <b>you</b>: " +
+    "<p class='fieldtip'>An example start shows you the standard - then make every line true about <b>you</b>: " +
     "the example names and numbers are scaffolding to replace, never content to submit.</p>" +
     `<div class='startgrid'>${starterCards}</div></div></div>` +
 
@@ -73,7 +73,7 @@ export function renderBuilderPage(): string {
     "<button type='button' class='btn' onclick='window.print()'>Download PDF</button>" +
     "</div>" +
     "<div class='exguard no-print' id='exguard' hidden>⚠️ <b>Example content is still in this CV.</b> Everything marked " +
-    "<i>(example)</i> is scaffolding — swap it for your real experience before you download or send this anywhere. " +
+    "<i>(example)</i> is scaffolding - swap it for your real experience before you download or send this anywhere. " +
     "Employers can tell, and your real story is the one that gets you hired.</div>" +
     "<div class='docgrid'>" +
     /* review + tips rail */
@@ -83,15 +83,15 @@ export function renderBuilderPage(): string {
     "<button type='button' class='rv-refresh' id='refreshbtn' aria-label='Re-check score' title='Re-check score'>⟳</button></div>" +
     "<div class='rv-scorerow'><span class='rv-score' id='b-score'>0</span><span class='rv-of'>/100</span>" +
     "<div class='rv-bar'><i id='rv-bar-i'></i></div></div>" +
-    "<div class='rv-fair'>🛡️ Fair scoring — deterministic rules, the same result every run</div>" +
-    "<div class='stale-note' id='stale-note' hidden>✎ Edited since the last check — tap ⟳ for a fresh score.</div>" +
+    "<div class='rv-fair'>🛡️ Fair scoring - deterministic rules, the same result every run</div>" +
+    "<div class='stale-note' id='stale-note' hidden>✎ Edited since the last check - tap ⟳ for a fresh score.</div>" +
     "<div id='rv-cats'></div>" +
     "<button type='button' class='btn rv-send' id='sendreview'>Send to full AI review →</button>" +
     "</div>" +
     "<div class='card tipscard'><h3>💡 Writing tips</h3><ul class='tipslist'>" +
-    "<li><b>Everything counts.</b> Shops, sport, school events, caring for family — real proof beats a payslip.</li>" +
-    "<li><b>Lead with a doing word.</b> Served, organised, trained — not “responsible for”.</li>" +
-    "<li><b>Add a number.</b> How many, how often, how much — honestly.</li>" +
+    "<li><b>Everything counts.</b> Shops, sport, school events, caring for family - real proof beats a payslip.</li>" +
+    "<li><b>Lead with a doing word.</b> Served, organised, trained - not “responsible for”.</li>" +
+    "<li><b>Add a number.</b> How many, how often, how much - honestly.</li>" +
     "<li><b>Watch the markers.</b> ✓ strong line · ! could be stronger · ✗ weak opener.</li>" +
     "</ul></div>" +
     "</div>" +
@@ -99,14 +99,14 @@ export function renderBuilderPage(): string {
     "<div class='doccol'><div class='cvpaper classic' id='paper'></div></div>" +
     "</div></div>" +
 
-    "<p class='sub no-print' style='font-size:12.5px;margin-top:18px'>The builder never invents anything for you — " +
+    "<p class='sub no-print' style='font-size:12.5px;margin-top:18px'>The builder never invents anything for you - " +
     "and neither should you. Real, small and specific beats impressive and vague, every time.</p>" +
     "</main>" +
     "<script>var FL_STARTERS=" + startersJson + ";</script>" +
     "<script>" + BUILDER_JS + "</script>";
 
   return appShell({
-    title: "Fledglings — Resume Builder",
+    title: "Fledglings - Resume Builder",
     active: "builder",
     bodyHtml: body,
     extraCss: BUILDER_CSS,
@@ -133,7 +133,7 @@ var cvs=loadAll(),current=null,saveTimer=null,lastText='';
 
 /* ---------------- my CVs list ---------------- */
 function renderList(){var out='';
-if(!cvs.length){out="<div class='cvempty'>No CVs yet — create your first one. It takes about ten minutes.</div>";}
+if(!cvs.length){out="<div class='cvempty'>No CVs yet - create your first one. It takes about ten minutes.</div>";}
 cvs.forEach(function(c){out+="<div class='cvitem'><div class='cvi-name'>"+esc2(c.title||'Untitled CV')+"</div>"+
 "<div class='cvi-meta'>"+esc2(designName(c.tpl||'classic'))+" · updated "+new Date(c.updated).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+"</div>"+
 "<div class='cvi-btns'><button type='button' class='btn' data-open='"+c.id+"'>Open</button>"+
@@ -152,10 +152,10 @@ cvs=cvs.filter(function(c){return c.id!==b.dataset.del});saveAll(cvs);renderList
 /* ---------------- designs ---------------- */
 /* ats:true = single-column flow that parses cleanly through screening
  * software. The Sidebar is the one true two-column layout, which many
- * parsers read out of order — the gallery says so instead of letting a
+ * parsers read out of order - the gallery says so instead of letting a
  * learner find out from a silent rejection. */
 var DESIGNS=[
-{id:'classic',label:'Classic',ats:true,blurb:'Traditional and safe. Your name centred at the top, classic lettering. Works for anything — pick this if you are unsure.'},
+{id:'classic',label:'Classic',ats:true,blurb:'Traditional and safe. Your name centred at the top, classic lettering. Works for anything - pick this if you are unsure.'},
 {id:'executive',label:'Executive',ats:true,blurb:'A navy banner across the top with your name and contact details inside it. Looks confident.'},
 {id:'modern',label:'Modern',ats:true,blurb:'Modern and colourful. Big name, a stripe of colour, and your skills shown as small rounded tags.'},
 {id:'accent',label:'Monogram',ats:true,blurb:'Your initials in a circle beside a line of colour down the edge. Personal, still smart.'},
@@ -165,7 +165,7 @@ var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.c
 summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
 experience:[{role:'Volunteer',org:'Community Shop',location:'Leeds',from:'Jun 2025',to:'Present',
 bullets:['Served 50+ customers per shift on the till','Organised donations, halving sorting time']}],
-education:[{school:'City College',quals:'GCSEs: English (6), Maths (5) — 8 subjects',from:'2021',to:'2026',detail:''}],
+education:[{school:'City College',quals:'GCSEs: English (6), Maths (5) - 8 subjects',from:'2021',to:'2026',detail:''}],
 skills:['Till operation','Teamwork','Punctuality'],extras:['First aid basics course']};
 var designMode='create',pendingTpl='classic';
 function designName(id){var d=DESIGNS.find(function(x){return x.id===id});return d?d.label:'Classic';}
@@ -174,7 +174,7 @@ DESIGNS.forEach(function(d){
 h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
 "<div class='cvpaper "+d.id+"'>"+docHtml(DESIGN_SAMPLE,false)+"</div></div></div>"+
 "<b>"+esc2(d.label)+" <span class='atsbadge ok' title='Reads correctly in the software employers use to scan applications'>ATS-safe</span>"+"</b><p>"+esc2(d.blurb)+
-(d.twoCol?" <span class='atsnote'>Two columns on screen, one column when you download it — so a parser still reads your CV in the right order.</span>":'')+"</p>"+
+(d.twoCol?" <span class='atsnote'>Two columns on screen, one column when you download it - so a parser still reads your CV in the right order.</span>":'')+"</p>"+
 "<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
 $('designgrid').innerHTML=h;
 document.querySelectorAll('.dselect').forEach(function(b){b.onclick=function(){
@@ -210,8 +210,8 @@ else{data=blankCv();}
 var c={id:Math.random().toString(16).slice(2),title:title,updated:Date.now(),tpl:pendingTpl,data:data};
 cvs.unshift(c);saveAll(cvs);openCv(c.id);};});
 /* Arriving from a review or the library with the words already in
- * hand (?from=text): parse them into sections on the worker — no
- * model, nothing kept — and open the editor on the result. Deferred a
+ * hand (?from=text): parse them into sections on the worker - no
+ * model, nothing kept - and open the editor on the result. Deferred a
  * tick so every var this script sets up is in place first. */
 setTimeout(function(){if(!/[?&]from=text\b/.test(location.search))return;
 var txt='';try{txt=flLibTakeHandoff()||''}catch(e){}
@@ -238,14 +238,14 @@ var checkTimer=null;
 function scheduleSave(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
 lastText='';if(!$('scorepanel').hidden)$('stale-note').hidden=false;
 saveTimer=setTimeout(function(){current.updated=Date.now();
-markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser — download a PDF so you don’t lose it')},500);
+markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser - download a PDF so you don’t lose it')},500);
 /* Hiration-style: the review re-scores itself shortly after you stop
- * typing — deterministic and free, so no button-hunting needed. */
+ * typing - deterministic and free, so no button-hunting needed. */
 if(checkTimer)clearTimeout(checkTimer);
 checkTimer=setTimeout(function(){runCheck(true)},2500);}
 function scheduleSaveQuiet(){markSaved('Saving…');if(saveTimer)clearTimeout(saveTimer);
 saveTimer=setTimeout(function(){current.updated=Date.now();
-markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser — download a PDF so you don’t lose it')},400);}
+markSaved(saveAll(cvs)?'Saved':'⚠ Couldn’t save in this browser - download a PDF so you don’t lose it')},400);}
 
 /* ---------------- structured payload ---------------- */
 function lines(t){return String(t||'').split('\n').map(function(l){return l.trim()}).filter(Boolean)}
@@ -262,15 +262,15 @@ var MK_ACTION=/^(led|built|created|designed|organised|organized|delivered|improv
 function bulletMark(b){b=b.trim();
 if(!b)return {c:'mk-off',i:'·',t:'Write the line first'};
 var words=b.split(/\s+/).filter(Boolean).length;
-if(MK_WEAK.test(b))return {c:'mk-bad',i:'✗',t:'Weak opener — lead with what YOU did'};
-if(words>30)return {c:'mk-warn',i:'!',t:'Long — aim under 30 words'};
+if(MK_WEAK.test(b))return {c:'mk-bad',i:'✗',t:'Weak opener - lead with what YOU did'};
+if(words>30)return {c:'mk-warn',i:'!',t:'Long - aim under 30 words'};
 if(!MK_ACTION.test(b))return {c:'mk-warn',i:'!',t:'Start with a doing word'};
 if(!/(\d|%|£)/.test(b))return {c:'mk-warn',i:'!',t:'Add a number that proves scale'};
 return {c:'mk-ok',i:'✓',t:'Strong line'};}
 
 /* ---------------- the document ----------------
  * One generator serves the editable document, the read-only gallery
- * miniatures and (via payload) the checks — so what you see is always
+ * miniatures and (via payload) the checks - so what you see is always
  * what gets scored and printed. Editable fields carry data-b paths;
  * structural controls (add/remove) are contenteditable=false islands. */
 function ed(bind,cls,ph,val,tag){tag=tag||'span';
@@ -297,16 +297,16 @@ exps.forEach(function(e,i){
 var bl=E?String(e.bullets||'').split('\n'):(e.bullets||[]);
 if(E&&bl.length===0)bl=[''];
 h+="<div class='cp-entry' data-entry='"+i+"'><div class='cp-row'><b>"+
-(E?ed('xp:'+i+':role','cpe','Job or role title',e.role)+"<i class='cp-dash'>—</i>"+ed('xp:'+i+':org','cpe','Organisation',e.org)
-:esc2([e.role,e.org].filter(Boolean).join(' — ')))+"</b><span>"+
+(E?ed('xp:'+i+':role','cpe','Job or role title',e.role)+"<i class='cp-dash'>-</i>"+ed('xp:'+i+':org','cpe','Organisation',e.org)
+:esc2([e.role,e.org].filter(Boolean).join(' - ')))+"</b><span>"+
 (E?ed('xp:'+i+':from','cpe','From',e.from)+"<i class='cp-dash'>–</i>"+ed('xp:'+i+':to','cpe','To',e.to)
 :esc2([e.from,e.to].filter(Boolean).join(' – ')))+"</span></div>";
 if(E||e.location)h+="<div class='cp-loc'>"+(E?ed('xp:'+i+':location','cpe','Location (optional)',e.location):esc2(e.location))+"</div>";
 h+="<ul>";
 bl.forEach(function(b,j){var m=bulletMark(b);
 h+="<li><span class='mk "+m.c+"' title='"+esc2(m.t)+"' contenteditable='false'>"+m.i+"</span>"+
-(E?ed('xb:'+i+':'+j,'bl','What you did — start with a doing word, add a number',b):"<span class='bl'>"+esc2(b)+"</span>")+
-(E?"<button type='button' class='ilb' contenteditable='false' data-il='"+i+":"+j+"' title='Improve this line with AI — uses only what it already says'>✨</button>":"")+
+(E?ed('xb:'+i+':'+j,'bl','What you did - start with a doing word, add a number',b):"<span class='bl'>"+esc2(b)+"</span>")+
+(E?"<button type='button' class='ilb' contenteditable='false' data-il='"+i+":"+j+"' title='Improve this line with AI - uses only what it already says'>✨</button>":"")+
 "</li>";});
 h+="</ul>";
 if(E)h+="<div class='ctl' contenteditable='false'><button type='button' class='ctlbtn' data-addbullet='"+i+"'>+ point</button>"+
@@ -343,7 +343,7 @@ else if(d.extras&&d.extras.length){h+="<div class='cp-sec sec-extras'><h4>Achiev
 d.extras.map(function(x){return "<li>"+esc2(x)+"</li>"}).join('')+"</ul></div>";}
 /* References. The National Careers Service lists it as a CV section
  * and is explicit that you do not print someone else's contact
- * details — you say they are available on request. Printed for every
+ * details - you say they are available on request. Printed for every
  * CV, not editable, because there is exactly one correct wording and
  * a learner guessing at it is how a referee's phone number ends up on
  * a document handed to strangers. */
@@ -379,13 +379,13 @@ renderDoc();scheduleSave();};});
 $('paper').querySelectorAll('[data-il]').forEach(function(b){b.onclick=function(){
 var p=b.dataset.il.split(':');var e=current.data.experience[+p[0]];
 var bl=String(e.bullets||'').split('\n');var line=(bl[+p[1]]||'').trim();
-if(line.length<8){alert('Write the line first — the improver sharpens your words, it never invents them.');return;}
+if(line.length<8){alert('Write the line first - the improver sharpens your words, it never invents them.');return;}
 b.disabled=true;b.textContent='…';
 fetch('/api/improve-line',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,line:line})})
 .then(function(r){return r.json()}).then(function(d){b.disabled=false;b.textContent='✨';
 if(!d||!d.line){alert((d&&d.reply)||'Could not improve that line just now.');return;}
-/* Only apply if the bullet is untouched since the request went out —
+/* Only apply if the bullet is untouched since the request went out -
  * never clobber keystrokes typed while the improver was thinking. */
 var freshBl=String(e.bullets||'').split('\n');
 if((freshBl[+p[1]]||'').trim()!==line){return;}
@@ -398,7 +398,7 @@ focusBind('edn:'+(current.data.education.length-1)+':school');scheduleSave();};}
 function focusBind(b){var el=$('paper').querySelector("[data-b='"+b+"']");if(el){el.focus();
 try{var r=document.createRange();r.selectNodeContents(el);r.collapse(false);
 var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}}}
-/* The scaffolding marker is "(example" — "imogen@example.com" or "set an
+/* The scaffolding marker is "(example" - "imogen@example.com" or "set an
  * example for new starters" is the learner's own content, not ours. */
 function updateGuard(){$('exguard').hidden=JSON.stringify(current.data).toLowerCase().indexOf('(example')===-1;}
 
@@ -464,12 +464,12 @@ body:JSON.stringify({learner_id:lid,cv:payload()})})
 if(!d||!d.review){if(!auto)alert((d&&d.reply)||'Add a bit more content first, then check again.');return;}
 lastText=d.text||'';$('stale-note').hidden=true;
 renderReview(d.review);$('scorepanel').hidden=false;})
-.catch(function(){if(!auto)alert('Could not reach the checker — try again in a minute.');});}
+.catch(function(){if(!auto)alert('Could not reach the checker - try again in a minute.');});}
 $('refreshbtn').onclick=function(){runCheck(false)};
 $('sendreview').onclick=function(){
-if(!lastText){alert('Tap ⟳ for a fresh check first — the review reads that exact text.');return;}
+if(!lastText){alert('Tap ⟳ for a fresh check first - the review reads that exact text.');return;}
 try{sessionStorage.setItem('fl_builder_cv_text',lastText)}catch(e){}
-/* The identity is a TOKEN — it must ride as t=, never as the e=
+/* The identity is a TOKEN - it must ride as t=, never as the e=
  * embed-email param (which /tools decodes with atob and would drop). */
 var q=['from=builder'];var ev=flToken();if(ev)q.push('t='+encodeURIComponent(ev));
 location.href='/tools?'+q.join('&');};
@@ -578,7 +578,7 @@ const BUILDER_CSS = `
 .ck-d{font-size:13px;color:#4a5b66;line-height:1.5;margin-top:2px;}
 .ck-e{font-size:12.5px;color:#616A71;font-style:italic;margin-top:4px;border-left:3px solid var(--off);padding-left:10px;}
 /* ==================================================================
- * THE DOCUMENT — editable, and six structurally distinct designs
+ * THE DOCUMENT - editable, and six structurally distinct designs
  * ================================================================== */
 .cvpaper{background:#fff;border-radius:6px;box-shadow:0 6px 28px -10px rgba(5,37,60,.25);
   padding:38px 42px;line-height:1.55;color:#1c2b36;min-height:520px;font-size:13px;}
@@ -630,13 +630,13 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
   font-family:'Outfit',Arial,sans-serif;font-size:12px;font-weight:700;color:#616A71;cursor:pointer;margin-top:4px;}
 .addline:hover{border-color:#B93A22;color:#B93A22;}
 .cp-cols{display:block;}
-/* ---- 1 · CLASSIC — centred serif masthead, double rules ---- */
+/* ---- 1 · CLASSIC - centred serif masthead, double rules ---- */
 .cvpaper.classic{font-family:Georgia,'Times New Roman',serif;}
 .cvpaper.classic .cp-head{display:block;text-align:center;border-bottom:3px double #1c2b36;padding-bottom:12px;}
 .cvpaper.classic .cp-name{letter-spacing:.02em;font-size:26px;}
 .cvpaper.classic .cp-sec h4{border-bottom:none;text-align:center;letter-spacing:.22em;font-size:11px;position:relative;}
 .cvpaper.classic .cp-sec h4::after{content:'';display:block;width:44px;height:1px;background:#1c2b36;margin:5px auto 0;}
-/* ---- 2 · EXECUTIVE — navy masthead, tabbed headings ---- */
+/* ---- 2 · EXECUTIVE - navy masthead, tabbed headings ---- */
 .cvpaper.executive{padding-top:0;overflow:hidden;}
 .cvpaper.executive .cp-head{background:#05253C;color:#fff;margin:0 -42px 20px;padding:28px 42px 22px;}
 @media(max-width:900px){.cvpaper.executive .cp-head{margin:0 -22px 16px;padding:20px 22px;}}
@@ -646,7 +646,7 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .cvpaper.executive .cp-sec h4{border-bottom:none;background:#05253C;color:#fff;display:inline-block;
   padding:3px 12px;border-radius:3px;letter-spacing:.1em;font-size:10.5px;}
 .cvpaper.executive .cp-entry{border-left:2px solid #ECE7E6;padding-left:12px;}
-/* ---- 3 · MODERN — energy bar, chip skills ---- */
+/* ---- 3 · MODERN - energy bar, chip skills ---- */
 .cvpaper.modern .cp-name{font-size:31px;letter-spacing:-.02em;}
 .cvpaper.modern .cp-head{border-bottom:none;padding-bottom:14px;position:relative;}
 .cvpaper.modern .cp-head::after{content:'';position:absolute;left:0;bottom:0;height:5px;width:100%;
@@ -657,12 +657,12 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .cvpaper.modern .cp-chips{display:flex;}
 .cvpaper.modern .cp-skills{display:none;}
 .cvpaper.modern .cp-skilledit{font-size:11px;color:#616A71;}
-/* ---- 4 · MONOGRAM — medallion + warm spine ---- */
+/* ---- 4 · MONOGRAM - medallion + warm spine ---- */
 .cvpaper.accent{border-left:8px solid;border-image:linear-gradient(180deg,#ED9249,#D9452B) 1;}
 .cvpaper.accent .cp-mono{display:flex;}
 .cvpaper.accent .cp-sec h4{border-bottom:1px solid #E3DDDA;color:#13507F;letter-spacing:.12em;position:relative;padding-left:14px;}
 .cvpaper.accent .cp-sec h4::before{content:'';position:absolute;left:0;top:3px;width:7px;height:7px;border-radius:50%;background:#ED9249;}
-/* ---- 5 · SIDEBAR — navy panel column ---- */
+/* ---- 5 · SIDEBAR - navy panel column ---- */
 .cvpaper.sidebar{padding:0;overflow:hidden;}
 .cvpaper.sidebar .cp-head{padding:30px 34px 6px;margin-bottom:0;}
 .cvpaper.sidebar .cp-cols{display:flex;align-items:stretch;}
@@ -674,7 +674,7 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .cvpaper.sidebar .cp-side [contenteditable]:empty::before{color:#7A93A8;}
 @media(max-width:640px){.cvpaper.sidebar .cp-cols{display:block;}
 .cvpaper.sidebar .cp-side{width:auto;}}
-/* ---- 6 · LEDGER — label-column headings, hairlines ---- */
+/* ---- 6 · LEDGER - label-column headings, hairlines ---- */
 .cvpaper.compact{font-size:11.5px;padding:30px 34px;line-height:1.5;}
 .cvpaper.compact .cp-name{font-size:21px;}
 .cvpaper.compact .cp-sec{display:grid;grid-template-columns:110px 1fr;gap:4px 16px;
@@ -696,7 +696,7 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
   .cvpaper{box-shadow:none;border-radius:0;padding:8mm 6mm;min-height:0;}
   /* The Sidebar design is two columns on screen and one on paper.
    * Screening software reads a PDF's columns out of order, so the
-   * artefact that reaches an employer has to be a single flow — this
+   * artefact that reaches an employer has to be a single flow - this
    * is what makes every design in the gallery genuinely ATS-safe
    * rather than one of them carrying a warning. Must stay inside this
    * block, which is last in the sheet: an earlier @media print loses

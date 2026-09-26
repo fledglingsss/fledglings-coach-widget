@@ -4,19 +4,19 @@
  * those runs are stitched decides what every downstream judgement sees:
  * the deterministic checks look for headings and bullets, and the model
  * is asked whether a CV can be skim-read. Flatten the structure here
- * and a well-organised CV arrives looking like a wall of text — the
+ * and a well-organised CV arrives looking like a wall of text - the
  * learner is then marked down for formatting they actually got right.
  *
  * The version this replaces was copied inline into three pages and
  * tested nowhere. It broke a line whenever the baseline moved more
  * than two units, which ignored pdf.js's own end-of-line flag, split
  * lines on the jitter that superscripts cause, and never emitted a
- * blank line — so the gap between "Education" and the section above it
+ * blank line - so the gap between "Education" and the section above it
  * read exactly like an ordinary wrap.
  *
  * WHY THIS IS A STRING. It runs in the browser, not in the worker. The
- * obvious approach — write it in TypeScript and ship
- * `fn.toString()` — fails in a way unit tests cannot see: the bundler
+ * obvious approach - write it in TypeScript and ship
+ * `fn.toString()` - fails in a way unit tests cannot see: the bundler
  * rewrites function expressions with its own `__name()` helper to keep
  * names in stack traces, and that helper does not exist on the page.
  * The tests passed while the served page threw "__name is not defined"
@@ -30,7 +30,7 @@ export const PDF_TEXT_JS = `
  * and font switches nudge the baseline while staying on one line. */
 var FL_SAME_LINE_TOLERANCE=3.2;
 /* A vertical gap this many times the usual line step means the
- * document left real space — a section break, not a wrap. */
+ * document left real space - a section break, not a wrap. */
 var FL_PARAGRAPH_GAP_RATIO=1.6;
 /* Horizontal distance between the end of one run and the start of the
  * next that means a word boundary. Kerning moves the pen a fraction of
@@ -62,7 +62,7 @@ function flAssemblePageText(items){
      * based on "neither side has a space" glues separate words and
      * splits single ones with equal confidence. The gap between where
      * the last run ended and this one starts is the real evidence.
-     * With no geometry, add nothing — pdf.js emits its own space runs,
+     * With no geometry, add nothing - pdf.js emits its own space runs,
      * and an invented space is harder to undo than a missing one. */
     var gap=(penX!==null&&x!==null)?x-penX:null;
     var needsSpace=line!==''&&!/\\s$/.test(line)&&!/^\\s/.test(str)&&gap!==null&&gap>FL_WORD_GAP_MIN;
@@ -95,7 +95,7 @@ export interface PdfTextItem {
   str?: string;
   /** pdf.js sets this true on the run that ends a line. */
   hasEOL?: boolean;
-  /** [a, b, c, d, e, f] — e (index 4) is x, f (index 5) the baseline y. */
+  /** [a, b, c, d, e, f] - e (index 4) is x, f (index 5) the baseline y. */
   transform?: number[];
   /** Advance width of this run, in the same units as x. */
   width?: number;

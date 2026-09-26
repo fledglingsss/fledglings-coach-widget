@@ -93,7 +93,7 @@ td.c,th.c{text-align:center;}
  *
  * Identity IS a signed token: the worker mints it at /api/identity and
  * every scoring call carries it. Nothing here can assert an email on
- * its own — the address shown in the UI is read out of the token the
+ * its own - the address shown in the UI is read out of the token the
  * worker issued, so what the learner sees is what the server honours.
  *
  *   1. Embedded: the LearnWorlds Liquid email arrives as ?e= (b64url)
@@ -104,7 +104,7 @@ td.c,th.c{text-align:center;}
  *      the same device keeps its identity even when the iframe's
  *      storage is partitioned.
  * The token is scoped to this browser and expires; the email inside it
- * is only ever a key for score history — no account, no password. */
+ * is only ever a key for score history - no account, no password. */
 
 export const IDENTITY_JS = PDF_TEXT_JS + String.raw`
 function flViewOnly(){try{return new URLSearchParams(location.search).get('view')==='1'}catch(e){return false}}
@@ -123,7 +123,7 @@ return v;}
 function flLs(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
 function flLsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function flLsDel(k){try{localStorage.removeItem(k)}catch(e){}}
-/* Read the claims out of a token WITHOUT trusting them — display only;
+/* Read the claims out of a token WITHOUT trusting them - display only;
  * the signature is what the worker checks on every call. */
 function flTokenClaims(tok){try{var dot=String(tok||'').indexOf('.');if(dot<1)return null;
 var b=tok.slice(0,dot).replace(/-/g,'+').replace(/_/g,'/');
@@ -141,7 +141,7 @@ tok=flLs('fl_hub_token_v1');
 if(tok&&flTokenClaims(tok))return tok;
 if(tok)flLsDel('fl_hub_token_v1');
 return '';}
-/* The email this device is signed in as — read from the token only. */
+/* The email this device is signed in as - read from the token only. */
 function flResolveEmail(){var cl=flTokenClaims(flToken());return cl?String(cl.e||''):'';}
 /* Exchange an email for a signed token (the ONLY way to gain an
  * identity). Resolves {ok:true,email} or {ok:false,reason}. */
@@ -158,7 +158,7 @@ if(d&&d.ok&&d.token){if(!flViewOnly())flLsSet('fl_hub_token_v1',d.token);
 return {ok:true,email:d.email||em,token:d.token,persisted:flLs('fl_hub_token_v1')===d.token};}
 return {ok:false,reason:(d&&d.reason)||'unavailable'};})
 .catch(function(){return {ok:false,reason:'offline'}});}
-/* The raw ?e= address on the URL — a request for identity, never
+/* The raw ?e= address on the URL - a request for identity, never
  * identity itself. Only the embed exchange and the provider's
  * read-only view (authorised by their portal session) read it. */
 function flEmbedEmail(){var em='';
@@ -166,14 +166,14 @@ try{var p=new URLSearchParams(location.search).get('e');
 if(p){em=decodeURIComponent(atob(p.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join(''));}}catch(e){}
 em=String(em||'').trim().toLowerCase();
 return em.indexOf('@')===-1?'':em;}
-/* The Liquid email in an embed is a REQUEST for a token, not proof —
+/* The Liquid email in an embed is a REQUEST for a token, not proof -
  * exchange it once per browser, then the token does the work. */
 /* Owns the navigation itself: callers must never have to decide, or a
- * truthy-but-failed result turns into a reload loop (it did — an
+ * truthy-but-failed result turns into a reload loop (it did - an
  * unlinked visitor to /hub reloaded for ever, 2026-08-11). */
 function flAdoptEmbedEmail(learnerId){var em=flEmbedEmail();
 if(!em||flViewOnly())return Promise.resolve({ok:false});
-/* Already this learner — nothing to exchange, so never re-navigate. */
+/* Already this learner - nothing to exchange, so never re-navigate. */
 if(flResolveEmail()===em)return Promise.resolve({ok:false});
 return flLinkEmail(em,learnerId).then(function(r){
 if(r&&r.ok)flReloadWithToken(r.token);
@@ -185,13 +185,13 @@ return r;});}
 function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');
 ['fl_builder_cvs_v1','fl_letters_v1','fl_iv_learn_v1'].forEach(flLsDel);
 try{if(window.indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('fl_interview_v1');}catch(e){}}
-/* Leave the current page as nobody — strips identity from the URL too,
+/* Leave the current page as nobody - strips identity from the URL too,
  * or the ?t= we just cleared would sign us straight back in. */
 function flSignOutHere(){flClearEmail();
 try{var u=new URL(location.href);u.searchParams.delete('t');u.searchParams.delete('e');
 location.href=u.pathname+u.search;}catch(e){location.href='/hub';}}
-/* One call per tool page: show who we are saving as, and — when the
- * page was opened from a course embed carrying ?e= — exchange
+/* One call per tool page: show who we are saving as, and - when the
+ * page was opened from a course embed carrying ?e= - exchange
  * that address for a token, then re-render as the signed-in learner.
  *
  * Reloads via ?t= rather than a bare reload: if storage is blocked the
@@ -210,7 +210,7 @@ function flAddHubBackLink(){var bk=document.createElement('a');bk.href=flHubLink
 bk.textContent='← Your Employability Hub';
 bk.style.cssText='display:inline-block;margin-bottom:14px;color:#13507F;font-weight:600;font-size:13.5px;text-decoration:none;';
 var hh=document.querySelector('h2.page');if(hh)hh.parentNode.insertBefore(bk,hh);}
-/* Small "who is this saving as" chip under the page title — the
+/* Small "who is this saving as" chip under the page title - the
  * guard against shared-device cross-contamination: the current email
  * is always visible and one tap away from being cleared. */
 function flIdentityChip(){var em=flResolveEmail();if(!em)return;
@@ -227,7 +227,7 @@ if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibli
 /* ---------------- My work: the on-device document library ----------
  *
  * Every CV, cover letter and profile a learner submits is kept HERE,
- * in their own browser, with the feedback it earned — so they can come
+ * in their own browser, with the feedback it earned - so they can come
  * back, read the advice again, and edit the actual words rather than
  * starting from a blank box.
  *
@@ -255,18 +255,18 @@ var t=db.transaction(FL_LIB_STORE,mode);var out=fn(t.objectStore(FL_LIB_STORE));
 t.oncomplete=function(){res(out&&out.result!==undefined?out.result:out)};
 t.onerror=function(){rej(t.error)};});});}
 /* Save a document and the report it earned. Storage failures never
- * break a review — the learner still has their report on screen. */
+ * break a review - the learner still has their report on screen. */
 function flLibFix(report){if(!report)return '';
 if(report.next_step)return String(report.next_step);
 if(report.improvements&&report.improvements.length){var i=report.improvements[0];
-return (i.title?i.title+' — ':'')+(i.detail||'');}
+return (i.title?i.title+' - ':'')+(i.detail||'');}
 return '';}
 function flLibSave(kind,title,text,report,score){
 try{
 var entry={id:'d'+Date.now()+Math.random().toString(36).slice(2,7),owner:flLibOwner(),
 kind:kind,title:String(title||'').slice(0,120),text:String(text||'').slice(0,20000),
 report:report||null,score:(typeof score==='number'?score:null),at:Math.floor(Date.now()/1000)};
-/* Device first — it must not depend on the network — then the
+/* Device first - it must not depend on the network - then the
  * server copy so the same work is there on their phone. */
 return flLibTx('readwrite',function(st){st.put(entry)})
 .then(function(){return flLibPrune()})
@@ -287,7 +287,7 @@ return flLibApi('save',{entry:{id:entry.id,kind:entry.kind,title:entry.title,at:
 score:entry.score,fix:flLibFix(entry.report),snip:String(entry.text||'').slice(0,240)},
 text:entry.text,report:entry.report})
 .catch(function(){return null});}
-/* Only what this device holds. Pruning must count these alone — the
+/* Only what this device holds. Pruning must count these alone - the
  * merged list below includes work that lives on the server, and
  * counting that against the device cap pruned local copies early. */
 function flLibLocal(){return flLibTx('readonly',function(st){return st.getAll()})
@@ -296,7 +296,7 @@ return (rows||[]).filter(function(r){return r&&r.owner===me});})
 .catch(function(){return []});}
 /* The list a learner sees is their device library plus anything saved
  * on another device. Entries that came from the server carry
- * remote:true, a snippet for the card, and no full text — flLibText
+ * remote:true, a snippet for the card, and no full text - flLibText
  * fetches a body only when they open one.
  *
  * This is also where the two halves are reconciled: any local row the
@@ -325,14 +325,14 @@ if(row&&row.text)return Promise.resolve(row.text);
 if(!row||!row.id)return Promise.resolve('');
 return flLibApi('get',{id:row.id}).then(function(res){
 return res&&res.ok&&res.text?res.text:'';}).catch(function(){return ''});}
-/* Deleting means deleting — the device copy and the synced one, so a
+/* Deleting means deleting - the device copy and the synced one, so a
  * learner who removes a CV does not find it on their phone. */
 function flLibRemove(id){
 return flLibTx('readwrite',function(st){st.delete(id)})
 .catch(function(){})
 .then(function(){return flLibApi('delete',{id:id})})
 .catch(function(){});}
-/* Keep the newest FL_LIB_MAX per learner — a browser store should not
+/* Keep the newest FL_LIB_MAX per learner - a browser store should not
  * grow without bound on a shared device. */
 function flLibPrune(){return flLibLocal().then(function(rows){
 rows.sort(function(a,b){return b.at-a.at});
@@ -347,7 +347,7 @@ function flLibTakeHandoff(){try{var v=sessionStorage.getItem('fl_reopen_v1');
 if(v)sessionStorage.removeItem('fl_reopen_v1');return v||'';}catch(e){return ''}}`;
 
 /* ------------------------------------------------------------------
- * App shell — the Hiration-style light application chrome used by the
+ * App shell - the Hiration-style light application chrome used by the
  * employability suite (/hub, /tools, /linkedin, /interview,
  * /cover-letter, /builder): white sidebar navigation, soft grey
  * canvas, blue primary actions. The portal/passport keep the classic
@@ -511,7 +511,7 @@ const APP_OVERRIDES = `
 .addbtn:hover{border-color:#B93A22;color:#B93A22;}
 .trust{background:var(--off);color:var(--blue);}
 /* These flags carry white text, so the ramp stays dark enough for it
- * along its whole length — the bright mango end read 2.38:1. */
+ * along its whole length - the bright mango end read 2.38:1. */
 .hc-flag,.tc-flag{background:linear-gradient(90deg,#B93A22,#A66633);}
 .passport{border-top-color:#B93A22;}
 .hero-tag{background:#FBEAE6;color:#B93A22;}
@@ -593,7 +593,7 @@ export function appShell(opts: {
     "var hash='';var hi=href.indexOf('#');if(hi>-1){hash=href.slice(hi);href=href.slice(0,hi);}" +
     "a.href=href+(href.indexOf('?')>-1?'&':'?')+'t='+evq+hash;});}" +
     /* On a phone the nav is a horizontal strip, and the page you are
-     * ON was landing half off the right edge — the one item that must
+     * ON was landing half off the right edge - the one item that must
      * be legible was the one cut in half. Bring it into view, without
      * moving the page itself (block:'nearest'). */
     "(function(){var on=document.querySelector('.sn-link.on');if(!on)return;" +
@@ -659,15 +659,15 @@ export function pageShell(opts: {
 }
 
 /* ------------------------------------------------------------------
- * /tools — CV & LinkedIn review
+ * /tools - CV & LinkedIn review
  * ------------------------------------------------------------------ */
 export function renderToolsPage(): string {
   const body =
     "<main class='wrap'>" +
     "<h2 class='page'>CV &amp; LinkedIn review</h2>" +
-    "<p class='sub'>Upload your PDF and Fledge scores it like a recruiter would — honestly, and grounded only in what " +
+    "<p class='sub'>Upload your PDF and Fledge scores it like a recruiter would - honestly, and grounded only in what " +
     "you've genuinely done. It never invents experience for you, because employers can tell. Your PDF is read in your " +
-    "browser, reviewed, then forgotten — nothing is stored.</p>" +
+    "browser, reviewed, then forgotten - nothing is stored.</p>" +
     /* tabs */
     "<div class='tabs' role='tablist'>" +
     "<button type='button' role='tab' class='tab on' id='tab-cv' aria-selected='true'>📄 My CV</button>" +
@@ -681,13 +681,13 @@ export function renderToolsPage(): string {
     /* step 1: target */
     "<div class='card' id='cvst-1'>" +
     "<h3>🎯 What are you aiming at?</h3>" +
-    "<p class='kw-note' style='margin-bottom:4px'><b>Paste the actual job advert</b> if you have one — that is what " +
+    "<p class='kw-note' style='margin-bottom:4px'><b>Paste the actual job advert</b> if you have one - that is what " +
     "unlocks the keyword match against the employer's own wording. A job title alone still helps with tailoring, " +
     "but nobody can tell you which keywords a specific employer wants from two words. You can also skip this.</p>" +
-    "<textarea id='target' rows='3' aria-label='Paste the job advert, or name the role you are aiming at' maxlength='2500' placeholder='Paste the advert here — or just name the role, e.g. Customer service apprenticeship at a bank'></textarea>" +
+    "<textarea id='target' rows='3' aria-label='Paste the job advert, or name the role you are aiming at' maxlength='2500' placeholder='Paste the advert here - or just name the role, e.g. Customer service apprenticeship at a bank'></textarea>" +
     "<div class='btnrow' style='margin-top:14px'>" +
     "<button type='button' class='btn' id='cv-n1'>Next: your CV →</button>" +
-    "<button type='button' class='btn ghost' id='cv-skip'>Skip — just score it</button></div></div>" +
+    "<button type='button' class='btn ghost' id='cv-skip'>Skip - just score it</button></div></div>" +
     /* step 2: upload */
     "<div class='card' id='cvst-2' hidden>" +
     "<h3 id='u-step-title'>📄 Upload your CV</h3>" +
@@ -701,7 +701,7 @@ export function renderToolsPage(): string {
     "<div id='d-err' class='drop-err' role='alert' hidden></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cv-b2'>← Back</button>" +
     "<span class='hero-note' id='aim-note'></span></div></div>" +
-    /* one close for step 2, one for #u-card itself — the spinner and
+    /* one close for step 2, one for #u-card itself - the spinner and
      * report MUST be u-card's siblings: show() hides u-card when the
      * report appears, and a child report vanishes with it (the bug
      * that blanked every review result from 2026-07-28 to 08-05). */
@@ -722,7 +722,7 @@ export function renderToolsPage(): string {
     "<div class='r-headtxt'><div class='r-kind' id='r-kind'>CV REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
-    /* report sections — one focused screen at a time, never a scroll
+    /* report sections - one focused screen at a time, never a scroll
      * marathon; print shows everything */
     "<div class='rtabs no-print' role='tablist'>" +
     "<button type='button' class='rtab on' data-rp='overview' role='tab'>Overview</button>" +
@@ -736,17 +736,17 @@ export function renderToolsPage(): string {
     "<div class='glance' id='r-glance'></div>" +
     "<div class='ov2'>" +
     "<div class='card'><h3>Your score in context</h3><div id='r-scale'></div><div id='r-compare' class='r-compare'></div>" +
-    "<p class='kw-note' style='margin:8px 0 0'>Your score is the weighted total of the four dimensions — " +
+    "<p class='kw-note' style='margin:8px 0 0'>Your score is the weighted total of the four dimensions - " +
     "open <b>How this is marked</b> under any of them on the Feedback tab to see what it is judged on.</p></div>" +
     "<div class='card'><h3>The shape of your CV</h3><div id='r-radar'></div>" +
-    "<p class='kw-note' style='margin:8px 0 0'>Solid shape = this CV. The dashed line is the interview-ready mark (70) — " +
+    "<p class='kw-note' style='margin:8px 0 0'>Solid shape = this CV. The dashed line is the interview-ready mark (70) - " +
     "every corner pushed past it is genuinely competitive.</p></div>" +
     "</div>" +
     "<div class='card nextstep'><div class='ns-label'>DO THIS FIRST</div><div id='r-next'></div></div>" +
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
     "<a class='card journeynext no-print' id='r-journey' href='/linkedin'><div>" +
     "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
-    "<b id='r-journey-t'>LinkedIn review — get your profile to match this CV</b></div>" +
+    "<b id='r-journey-t'>LinkedIn review - get your profile to match this CV</b></div>" +
     "<span class='jn-btn'>Go →</span></a>" +
     "</div>" +
 
@@ -754,28 +754,28 @@ export function renderToolsPage(): string {
     "<div class='rpanel' id='rp-match' hidden>" +
     "<div class='card' id='r-kwcard' hidden><h3>Match against the job advert</h3>" +
     "<div class='kwgauge-wrap'><div id='r-kwgauge'></div>" +
-    "<p class='kw-note' style='margin:0'>Screening software compares your wording to the advert's — the flag marks the 75% target. " +
+    "<p class='kw-note' style='margin:0'>Screening software compares your wording to the advert's - the flag marks the 75% target. " +
     "Only claim a missing skill if you genuinely have it.</p></div>" +
     "<div class='kw-h'>✓ Found in your document</div><div class='chips' id='r-kwm'></div>" +
     "<div class='kw-h miss'>Missing from your document</div><div class='chips' id='r-kwx'></div></div>" +
     "<div class='card' id='r-kwnone' hidden><p class='kw-note' style='margin:0'>No job advert was given this time. " +
-    "Paste the actual advert on the first step and this tab scores your wording against its exact terms — " +
+    "Paste the actual advert on the first step and this tab scores your wording against its exact terms - " +
     "a role name on its own is not enough for that, because no one can know which words a particular employer wants from two words.</p></div>" +
     "</div>" +
 
     /* ---- recruiter checks panel ---- */
     "<div class='rpanel' id='rp-checks' hidden>" +
-    /* the document itself, marked line by line — the count above
+    /* the document itself, marked line by line - the count above
      * becomes a mark on the line it means */
     "<div class='card' id='r-linescard' hidden><h3>Your CV, line by line</h3>" +
-    "<p class='kw-note'>Every line you wrote, with the rule it trips — or a tick when it is the pattern to copy. " +
+    "<p class='kw-note'>Every line you wrote, with the rule it trips - or a tick when it is the pattern to copy. " +
     "<b>Weak opener</b> means the line starts with what you were asked to do, not what you did; <b>No number</b> " +
     "means an achievement line with nothing to prove its size.</p>" +
     "<div class='ln-key'><span class='ln-flag ok'>Strong line</span><span class='ln-flag warn'>Worth tightening</span>" +
     "<span class='ln-flag bad'>Costs you</span></div>" +
     "<div id='r-lines'></div></div>" +
     "<div class='card'><h3>Recruiter checks <span class='badge' id='r-ckcount'></span></h3>" +
-    "<p class='kw-note'>Objective, rule-based checks — the things screening software and a skim-reading recruiter " +
+    "<p class='kw-note'>Objective, rule-based checks - the things screening software and a skim-reading recruiter " +
     "judge before reading a word properly.</p>" +
     "<div class='ck-seg' id='r-ckseg'></div>" +
     "<div class='chips' id='r-ckpass'></div>" +
@@ -791,9 +791,9 @@ export function renderToolsPage(): string {
     "<div class='card fb-slide' data-fbl='Scores'><h3>Where you scored</h3><div id='r-dims'></div></div>" +
     "<div class='card fb-slide' data-fbl='Working'><h3>What's genuinely working</h3><ul class='goods' id='r-goods'></ul></div>" +
     "<div id='fb-fixwrap'></div>" +
-    /* the method — teach the frameworks, not just the verdicts */
+    /* the method - teach the frameworks, not just the verdicts */
     "<div class='card fb-slide' data-fbl='📐 Method' id='r-method'><h3>📐 The method behind strong bullets</h3>" +
-    "<p class='kw-note'>Recruiters trust lines that prove something. Two frameworks do the proving — use XYZ for " +
+    "<p class='kw-note'>Recruiters trust lines that prove something. Two frameworks do the proving - use XYZ for " +
     "CV bullets, STAR when you talk about the same story in an interview.</p>" +
     "<p class='rb-src'>These are not our inventions: XYZ is Google's own published CV formula, and STAR is the " +
     "structure the Civil Service and the NHS tell their candidates to answer with. Learn them once, use them everywhere.</p>" +
@@ -812,13 +812,13 @@ export function renderToolsPage(): string {
     "</div>" +
     "<div class='ck-g' style='margin-top:14px'>Apply it to one bullet now</div>" +
     "<ul class='tasklist method-list'>" +
-    "<li><i>1</i>Pick your weakest bullet — usually one starting with “responsible for”.</li>" +
+    "<li><i>1</i>Pick your weakest bullet - usually one starting with “responsible for”.</li>" +
     "<li><i>2</i>Add the number only you know: how many, how often, how fast.</li>" +
-    "<li><i>3</i>End with the how — the thing you did that made the number happen.</li></ul>" +
+    "<li><i>3</i>End with the how - the thing you did that made the number happen.</li></ul>" +
     "</div>" +
-    "<div class='card fb-slide' data-fbl='Rewrite' id='r-rwcard' hidden><h3>Example rewrite — your line, upgraded</h3>" +
+    "<div class='card fb-slide' data-fbl='Rewrite' id='r-rwcard' hidden><h3>Example rewrite - your line, upgraded</h3>" +
     "<p class='kw-note'>The pattern above, applied to your own line. Anything in [brackets] is " +
-    "yours to fill in — Fledge never invents your numbers.</p>" +
+    "yours to fill in - Fledge never invents your numbers.</p>" +
     "<div class='rw before'><div class='rw-tag'>BEFORE</div><div id='r-rwb'></div></div>" +
     "<div class='rw after'><div class='rw-tag'>AFTER</div><div id='r-rwa'></div></div></div>" +
     "</div>" +
@@ -830,12 +830,12 @@ export function renderToolsPage(): string {
     "<button type='button' class='btn ghost' id='r-builder' hidden>Edit this in the builder</button>" +
     "<button type='button' class='btn ghost' id='r-again'>Review another</button></div>" +
     "</div>" +
-    "<p class='sub' style='font-size:12.5px;margin-top:18px'>Up to 5 reviews a day. Scores are honest and calibrated for someone starting out — " +
+    "<p class='sub' style='font-size:12.5px;margin-top:18px'>Up to 5 reviews a day. Scores are honest and calibrated for someone starting out - " +
     "if anything in your document worries Fledge about your wellbeing, it will point you to real support instead of reviewing.</p>" +
     "</main>" +
     "<script>(function(){var kind='cv';var lastName='';" +
     /* The marking scheme, shipped to the page from the same module the
-     * review was scored against — a learner can see what each score is
+     * review was scored against - a learner can see what each score is
      * judged on and what the next band up actually asks for. */
     "var FL_RUBRIC=" + JSON.stringify({ cv: CV_RUBRIC, linkedin: LINKEDIN_RUBRIC }) + ";" +
     "function stored(st,k){return flStoredId(st,k)}" +
@@ -857,7 +857,7 @@ export function renderToolsPage(): string {
     "function cvGo(n){$('cvst-1').hidden=n!==1;$('cvst-2').hidden=n!==2;" +
     "dots(n===1?'on':'done',n===2?'on':'','');" +
     "if(n===2){var t=$('target').value.trim();" +
-    "$('aim-note').textContent=t?'Scoring against: '+(t.length>60?t.slice(0,57)+'…':t):'No target set — scoring for overall readiness.';}" +
+    "$('aim-note').textContent=t?'Scoring against: '+(t.length>60?t.slice(0,57)+'…':t):'No target set - scoring for overall readiness.';}" +
     "window.scrollTo({top:0,behavior:'smooth'});}" +
     "$('cv-n1').onclick=function(){cvGo(2)};" +
     "$('cv-skip').onclick=function(){$('target').value='';cvGo(2)};" +
@@ -867,31 +867,31 @@ export function renderToolsPage(): string {
     "tabLi.className='tab'+(cv?'':' on');tabLi.setAttribute('aria-selected',String(!cv));" +
     "$('d-title').textContent=cv?'Drop your CV here':'Drop your LinkedIn PDF here';" +
     "$('d-hint').innerHTML=cv?'or click to choose a file · PDF only · max 10\\u00a0MB':" +
-    "'On LinkedIn: your profile → <b>More</b> → <b>Save to PDF</b> — then upload it here';" +
+    "'On LinkedIn: your profile → <b>More</b> → <b>Save to PDF</b> - then upload it here';" +
     "show('u-card');}" +
-    /* The LinkedIn tab now lives at the dedicated Optimizer — carry
+    /* The LinkedIn tab now lives at the dedicated Optimizer - carry
      * the hub identity across so scores land in one history. */
     "function linkedinUrl(){var ev=flToken();return '/linkedin'+(ev?'?t='+encodeURIComponent(ev):'');}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){location.href=linkedinUrl()};" +
     "if(qs.get('tab')==='li'){location.replace(linkedinUrl());}" +
     /* Handoff from the Resume Builder: the built CV's text arrives via
-     * sessionStorage — offer to review it without a PDF. */
+     * sessionStorage - offer to review it without a PDF. */
     /* Reopened from My work. This tool reads PDFs, so there is no box
-     * to drop the old text into — what it CAN do is score the saved
+     * to drop the old text into - what it CAN do is score the saved
      * version again, which is exactly what a learner wants after
      * editing their CV elsewhere: same document, new score, movement
      * they can see. */
     "(function(){var rTxt=flLibTakeHandoff();if(!rTxt||rTxt.length<120)return;" +
     "var b=document.createElement('div');b.className='card';" +
     "b.innerHTML=\"<h3>Picked up from My work</h3><p class='kw-note'>Score this saved version again to " +
-    "see what moved — or upload your edited CV below and Fledge will mark the new one.</p>\";" +
+    "see what moved - or upload your edited CV below and Fledge will mark the new one.</p>\";" +
     "var rbtn=document.createElement('button');rbtn.type='button';rbtn.className='btn';" +
     "rbtn.textContent='Score my saved version again';" +
     "rbtn.onclick=function(){lastName='My saved CV';show('a-card');startMsgs();submit(rTxt);};" +
     "b.appendChild(rbtn);var uc=$('u-card');if(uc)uc.parentNode.insertBefore(b,uc);})();" +
     "if(qs.get('from')==='builder'){try{var bTxt=sessionStorage.getItem('fl_builder_cv_text')||'';" +
     "if(bTxt.length>=120){var bb=document.createElement('div');bb.className='card';" +
-    "bb.innerHTML=\"<h3>Review the CV you just built?</h3><p class='kw-note'>Fledge has the text from your Resume Builder — \"+" +
+    "bb.innerHTML=\"<h3>Review the CV you just built?</h3><p class='kw-note'>Fledge has the text from your Resume Builder - \"+" +
     "\"no PDF needed. Add a target role above first if you have one.</p>\";" +
     "var bbtn=document.createElement('button');bbtn.type='button';bbtn.className='btn';" +
     "bbtn.textContent='Review my built CV now';" +
@@ -915,16 +915,16 @@ export function renderToolsPage(): string {
     "var drop=$('drop'),fileIn=$('file');" +
     "function dropErr(msg){var e=$('d-err');e.hidden=!msg;e.textContent=msg||'';}" +
     "function handleFile(f){if(!f)return;dropErr('');" +
-    "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){dropErr('That is not a PDF — export or save your document as PDF first.');return;}" +
-    "if(f.size>10*1024*1024){dropErr('That PDF is over 10 MB — export a smaller version.');return;}" +
+    "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){dropErr('That is not a PDF - export or save your document as PDF first.');return;}" +
+    "if(f.size>10*1024*1024){dropErr('That PDF is over 10 MB - export a smaller version.');return;}" +
     "lastName=f.name;show('a-card');startMsgs();" +
     "extractPdf(f).then(function(text){" +
     "text=text.replace(/[ \\t]+/g,' ').replace(/\\n{3,}/g,'\\n\\n').trim();" +
     "if(text.length<120){stopMsgs();show('u-card');fileIn.value='';" +
-    "dropErr('Fledge could not read enough text from that PDF — it may be a scan or image-based export. Try re-exporting it as a text PDF.');return;}" +
+    "dropErr('Fledge could not read enough text from that PDF - it may be a scan or image-based export. Try re-exporting it as a text PDF.');return;}" +
     "submit(text);" +
     "}).catch(function(){stopMsgs();show('u-card');fileIn.value='';" +
-    "dropErr('Could not read that PDF — try re-exporting it and uploading again.');});}" +
+    "dropErr('Could not read that PDF - try re-exporting it and uploading again.');});}" +
     "drop.addEventListener('click',function(){fileIn.click()});" +
     "drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click()}});" +
     "fileIn.addEventListener('change',function(){handleFile(fileIn.files[0])});" +
@@ -952,9 +952,9 @@ export function renderToolsPage(): string {
      * this tab only (sessionStorage), parsed into sections there */
     "var rb=$('r-builder');if(rb){rb.hidden=kind!=='cv';rb.onclick=function(){if(flLibHandoff(text))location.href='/builder?from=text';};}" +
     "return;}" +
-    "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
+    "$('m-text').textContent=(d&&d.reply)||'Something went wrong - try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
-    "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
+    "$('m-text').textContent='Could not reach the reviewer - try again in a minute.';show('m-card');});}" +
     /* Horizontal gauge: coloured zones, a pin at the score, a flag at
      * the 75% screening target. */
     "function kwGauge(pct){var W=340,H=64,x=function(v){return 8+(W-16)*v/100};" +
@@ -998,7 +998,7 @@ export function renderToolsPage(): string {
     "function scaleChart(v){var BANDS=[[0,40,'#B93A22','Rebuild it'],[40,55,'#E07B39','Early draft'],[55,70,'#ED9249','Solid start'],[70,85,'#4E9A6B','Interview-ready'],[85,100,'#1A7649','Excellent']];" +
     /* The middle bands are only 15 points wide, so their labels are
      * wider than the band they sit under and used to run into each
-     * other — "Solid startInterview-ready Excellent" on a phone.
+     * other - "Solid startInterview-ready Excellent" on a phone.
      * Staggering onto two rows gives every label its own line to grow
      * into, and a tick ties each one back to its band. */
     "var W=360,H=86,x=function(p){return 6+(W-12)*p/100};var s=\"<svg viewBox='0 0 \"+W+\" \"+H+\"' class='kwg' role='img' aria-label='Score \"+v+\" of 100: \"+(BANDS.filter(function(b){return v>=b[0]&&v<=b[1]})[0]||BANDS[4])[3]+\"'>\";" +
@@ -1014,10 +1014,10 @@ export function renderToolsPage(): string {
     "var CX=140,CY=112,R=74;" +
     "var pt=function(i,v){var a=-Math.PI/2+i*2*Math.PI/n;" +
     "return (CX+Math.cos(a)*R*v/100).toFixed(1)+','+(CY+Math.sin(a)*R*v/100).toFixed(1)};" +
-    /* Dimension labels are model text landing in an attribute — escape. */
+    /* Dimension labels are model text landing in an attribute - escape. */
     /* The side labels start at the widest point of the web and read
      * outwards, so the viewBox needs room beyond the shape or they
-     * clip — "ATS readine" and "Clarity & struc…" were being cut off
+     * clip - "ATS readine" and "Clarity & struc…" were being cut off
      * against the old 280-wide box. Sixty units of margin each side
      * fits the longest dimension name at this type size. */
     "var s=\"<svg viewBox='-60 0 400 224' class='radar' role='img' aria-label='\"+esc(dims.map(function(d){return d.label+' '+d.score}).join(', '))+\"'>\";" +
@@ -1033,7 +1033,7 @@ export function renderToolsPage(): string {
     "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+ly.toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='11.5' font-weight='700' fill='#25394B'>\"+esc(d.label.length>22?d.label.slice(0,21)+'…':d.label)+\"</text>\";" +
     "s+=\"<text x='\"+lx.toFixed(1)+\"' y='\"+(ly+13).toFixed(1)+\"' text-anchor='\"+anch+\"' font-size='12.5' font-weight='800' fill='\"+band(d.score)+\"'>\"+d.score+\"</text>\";});" +
     /* The shape is the point of the chart, but on a phone the SVG
-     * scales down until its labels are a few pixels tall — the phone
+     * scales down until its labels are a few pixels tall - the phone
      * pass showed "Impact 48" unreadable. A key in real HTML text
      * underneath carries the four numbers at a size that never
      * shrinks, whatever the chart does. */
@@ -1045,7 +1045,7 @@ export function renderToolsPage(): string {
     "fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({learner_id:lid,token:flToken()})})" +
     ".then(function(x){return x.json()}).then(function(d){" +
     "var t=d&&d.summary&&d.summary[kind==='cv'?'cv':'linkedin'];if(!t||!t.history||t.history.length<2){" +
-    "el.innerHTML=\"<span class='dmut2'>First scored attempt — your next review compares here.</span>\";return;}" +
+    "el.innerHTML=\"<span class='dmut2'>First scored attempt - your next review compares here.</span>\";return;}" +
     "var h=t.history,prev=h[h.length-2],cur=h[h.length-1],dl=cur-prev;" +
     "var W=120,Hh=30,n=h.length;var pts=h.map(function(sv,i){return (i*(W-6)/(n-1)+3)+','+(Hh-3-(sv*(Hh-6)/100))}).join(' ');" +
     "el.innerHTML=\"<div class='cmp'><span class='cmp-d' style='color:\"+(dl>=0?'#1A7649':'#B93A22')+\"'>\"+(dl>=0?'▲ +':'▼ ')+dl+\"</span>\"+" +
@@ -1067,7 +1067,7 @@ export function renderToolsPage(): string {
     "$('r-kwx').innerHTML=kw.missing.map(function(k){return \"<span class='chip miss'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>nothing important missing</span>\";" +
     "$('r-kwcard').hidden=false;$('r-kwnone').hidden=true}" +
     "else{$('r-kwcard').hidden=true;$('r-kwnone').hidden=false}" +
-    /* deterministic recruiter checks — visual summary first: a
+    /* deterministic recruiter checks - visual summary first: a
      * segmented pass/warn/fail bar, passes as compact chips, prose
      * only where action is needed. */
     "if(checks&&checks.groups){$('r-ckcount').textContent=checks.passed+' of '+checks.total+' passed';" +
@@ -1103,18 +1103,18 @@ export function renderToolsPage(): string {
     "$('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';" +
     "$('r-kind').textContent=(kind==='cv'?'CV REVIEW':'LINKEDIN REVIEW');" +
     "$('r-verdict').textContent=r.verdict;" +
-    /* A pasted advert can be 2,000 characters — show enough to confirm
+    /* A pasted advert can be 2,000 characters - show enough to confirm
      * what it scored against, not the whole posting. */
     "var aim=$('target').value.trim().replace(/\\s+/g,' ');" +
     "$('r-file').textContent=lastName+(aim?' · aiming at: '+(aim.length>70?aim.slice(0,70)+'…':aim):'');" +
     /* Carry identity onward or the next tool scores anonymously. */
     "function flNextHref(p){var t=flToken();return p+(t?'?t='+encodeURIComponent(t):'');}" +
-    "if(kind==='cv'){$('r-journey').href=flNextHref('/linkedin');$('r-journey-t').textContent='LinkedIn review — get your profile to match this CV';}" +
-    "else{$('r-journey').href=flNextHref('/interview');$('r-journey-t').textContent='Mock interview — practise saying it out loud';}" +
+    "if(kind==='cv'){$('r-journey').href=flNextHref('/linkedin');$('r-journey-t').textContent='LinkedIn review - get your profile to match this CV';}" +
+    "else{$('r-journey').href=flNextHref('/interview');$('r-journey-t').textContent='Mock interview - practise saying it out loud';}" +
     "function rubricOf(label){var rr=(FL_RUBRIC[kind]||[]);" +
     "for(var i=0;i<rr.length;i++){if(rr[i].label.toLowerCase()===String(label).trim().toLowerCase())return rr[i]}return null}" +
     /* the three bands as a ladder: where they are, and what the rung
-     * above actually asks for — the answer to 'so what do I do?' */
+     * above actually asks for - the answer to 'so what do I do?' */
     "function ladder(rb,score){if(!rb)return '';" +
     "var here=null;for(var i=0;i<rb.bands.length;i++){if(score>=rb.bands[i].min){here=rb.bands[i];break}}" +
     "var rows=rb.bands.slice().reverse().map(function(b){var on=here&&b.min===here.min;" +
@@ -1145,10 +1145,10 @@ export function renderToolsPage(): string {
     "$('r-glance').innerHTML=glance;" +
     "document.querySelectorAll('.gl').forEach(function(g){g.onclick=function(){rpGo(g.dataset.rp)}});" +
     /* Praise that failed the verbatim check is dropped server-side, so
-     * this list can legitimately be empty — say so plainly rather than
+     * this list can legitimately be empty - say so plainly rather than
      * showing an empty card. */
     "var goods='';r.strengths.forEach(function(s){goods+=\"<li><span class='tick'>✓</span>\"+esc(s)+'</li>'});" +
-    "$('r-goods').innerHTML=goods||\"<li class='dmut2'>Nothing here yet that we can point to in your own words — " +
+    "$('r-goods').innerHTML=goods||\"<li class='dmut2'>Nothing here yet that we can point to in your own words - " +
     "the fixes below are where to start.</li>\";" +
     /* each fix is its own slide in the deck */
     "$('fb-fixwrap').innerHTML=r.improvements.map(function(f,i){" +
@@ -1163,10 +1163,10 @@ export function renderToolsPage(): string {
     "document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){" +
     "fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'}," +
     "body:JSON.stringify({learner_id:lid,tool:kind,helpful:b.dataset.fb==='1'})}).catch(function(){});" +
-    "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
+    "$('fbrow').textContent='Thanks - that helps Fledge improve.';};});" +
     /* Escapes QUOTES too: several of these strings land in single-quoted
      * attributes (title=, aria-label=) and the check copy legitimately
-     * contains apostrophes — "No 'hard-working team player' filler" —
+     * contains apostrophes - "No 'hard-working team player' filler" -
      * which would otherwise terminate the attribute early. */
     "function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')" +
     ".replace(/\"/g,'&quot;').replace(/'/g,'&#39;')}" +
@@ -1213,8 +1213,8 @@ export function renderToolsPage(): string {
 .rpanel[hidden]{display:block!important;}
 .fb-slide[hidden]{display:block!important;}}
 /* One scrolling row with the arrows pinned at the ends. Wrapping left
- * the arrows floating in the middle of row two on a phone — "← Fix 2
- * Fix 3 Fix 4 Fix 5 →" — which is what they look like when the strip
+ * the arrows floating in the middle of row two on a phone - "← Fix 2
+ * Fix 3 Fix 4 Fix 5 →" - which is what they look like when the strip
  * they are meant to scroll is allowed to wrap instead. */
 .qnav{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:nowrap;}
 .secarrow{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line,#E3DDDA);background:#fff;
@@ -1356,7 +1356,7 @@ export function renderToolsPage(): string {
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 `;
   return appShell({
-    title: "Fledglings — CV Review",
+    title: "Fledglings - CV Review",
     active: "cv",
     bodyHtml: body,
     extraCss,
@@ -1364,7 +1364,7 @@ export function renderToolsPage(): string {
 }
 
 /* ------------------------------------------------------------------
- * /ai-privacy — how the AI works, its guardrails, and what is (and
+ * /ai-privacy - how the AI works, its guardrails, and what is (and
  * is never) stored. Linked from the sidebar; the honesty page most
  * competitors don't have.
  * ------------------------------------------------------------------ */
@@ -1374,39 +1374,39 @@ export function renderAiPrivacyPage(): string {
     "<h2 class='page'>AI &amp; your privacy</h2>" +
     "<p class='sub'>Straight answers about what the AI in these tools does, the rules it works under, " +
     "and what happens to your stuff. Written for you, not for lawyers.</p>" +
-    "<div class='card'><h3>What is stored — and what never is</h3><div class='result'>" +
+    "<div class='card'><h3>What is stored - and what never is</h3><div class='result'>" +
     /* This page has to be true on the day it is read. When My work
      * started syncing across devices, "never stored: your CV" stopped
-     * being true for a signed-in learner — so it says exactly what is
+     * being true for a signed-in learner - so it says exactly what is
      * kept, for how long, filed how, and who can never see it. */
     "<p><b>Stored:</b> your scores (whole numbers) and when you earned them, kept for six months so your " +
     "progress follows you. And, if you sign in and use <b>My work</b>, the CVs, LinkedIn text and cover " +
-    "letters you have had reviewed, with their feedback — so they follow you to your phone or a school " +
+    "letters you have had reviewed, with their feedback - so they follow you to your phone or a school " +
     "computer. Those are kept for six months, filed under a scrambled version of your email rather than " +
     "the address itself, and you can delete any of them from My work, which removes them everywhere.</p>" +
     "<p><b>Never stored:</b> your interview answers, your video or your voice. PDFs are read inside your " +
-    "own browser. Interview recordings never leave your device — the AI only ever sees the words, and " +
+    "own browser. Interview recordings never leave your device - the AI only ever sees the words, and " +
     "forgets them once your feedback is written. Nothing in My work is ever shown to your tutor, your " +
     "provider or anyone else: they see scores and progress, never a document.</p></div></div>" +
     "<div class='card'><h3>How your progress stays yours</h3><div class='result'>" +
     "<p>The proper front door is <b>Sign in with your school account</b> on the Hub: you get a short code, " +
-    "type it on a page that sits behind your school's own login, and this browser is given a signed pass — " +
+    "type it on a page that sits behind your school's own login, and this browser is given a signed pass - " +
     "a bit like a cloakroom ticket. No password is ever typed here. You can also link by email alone, " +
     "which is quicker but weaker: it works on trust until someone signs in properly, and a school sign-in " +
     "always wins. The pass is tied to this browser, runs out after 30 days, and is checked every time your " +
     "work or scores are saved or shown. Typing someone else's email gets nobody anywhere: without a pass " +
     "issued by us, there's no way in.</p>" +
-    "<p>Linking a second device? On the one that already works, open the Hub and tap <b>Link another device</b> — " +
+    "<p>Linking a second device? On the one that already works, open the Hub and tap <b>Link another device</b> - " +
     "it shows a six-character code that you type on the new device. Codes last ten minutes and work once. " +
     "That's why nobody can take your progress just by typing your email: they'd need the code from your device.</p>" +
-    "<p>There's still no password typed on these pages — your school account is the front door, and the " +
+    "<p>There's still no password typed on these pages - your school account is the front door, and the " +
     "pass does the rest. Tap <b>Not you?</b> on any tool to hand the device back.</p></div></div>" +
     "<div class='card'><h3>The no-fabrication law</h3><div class='result'>" +
     "<p>These tools never invent experience, qualifications or numbers for you. Praise must quote your own " +
     "words back to you; anything a document needs that only you can supply appears in [brackets] for you to " +
-    "fill in. Employers can tell when a tool wrote someone's story — and you deserve to be hired as yourself.</p></div></div>" +
+    "fill in. Employers can tell when a tool wrote someone's story - and you deserve to be hired as yourself.</p></div></div>" +
     "<div class='card'><h3>Honest scoring</h3><div class='result'>" +
-    "<p>Scores are calibrated for someone starting out — not inflated to flatter you, not harsh to shock you. " +
+    "<p>Scores are calibrated for someone starting out - not inflated to flatter you, not harsh to shock you. " +
     "Delivery metrics (speaking pace, filler words, camera framing, expression and posture) are measured on your device, and anything " +
     "that can't genuinely be measured says <i>not measured</i> instead of pretending.</p></div></div>" +
     "<div class='card'><h3>If something worries us</h3><div class='result'>" +
@@ -1414,19 +1414,19 @@ export function renderAiPrivacyPage(): string {
     "people who can help: your tutor, Childline (0800 1111, under 19), Samaritans (116 123, any age, any time), " +
     "or text SHOUT to 85258. That routing works even when the AI itself is down.</p></div></div>" +
     "<div class='card'><h3>Limits that keep it fair</h3><div class='result'>" +
-    "<p>5 document reviews, 3 mock interviews and 3 cover letter drafts a day — enough to genuinely improve, " +
+    "<p>5 document reviews, 3 mock interviews and 3 cover letter drafts a day - enough to genuinely improve, " +
     "not enough to outsource your judgement. The instant CV checks in the Resume Builder are unlimited for " +
     "practical purposes because no AI is involved.</p></div></div>" +
     "</main>";
   return appShell({
-    title: "Fledglings — AI & Privacy",
+    title: "Fledglings - AI & Privacy",
     active: "privacy",
     bodyHtml: body,
   });
 }
 
 /* ------------------------------------------------------------------
- * /passport — Readiness Passport (certificate-grade, grouped)
+ * /passport - Readiness Passport (certificate-grade, grouped)
  * ------------------------------------------------------------------ */
 export function renderPassportPage(
   data: PassportData,
@@ -1495,7 +1495,7 @@ export function renderPassportPage(
     "<div class='btnrow no-print'><button class='btn' onclick='window.print()'>Print / save as PDF</button></div>" +
     "</div></main>";
   return pageShell({
-    title: `Fledglings Readiness Passport — ${data.firstName}`,
+    title: `Fledglings Readiness Passport - ${data.firstName}`,
     bodyHtml: body,
     extraCss,
   });

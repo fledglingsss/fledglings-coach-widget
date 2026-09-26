@@ -1,4 +1,4 @@
-/* Deterministic recruiter checks — the Resume Worded model: objective,
+/* Deterministic recruiter checks - the Resume Worded model: objective,
  * rule-based checks a screening system or recruiter applies before a
  * human reads a word. Pure functions, no model call, each finding tied
  * to the evidence that triggered it. The AI review runs alongside;
@@ -24,7 +24,7 @@ export interface ChecksResult {
   passed: number;
   total: number;
   groups: CheckGroup[];
-  /** The learner's own lines, each with the rules it trips — attached
+  /** The learner's own lines, each with the rules it trips - attached
    * by the review route so a report can show WHICH line, not just
    * how many. */
   lines?: LineNote[];
@@ -67,7 +67,7 @@ const CLICHES = [
 ];
 
 /* Passive voice. The old pattern wanted a participle ending in -ed,
- * which missed the commonest irregular ones — including "was given",
+ * which missed the commonest irregular ones - including "was given",
  * the very example the check's own copy quotes. */
 const PASSIVE =
   /\b(was|were|been|being)\s+(\w+ed|given|told|made|shown|taken|chosen|put|kept|left|sent|set|paid|run|seen|held|found|brought|taught|built)\b/i;
@@ -91,15 +91,15 @@ function contentLines(text: string): string[] {
 /* Is there a phone number in here?
  *
  * The old test was a single UK-shaped pattern, and it missed six of
- * fifteen formats a real CV uses — "+44 7700 900123", anything
+ * fifteen formats a real CV uses - "+44 7700 900123", anything
  * hyphenated or bracketed, and every international number. A learner
  * tested this and was told their CV had no mobile when it plainly did,
  * which is worse than saying nothing: once one check is provably
  * wrong, none of the others are believed either.
  *
- * So it now normalises the way a person reads a number — strip the
+ * So it now normalises the way a person reads a number - strip the
  * punctuation a phone number is allowed to contain, then look for a
- * long enough run of digits — rather than demanding one written shape.
+ * long enough run of digits - rather than demanding one written shape.
  * It errs towards finding a number: a missed number is a false
  * accusation, while a stray match only costs an unearned tick. */
 export function hasPhoneNumber(text: string): boolean {
@@ -111,14 +111,14 @@ export function hasPhoneNumber(text: string): boolean {
 }
 
 /**
- * The document, line by line, with the same rules the checks apply —
+ * The document, line by line, with the same rules the checks apply -
  * so "1 line opens with a weak verb" becomes a mark on THAT line.
  *
  * Headings and short lines carry no flags. "no-number" is raised only
  * on lines that read as achievement bullets (they open with a verb),
  * because a skills list or a profile sentence is not supposed to carry
  * a number. "strong" marks a line that leads with an action verb, has
- * a number, and trips nothing else — the pattern to copy.
+ * a number, and trips nothing else - the pattern to copy.
  */
 export function analyseLines(text: string): LineNote[] {
   const out: LineNote[] = [];
@@ -161,7 +161,7 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     status: quantRatio >= 0.3 ? "pass" : quantRatio > 0.1 ? "warn" : "fail",
     detail:
       quantRatio >= 0.3
-        ? `${quantified} of your ${lines.length} lines carry a number, % or £ — recruiters trust measurable claims.`
+        ? `${quantified} of your ${lines.length} lines carry a number, % or £ - recruiters trust measurable claims.`
         : "Very few lines carry a number, % or £. Even small ones count: how many customers, how often, how long.",
   });
 
@@ -172,7 +172,7 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     status: weakLines.length === 0 ? "pass" : weakLines.length <= 2 ? "warn" : "fail",
     detail:
       weakLines.length === 0
-        ? "No weak openers — your lines lead with what you actually did."
+        ? "No weak openers - your lines lead with what you actually did."
         : `${weakLines.length} line${weakLines.length === 1 ? "" : "s"} open with a weak verb that hides what you did.`,
     evidence: weakLines.length > 0 ? evidence(weakLines[0]!) : undefined,
   });
@@ -185,7 +185,7 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     status: actionRatio >= 0.4 ? "pass" : actionRatio >= 0.2 ? "warn" : "fail",
     detail:
       actionRatio >= 0.4
-        ? "Most lines start with a doing word — that reads like achievement, not description."
+        ? "Most lines start with a doing word - that reads like achievement, not description."
         : "Start more lines with a doing word (organised, delivered, greeted, trained) rather than a description.",
   });
 
@@ -196,8 +196,8 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     status: passive.length === 0 ? "pass" : passive.length <= 2 ? "warn" : "fail",
     detail:
       passive.length === 0
-        ? "No passive constructions — you own your achievements."
-        : `${passive.length} line${passive.length === 1 ? "" : "s"} use passive voice ("was given", "were asked") — flip them to what YOU did.`,
+        ? "No passive constructions - you own your achievements."
+        : `${passive.length} line${passive.length === 1 ? "" : "s"} use passive voice ("was given", "were asked") - flip them to what YOU did.`,
     evidence: passive.length > 0 ? evidence(passive[0]!) : undefined,
   });
 
@@ -222,8 +222,8 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     status: lengthStatus,
     detail:
       kind === "cv"
-        ? `${words} words. For a 16–24 CV, 200–700 words (one page) is the sweet spot — recruiters spend under 30 seconds on a first read.`
-        : `${words} words across your profile. Thin profiles read as inactive — a few full sentences per section is enough.`,
+        ? `${words} words. For a 16–24 CV, 200–700 words (one page) is the sweet spot - recruiters spend under 30 seconds on a first read.`
+        : `${words} words across your profile. Thin profiles read as inactive - a few full sentences per section is enough.`,
   });
 
   const longLines = lines.filter((l) => l.split(/\s+/).length > 32);
@@ -234,7 +234,7 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     detail:
       longLines.length === 0
         ? "Every line is scannable in one glance."
-        : `${longLines.length} line${longLines.length === 1 ? " runs" : "s run"} past 30 words — split them; recruiters skim, they don't read.`,
+        : `${longLines.length} line${longLines.length === 1 ? " runs" : "s run"} past 30 words - split them; recruiters skim, they don't read.`,
     evidence: longLines.length > 0 ? evidence(longLines[0]!) : undefined,
   });
 
@@ -252,10 +252,10 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
             : "fail",
     detail:
       kind === "linkedin"
-        ? "LinkedIn is written in first person — 'I' is right at home in your About section."
+        ? "LinkedIn is written in first person - 'I' is right at home in your About section."
         : pronounCount === 0
-          ? "No personal pronouns — standard CV convention held."
-          : `'I/me/my' appears ${pronounCount} times — CVs drop pronouns: "Organised the rota", not "I organised the rota".`,
+          ? "No personal pronouns - standard CV convention held."
+          : `'I/me/my' appears ${pronounCount} times - CVs drop pronouns: "Organised the rota", not "I organised the rota".`,
   });
 
   const foundCliches = CLICHES.filter((c) => lower.includes(c));
@@ -265,11 +265,11 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     status: foundCliches.length === 0 ? "pass" : foundCliches.length === 1 ? "warn" : "fail",
     detail:
       foundCliches.length === 0
-        ? "No 'hard-working team player' filler — every claim can carry evidence instead."
+        ? "No 'hard-working team player' filler - every claim can carry evidence instead."
         : `Found: ${foundCliches
             .slice(0, 3)
             .map((c) => `"${c}"`)
-            .join(", ")}. Recruiters skip these — swap each for a specific example.`,
+            .join(", ")}. Recruiters skip these - swap each for a specific example.`,
   });
 
   /* ---------- structure & ATS ---------- */
@@ -284,12 +284,12 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
       status: hasEmail && hasPhone ? "pass" : hasEmail || hasPhone ? "warn" : "fail",
       detail:
         hasEmail && hasPhone
-          ? "Email and phone number found — recruiters can reach you."
+          ? "Email and phone number found - recruiters can reach you."
           : hasEmail
-            ? "Email found but no phone number — add one; many recruiters call first."
+            ? "Email found but no phone number - add one; many recruiters call first."
             : hasPhone
-              ? "Phone found but no email address — add a sensible one."
-              : "No email or phone detected — without contact details nothing else matters.",
+              ? "Phone found but no email address - add a sensible one."
+              : "No email or phone detected - without contact details nothing else matters.",
     });
   }
 
@@ -317,15 +317,15 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     detail:
       missingSections.length === 0
         ? "Experience, education and skills all present under recognisable headings."
-        : `Could not find: ${missingSections.join(", ")}. Screening software looks for standard headings — use them exactly.`,
+        : `Could not find: ${missingSections.join(", ")}. Screening software looks for standard headings - use them exactly.`,
   });
 
   /* Not everyone writes full years. "Sept 24 – present" and "09/24"
    * are dates a recruiter reads without blinking, and telling a learner
    * their CV has no dates when it plainly does is the fault they
-   * reported elsewhere — the checker being confidently wrong about
+   * reported elsewhere - the checker being confidently wrong about
    * something they can see on the page. */
-  /* Whole month words only — a permissive stem-plus-anything matched
+  /* Whole month words only - a permissive stem-plus-anything matched
    * "Junior 12" and "Marketing 24" as dates, which is the unearned
    * green tick again from the other side. */
   const MONTH =
@@ -340,13 +340,13 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     label: "Dates on your history",
     status: hasDates ? "pass" : "warn",
     detail: hasDates
-      ? "Years found against your history — recruiters can follow your timeline."
-      : "No years detected — add dates to experience and education; gaps are fine, mysteries are not.",
+      ? "Years found against your history - recruiters can follow your timeline."
+      : "No years detected - add dates to experience and education; gaps are fine, mysteries are not.",
   });
 
   /* This has to read the raw lines. `lines` keeps only lines containing
    * a lowercase letter, so an all-caps line could never reach the test
-   * that looks for all-caps lines — every CV passed, including ones
+   * that looks for all-caps lines - every CV passed, including ones
    * written entirely in capitals. A green tick nobody earned is the
    * same dishonesty as a red cross nobody deserved.
    *
@@ -368,8 +368,8 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     status: capsLines.length === 0 ? "pass" : "warn",
     detail:
       capsLines.length === 0
-        ? "No shouting — clean, professional casing throughout."
-        : "Whole lines in CAPITALS read as shouting and can confuse screening software — use normal casing with bold headings.",
+        ? "No shouting - clean, professional casing throughout."
+        : "Whole lines in CAPITALS read as shouting and can confuse screening software - use normal casing with bold headings.",
     evidence: capsLines.length > 0 ? evidence(capsLines[0]!) : undefined,
   });
 

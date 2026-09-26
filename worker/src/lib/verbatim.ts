@@ -3,7 +3,7 @@
  * Every piece of praise the AI gives must be grounded in a quote taken
  * VERBATIM from the learner's own words. The prompts say so; this
  * makes it true. A praise item survives only if it contains a quoted
- * span that genuinely appears in their text — anything else is
+ * span that genuinely appears in their text - anything else is
  * dropped before the learner ever sees it.
  *
  * Why bother when the prompt already asks? Because a prompt is a
@@ -35,7 +35,7 @@ const MAX_QUOTE_CHARS = 300;
 
 /* Double and smart quotes are unambiguous. Single quotes are only
  * treated as a quotation when they open after a space/start and close
- * before a space or punctuation — otherwise every apostrophe in
+ * before a space or punctuation - otherwise every apostrophe in
  * "don't" would look like a quotation mark. */
 const QUOTE_PATTERNS: RegExp[] = [
   /"([^"]{2,300})"/g,
@@ -49,7 +49,7 @@ export function extractQuotes(text: string): string[] {
   if (typeof text !== "string" || text.length === 0) return [];
   const found: string[] = [];
   for (const pattern of QUOTE_PATTERNS) {
-    /* Fresh lastIndex per call — these are module-level /g regexes. */
+    /* Fresh lastIndex per call - these are module-level /g regexes. */
     pattern.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(text)) !== null) {
@@ -71,7 +71,7 @@ export function extractQuotes(text: string): string[] {
  * True when the praise quotes something the learner actually wrote.
  *
  * `sources` are the learner's own texts (their CV, profile or answer).
- * A single genuine quote is enough — praise often quotes one line and
+ * A single genuine quote is enough - praise often quotes one line and
  * then explains why it works.
  */
 export function isGrounded(praise: string, ...sources: string[]): boolean {

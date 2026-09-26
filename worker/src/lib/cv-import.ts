@@ -8,7 +8,7 @@
  * with their own words in the right boxes and fixes the odd line,
  * rather than starting from nothing.
  *
- * It is a heuristic and says so — every section it fills is editable,
+ * It is a heuristic and says so - every section it fills is editable,
  * and anything it cannot place goes into "extras" rather than being
  * dropped. No model call; the text is parsed and forgotten. */
 
@@ -17,7 +17,7 @@ import { sanitiseLine } from "./safety";
 
 type Bucket = "summary" | "experience" | "education" | "skills" | "extras";
 
-/* A heading is one of these AND short — "Experience of tills" is a
+/* A heading is one of these AND short - "Experience of tills" is a
  * bullet, "Career History" is a heading. */
 const HEADINGS: Array<[Bucket, RegExp]> = [
   ["summary", /^(personal\s+)?(profile|summary|statement|about(\s+me)?|objective)\b/i],
@@ -33,7 +33,7 @@ const HEADINGS: Array<[Bucket, RegExp]> = [
   ],
 ];
 
-/* Whole month words only — "Shopmart 2024" is an employer and a
+/* Whole month words only - "Shopmart 2024" is an employer and a
  * year, not a March date. */
 const MONTH = "\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\\.?\\s*'?\\d{2,4}";
 const DATE = `(?:${MONTH}|\\b\\d{1,2}\\/\\d{2,4}|\\b(?:19|20)\\d{2})`;

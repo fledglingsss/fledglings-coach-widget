@@ -1,4 +1,4 @@
-/* The Learner Games — a monthly cohort-vs-cohort completions race,
+/* The Learner Games - a monthly cohort-vs-cohort completions race,
  * scored live by the completion webhooks. Aggregate-only (cohort
  * names + counts, never learners), so it is safe to embed anywhere
  * logged-in learners can see it. */
@@ -66,7 +66,7 @@ export function renderChallengePage(monthLabel: string, rows: ChallengeRow[]): s
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
     "<meta name='robots' content='noindex'>" +
-    `<title>The Learner Games — ${esc(monthLabel)}</title>` +
+    `<title>The Learner Games - ${esc(monthLabel)}</title>` +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
     "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'>" +
     `<style>${CSS}</style></head><body>` +
@@ -75,12 +75,12 @@ export function renderChallengePage(monthLabel: string, rows: ChallengeRow[]): s
     `<div class='bird'>${BIRD_MARK}</div>` +
     `<span class='wordmark'>${WORDMARK_DARK}</span>` +
     "<h1>The Learner <em>Games</em></h1>" +
-    "<p>Cohort against cohort, one month, every completed module scores. Bragging rights only — " +
+    "<p>Cohort against cohort, one month, every completed module scores. Bragging rights only - " +
     "but the bragging is excellent.</p>" +
     `<span class='month'>${esc(monthLabel)}</span></div>` +
     "<div class='race'>" +
     (rowsHtml ||
-      "<div class='empty'>The starting gun has fired — the first module completed this month puts " +
+      "<div class='empty'>The starting gun has fired - the first module completed this month puts " +
       "a cohort on the board. It updates live.</div>") +
     "</div>" +
     "<div class='foot'>Scores count completed modules per cohort this calendar month, updated the moment " +

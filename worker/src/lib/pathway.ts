@@ -1,4 +1,4 @@
-/* The adaptive pathway engine — pure and deterministic.
+/* The adaptive pathway engine - pure and deterministic.
  *
  * Three closed-set answers in (stage, area, focus) -> an ordered list
  * of 2-3 modules from the live Fledglings catalogue, foundations
@@ -51,7 +51,7 @@ const WHY: Record<string, string> = {
     "makes sense of what you earn and what gets deducted",
   "Smart Spending: Big Purchases, Contracts & Consumer Rights":
     "covers contracts, big buys and your rights",
-  "Living Independently — Housing & Household Bills":
+  "Living Independently - Housing & Household Bills":
     "the essentials of running your own place",
   "First Time Renting & Housing Rights":
     "a 30-minute deep dive on renting your first home",
@@ -81,15 +81,15 @@ const WHY: Record<string, string> = {
     "what confidence and resilience actually are",
   "Building Real Confidence (Even When You Feel None)":
     "practical confidence, even on the hard days",
-  "Resilience in Practice — Pressure, Setbacks & Bounce-Back Plans":
+  "Resilience in Practice - Pressure, Setbacks & Bounce-Back Plans":
     "a plan for pressure and setbacks",
   "Communicating Under Pressure: Calm Voice, Clear Steps, Trusted Results":
     "staying clear and calm when it's tense",
-  "Grit & Growth — Motivation That Lasts (Goals, Habits, Accountability)":
+  "Grit & Growth - Motivation That Lasts (Goals, Habits, Accountability)":
     "goals and habits that stick",
   "Feedback, Reviews & Continuous Growth":
     "turning feedback into fuel",
-  "Assertive Boundaries — Saying No Well & Protecting Your Focus":
+  "Assertive Boundaries - Saying No Well & Protecting Your Focus":
     "saying no well and protecting your focus",
   "Managing Stress & Burnout":
     "a 30-minute deep dive on stress and burnout",
@@ -140,7 +140,7 @@ function baseTitles(answers: PathwayAnswers): string[] {
     }
     /* independent_living */
     return [
-      "Living Independently — Housing & Household Bills",
+      "Living Independently - Housing & Household Bills",
       "Smart Spending: Big Purchases, Contracts & Consumer Rights",
       "First Time Renting & Housing Rights",
     ];
@@ -181,7 +181,7 @@ function baseTitles(answers: PathwayAnswers): string[] {
     }
     if (focus === "pressure") {
       return [
-        "Resilience in Practice — Pressure, Setbacks & Bounce-Back Plans",
+        "Resilience in Practice - Pressure, Setbacks & Bounce-Back Plans",
         "Communicating Under Pressure: Calm Voice, Clear Steps, Trusted Results",
         "Managing Stress & Burnout",
       ];
@@ -189,12 +189,12 @@ function baseTitles(answers: PathwayAnswers): string[] {
     if (focus === "boundaries") {
       return [
         "What They Are & How to Build Them",
-        "Assertive Boundaries — Saying No Well & Protecting Your Focus",
+        "Assertive Boundaries - Saying No Well & Protecting Your Focus",
       ];
     }
     /* motivation */
     return [
-      "Grit & Growth — Motivation That Lasts (Goals, Habits, Accountability)",
+      "Grit & Growth - Motivation That Lasts (Goals, Habits, Accountability)",
       "Feedback, Reviews & Continuous Growth",
     ];
   }

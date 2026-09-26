@@ -1,12 +1,12 @@
-/* /cover-letter — the Cover Letter Studio. The learner pastes the job
+/* /cover-letter - the Cover Letter Studio. The learner pastes the job
  * advert (plus optionally their real CV), and Fledge drafts a letter
  * WITH them under the no-fabrication law: nothing claimed their CV
  * doesn't say, [brackets] for everything only they can write. Three
- * letter designs, editable in place, copy or print — never stored. */
+ * letter designs, editable in place, copy or print - never stored. */
 
 import { appShell } from "./pages";
 
-/* Sample letter rendered inside each design thumbnail — the miniature
+/* Sample letter rendered inside each design thumbnail - the miniature
  * IS the real template, scaled, so what you pick is what you print. */
 const CL_SAMPLE_BODY =
   "<div class='lp-head'><div class='lp-name'>Alex Morgan</div>" +
@@ -22,8 +22,8 @@ const CL_SAMPLE_BODY =
   "<div class='lp-sign'><div>Yours sincerely,</div><div class='lp-signname'>Alex Morgan</div></div>";
 
 const CL_DESIGNS: Array<{ id: string; label: string; blurb: string }> = [
-  { id: "classic", label: "Classic", blurb: "Timeless serif with a centred heading — quietly confident, suits every application." },
-  { id: "elegant", label: "Elegant", blurb: "Clean modern lines and plenty of air — leaves a considered impression." },
+  { id: "classic", label: "Classic", blurb: "Timeless serif with a centred heading - quietly confident, suits every application." },
+  { id: "elegant", label: "Elegant", blurb: "Clean modern lines and plenty of air - leaves a considered impression." },
   { id: "bold", label: "Bold", blurb: "A navy header that makes your name land first. For standing out on purpose." },
 ];
 
@@ -46,11 +46,11 @@ export function renderCoverLetterPage(): string {
   const body =
     "<main class='wrap' style='max-width:940px'>" +
     "<h2 class='page'>Cover Letter Studio</h2>" +
-    "<p class='sub'>A cover letter that sounds like you — because it only says what you've genuinely done. " +
+    "<p class='sub'>A cover letter that sounds like you - because it only says what you've genuinely done. " +
     "Fledge drafts it from the advert and your real CV, marks everything you should personalise in " +
     "<span class='ph' style='padding:1px 6px'>brackets</span>, and hands you the pen. Nothing is stored.</p>" +
 
-    /* inputs — a guided three-step flow, one focus per screen */
+    /* inputs - a guided three-step flow, one focus per screen */
     "<div id='s-in'>" +
     "<div class='clsteps no-print' aria-hidden='true'>" +
     "<span class='clstep on' id='cls-1' aria-current='step'><i>1</i>Who it's for</span><span class='clsep'></span>" +
@@ -59,7 +59,7 @@ export function renderCoverLetterPage(): string {
     /* step 1 */
     "<div class='card' id='st-1'>" +
     "<h3>✉️ Who's this letter for?</h3>" +
-    "<p class='fieldtip' style='margin-bottom:6px'>Just the basics — the letter takes shape from here.</p>" +
+    "<p class='fieldtip' style='margin-bottom:6px'>Just the basics - the letter takes shape from here.</p>" +
     "<div class='ingrid'>" +
     "<div><label for='cl-role' style='margin-top:8px'>Job title</label>" +
     "<input type='text' id='cl-role' maxlength='80' placeholder='e.g. Retail assistant'></div>" +
@@ -72,16 +72,16 @@ export function renderCoverLetterPage(): string {
     /* step 2 */
     "<div class='card' id='st-2' hidden>" +
     "<h3>📋 Paste the advert</h3>" +
-    "<p class='fieldtip' style='margin-bottom:10px'>The letter answers what the advert actually asks for — paste the " +
+    "<p class='fieldtip' style='margin-bottom:10px'>The letter answers what the advert actually asks for - paste the " +
     "whole thing, requirements and all.</p>" +
     "<textarea id='cl-jd' rows='7' maxlength='3000' placeholder='Paste the job advert here…'></textarea>" +
-    "<div id='cl-err2' class='drop-err' hidden>A few sentences of the advert at least — it is what the letter answers.</div>" +
+    "<div id='cl-err2' class='drop-err' hidden>A few sentences of the advert at least - it is what the letter answers.</div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cl-b2'>← Back</button>" +
     "<button type='button' class='btn' id='cl-n2'>Next: your experience →</button></div></div>" +
     /* step 3 */
     "<div class='card' id='st-3' hidden>" +
     "<h3>📄 Ground it in your real experience</h3>" +
-    "<p class='fieldtip' style='margin-bottom:10px'>Your CV is what keeps the letter honest — Fledge will only claim " +
+    "<p class='fieldtip' style='margin-bottom:10px'>Your CV is what keeps the letter honest - Fledge will only claim " +
     "what it actually says. Optional, but it makes the difference.</p>" +
     "<div class='cvrow'>" +
     "<div class='drop mini' id='cl-drop' tabindex='0' role='button' aria-label='Upload your CV PDF'>" +
@@ -92,14 +92,14 @@ export function renderCoverLetterPage(): string {
     "<div id='cl-err' class='drop-err' hidden></div>" +
     "<div class='btnrow' style='margin-top:16px'><button type='button' class='btn ghost' id='cl-b3'>← Back</button>" +
     "<button type='button' class='btn' id='cl-go'>✨ Draft my letter</button>" +
-    "<span class='hero-note'>Up to 3 drafts a day — each is a starting point, not a finished letter.</span></div>" +
+    "<span class='hero-note'>Up to 3 drafts a day - each is a starting point, not a finished letter.</span></div>" +
     "</div>" +
     "<div class='card'><h3>Choose a design</h3>" +
-    "<p class='fieldtip' style='margin-bottom:12px'>Shown exactly as it prints — change it any time, before or after drafting.</p>" +
+    "<p class='fieldtip' style='margin-bottom:12px'>Shown exactly as it prints - change it any time, before or after drafting.</p>" +
     clDesignCards("in") +
     "</div>" +
     "<div class='card' id='letters-card' hidden><h3>My letters</h3>" +
-    "<p class='fieldtip' style='margin-bottom:10px'>Saved in this browser only — reopen, tweak and reprint any of them.</p>" +
+    "<p class='fieldtip' style='margin-bottom:10px'>Saved in this browser only - reopen, tweak and reprint any of them.</p>" +
     "<div id='letters-list'></div></div></div>" +
 
     /* analysing */
@@ -125,19 +125,19 @@ export function renderCoverLetterPage(): string {
     "<div class='lp-body' id='lp-body' contenteditable='true' spellcheck='true'></div>" +
     "<div class='lp-sign'><div id='lp-signoff'></div><div class='lp-signname' id='lp-signname'>[Your name]</div></div>" +
     "</div>" +
-    "<p class='edit-hint no-print'>✏️ The letter is editable — click any paragraph and make it yours. " +
+    "<p class='edit-hint no-print'>✏️ The letter is editable - click any paragraph and make it yours. " +
     "Everything in <span class='ph' style='padding:1px 6px'>orange brackets</span> needs your words before you send it.</p>" +
     "<div class='card no-print' id='pers-card'><h3>Make it yours before sending</h3><ul class='goods' id='pers-list'></ul></div>" +
-    /* No score is invented here — the tool drafts, it does not judge.
+    /* No score is invented here - the tool drafts, it does not judge.
      * These are the checks that ARE real: deterministic, re-run live
      * as the learner edits, against what a first letter is expected
      * to do. */
     "<div class='card no-print' id='clchk-card'><h3>Send-ready checks <span class='badge' id='clchk-count'></span></h3>" +
     "<div id='clchk-list' role='status'></div>" +
     "<p class='rb-src'>The length band and name-the-employer rule come straight from National Careers Service " +
-    "cover-letter guidance — the same advice careers advisers give, checked for you live.</p>" +
+    "cover-letter guidance - the same advice careers advisers give, checked for you live.</p>" +
     "<p class='kw-note' style='margin:10px 0 0'>One rule this tool never breaks: the letter only uses what you told it. " +
-    "Anything it could not know is a <mark class='ph'>[bracket]</mark> for you to fill — nothing is invented on your behalf.</p></div>" +
+    "Anything it could not know is a <mark class='ph'>[bracket]</mark> for you to fill - nothing is invented on your behalf.</p></div>" +
     "<div class='card no-print' id='tips-card'><h3>Tips from Fledge</h3><ul class='goods' id='tips-list'></ul></div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this draft helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
@@ -148,14 +148,14 @@ export function renderCoverLetterPage(): string {
     "<button type='button' class='btn ghost' id='againbtn'>Start again</button></div>" +
     "</div>" +
 
-    "<p class='sub no-print' style='font-size:12.5px;margin-top:18px'>Fledge never invents experience for you — employers can tell, " +
+    "<p class='sub no-print' style='font-size:12.5px;margin-top:18px'>Fledge never invents experience for you - employers can tell, " +
     "and you deserve to be hired as yourself. If anything you write worries Fledge about your wellbeing, it will point you to " +
     "real support instead of drafting.</p>" +
     "</main>" +
     "<script>" + COVER_LETTER_JS + "</script>";
 
   return appShell({
-    title: "Fledglings — Cover Letter Studio",
+    title: "Fledglings - Cover Letter Studio",
     active: "cover",
     bodyHtml: body,
     extraCss: COVER_LETTER_CSS,
@@ -201,15 +201,15 @@ return acc+flAssemblePageText(tc.items)+'\n\n'})})})(p)}return chain})})}
 var drop=$('cl-drop'),fileIn=$('cl-file');
 function clErr(msg){var e=$('cl-err');e.hidden=!msg;e.textContent=msg||'';}
 function handleFile(f){if(!f)return;clErr('');
-if(!/pdf$/i.test(f.type||'')&&!/\.pdf$/i.test(f.name)){clErr('That is not a PDF — export your CV as PDF first, or paste it as text.');return;}
-if(f.size>10*1024*1024){clErr('That PDF is over 10 MB — export a smaller version.');return;}
+if(!/pdf$/i.test(f.type||'')&&!/\.pdf$/i.test(f.name)){clErr('That is not a PDF - export your CV as PDF first, or paste it as text.');return;}
+if(f.size>10*1024*1024){clErr('That PDF is over 10 MB - export a smaller version.');return;}
 $('cl-drop-t').textContent='Reading '+f.name+'…';
 extractPdf(f).then(function(text){text=text.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
 if(text.length<80){$('cl-drop-t').textContent='📄 Drop your CV PDF here or click to choose';
-clErr('Could not read enough text from that PDF — paste your CV as text instead.');return;}
-cvText=text.slice(0,9000);$('cl-drop-t').textContent='✓ '+f.name+' read — Fledge will only use what it says';})
+clErr('Could not read enough text from that PDF - paste your CV as text instead.');return;}
+cvText=text.slice(0,9000);$('cl-drop-t').textContent='✓ '+f.name+' read - Fledge will only use what it says';})
 .catch(function(){$('cl-drop-t').textContent='📄 Drop your CV PDF here or click to choose';
-clErr('Could not read that PDF — paste your CV as text instead.');});}
+clErr('Could not read that PDF - paste your CV as text instead.');});}
 drop.addEventListener('click',function(){fileIn.click()});
 drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click()}});
 fileIn.addEventListener('change',function(){handleFile(fileIn.files[0])});
@@ -217,7 +217,7 @@ fileIn.addEventListener('change',function(){handleFile(fileIn.files[0])});
 ['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('over')})});
 drop.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];handleFile(f)});
 
-/* design selection — one choice shared by both galleries, applied to
+/* design selection - one choice shared by both galleries, applied to
  * the letter whenever it exists */
 var chosenTpl='classic';
 function applyClTpl(t){chosenTpl=t;
@@ -233,7 +233,7 @@ function markPh(text){return esc2(text).replace(/\[([^\]\n]{1,200})\]/g,"<mark c
 
 $('cl-go').addEventListener('click',function(){
 var jd=$('cl-jd').value.trim();
-if(jd.length<60){clErr('Paste a bit more of the job advert first — step 2 needs a few sentences at least.');clGo(2);return;}
+if(jd.length<60){clErr('Paste a bit more of the job advert first - step 2 needs a few sentences at least.');clGo(2);return;}
 clErr('');show('s-wait');
 var pasted=$('cl-cv').value.trim();
 fetch('/api/cover-letter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -246,10 +246,10 @@ if(d&&d.draft){renderLetter(d.draft);show('s-out');window.scrollTo({top:0,behavi
 try{var dr=d.draft;
 var full=[dr.greeting].concat(dr.paragraphs||[]).concat([dr.signoff]).filter(Boolean).join('\n\n');
 var who=$('cl-company').value||$('cl-role').value||'this role';
-flLibSave('cover','Cover letter — '+who,full,{next_step:(dr.tips&&dr.tips[0])||''},null);}catch(e){}
+flLibSave('cover','Cover letter - '+who,full,{next_step:(dr.tips&&dr.tips[0])||''},null);}catch(e){}
 return;}
-$('msgtext').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('s-msg');})
-.catch(function(){$('msgtext').textContent='Could not reach Fledge — try again in a minute.';show('s-msg');});});
+$('msgtext').textContent=(d&&d.reply)||'Something went wrong - try again in a minute.';show('s-msg');})
+.catch(function(){$('msgtext').textContent='Could not reach Fledge - try again in a minute.';show('s-msg');});});
 
 /* ---- local letter library (browser only, never uploaded) ---- */
 var LKEY='fl_letters_v1';
@@ -283,15 +283,15 @@ var role=$('cl-role').value.trim().toLowerCase(),co=$('cl-company').value.trim()
 var named=(role&&low.indexOf(role)>-1)||(co&&low.indexOf(co)>-1);
 var words=clWordCount();
 var lenOk=words>=120&&words<=350;
-var lenNote=words<120?words+' words — a first letter usually needs 120+ to land an example':
-words>350?words+' words — over ~350 stops getting read; trim to your strongest example':
-words+' words — right length for a skim-read';
-/* Count the letterhead's brackets too — the check said "2 still to
+var lenNote=words<120?words+' words - a first letter usually needs 120+ to land an example':
+words>350?words+' words - over ~350 stops getting read; trim to your strongest example':
+words+' words - right length for a skim-read';
+/* Count the letterhead's brackets too - the check said "2 still to
  * replace" while five sat on the page, and a learner can count. */
 var ph=(body.match(/\[[^\]\n]{1,200}\]/g)||[]).length+
 (($('lp-contact').textContent||'').match(/\[[^\]\n]{1,200}\]/g)||[]).length;
 var rows=[
-{ok:named,label:'Named for the job',note:named?'Mentions '+esc2((role&&low.indexOf(role)>-1)?$('cl-role').value.trim():$('cl-company').value.trim()):'Neither the role nor the company you gave appears — add one so it cannot read as sent-to-everyone'},
+{ok:named,label:'Named for the job',note:named?'Mentions '+esc2((role&&low.indexOf(role)>-1)?$('cl-role').value.trim():$('cl-company').value.trim()):'Neither the role nor the company you gave appears - add one so it cannot read as sent-to-everyone'},
 {ok:lenOk,label:'Right length',note:lenNote},
 {ok:ph===0,label:'Placeholders filled',note:ph===0?'Nothing left to fill in':ph+' [bracket]'+(ph===1?'':'s')+' still to replace with your own detail'}];
 var done=rows.filter(function(r){return r.ok}).length;
@@ -302,7 +302,7 @@ return "<div class='clchk"+(r.ok?' ok':'')+"'><span class='clchk-i'>"+(r.ok?'✓
 /* The letterhead used to read "[your email] · [your phone] · [your
  * town]" even when the CV the letter was drafted from carried the
  * email and phone two inches away. Lift what the CV states; keep a
- * bracket only for what it does not. Town stays a bracket — a CV's
+ * bracket only for what it does not. Town stays a bracket - a CV's
  * address line is too varied to pull reliably, and a wrong town is
  * worse than a bracket. */
 function contactLine(){
@@ -342,7 +342,7 @@ $('msgback').addEventListener('click',function(){show('s-in')});
 document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){
 fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,tool:'cover',helpful:b.dataset.fb==='1'})}).catch(function(){});
-$('fbrow').textContent='Thanks — that helps Fledge improve.';};});
+$('fbrow').textContent='Thanks - that helps Fledge improve.';};});
 /* QA hook: render a drafted letter without a model call. */
 window.__flClRender=function(d){renderLetter(d,true);show('s-out');};
 })();`;
@@ -424,14 +424,14 @@ const COVER_LETTER_CSS = `
 .lp-greet{font-weight:500;}
 .lp-sign{margin-top:26px;font-size:14.5px;}
 .lp-signname{font-weight:700;margin-top:34px;}
-/* Classic — serif, centred head, rule */
+/* Classic - serif, centred head, rule */
 .letterpaper.classic{font-family:Georgia,'Times New Roman',serif;}
 .letterpaper.classic .lp-head{text-align:center;border-bottom:1.5px solid #1c2b36;padding-bottom:16px;}
 .letterpaper.classic .lp-name{letter-spacing:.02em;}
-/* Elegant — Outfit, left, thin accent rule */
+/* Elegant - Outfit, left, thin accent rule */
 .letterpaper.elegant .lp-head{border-left:4px solid var(--mango);padding-left:16px;}
 .letterpaper.elegant .lp-name{font-weight:600;letter-spacing:.01em;}
-/* Bold — navy banner head */
+/* Bold - navy banner head */
 .letterpaper.bold{padding-top:0;overflow:hidden;}
 .letterpaper.bold .lp-head{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;
   margin:0 -58px 24px;padding:30px 58px 22px;}

@@ -1,9 +1,9 @@
-/* /linkedin — the LinkedIn Optimizer. Hiration-style section-by-
+/* /linkedin - the LinkedIn Optimizer. Hiration-style section-by-
  * section scoring of a "Save to PDF" export: an overall /100 ring, a
  * row of per-section score chips (URL 5, Headline 10, … summing to
  * 100), and a review panel per section with "things you got right"
  * (verbatim-quoted) and "what to improve". The PDF is read in the
- * browser (pdf.js) — the file itself never leaves the device. */
+ * browser (pdf.js) - the file itself never leaves the device. */
 
 import { appShell, esc } from "./pages";
 import { LINKEDIN_SECTIONS } from "./lib/linkedin";
@@ -19,7 +19,7 @@ export function renderLinkedInPage(): string {
   const body =
     "<main class='wrap' style='max-width:900px'>" +
     "<h2 class='page'>LinkedIn Optimizer</h2>" +
-    "<p class='sub'>Recruiters look you up — make what they find work for you. Save your profile as a PDF, " +
+    "<p class='sub'>Recruiters look you up - make what they find work for you. Save your profile as a PDF, " +
     "upload it here, and Fledge scores every section like a recruiter would: honestly, and grounded only in " +
     "what you've genuinely done. Your PDF is read in your browser, reviewed, then forgotten.</p>" +
     /* guided upload flow: aim -> get the PDF -> drop it */
@@ -31,17 +31,17 @@ export function renderLinkedInPage(): string {
     /* step 1: target */
     "<div class='card' id='list-1'>" +
     "<h3>🎯 What are you aiming at?</h3>" +
-    "<p class='kw-note' style='margin-bottom:4px'>Name the role — or paste an advert — and every section gets scored " +
+    "<p class='kw-note' style='margin-bottom:4px'>Name the role - or paste an advert - and every section gets scored " +
     "against it. You can also skip this.</p>" +
     "<input type='text' id='target' aria-label='Role or advert you are aiming at' maxlength='2500' placeholder='e.g. Customer service apprenticeship at a bank'>" +
     "<div class='btnrow' style='margin-top:14px'>" +
     "<button type='button' class='btn' id='li-n1'>Next: your profile →</button>" +
-    "<button type='button' class='btn ghost' id='li-skip'>Skip — just score it</button></div></div>" +
+    "<button type='button' class='btn ghost' id='li-skip'>Skip - just score it</button></div></div>" +
     /* step 2: get + drop the PDF */
     "<div class='card' id='list-2' hidden>" +
     "<h3>💼 Get your profile as a PDF</h3>" +
     "<div class='howto'><b>On LinkedIn:</b> open your profile → tap <b>More</b> (or <b>Resources</b>) → " +
-    "<b>Save to PDF</b>. Then drop the file below — it is read on your device and never uploaded.</div>" +
+    "<b>Save to PDF</b>. Then drop the file below - it is read on your device and never uploaded.</div>" +
     "<div class='drop' id='drop' tabindex='0' role='button' aria-label='Upload your LinkedIn PDF'>" +
     "<input type='file' id='file' accept='.pdf,application/pdf' hidden>" +
     "<div id='d-idle'><div class='drop-ico' aria-hidden='true'>" +
@@ -52,7 +52,7 @@ export function renderLinkedInPage(): string {
     "<div id='d-err' class='drop-err' role='alert' hidden></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='li-b2'>← Back</button>" +
     "<span class='hero-note' id='li-aim-note'></span></div></div>" +
-    /* closes step 2 then #u-card itself — report/spinner must be
+    /* closes step 2 then #u-card itself - report/spinner must be
      * siblings of u-card, never children (same blanking bug as /tools). */
     "</div></div>" +
     /* analysing */
@@ -71,7 +71,7 @@ export function renderLinkedInPage(): string {
     "<div class='r-headtxt'><div class='r-kind'>LINKEDIN REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
     "<div class='r-file' id='r-file'></div></div></div>" +
-    /* report sections — focused screens, not one long scroll; print
+    /* report sections - focused screens, not one long scroll; print
      * shows everything */
     "<div class='rtabs no-print' role='tablist'>" +
     "<button type='button' class='rtab on' data-rp='overview' role='tab'>Overview</button>" +
@@ -86,7 +86,7 @@ export function renderLinkedInPage(): string {
     "<div class='card cheer' id='r-cheercard' hidden><span class='cheer-ico'>🐣</span><span class='cheer-tx' id='r-cheer'></span></div>" +
     "<a class='card journeynext no-print' id='li-journey' href='/interview'><div>" +
     "<div class='ns-label'>NEXT ON YOUR JOURNEY</div>" +
-    "<b>Mock interview — practise telling this story out loud</b></div>" +
+    "<b>Mock interview - practise telling this story out loud</b></div>" +
     "<span class='jn-btn'>Go →</span></a>" +
     "</div>" +
 
@@ -103,14 +103,14 @@ export function renderLinkedInPage(): string {
     "<div class='rpanel' id='rp-rewrite' hidden>" +
     "<div class='card no-print' id='rw-panel'><h3>✍️ Profile Rewrite</h3>" +
     "<p class='kw-note'>Fledge drafts paste-ready wording for your headline, About section and weakest experience " +
-    "entry — built only from what your profile genuinely says, with [brackets] for anything only you can add. " +
+    "entry - built only from what your profile genuinely says, with [brackets] for anything only you can add. " +
     "Uses one of today's reviews.</p>" +
     "<button type='button' class='btn' id='rw-btn'>Generate my rewrite</button>" +
     "<div id='rw-out' hidden>" +
     /* LinkedIn's own limits, shown live: a rewrite that will not fit
      * the box is not a rewrite the learner can use. */
-    "<div class='rw-block'><div class='rw-h'>HEADLINE — paste into LinkedIn <span class='rw-count' id='rw-headline-n'></span></div><div class='rw-t' id='rw-headline'></div><button type='button' class='rev-copy' data-copy-rw='rw-headline'>Copy</button></div>" +
-    "<div class='rw-block'><div class='rw-h'>ABOUT — paste into LinkedIn <span class='rw-count' id='rw-about-n'></span></div><div class='rw-t' id='rw-about'></div><button type='button' class='rev-copy' data-copy-rw='rw-about'>Copy</button></div>" +
+    "<div class='rw-block'><div class='rw-h'>HEADLINE - paste into LinkedIn <span class='rw-count' id='rw-headline-n'></span></div><div class='rw-t' id='rw-headline'></div><button type='button' class='rev-copy' data-copy-rw='rw-headline'>Copy</button></div>" +
+    "<div class='rw-block'><div class='rw-h'>ABOUT - paste into LinkedIn <span class='rw-count' id='rw-about-n'></span></div><div class='rw-t' id='rw-about'></div><button type='button' class='rev-copy' data-copy-rw='rw-about'>Copy</button></div>" +
     "<div class='rw-block'><div class='rw-h'>YOUR WEAKEST EXPERIENCE ENTRY, REWRITTEN</div><div class='rw-t' id='rw-exp'></div><button type='button' class='rev-copy' data-copy-rw='rw-exp'>Copy</button></div>" +
     "<div class='kw-note' id='rw-next'></div></div></div>" +
     "</div>" +
@@ -131,12 +131,12 @@ export function renderLinkedInPage(): string {
     "var $=function(id){return document.getElementById(id)};" +
     "var qs=new URLSearchParams(location.search);" +
     "var hubEmail=flResolveEmail();flIdentityInit(lid);" +
-    /* Reopened from My work — score the saved export again so a
+    /* Reopened from My work - score the saved export again so a
      * learner can see whether their profile edits moved the number. */
     "(function(){var rTxt=flLibTakeHandoff();if(!rTxt||rTxt.length<120)return;" +
     "var b=document.createElement('div');b.className='card';" +
     "b.innerHTML=\"<h3>Picked up from My work</h3><p class='kw-note'>Score your saved profile again to see " +
-    "what moved — or upload a fresh export below once you have changed your profile.</p>\";" +
+    "what moved - or upload a fresh export below once you have changed your profile.</p>\";" +
     "var rbtn=document.createElement('button');rbtn.type='button';rbtn.className='btn';" +
     "rbtn.textContent='Score my saved profile again';" +
     "rbtn.onclick=function(){show('a-card');startMsgs();submit(rTxt);};" +
@@ -154,7 +154,7 @@ export function renderLinkedInPage(): string {
     "function liGo(n){$('list-1').hidden=n!==1;$('list-2').hidden=n!==2;" +
     "dots(n===1?'on':'done',n===2?'on':'','');" +
     "if(n===2){var t=$('target').value.trim();" +
-    "$('li-aim-note').textContent=t?'Scoring against: '+(t.length>60?t.slice(0,57)+'…':t):'No target set — scoring for overall readiness.';}" +
+    "$('li-aim-note').textContent=t?'Scoring against: '+(t.length>60?t.slice(0,57)+'…':t):'No target set - scoring for overall readiness.';}" +
     "window.scrollTo({top:0,behavior:'smooth'});}" +
     "$('li-n1').onclick=function(){liGo(2)};" +
     "$('li-skip').onclick=function(){$('target').value='';liGo(2)};" +
@@ -177,16 +177,16 @@ export function renderLinkedInPage(): string {
     "var drop=$('drop'),fileIn=$('file');" +
     "function dropErr(msg){var e=$('d-err');e.hidden=!msg;e.textContent=msg||'';}" +
     "function handleFile(f){if(!f)return;dropErr('');" +
-    "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){dropErr('That is not a PDF — use Save to PDF on your LinkedIn profile first.');return;}" +
-    "if(f.size>10*1024*1024){dropErr('That PDF is over 10 MB — export a smaller version.');return;}" +
+    "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){dropErr('That is not a PDF - use Save to PDF on your LinkedIn profile first.');return;}" +
+    "if(f.size>10*1024*1024){dropErr('That PDF is over 10 MB - export a smaller version.');return;}" +
     "lastName=f.name;show('a-card');startMsgs();" +
     "extractPdf(f).then(function(text){" +
     "text=text.replace(/[ \\t]+/g,' ').replace(/\\n{3,}/g,'\\n\\n').trim();" +
     "if(text.length<120){stopMsgs();show('u-card');fileIn.value='';" +
-    "dropErr('Fledge could not read enough text from that PDF — make sure it is the Save to PDF export from LinkedIn itself.');return;}" +
+    "dropErr('Fledge could not read enough text from that PDF - make sure it is the Save to PDF export from LinkedIn itself.');return;}" +
     "submit(text);" +
     "}).catch(function(){stopMsgs();show('u-card');fileIn.value='';" +
-    "dropErr('Could not read that PDF — try exporting it again from LinkedIn.');});}" +
+    "dropErr('Could not read that PDF - try exporting it again from LinkedIn.');});}" +
     "drop.addEventListener('click',function(){fileIn.click()});" +
     "drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click()}});" +
     "fileIn.addEventListener('change',function(){handleFile(fileIn.files[0])});" +
@@ -210,10 +210,10 @@ export function renderLinkedInPage(): string {
     "if(d&&d.report){renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});" +
     "try{flLibSave('linkedin','My LinkedIn profile',text,d.report,d.report.overall)}catch(e){}" +
     "return;}" +
-    "$('m-text').textContent=(d&&d.reply)||'Something went wrong — try again in a minute.';show('m-card');" +
+    "$('m-text').textContent=(d&&d.reply)||'Something went wrong - try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
-    "$('m-text').textContent='Could not reach the reviewer — try again in a minute.';show('m-card');});}" +
-    /* A fresh review must never show the PREVIOUS profile's rewrite —
+    "$('m-text').textContent='Could not reach the reviewer - try again in a minute.';show('m-card');});}" +
+    /* A fresh review must never show the PREVIOUS profile's rewrite -
      * hide the rewrite panel and reset its button every render. */
     "function rpGo(id){document.querySelectorAll('.rpanel').forEach(function(p){p.hidden=p.id!=='rp-'+id});" +
     "document.querySelectorAll('.rtab').forEach(function(t){t.classList.toggle('on',t.dataset.rp===id);" +
@@ -273,9 +273,9 @@ export function renderLinkedInPage(): string {
     "document.querySelectorAll('.fbbtn').forEach(function(b){b.onclick=function(){" +
     "fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'}," +
     "body:JSON.stringify({learner_id:lid,tool:'linkedin',helpful:b.dataset.fb==='1'})}).catch(function(){});" +
-    "$('fbrow').textContent='Thanks — that helps Fledge improve.';};});" +
+    "$('fbrow').textContent='Thanks - that helps Fledge improve.';};});" +
     /* section arrows: step through the eight panels */
-    /* one section panel at a time — flick with chips or arrows */
+    /* one section panel at a time - flick with chips or arrows */
     "var secIdx=0;function secShow(i){var panels=document.querySelectorAll('.secpanel');if(!panels.length)return;" +
     "secIdx=Math.max(0,Math.min(panels.length-1,i));" +
     "panels.forEach(function(pnl,j){pnl.hidden=j!==secIdx});" +
@@ -290,12 +290,12 @@ export function renderLinkedInPage(): string {
     "learner_id:lid,text:lastLiText,target:$('target').value})})" +
     ".then(function(r){return r.json()}).then(function(d){" +
     "$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
-    "if(!d||!d.rewrite){alert((d&&d.reply)||'Could not rewrite just now — try again in a minute.');return;}" +
+    "if(!d||!d.rewrite){alert((d&&d.reply)||'Could not rewrite just now - try again in a minute.');return;}" +
     "$('rw-headline').textContent=d.rewrite.headline;$('rw-about').textContent=d.rewrite.about;" +
     /* LinkedIn caps the headline at 220 characters and About at 2,600 */
     "[['rw-headline',220],['rw-about',2600]].forEach(function(p){var n=($(p[0]).textContent||'').length;var el=$(p[0]+'-n');" +
     "el.textContent=n+' / '+p[1]+' characters';el.className='rw-count'+(n>p[1]?' over':'');" +
-    "if(n>p[1])el.textContent+=' — too long for the box, trim before pasting';});" +
+    "if(n>p[1])el.textContent+=' - too long for the box, trim before pasting';});" +
     "$('rw-exp').textContent=d.rewrite.experience_tip||'';$('rw-next').textContent=d.rewrite.next||'';" +
     "$('rw-out').hidden=false;" +
     "document.querySelectorAll('[data-copy-rw]').forEach(function(b){b.onclick=function(){" +
@@ -303,7 +303,7 @@ export function renderLinkedInPage(): string {
     "(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(t):Promise.reject())" +
     ".then(function(){b.textContent='Copied ✓';setTimeout(function(){b.textContent='Copy'},1500);}).catch(function(){});};});})" +
     ".catch(function(){$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
-    "alert('Could not reach Fledge — try again in a minute.');});};" +
+    "alert('Could not reach Fledge - try again in a minute.');});};" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
     /* QA hook: render a report without a model call. */
     "window.__flLiRender=function(r){renderReport(r);show('r-card');};" +
@@ -413,7 +413,7 @@ export function renderLinkedInPage(): string {
 .nextstep div:last-child{font-size:15.5px;line-height:1.6;font-weight:500;}
 `;
   return appShell({
-    title: "Fledglings — LinkedIn Optimizer",
+    title: "Fledglings - LinkedIn Optimizer",
     active: "linkedin",
     bodyHtml: body,
     extraCss,

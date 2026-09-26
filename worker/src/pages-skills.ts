@@ -1,4 +1,4 @@
-/* Skills Passport page — faithful implementation of the Credential
+/* Skills Passport page - faithful implementation of the Credential
  * Dashboard design reference (Skills Passport 1c, 2026-07-19 handoff).
  * Server-rendered from real data; tabs/animations client-side. */
 
@@ -18,22 +18,22 @@ const ICONS = {
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9aa7b4" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
 };
 
-/* One hand-drawn icon per badge — white strokes so they sit on the
+/* One hand-drawn icon per badge - white strokes so they sit on the
  * tier-gradient medal. Keyed by badge code. */
 const BADGE_ICONS: Record<string, string> = {
-  /* Money Master — pound coin */
+  /* Money Master - pound coin */
   MM: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 8.6a2.6 2.6 0 0 0-4.4 1.9c0 1.2.4 2 .4 3.2 0 1-.4 1.7-1.2 2.3h6"/><path d="M9 12.5h4"/></svg>',
-  /* Job Ready — briefcase with clasp */
+  /* Job Ready - briefcase with clasp */
   JR: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="11" rx="2.5"/><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8"/><path d="M3.5 12.5h17M12 11.5v2.5"/></svg>',
-  /* True Grit — mountain peaks with flag */
+  /* True Grit - mountain peaks with flag */
   TG: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19l6-10 3.5 5.5L15 11l6 8z"/><path d="M15 11V5.5l3.5 1.5L15 8.5"/></svg>',
-  /* Cyber Smart — shield with tick */
+  /* Cyber Smart - shield with tick */
   CS: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-3 7.6-7 9.8-4-2.2-7-5.4-7-9.8V5.8z"/><path d="M9 12l2.2 2.2L15.5 9.7"/></svg>',
-  /* Deep Diver — magnifying glass with depth lines */
+  /* Deep Diver - magnifying glass with depth lines */
   DD: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M14.8 14.8L20 20"/><path d="M8 9.5c.7-1 1.6-1.5 2.5-1.5"/></svg>',
-  /* On Fire — flame */
+  /* On Fire - flame */
   OF: '<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3c.8 2.8-1.8 4-1.8 6.6 0 1.8.9 2.8 1.8 2.8s1.8-1 1.8-2.8c1.8 1.9 2.7 3.7 2.7 5.5a4.5 4.5 0 1 1-9 0c0-3.7 2.7-5.5 4.5-12.1z"/></svg>',
-  /* All Rounder — star */
+  /* All Rounder - star */
   AR: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9z"/></svg>',
 };
 
@@ -231,7 +231,7 @@ export function renderSkillsPassport(
   const rankMain =
     s.rank !== null && s.cohortSize !== null && s.cohortSize > 1
       ? `#${s.rank} <small>/ ${s.cohortSize}</small>`
-      : "—";
+      : " - ";
   const rankSub =
     s.rank !== null && s.cohortSize !== null && s.cohortSize > 1
       ? `among ${esc(model.learner.cohort ?? "cohort")} learners using their passport`
@@ -283,7 +283,7 @@ export function renderSkillsPassport(
         `<div class='nextrow'><div class='t'>${esc(m.title)}</div>` +
         `<div class='tk' role='progressbar' aria-valuenow='${m.percent}' aria-valuemin='0' aria-valuemax='100' aria-label='${esc(m.title)}'>` +
         `<i style='width:${m.percent}%;background:${BAR_GRADS[i % BAR_GRADS.length]};animation-delay:${(0.15 + i * 0.1).toFixed(2)}s'></i></div>` +
-        `<div class='p'>${m.percent}% — ${100 - m.percent}% to go</div></div>`,
+        `<div class='p'>${m.percent}% - ${100 - m.percent}% to go</div></div>`,
     )
     .join("");
 
@@ -339,7 +339,7 @@ export function renderSkillsPassport(
       : "") +
     `<div class='track'><i style='width:${modulesPct}%'></i></div></div>` +
     "</div>" +
-    /* career journey strip — the other half of the story */
+    /* career journey strip - the other half of the story */
     (model.career
       ? `<a class='career' href='${esc(model.career.hubUrl)}' target='_top'>` +
         "<div class='cl'><div class='ct'>💼 Career journey</div>" +
@@ -349,7 +349,7 @@ export function renderSkillsPassport(
               ? ` · job-ready score <b>${model.career.readiness}</b>`
               : "") +
             "</div>"
-          : "<div class='cs'>Build your CV, practise interviews, get job-ready — your scores land here too.</div>") +
+          : "<div class='cs'>Build your CV, practise interviews, get job-ready - your scores land here too.</div>") +
         `</div><span class='cb'>${model.career.tasksDone > 0 ? "Continue →" : "Start →"}</span></a>`
       : "") +
     /* overview view */
@@ -367,7 +367,7 @@ export function renderSkillsPassport(
     `<div class='lb'>${boardHtml || "<div class='s' style='color:#7d8a93'>The leaderboard fills up as your cohort visits their passports.</div>"}</div></div>` +
     "<div><div class='sect-h'><div class='t'>Nearly there</div>" +
     "<div class='c'>finish these next</div></div>" +
-    `<div class='next'>${nearlyHtml || "<div class='s' style='color:#7d8a93'>Nothing in progress right now — pick a module and it will appear here.</div>"}</div></div>` +
+    `<div class='next'>${nearlyHtml || "<div class='s' style='color:#7d8a93'>Nothing in progress right now - pick a module and it will appear here.</div>"}</div></div>` +
     "</div></div>" +
     /* badges view */
     "<div class='view' id='v-badges'><div class='sect-h'><div class='t'>All badges</div>" +
@@ -376,12 +376,12 @@ export function renderSkillsPassport(
     /* modules view */
     "<div class='view' id='v-modules'><div class='sect-h'><div class='t'>Your modules</div>" +
     `<div class='c'>${s.modulesDone} completed</div></div>` +
-    `<div class='mods'>${modulesHtml || "<div class='s' style='color:#7d8a93'>No modules yet — your pathway starts on the dashboard.</div>"}</div></div>` +
+    `<div class='mods'>${modulesHtml || "<div class='s' style='color:#7d8a93'>No modules yet - your pathway starts on the dashboard.</div>"}</div></div>` +
     /* slogan footer */
     "<div class='slogan'><div class='s1'>Where Growth Takes <span style='color:#ED9249'>Flight</span></div>" +
     `<div class='s2'>Fledglings Skills Passport · ${esc(model.learner.year)}</div></div>` +
     "</div></div>" +
-    "<div class='toast' id='toast'>Link copied — share away!</div>" +
+    "<div class='toast' id='toast'>Link copied - share away!</div>" +
     "<script>(function(){" +
     "var tabs=document.querySelectorAll('.tabbar button');" +
     "tabs.forEach(function(t){t.addEventListener('click',function(){" +
@@ -399,8 +399,8 @@ export function renderSkillsPassport(
         "var say=function(msg){var t=document.getElementById('toast');t.textContent=msg;" +
         "t.className='toast on';setTimeout(function(){t.className='toast'},3200);};" +
         "if(d&&d.ok&&d.url){var u=location.origin+d.url;" +
-        "var ok=function(){say('Link copied — share away!')};" +
-        /* Clipboard API is blocked in iframes without an allow attribute —
+        "var ok=function(){say('Link copied - share away!')};" +
+        /* Clipboard API is blocked in iframes without an allow attribute -
          * fall back to execCommand, then to a prompt the learner can copy. */
         "var legacy=function(){var ta=document.createElement('textarea');ta.value=u;" +
         "ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();" +
@@ -409,15 +409,15 @@ export function renderSkillsPassport(
         "if(navigator.clipboard&&navigator.clipboard.writeText){" +
         "navigator.clipboard.writeText(u).then(ok,legacy)}else{legacy()}}" +
         "else{say(d&&d.reason==='daily_cap'?" +
-        "'Share limit reached for today — try again tomorrow.':" +
-        "'Could not create your share link — please try again.')}" +
+        "'Share limit reached for today - try again tomorrow.':" +
+        "'Could not create your share link - please try again.')}" +
         "}).catch(function(){sh.disabled=false;" +
-        "var t=document.getElementById('toast');t.textContent='Could not create your share link — please try again.';" +
+        "var t=document.getElementById('toast');t.textContent='Could not create your share link - please try again.';" +
         "t.className='toast on';setTimeout(function(){t.className='toast'},3200);});});}"
       : "") +
     /* Tell the embedding page (the course iframe) how tall we are so it
      * can size the frame without clipping or a scrollbar. */
-    /* Measure .page, not scrollHeight — scrollHeight can never shrink
+    /* Measure .page, not scrollHeight - scrollHeight can never shrink
      * below the iframe viewport, which ratchets the frame ever taller. */
     "if(window.parent!==window){var ph=function(){var p=document.querySelector('.page');" +
     "if(p){try{parent.postMessage({flPassportHeight:Math.ceil(p.getBoundingClientRect().height)},'*')}catch(e){}}};" +
@@ -428,7 +428,7 @@ export function renderSkillsPassport(
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
     "<meta name='robots' content='noindex'>" +
-    `<title>Skills Passport — ${esc(model.learner.name)}</title>` +
+    `<title>Skills Passport - ${esc(model.learner.name)}</title>` +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
     "<link href='https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap' rel='stylesheet'>" +
     `<style>${CSS}</style></head><body>` +

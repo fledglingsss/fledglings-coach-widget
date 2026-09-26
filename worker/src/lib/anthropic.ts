@@ -3,12 +3,12 @@
  * Guard rails at this layer:
  *   - Hard timeouts on both calls (a hung model call must never hold a
  *     learner's request open indefinitely).
- *   - Bounded retries (1) — the handler's authored fallback is the
+ *   - Bounded retries (1) - the handler's authored fallback is the
  *     real recovery path, not endless retrying.
  *   - Output caps: 5 tokens for the classifier, 400 for the coach.
  *   - Prompt caching on both system prompts (byte-identical every
  *     request, so busy periods pay cache-read rates).
- *   - The learner's messages are sent as conversation turns only —
+ *   - The learner's messages are sent as conversation turns only -
  *     never interpolated into the system prompt.
  *
  * Nothing the learner writes is ever stored by this worker; failure of
@@ -133,7 +133,7 @@ export async function coach(
 }
 
 /* Reports (interview reviews, CV/LinkedIn reviews, cover letters) run
- * to several thousand output tokens — generation alone can take 40-80s.
+ * to several thousand output tokens - generation alone can take 40-80s.
  * The chat coach's 30s timeout starved them into fallbacks (QA
  * 2026-07-27: every attempt died at exactly 2×30s). */
 const GENERATE_TIMEOUT_MS = 90_000;
@@ -166,34 +166,34 @@ export async function generate(
   return text;
 }
 
-/* Authored responses — served without a model call. The learner never
+/* Authored responses - served without a model call. The learner never
  * sees an error state; the worst case is one of these. */
 
 export const CRISIS_REPLY =
-  "Thank you for telling me — that sounds really hard, and you deserve proper support from a real person. " +
+  "Thank you for telling me - that sounds really hard, and you deserve proper support from a real person. " +
   "Please talk to someone you trust: your tutor, a family member, or a trusted adult. " +
   "You can also contact Childline on 0800 1111 (if you're under 19), Samaritans on 116 123 (any age, any time), " +
   "or text SHOUT to 85258. If you or someone else is in immediate danger, call 999. " +
   "I'll be here if you want to carry on with your learning later.";
 
 export const BLOCKED_REPLY =
-  "I can't help with that one — I'm here for your learning: money, work, confidence and staying safe online. " +
+  "I can't help with that one - I'm here for your learning: money, work, confidence and staying safe online. " +
   "Ask me anything about those and I'm all yours.";
 
 export const FALLBACK_REPLY =
-  "Sorry — I'm having trouble thinking just now. Give it another go in a minute. " +
+  "Sorry - I'm having trouble thinking just now. Give it another go in a minute. " +
   "If it's urgent, your tutor is the best person to ask. If you need someone to talk to, " +
   "Samaritans are on 116 123 and Childline is 0800 1111.";
 
 export const LIMIT_REPLY =
-  "You've used all your coach messages for today — nicely worked. " +
+  "You've used all your coach messages for today - nicely worked. " +
   "They'll top back up tomorrow. Your tutor can help with anything that can't wait.";
 
 export const UNAVAILABLE_REPLY =
-  "Fledge is currently unavailable — sorry about that! The team has been notified and I'll be back soon. " +
+  "Fledge is currently unavailable - sorry about that! The team has been notified and I'll be back soon. " +
   "All your modules still work as normal, and your tutor can help with anything urgent. " +
-  "If you need someone to talk to: Childline — 0800 1111 (under 19), Samaritans — 116 123, any time.";
+  "If you need someone to talk to: Childline - 0800 1111 (under 19), Samaritans - 116 123, any time.";
 
 export const BUSY_REPLY =
-  "I'm answering a lot of questions right now — give it a minute and ask me again. " +
+  "I'm answering a lot of questions right now - give it a minute and ask me again. " +
   "Your modules all work as normal in the meantime.";

@@ -1,7 +1,7 @@
 /* Module title -> LearnWorlds course id.
  *
  * Ids fetched live from the school via /lw-check on 2026-07-19
- * (53 courses) and matched by meaning — LearnWorlds titles differ
+ * (53 courses) and matched by meaning - LearnWorlds titles differ
  * slightly from the site catalogue (hyphens vs em-dashes, casing,
  * trailing spaces), so matching is done here once, by hand, not at
  * runtime. A null id means "recommend but cannot auto-enrol".
@@ -17,7 +17,7 @@ export const COURSE_MAP: Record<string, string | null> = {
   "Saving, Emergency Funds & Building a Safety Net": "sso-5-2",
   "Pay, Payslips, and Planning for Tax & NI": "sso-6-3",
   "Smart Spending: Big Purchases, Contracts & Consumer Rights": "sso-7-3",
-  "Living Independently — Housing & Household Bills": "sso-8-2",
+  "Living Independently - Housing & Household Bills": "sso-8-2",
   /* Deep Dives (money/housing) */
   "First Time Renting & Housing Rights": "sso-3-4",
   "Debt Traps and Payday Loans": "sso-1-2",
@@ -37,11 +37,11 @@ export const COURSE_MAP: Record<string, string | null> = {
    * "Confidence & Resilience Introduction" in LearnWorlds) */
   "What They Are & How to Build Them": "sso-2-1",
   "Building Real Confidence (Even When You Feel None)": "sso-3-2",
-  "Resilience in Practice — Pressure, Setbacks & Bounce-Back Plans": "sso-4-2",
+  "Resilience in Practice - Pressure, Setbacks & Bounce-Back Plans": "sso-4-2",
   "Communicating Under Pressure: Calm Voice, Clear Steps, Trusted Results": "sso-5-1",
-  "Grit & Growth — Motivation That Lasts (Goals, Habits, Accountability)": "sso-6-2",
+  "Grit & Growth - Motivation That Lasts (Goals, Habits, Accountability)": "sso-6-2",
   "Feedback, Reviews & Continuous Growth": "sso-9",
-  "Assertive Boundaries — Saying No Well & Protecting Your Focus": "sso-8-1",
+  "Assertive Boundaries - Saying No Well & Protecting Your Focus": "sso-8-1",
   /* Deep Dive (wellbeing) */
   "Managing Stress & Burnout": "sso-6-4",
   /* Online Safety (the intro course's LearnWorlds id really is "test") */
@@ -54,11 +54,15 @@ export const COURSE_MAP: Record<string, string | null> = {
 };
 
 export function courseIdFor(title: string): string | null {
-  return COURSE_MAP[title] ?? null;
+  /* Catalogue titles moved from em dashes to hyphens (founder copy
+   * law, 2026-09-26); pages cached from before the change still post
+   * the em-dash spelling, so normalise before the lookup. */
+  const normalised = title.replace(/\s*—\s*/g, " - ");
+  return COURSE_MAP[title] ?? COURSE_MAP[normalised] ?? null;
 }
 
 /* Learner modules that exist on the platform but are not (yet)
- * pathway-emittable — the pathway engine deliberately does not
+ * pathway-emittable - the pathway engine deliberately does not
  * recommend them, but their self-reflections and module health must
  * still be swept. Found live 2026-09-17 when Swift's cohorts rolled
  * onto them. Titles here are the LIVE platform titles, trimmed. */

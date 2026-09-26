@@ -1,4 +1,4 @@
-/* #6 — At-risk early-warning engine.
+/* #6 - At-risk early-warning engine.
  *
  * Deterministic, evidence-based risk assessment from LearnWorlds
  * activity signals (last_login / created / module progress). Pure
@@ -6,11 +6,11 @@
  * provider reads can be traced to a signal.
  *
  * Tiers (provider-facing language):
- *   high    — needs contact now (long silence, or never arrived)
- *   medium  — drifting (10–20 days quiet)
- *   watch   — early wobble (5–9 days quiet, or active but stuck)
- *   ok      — engaged recently
- *   new     — joined in the last week; onboarding, not risk
+ *   high    - needs contact now (long silence, or never arrived)
+ *   medium  - drifting (10–20 days quiet)
+ *   watch   - early wobble (5–9 days quiet, or active but stuck)
+ *   ok      - engaged recently
+ *   new     - joined in the last week; onboarding, not risk
  */
 
 export type RiskTier = "high" | "medium" | "watch" | "ok" | "new";
@@ -70,7 +70,7 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || "there";
 }
 
-/** Assess one learner. Enrichment (module counts) is optional — the
+/** Assess one learner. Enrichment (module counts) is optional - the
  * core tiers work from login signals alone. */
 export function assessLearner(
   input: RiskInput,
@@ -87,7 +87,7 @@ export function assessLearner(
   let score: number;
 
   if (sinceLogin === null) {
-    /* Never logged in — urgency scales with how long the account has
+    /* Never logged in - urgency scales with how long the account has
      * been waiting. */
     if (joined === null || joined >= 14) {
       tier = "high";
@@ -105,7 +105,7 @@ export function assessLearner(
     } else {
       tier = "new";
       score = 10;
-      reasons.push("Just added — give them a few days to arrive");
+      reasons.push("Just added - give them a few days to arrive");
     }
   } else if (joined !== null && joined < 7) {
     tier = "new";
@@ -128,7 +128,7 @@ export function assessLearner(
      * and the Active-this-week KPI (<=7). */
     tier = "watch";
     score = 20 + sinceLogin;
-    reasons.push(`Starting to drift — ${sinceLogin} days since last login`);
+    reasons.push(`Starting to drift - ${sinceLogin} days since last login`);
   } else {
     tier = "ok";
     score = Math.max(0, sinceLogin * 2);
@@ -154,7 +154,7 @@ export function assessLearner(
       );
     }
     if (enrichment.stalledTitle && tier !== "ok" && tier !== "new") {
-      reasons.push(`Part-way through “${enrichment.stalledTitle}” — an easy win to restart with`);
+      reasons.push(`Part-way through “${enrichment.stalledTitle}” - an easy win to restart with`);
     }
   }
 
@@ -174,7 +174,7 @@ export function assessLearner(
   };
 }
 
-/** A ready-to-send nudge in the Fledglings voice — warm, short,
+/** A ready-to-send nudge in the Fledglings voice - warm, short,
  * specific, never guilt-tripping. Provider staff copy and send it
  * through their own channel. */
 export function buildNudge(
@@ -188,14 +188,14 @@ export function buildNudge(
 
   if (daysSinceLogin === null) {
     return (
-      `Hi ${fn}, your Fledglings account is ready and waiting for you — it's the life-skills platform we've set you up on ` +
+      `Hi ${fn}, your Fledglings account is ready and waiting for you - it's the life-skills platform we've set you up on ` +
       `(money, interviews, staying safe online). Your first module takes about 20 minutes and you can do it on your phone. ` +
-      `Log in when you get a minute and have a look around — no pressure, just don't want you missing out.`
+      `Log in when you get a minute and have a look around - no pressure, just don't want you missing out.`
     );
   }
   if (tier === "high" || tier === "medium") {
     return (
-      `Hi ${fn}, we noticed you haven't been on Fledglings for a little while — no judgement, life gets busy. ` +
+      `Hi ${fn}, we noticed you haven't been on Fledglings for a little while - no judgement, life gets busy. ` +
       (stalled
         ? `You're already part-way through “${stalled}”, so picking it back up would only take a few minutes. `
         : `Even 10 minutes on a module counts. `) +
@@ -204,14 +204,14 @@ export function buildNudge(
   }
   if (tier === "watch") {
     return (
-      `Hi ${fn}, just a nudge from Fledglings — ` +
+      `Hi ${fn}, just a nudge from Fledglings - ` +
       (stalled
         ? `you're close to finishing “${stalled}” and it'd be a shame to lose the streak. `
         : `your next module is sitting ready when you are. `) +
       `Ten minutes this week keeps you moving.`
     );
   }
-  return `Hi ${fn}, you're doing brilliantly on Fledglings — keep it up. Your Skills Passport is filling out nicely.`;
+  return `Hi ${fn}, you're doing brilliantly on Fledglings - keep it up. Your Skills Passport is filling out nicely.`;
 }
 
 /** Order for display: most urgent first, then by score. */
