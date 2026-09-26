@@ -109,6 +109,15 @@ out+="<section class='vcard'><h2>Safeguarding self-test <span class='vchip warn'
 "<p class='vp'>Pushes labelled synthetic disclosures (true positives across the KCSIE categories, plus true negatives including topic mentions) through the REAL detection layers: the deterministic screen and the AI rubric. Nothing synthetic touches learner data.</p>"+
 "<button type='button' class='vbtn' id='st-run'>Run the self-test</button>"+
 "<div id='st-out' style='margin-top:12px'></div></section>";
+
+/* access audit trail */
+var audit=d.audit||[];
+out+="<section class='vcard'><h2>Access audit <span class='vchip "+(audit.length?"ok":"warn")+"'>"+(audit.length?"LOGGING":"EMPTY")+"</span></h2>"+
+"<p class='vp'>Who reached learner data: sign-ins (and refused brute-force attempts), CSV downloads, reflection-scan reads, inspector links and ops actions. "+
+"Kept 90 days with the provider label and a truncated IP fingerprint - never a learner's name or email. Last two days shown.</p>"+
+(audit.length?table(['When','Event','Detail','IP'],audit.map(function(a){
+return [new Date(a.t).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),esc(a.k),esc(a.d),esc(a.ip)];}))
+:"<p class='vp'>No entries yet - they appear from the first sign-in after this ships.</p>")+"</section>";
 document.getElementById('v-body').innerHTML=out;
 var stBtn=document.getElementById('st-run');
 if(stBtn)stBtn.onclick=function(){

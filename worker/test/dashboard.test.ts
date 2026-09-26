@@ -1215,3 +1215,76 @@ describe("POST /dashboard/refresh — the provider's own refresh button", () => 
     expect(env.RATE_LIMITS.store.has("dash:v13:swift-learners")).toBe(false);
   });
 });
+
+describe("provider-surface security (UK education data handling)", () => {
+  function loginReq(body: Record<string, string>, ip: string) {
+    return new Request("http://coach.test/portal/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "CF-Connecting-IP": ip,
+      },
+      body: new URLSearchParams(body).toString(),
+    });
+  }
+
+  it("learner-data responses are never cacheable and never framable", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const cookie = await cookieFor("swift-code-1");
+    for (const path of ["/dashboard", "/dashboard/data", "/dashboard/export.csv"]) {
+      const res = await app.request(get(path, cookie), undefined, env);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      expect(res.headers.get("X-Frame-Options")).toBe("DENY");
+      expect(res.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    }
+  });
+
+  it("embedded learner pages keep their own framing policy", async () => {
+    const res = await app.request(get("/hub"), undefined, makeEnv());
+    expect(res.status).toBe(200);
+    expect(res.headers.get("X-Frame-Options")).toBeNull();
+    expect(res.headers.get("Content-Security-Policy")).not.toContain("frame-ancestors 'none'");
+  });
+
+  it("locks an IP out of code guessing; other addresses are unaffected", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    for (let i = 0; i < 15; i++) {
+      const res = await app.request(loginReq({ code: "guess-" + i + "xxxxx", next: "/dashboard" }, "9.9.9.9"), undefined, env);
+      expect(res.headers.get("Location")).toBe("/dashboard?login=failed");
+    }
+    /* 16th attempt from the same address: even the RIGHT code is
+     * refused with the same generic failure - nothing to enumerate. */
+    const locked = await app.request(loginReq({ code: "swift-code-1", next: "/dashboard" }, "9.9.9.9"), undefined, env);
+    expect(locked.headers.get("Location")).toBe("/dashboard?login=failed");
+    expect(locked.headers.get("Set-Cookie")).toBeNull();
+    const other = await app.request(loginReq({ code: "swift-code-1", next: "/dashboard" }, "8.8.8.8"), undefined, env);
+    expect(other.headers.get("Location")).toBe("/dashboard");
+    expect(other.headers.get("Set-Cookie")).toContain("fl_portal=");
+  });
+
+  it("keeps an access audit trail that never names a learner", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await app.request(loginReq({ code: "swift-code-1", next: "/dashboard" }, "7.7.7.7"), undefined, env);
+    await app.request(loginReq({ code: "wrong-code-xxxx", next: "/dashboard" }, "7.7.7.7"), undefined, env);
+    const cookie = await cookieFor("swift-code-1");
+    await app.request(get("/dashboard/export.csv", cookie), undefined, env);
+    /* Unanchored background writes: give them a tick to land. */
+    await new Promise((r) => setTimeout(r, 50));
+    const day = new Date().toISOString().slice(0, 10);
+    const raw = env.RATE_LIMITS.store.get(`ops:audit:${day}`)!;
+    expect(raw).toBeTruthy();
+    const entries = JSON.parse(raw) as Array<{ k: string; d: string; ip: string }>;
+    const kinds = entries.map((e) => e.k);
+    expect(kinds).toContain("login_ok");
+    expect(kinds).toContain("login_fail");
+    expect(kinds).toContain("export");
+    /* Provider label yes, learner identifiers never. */
+    expect(raw).toContain("Swift Training");
+    expect(raw).not.toContain("amy@swift.test");
+    expect(raw).not.toContain("7.7.7.7");
+  });
+});

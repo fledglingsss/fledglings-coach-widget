@@ -600,6 +600,23 @@ app.use("*", async (c, next) => {
   c.header("Content-Security-Policy", `${CSP_POLICY}; ${frameAncestors}`);
 });
 
+/* Provider surfaces carry learner personal data, so they get the
+ * handling UK education settings expect (UK GDPR / DfE cyber security
+ * standards): responses are never written to any cache - browser,
+ * proxy or shared machine in a staffroom - and the pages can never be
+ * framed, so no overlay can sit on top of a learner record. Runs
+ * inside the global header middleware, whose CSP merge keeps the
+ * stricter frame-ancestors set here. */
+const PROVIDER_PREFIXES = ["/dashboard", "/portal", "/ops", "/inspect"];
+app.use("*", async (c, next) => {
+  await next();
+  const path = new URL(c.req.url).pathname;
+  if (!PROVIDER_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) return;
+  c.header("Cache-Control", "no-store");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", "frame-ancestors 'none'");
+});
+
 /* Origin allowlist on the API - runs after CORS so preflights still
  * get a CORS response. */
 app.use("/api/*", async (c, next) => {
@@ -1915,6 +1932,98 @@ const PORTAL_COOKIE = "fl_portal";
  * cookie's Max-Age (which a client can ignore). */
 const PORTAL_SESSION_SECS = 8 * 3600;
 
+/* ------------------------------------------------------------------
+ * Access audit trail - who reached learner data and when, kept 90
+ * days (UK GDPR accountability; DfE cyber security standards ask for
+ * access logs on systems holding personal data). Entries carry the
+ * provider label and a truncated IP hash, never a learner's name or
+ * email. Best-effort by design: a lost entry under a KV write race is
+ * acceptable, a blocked response over auditing is not.
+ * ------------------------------------------------------------------ */
+const AUDIT_TTL_SECS = 90 * 24 * 3600;
+const AUDIT_MAX_PER_DAY = 400;
+
+async function auditEvent(
+  c: { env: Env; req: { header: (n: string) => string | undefined } },
+  kind: string,
+  detail: string,
+): Promise<void> {
+  try {
+    const ip = c.req.header("CF-Connecting-IP") || "";
+    const ipHash = ip ? (await hashLearnerId(ip)).slice(0, 8) : "-";
+    const day = new Date().toISOString().slice(0, 10);
+    const key = `ops:audit:${day}`;
+    const entries = JSON.parse(
+      (await c.env.RATE_LIMITS.get(key)) || "[]",
+    ) as Array<{ t: string; k: string; d: string; ip: string }>;
+    if (entries.length >= AUDIT_MAX_PER_DAY) return;
+    entries.push({ t: new Date().toISOString(), k: kind, d: detail.slice(0, 120), ip: ipHash });
+    await c.env.RATE_LIMITS.put(key, JSON.stringify(entries), {
+      expirationTtl: AUDIT_TTL_SECS,
+    });
+  } catch {
+    /* never let auditing break the request */
+  }
+}
+
+/** Audit without delaying the response; outside a real Worker
+ * invocation (tests) there is no execution context, so the write just
+ * runs unanchored - same pattern as the refresh dispatch. */
+function auditInBackground(
+  c: { env: Env; req: { header: (n: string) => string | undefined }; executionCtx: { waitUntil(p: Promise<unknown>): void } },
+  kind: string,
+  detail: string,
+): void {
+  const work = auditEvent(c, kind, detail);
+  try {
+    c.executionCtx.waitUntil(work);
+  } catch {
+    work.catch(() => {});
+  }
+}
+
+/** The last two days of audit entries, newest first, for the founder
+ * console. Older days stay readable in KV for the full 90 days. */
+async function recentAuditEntries(
+  env: Env,
+): Promise<Array<{ t: string; k: string; d: string; ip: string }>> {
+  const days = [0, 1].map((back) =>
+    new Date(Date.now() - back * 86_400_000).toISOString().slice(0, 10),
+  );
+  const all: Array<{ t: string; k: string; d: string; ip: string }> = [];
+  for (const day of days) {
+    try {
+      all.push(...JSON.parse((await env.RATE_LIMITS.get(`ops:audit:${day}`)) || "[]"));
+    } catch {
+      /* a malformed day never hides the rest */
+    }
+  }
+  return all.sort((a, b) => (a.t < b.t ? 1 : -1)).slice(0, 60);
+}
+
+/* Brute-force guard on the access-code form: after this many failed
+ * attempts in an hour, an IP's guesses are refused before any code is
+ * even checked. Successful sign-ins never count towards it, so a
+ * college behind one NAT address is unaffected. */
+const LOGIN_FAILS_PER_IP_PER_HOUR = 15;
+
+async function loginAttemptAllowed(c: {
+  env: Env;
+  req: { header: (n: string) => string | undefined };
+}): Promise<{ allowed: boolean; recordFailure: () => Promise<void> }> {
+  const ip = c.req.header("CF-Connecting-IP") || "";
+  if (!ip) return { allowed: true, recordFailure: async () => {} };
+  const hour = Math.floor(Date.now() / 3_600_000);
+  const key = `portal:lfail:${(await hashLearnerId(ip)).slice(0, 16)}:${hour}`;
+  const used = parseInt((await c.env.RATE_LIMITS.get(key)) || "0", 10) || 0;
+  return {
+    allowed: used < LOGIN_FAILS_PER_IP_PER_HOUR,
+    recordFailure: async () => {
+      await c.env.RATE_LIMITS.put(key, String(used + 1), { expirationTtl: 3600 });
+    },
+  };
+}
+
 /* A portal code grants either the whole school or ONE cohort tag -
  * tag scoping is enforced server-side on every data/CSV response, so a
  * scoped code can never see another provider's learners. */
@@ -2531,6 +2640,7 @@ app.get("/portal/reflections", async (c) => {
 app.get("/portal/reflection-scan", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
+  auditInBackground(c, "scan_read", access.label);
   try {
     const state = await readReflections(c.env);
     const tagPatch = JSON.parse(
@@ -4139,6 +4249,7 @@ app.get("/dashboard/data", async (c) => {
 app.get("/dashboard/modules.csv", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
+  auditInBackground(c, "export", "modules.csv " + access.label);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const { sample } = await dashboardRows(c.env, access.tag);
@@ -4173,6 +4284,7 @@ app.get("/dashboard/modules.csv", async (c) => {
 app.get("/dashboard/cohorts.csv", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
+  auditInBackground(c, "export", "cohorts.csv " + access.label);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const { rows } = await dashboardRows(c.env, access.tag);
@@ -4318,6 +4430,7 @@ app.get("/dashboard/learner-insight", async (c) => {
 app.get("/dashboard/reflections.csv", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
+  auditInBackground(c, "export", "reflections.csv " + access.label);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const state = await readReflections(c.env);
@@ -4368,6 +4481,7 @@ export function csvField(v: unknown): string {
 app.get("/dashboard/export.csv", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
+  auditInBackground(c, "export", "learners.csv " + access.label);
   if (!lwConfigured(c.env)) return c.json({ error: "learnworlds_not_configured" });
   try {
     const { rows } = await dashboardRows(c.env, access.tag);
@@ -4486,8 +4600,13 @@ app.post("/portal/login", async (c) => {
   const code = typeof form.code === "string" ? form.code.trim() : "";
   /* `next` is an allowlist, never a free redirect. */
   const next = form.next === "/ops" ? "/ops" : "/dashboard";
-  const meta = await portalCodeMeta(c, code);
+  /* Locked-out attempts get the same generic failure as a wrong code -
+   * an attacker learns nothing, a mistyping tutor just waits an hour. */
+  const gate = await loginAttemptAllowed(c);
+  const meta = gate.allowed ? await portalCodeMeta(c, code) : null;
   if (!meta) {
+    if (gate.allowed) await gate.recordFailure();
+    await auditEvent(c, gate.allowed ? "login_fail" : "login_locked", next);
     if (next === "/ops") {
       return c.html(
         renderPortalLogin("That code didn't work - check it and try again, or contact Fledglings for access."),
@@ -4496,6 +4615,7 @@ app.post("/portal/login", async (c) => {
     }
     return c.redirect("/dashboard?login=failed");
   }
+  await auditEvent(c, "login_ok", `${meta.label}${meta.ops ? " (ops)" : ""} -> ${next}`);
   const iat = Math.floor(Date.now() / 1000);
   const sig = await signPayload(
     c.env.LEARNWORLDS_CLIENT_SECRET || "",
@@ -4935,6 +5055,7 @@ app.get("/ops/verify.json", async (c) => {
       codes,
       security: { staffInRoster, staffAnswerAccounts },
       pulls,
+      audit: await recentAuditEntries(c.env),
     });
   } catch (err) {
     console.error("[coach] ops verify failed:", String(err));
@@ -5000,6 +5121,7 @@ app.post("/ops/action", async (c) => {
   }
   const op = typeof body.op === "string" ? body.op : "";
   const kv = c.env.RATE_LIMITS;
+  auditInBackground(c, "ops_action", op);
   try {
     if (op === "mint_code") {
       const label = (typeof body.label === "string" ? body.label : "").trim().slice(0, 60);
@@ -5196,6 +5318,7 @@ app.post("/ops/action", async (c) => {
 app.post("/portal/inspect-link", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
+  auditInBackground(c, "inspect_link", access.label);
   const payload = b64urlEncode(
     JSON.stringify({
       v: 1,
