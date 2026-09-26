@@ -92,6 +92,12 @@ export function renderDashboardPage(): string {
     "<div class='dstats' id='s-stats'></div>" +
     "<div class='dbar'><input type='text' id='s-search' aria-label='Search students by name or email' placeholder='🔍 Search students…'>" +
     "<a class='dbtn ghost' href='/dashboard/export.csv'>⬇ CSV</a></div>" +
+    "<div class='chips' id='s-chips' style='margin-bottom:10px'>" +
+    "<button type='button' class='chip on' data-stu='all'>All students</button>" +
+    "<button type='button' class='chip' data-stu='engaged'>Engaged</button>" +
+    "<button type='button' class='chip' data-stu='watch'>Watch list</button>" +
+    "<button type='button' class='chip' data-stu='inactive'>Inactive</button>" +
+    "</div>" +
     "<div class='dcard'><div class='dtablewrap'><table class='dtable' aria-label='Every student in your scope'>" +
     "<thead><tr><th scope='col'>Student</th><th scope='col'>Cohort</th><th scope='col'>Modules</th><th scope='col'>Study time</th><th scope='col'>Last active</th><th scope='col'>Status</th></tr></thead>" +
     "<tbody id='s-body'></tbody></table>" +
@@ -479,15 +485,34 @@ if(isInactive(r))return "<span class='dtag warn'>Inactive</span>";
 return tierChipFor(r.engagement);}
 function lastInFor(en){if(!en||en.daysSinceLogin===null)return 'Never logged in';
 return en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';}
+/* Status filter over the student list: engaged / watch / inactive.
+ * Each chip mirrors the Status column exactly - a filtered list must
+ * never show a status that contradicts the chip (watch covers every
+ * attention tier: Watch, Cooling off and Needs a nudge; new starters
+ * appear under All only). The stat strip stays whole-scope so the
+ * counts remain the truth about everyone. */
+var stuFilter='all';
+function stuRows(rows){
+if(stuFilter==='engaged')return rows.filter(function(r){return r.engagement.tier==='ok'&&!isInactive(r)});
+if(stuFilter==='watch')return rows.filter(function(r){
+if(r.engagement.tier==='high')return true;
+return (r.engagement.tier==='watch'||r.engagement.tier==='medium')&&!isInactive(r);});
+if(stuFilter==='inactive')return rows.filter(function(r){return isInactive(r)&&r.engagement.tier!=='high'});
+return rows;}
 function renderStudents(){
-var rows=scoped(true);$('s-empty').hidden=rows.length>0;
-var activeWk=rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
-var inactive=rows.filter(isInactive).length;
-var modsDone=rows.reduce(function(s,r){return s+r.learning.completed},0);
-$('s-stats').innerHTML="<span>👥 Students <b>"+rows.length+"</b></span>"+
+var allRows=scoped(true);
+var activeWk=allRows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
+var inactive=allRows.filter(isInactive).length;
+var modsDone=allRows.reduce(function(s,r){return s+r.learning.completed},0);
+$('s-stats').innerHTML="<span>👥 Students <b>"+allRows.length+"</b></span>"+
 "<span>🎓 Modules completed <b>"+modsDone+"</b></span>"+
 "<span>⚡ Active this week <b>"+activeWk+"</b></span>"+
 "<span>😴 Inactive - no progress <b>"+inactive+"</b></span>";
+var rows=stuRows(allRows);
+$('s-empty').hidden=rows.length>0;
+document.querySelectorAll('#s-chips .chip').forEach(function(ch){
+ch.classList.toggle('on',ch.dataset.stu===stuFilter);
+ch.setAttribute('aria-pressed',ch.dataset.stu===stuFilter?'true':'false');});
 $('s-body').innerHTML=rows.map(function(r){var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
@@ -1122,6 +1147,8 @@ return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)
 "<td>"+miniScore(r.readiness)+"</td></tr>";}).join('');
 wireDrills();}
 $('s-search').addEventListener('input',function(){search=this.value;renderStudents();});
+document.querySelectorAll('#s-chips .chip').forEach(function(ch){
+ch.addEventListener('click',function(){stuFilter=ch.dataset.stu;renderStudents();});});
 /* ---------- live feed (Home) + module health (Analytics), lazily ---------- */
 var feedTimer=null;
 function loadFeed(){fetch('/portal/feed').then(function(r){return r.json()}).then(function(d){
