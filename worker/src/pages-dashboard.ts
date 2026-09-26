@@ -207,6 +207,12 @@ export function renderDashboardPage(): string {
     "<div class='dsplit even'>" +
     "<div class='dcard'><div class='cardhead'><h2>Module by module <span class='dtag' id='lc-note' hidden>all cohorts</span></h2>" +
     "<a class='dbtn ghost sm' href='/dashboard/modules.csv'>⬇ Module CSV</a></div>" +
+    "<div class='chips' id='lrn-chips' style='margin-bottom:10px'>" +
+    "<button type='button' class='chip on' data-lrn='all'>All learners</button>" +
+    "<button type='button' class='chip' data-lrn='active'>Active this week</button>" +
+    "<button type='button' class='chip' data-lrn='watch'>Watch list</button>" +
+    "<button type='button' class='chip' data-lrn='disengaged'>Disengaged</button>" +
+    "</div>" +
     "<div class='modscroll'><div id='ch-courses'></div></div></div>" +
     "<div>" +
     "<div class='dcard'><h2>Time invested so far <span class='dmut' style='font-weight:500'>learners by total study time</span></h2>" +
@@ -682,13 +688,15 @@ function block(title,cls,items,empty){
 var list=(items||[]).filter(function(h){return inCoh(h.email)});
 return "<h3 class='scan-h'>"+title+"</h3>"+(list.length?"<div class='ins-list'>"+list.map(function(h){
 var inRows=DATA&&DATA.learners.some(function(r){return r.email.toLowerCase()===h.email.toLowerCase()});
-return "<div class='ins-hl "+cls+"'><span class='ins-k'>"+esc2(h.email)+(h.module?" <i>· "+esc2(h.module)+"</i>":'')+"</span>"+
+var sev=h.severity==='concern'?"<span class='dtag warn'>follow up today</span> ":h.severity==='monitor'?"<span class='dtag'>check in</span> ":'';
+return "<div class='ins-hl "+cls+"'><span class='ins-k'>"+sev+esc2(h.email)+(h.module?" <i>· "+esc2(h.module)+"</i>":'')+"</span>"+
 "<div class='ins-q'>“"+esc2(h.quote)+"”</div>"+
 (h.why?"<div class='ins-n'>"+esc2(h.why)+"</div>":'')+
 (inRows?"<div class='rf-acts'><button type='button' class='dlink' data-drill='"+esc2(h.email)+"'>View student →</button></div>":'')+
 "</div>";}).join('')+"</div>":"<p class='dmut'>"+empty+"</p>");}
 el.innerHTML=
-block('⚠ Worth a check-in','con',d.safeguarding,'Nothing qualifying in the '+fmtN(d.scanned)+' written answers read.')+
+"<p class='dmut' style='margin-top:12px;font-size:12.5px'>Every one of the "+fmtN(d.scanned)+" written answers was read against KCSIE-aligned safeguarding indicators, Equality Act reasonable-adjustment duties and strengths-based feedback practice"+(d.batches>1?' ('+d.batches+' reads)':'')+".</p>"+
+block('⚠ Worth a check-in','con',d.safeguarding,'Nothing met the safeguarding rubric across the '+fmtN(d.scanned)+' written answers read.')+
 block('🛟 Reasonable adjustments to consider','adj',d.adjustments,'No support needs surfaced in the written answers.')+
 block('✨ Positive reinforcement to pass on','pos',d.positives,'No standout answers yet.');
 wireDrills();}
@@ -909,20 +917,40 @@ return s+"</svg>";}
 /* Module composition: for each live module, who has finished, who is
  * part-way and who has not started - the dissection behind a plain
  * completion percentage. */
+/* Composition derives entirely from the shown learners' own module
+ * lists, so the engagement filter recuts it honestly. */
 function stackedModules(rows){
-var courses=(DATA.analytics&&DATA.analytics.courses)||[];
-if(!courses.length)return "<div class='dempty'>No module enrolments in this scope yet.</div>";
-return courses.map(function(cs){
-var going=rows.filter(function(r){return (r.learning.modules||[]).some(function(m){return m.t===cs.title&&!m.done&&m.p>0})}).length;
-var done=cs.completed,total=Math.max(cs.enrolled,done+going),idle=Math.max(0,total-done-going);
-var p=function(v){return (v*100/Math.max(1,total)).toFixed(1)};
-return "<div class='stk'><span class='stk-l' title='"+esc2(cs.title)+"'>"+esc2(cs.title)+"</span>"+
-"<div class='stk-t' role='img' aria-label='"+esc2(cs.title)+": "+done+" finished, "+going+" part-way, "+idle+" not started'>"+
-(done?"<i style='width:"+p(done)+"%;background:#1B7A4B'></i>":'')+
-(going?"<i style='width:"+p(going)+"%;background:#13507F'></i>":'')+
-(idle?"<i style='width:"+p(idle)+"%;background:#E3DDDA'></i>":'')+"</div>"+
-"<span class='stk-v'><b style='color:#1B7A4B'>"+done+"</b> done · <b style='color:#13507F'>"+going+"</b> part-way · "+idle+" not started</span></div>";}).join('')+
+var byMod={};
+rows.forEach(function(r){(r.learning.modules||[]).forEach(function(m){
+var e=byMod[m.t]=byMod[m.t]||{done:0,going:0,idle:0};
+if(m.done)e.done++;else if(m.p>0)e.going++;else e.idle++;});});
+var keys=Object.keys(byMod).sort(function(a,b){
+var A=byMod[a],B=byMod[b];return (B.done+B.going+B.idle)-(A.done+A.going+A.idle)});
+if(!keys.length)return "<div class='dempty'>No module enrolments in this group.</div>";
+return keys.map(function(t){var e=byMod[t];
+var total=Math.max(1,e.done+e.going+e.idle);
+var p=function(v){return (v*100/total).toFixed(1)};
+return "<div class='stk'><span class='stk-l' title='"+esc2(t)+"'>"+esc2(t)+"</span>"+
+"<div class='stk-t' role='img' aria-label='"+esc2(t)+": "+e.done+" finished, "+e.going+" part-way, "+e.idle+" not started'>"+
+(e.done?"<i style='width:"+p(e.done)+"%;background:#1B7A4B'></i>":'')+
+(e.going?"<i style='width:"+p(e.going)+"%;background:#13507F'></i>":'')+
+(e.idle?"<i style='width:"+p(e.idle)+"%;background:#E3DDDA'></i>":'')+"</div>"+
+"<span class='stk-v'><b style='color:#1B7A4B'>"+e.done+"</b> done · <b style='color:#13507F'>"+e.going+"</b> part-way · "+e.idle+" not started</span></div>";}).join('')+
 "<div class='dmut' style='margin-top:8px;font-size:12px'><i class='dotc' style='background:#1B7A4B'></i>finished <i class='dotc' style='background:#13507F;margin-left:10px'></i>part-way <i class='dotc' style='background:#E3DDDA;margin-left:10px'></i>not started</div>";}
+/* Engagement filter for module tracking: active / watch / disengaged. */
+var lrnFilter='all';
+function lrnRows(){var rows=scoped(false);
+if(lrnFilter==='active')return rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7});
+if(lrnFilter==='watch')return rows.filter(function(r){return r.engagement.tier==='watch'||r.engagement.tier==='medium'});
+if(lrnFilter==='disengaged')return rows.filter(function(r){return r.engagement.tier==='high'});
+return rows;}
+function renderModComposition(){
+$('ch-courses').innerHTML=stackedModules(lrnRows());
+document.querySelectorAll('#lrn-chips .chip').forEach(function(ch){
+ch.classList.toggle('on',ch.dataset.lrn===lrnFilter);
+ch.setAttribute('aria-pressed',ch.dataset.lrn===lrnFilter?'true':'false');});}
+document.querySelectorAll('#lrn-chips .chip').forEach(function(ch){
+ch.addEventListener('click',function(){lrnFilter=ch.dataset.lrn;renderModComposition();});});
 /* ---------- plain-English readings under each chart ---------- */
 function interpCohorts(series){
 if(!series||series.length<2)return 'Cohort comparisons appear here once two or more cohorts have learners.';
@@ -1018,7 +1046,7 @@ $('ch-tiers').innerHTML=tiers.length?donut(tiers,rows.length,'learners'):"<div c
 $('ch-recency').innerHTML=rows.length?recencyArea(rows):"<div class='dempty'>No learners in this filter.</div>";
 /* Learning charts come from the server rollup over the whole scope - * flag that honestly when a cohort chip narrows the other charts. */
 $('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
-$('ch-courses').innerHTML=stackedModules(rows);
+renderModComposition();
 var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
 $('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
 return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)

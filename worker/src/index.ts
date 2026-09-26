@@ -2532,39 +2532,35 @@ app.get("/portal/reflection-scan", async (c) => {
       return c.json({ ok: true, status: "too_few", scanned: prose.length, totalAnswers: scoped.length });
     }
     const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-    const cacheKey = `reflect:scan:v1:${scopeKey}:${scoped.length}`;
+    const cacheKey = `reflect:scan:v2:${scopeKey}:${scoped.length}`;
     const cached = await c.env.RATE_LIMITS.get(cacheKey);
     if (cached) return c.json(JSON.parse(cached));
-    const sample = prose
+    /* EVERY written answer is read, in batches - never a sample. Each
+     * batch is one model call against the full rubric. */
+    const all = prose
       .slice()
       .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
-      .slice(0, 250)
       .map((r) => ({
         email: r.email,
         module: r.courseTitle,
         question: r.question.slice(0, 120),
         answer: r.answer.slice(0, 320),
       }));
-    const raw = await generate(
-      c.env.ANTHROPIC_API_KEY,
-      c.env.COACH_MODEL || "claude-sonnet-4-6",
-      reflectionScanSystemPrompt(),
-      JSON.stringify({ answers: sample }),
-      1500,
-    );
-    const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as Record<
-      string,
-      unknown
-    >;
-    /* Honesty guard: an item survives only when its quote really
-     * appears in that learner's own answers. */
+    const BATCH = 200;
     const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
     const blobByEmail = new Map<string, string>();
     for (const r of prose) {
       const key = r.email.toLowerCase();
       blobByEmail.set(key, (blobByEmail.get(key) ?? "") + " \n " + norm(r.answer));
     }
-    const clean = (list: unknown): Array<{ email: string; quote: string; module: string; why: string }> =>
+    type ScanItem = { email: string; quote: string; module: string; why: string; severity?: string };
+    const merged: Record<"safeguarding" | "adjustments" | "positives", ScanItem[]> = {
+      safeguarding: [],
+      adjustments: [],
+      positives: [],
+    };
+    const seen = new Set<string>();
+    const clean = (list: unknown, withSeverity: boolean): ScanItem[] =>
       (Array.isArray(list) ? list : [])
         .filter((h): h is Record<string, string> => {
           if (typeof h !== "object" || h === null) return false;
@@ -2576,21 +2572,50 @@ app.get("/portal/reflection-scan", async (c) => {
             (blobByEmail.get(hh.email.toLowerCase()) ?? "").includes(norm(hh.quote))
           );
         })
-        .slice(0, 6)
         .map((h) => ({
           email: h.email,
           quote: h.quote.slice(0, 400),
           module: (h.module ?? "").slice(0, 120),
           why: (h.why ?? "").slice(0, 200),
+          ...(withSeverity ? { severity: h.severity === "concern" ? "concern" : "monitor" } : {}),
         }));
+    let batches = 0;
+    for (let start = 0; start < all.length; start += BATCH) {
+      batches++;
+      const raw = await generate(
+        c.env.ANTHROPIC_API_KEY,
+        c.env.COACH_MODEL || "claude-sonnet-4-6",
+        reflectionScanSystemPrompt(),
+        JSON.stringify({ answers: all.slice(start, start + BATCH) }),
+        2000,
+      );
+      const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as Record<
+        string,
+        unknown
+      >;
+      for (const cat of ["safeguarding", "adjustments", "positives"] as const) {
+        for (const item of clean(parsed[cat], cat === "safeguarding")) {
+          const key = cat + "|" + item.email.toLowerCase() + "|" + norm(item.quote).slice(0, 60);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged[cat].push(item);
+        }
+      }
+    }
+    /* Safety findings are never truncated; the softer lists show the
+     * strongest handful. Immediate concerns sort first. */
+    merged.safeguarding.sort((a, b) =>
+      (a.severity === "concern" ? 0 : 1) - (b.severity === "concern" ? 0 : 1),
+    );
     const payload = {
       ok: true,
       status: "ready",
       scanned: prose.length,
       totalAnswers: scoped.length,
-      safeguarding: clean(parsed.safeguarding),
-      adjustments: clean(parsed.adjustments),
-      positives: clean(parsed.positives),
+      batches,
+      safeguarding: merged.safeguarding,
+      adjustments: merged.adjustments.slice(0, 8),
+      positives: merged.positives.slice(0, 8),
     };
     await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
       expirationTtl: 30 * 24 * 3600,
