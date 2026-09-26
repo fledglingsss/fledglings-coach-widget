@@ -85,6 +85,40 @@ export function crisisHeuristic(message: string): boolean {
   return CRISIS_PATTERNS.some((re) => re.test(message));
 }
 
+/* Reflections safeguarding screen: the crisis set above PLUS quieter
+ * first-person disclosure shapes that matter in written reflections -
+ * physical harm, fear, coercion, hardship, unhealthy coping (aligned
+ * to KCSIE indicator categories). Kept separate so the coach's crisis
+ * interception behaviour does not change. A match is a prompt to
+ * check in, never a verdict, so modest over-firing is acceptable. */
+const SAFEGUARDING_EXTRA_PATTERNS: RegExp[] = [
+  /\b(?:hit|hits|hitting|beat|beats|beating|slaps?|slapped|punch(?:es|ed)?|hurts?|hurting) (?:me|us|my (?:mum|mom|dad|brother|sister))\b/i,
+  /\b(?:scared|frightened|terrified|afraid) (?:of (?:him|her|them|my\b)|to go home|at home)\b/i,
+  /\bcontrols? (?:me|everything i do)\b/i,
+  /\bwon'?t let me (?:see|leave|go|talk)\b/i,
+  /\bchecks? my (?:phone|messages)\b/i,
+  /\bcan'?t afford (?:to eat|food|meals)\b/i,
+  /\bskip(?:ping|ped)? meals\b/i,
+  /\bno money for food\b/i,
+  /\b(?:being|getting|might be|facing|about to be) evicted\b/i,
+  /\bhomeless\b/i,
+  /\bsofa[- ]?surfing\b/i,
+  /\bdrink(?:ing)? (?:most nights|every (?:day|night)|to (?:cope|sleep|forget))\b/i,
+  /\btak(?:e|ing) (?:drugs|pills|something) to (?:cope|sleep|forget)\b/i,
+  /\boffered me money for (?:pictures|photos|videos)\b/i,
+  /\btouch(?:es|ed|ing) me\b/i,
+  /\bcan'?t cope\b/i,
+  /\bfeel(?:ing)? (?:hopeless|worthless|numb)\b/i,
+  /\bcry(?:ing)? (?:every|most) (?:day|night)s?\b/i,
+  /\bpanic attacks?\b/i,
+  /\bno ?one to (?:talk to|turn to)\b/i,
+];
+
+/** The reflections sweep's screen: crisis set plus disclosure shapes. */
+export function safeguardingHeuristic(message: string): boolean {
+  return crisisHeuristic(message) || SAFEGUARDING_EXTRA_PATTERNS.some((re) => re.test(message));
+}
+
 /* Output gate — a model reply must never leak the prompt scaffolding
  * or run away in length. Returns the cleaned reply, or null when the
  * reply is unsafe to show (caller serves the authored fallback).

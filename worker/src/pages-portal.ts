@@ -1,8 +1,8 @@
-/* Provider portal — a quality-director's dashboard. Design brief:
+/* Provider portal - a quality-director's dashboard. Design brief:
  * open it and know in five seconds who needs contacting today; every
  * figure carries a plain-English caption a tutor can read without
  * analytics training; one accent discipline (orange = needs action,
- * green = good, blue = information). Structured as a panel grid — a
+ * green = good, blue = information). Structured as a panel grid - a
  * slim navy masthead, one KPI band, then purposeful panels on a 12-col
  * grid. Tag-scoped codes are filtered server-side before anything
  * renders. */
@@ -378,12 +378,12 @@ function portalShell(title: string, bodyHtml: string): string {
 
 export function renderPortalLogin(error?: string): string {
   return portalShell(
-    "Fledglings — Provider Portal",
+    "Fledglings - Provider Portal",
     "<div class='loginwrap'><div class='login'>" +
       "<div class='login-l'>" +
       `<span class='wordmark'>${WORDMARK_DARK}</span>` +
       "<h2>Your learners, your evidence, and who needs a nudge today.</h2>" +
-      "<p>The provider view of the Fledglings life-skills platform — live figures, early warnings and Ofsted-ready evidence, scoped to your cohort.</p>" +
+      "<p>The provider view of the Fledglings life-skills platform - live figures, early warnings and Ofsted-ready evidence, scoped to your cohort.</p>" +
       "<div class='ticks'>" +
       "<div class='tick'><i>✓</i>Live engagement and completion figures</div>" +
       "<div class='tick'><i>✓</i>Early-warning view with ready-to-send nudges</div>" +
@@ -425,7 +425,7 @@ function panel(opts: {
   );
 }
 
-/** Founder ops console — service status, access-code management,
+/** Founder ops console - service status, access-code management,
  * kill switch, cache maintenance. Whole-school codes only. */
 export function renderOpsPage(label: string): string {
   const body =
@@ -437,14 +437,14 @@ export function renderOpsPage(label: string): string {
     `<div class='mast-right'><span class='provider'>${esc(label)}</span>` +
     "<a class='signout' href='/portal'>Portal</a>" +
     "<a class='signout' href='/portal/logout'>Sign out</a></div></div>" +
-    "<div class='mast-meta'>Founder controls — every action here takes effect immediately and is logged.</div>" +
+    "<div class='mast-meta'>Founder controls - every action here takes effect immediately and is logged.</div>" +
     "</div></header>" +
     "<main class='content' style='padding-top:34px'><div class='grid12'>" +
     "<section class='panel s5'><div class='ph'><div><div class='t'>Service status</div>" +
     "<div class='c'>live health of every moving part</div></div></div>" +
     "<div class='pb'><div id='ops-status' class='muted'>Loading…</div></div></section>" +
     "<section class='panel s7'><div class='ph'><div><div class='t'>Provider access codes</div>" +
-    "<div class='c'>mint a code per provider — add a cohort tag to scope it to their learners only</div></div></div>" +
+    "<div class='c'>mint a code per provider - add a cohort tag to scope it to their learners only</div></div></div>" +
     "<div class='pb'>" +
     "<div class='opsrow' style='margin-bottom:14px'>" +
     "<input id='mint-label' placeholder='Provider name (e.g. Swift Training)' maxlength='60'>" +
@@ -453,11 +453,11 @@ export function renderOpsPage(label: string): string {
     "<div id='mint-out' class='muted' style='margin-bottom:12px'></div>" +
     "<div id='codes-list'></div></div></section>" +
     "<section class='panel s5'><div class='ph'><div><div class='t'>Coach kill switch</div>" +
-    "<div class='c'>instantly pauses Fledge everywhere — learners see the 'currently unavailable' message</div></div></div>" +
+    "<div class='c'>instantly pauses Fledge everywhere - learners see the 'currently unavailable' message</div></div></div>" +
     "<div class='pb'><div id='kill-state' class='muted' style='margin-bottom:12px'>…</div>" +
     "<button class='abtn' id='kill-btn' type='button'>…</button></div></section>" +
     "<section class='panel s12'><div class='ph'><div><div class='t'>Onboard a cohort</div>" +
-    "<div class='c'>paste learners as <b>email, name</b> (one per line) — dry-run shows exactly what will happen before anything is created. " +
+    "<div class='c'>paste learners as <b>email, name</b> (one per line) - dry-run shows exactly what will happen before anything is created. " +
     "Existing accounts are never modified.</div></div></div>" +
     "<div class='pb'>" +
     "<textarea id='ob-rows' rows='6' placeholder='sak.awan@college.ac.uk, Sak Awan&#10;jamie.l@college.ac.uk, Jamie Lee' " +
@@ -474,7 +474,7 @@ export function renderOpsPage(label: string): string {
     "<span class='muted' id='ob-prog'></span></div>" +
     "<div id='ob-out' style='margin-top:14px'></div></div></section>" +
     "<section class='panel s7'><div class='ph'><div><div class='t'>Maintenance</div>" +
-    "<div class='c'>safe to use any time — data rebuilds automatically on the next visit</div></div></div>" +
+    "<div class='c'>safe to use any time - data rebuilds automatically on the next visit</div></div></div>" +
     "<div class='pb'><div class='actions'>" +
     "<button class='abtn ghost' id='bust-btn' type='button'>Rebuild all dashboards (bust caches)</button>" +
     "<button class='abtn ghost' id='feed-btn' type='button'>Clear live-activity feed</button>" +
@@ -504,7 +504,7 @@ export function renderOpsPage(label: string): string {
     "var rows='';(s.codes||[]).forEach(function(cd){" +
     "rows+=\"<div class='coderow'><code>\"+esc(cd.code)+'</code><span>'+esc(cd.label)+'</span>'+" +
     "'<span class=muted>'+(cd.tag?esc(cd.tag):'whole school')+'</span>'+" +
-    /* Ops rights are the keys to the platform — never let one hide in
+    /* Ops rights are the keys to the platform - never let one hide in
      * a list that otherwise looks like ordinary provider access. */
     "(cd.ops?\"<span class='opsflag'>OPS</span>\":'')+" +
     "\"<button class='abtn2' data-c='\"+esc(cd.code)+\"'>Revoke</button></div>\"});" +
@@ -540,7 +540,7 @@ export function renderOpsPage(label: string): string {
     "op:'onboard',rows:chunks[idx],tag:$('ob-tag').value.trim(),modules:obMods()," +
     "send_email:$('ob-email').checked,dry_run:dry})})" +
     ".then(function(r){return r.json()}).then(function(j){all=all.concat((j&&j.results)||[]);idx++;step();})" +
-    ".catch(function(){$('ob-prog').textContent='Batch failed — results so far shown.';obRender(all);});}" +
+    ".catch(function(){$('ob-prog').textContent='Batch failed - results so far shown.';obRender(all);});}" +
     "step();}" +
     "$('ob-dry').onclick=function(){obRun(true,function(all){" +
     "var bad=all.filter(function(r){return r.action==='error'||r.action==='create_failed'}).length;" +
@@ -548,7 +548,7 @@ export function renderOpsPage(label: string): string {
     "$('ob-go').disabled=bad>0||good===0;" +
     "if(bad>0){$('ob-prog').textContent='Fix the errors above and dry-run again before creating.';}" +
     "else if(good===0){$('ob-prog').textContent='Nothing new to create.';}" +
-    "else{$('ob-prog').textContent=good+' account'+(good===1?'':'s')+' ready — review, then press Create cohort.';}});};" +
+    "else{$('ob-prog').textContent=good+' account'+(good===1?'':'s')+' ready - review, then press Create cohort.';}});};" +
     "$('ob-go').onclick=function(){var n=obRows().length;" +
     "if(!confirm('Create '+n+' learner account'+(n===1?'':'s')+' on the platform now?'+($('ob-email').checked?' Welcome emails WILL be sent.':' No emails will be sent.')))return;" +
     "obRun(false);};" +
@@ -556,10 +556,10 @@ export function renderOpsPage(label: string): string {
     "$('feed-btn').onclick=function(){act('clear_feed',null,function(){flash();});};" +
     "load();" +
     "})();</script>";
-  return portalShell(`Fledglings Ops — ${label}`, body);
+  return portalShell(`Fledglings Ops - ${label}`, body);
 }
 
-/** Read-only evidence snapshot for an inspector — server-rendered,
+/** Read-only evidence snapshot for an inspector - server-rendered,
  * aggregate-only (no names, emails, flags or nudges), reached via a
  * signed 7-day link. */
 export function renderInspectPage(data: {
@@ -597,7 +597,7 @@ export function renderInspectPage(data: {
     )
     .join("");
   return portalShell(
-    `Fledglings evidence snapshot — ${data.label}`,
+    `Fledglings evidence snapshot - ${data.label}`,
     "<header class='mast'>" +
       `<div class='mast-bird'>${BIRD_MARK}</div>` +
       "<div class='mast-in'>" +
@@ -619,11 +619,11 @@ export function renderInspectPage(data: {
       `<div class='pb'><table><thead><tr><th>Module</th><th class='num'>Enrolled</th>` +
       `<th class='num'>Completed</th><th class='num'>%</th></tr></thead><tbody>${modHtml}</tbody></table></div></section>` +
       `<section class='panel s12'><div class='ph'><div><div class='t'>Evidence narrative</div>` +
-      `<div class='c'>drafted from the aggregate figures — honest about what the data can and cannot claim</div></div></div>` +
+      `<div class='c'>drafted from the aggregate figures - honest about what the data can and cannot claim</div></div></div>` +
       `<div class='pb'><div class='narr'>${esc(data.narrative)}</div></div></section>` +
       "</div>" +
       "<p class='fineprint'>Figures describe engagement with Fledglings life-skills modules from a recent sample of learner " +
-      "accounts. They evidence provision, participation and active monitoring — not attributed outcomes. " +
+      "accounts. They evidence provision, participation and active monitoring - not attributed outcomes. " +
       "Individual learner records are available to the provider through their access-controlled portal.</p>" +
       "</main>",
   );
@@ -631,10 +631,10 @@ export function renderInspectPage(data: {
 
 export function renderInspectBuilding(): string {
   return portalShell(
-    "Fledglings — preparing snapshot",
+    "Fledglings - preparing snapshot",
     "<div class='content' style='max-width:560px'><div class='panel'><div class='pb' style='padding:30px'>" +
       "<h2 style='font-size:20px;margin-bottom:10px'>Preparing this evidence snapshot…</h2>" +
-      "<p class='muted' style='line-height:1.6'>The figures are being gathered from the platform — this can take " +
+      "<p class='muted' style='line-height:1.6'>The figures are being gathered from the platform - this can take " +
       "a few seconds the first time. Please refresh the page shortly. The link itself is valid.</p>" +
       "<div class='actions' style='margin-top:16px'><button class='abtn' onclick='location.reload()'>Refresh</button></div>" +
       "</div></div></div>",
@@ -643,11 +643,11 @@ export function renderInspectBuilding(): string {
 
 export function renderInspectExpired(): string {
   return portalShell(
-    "Fledglings — link expired",
+    "Fledglings - link expired",
     "<div class='content' style='max-width:560px'><div class='panel'><div class='pb' style='padding:30px'>" +
       "<h2 style='font-size:20px;margin-bottom:10px'>This evidence link has expired</h2>" +
       "<p class='muted' style='line-height:1.6'>Inspector links last 7 days. Ask the provider to generate a " +
-      "fresh one from their Fledglings portal — it takes one click.</p></div></div></div>",
+      "fresh one from their Fledglings portal - it takes one click.</p></div></div></div>",
   );
 }
 
@@ -680,7 +680,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     "<div class='kpi'><div class='k'>Typical last visit</div><div class='v' id='lg-median'>–</div>" +
     "<div class='c'>median days since a learner was last on</div></div>" +
     "<div class='kpi attn'><div class='k'>Need attention</div><div class='v' id='lg-attn'>–</div>" +
-    "<div class='c'>going quiet — see Early warning</div></div>" +
+    "<div class='c'>going quiet - see Early warning</div></div>" +
     "</div></div>" +
     /* tab rail */
     "<nav class='rail' role='tablist'>" +
@@ -699,7 +699,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s12",
       title: "Curriculum impact",
-      caption: "completion across the Fledglings learning areas — the personal development picture at a glance",
+      caption: "completion across the Fledglings learning areas - the personal development picture at a glance",
       body: "<div id='curric'></div>",
     }) +
     panel({
@@ -757,7 +757,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     "</div>" +
     "<p class='fineprint'><b>The tiers:</b> Needs contact = 21+ days quiet, or never logged in after two weeks · Drifting = 10–20 days · " +
     "Early wobble = 8–9 days quiet, a never-logged-in account past its first week, or a month on the platform without finishing a module · new joiners get a week's grace. " +
-    "This view is for pastoral and safeguarding staff — treat it with the same care as any learner record.</p>" +
+    "This view is for pastoral and safeguarding staff - treat it with the same care as any learner record.</p>" +
     "<div class='actions' style='margin-top:14px'><button class='abtn ghost' onclick='window.print()'>Print early-warning digest</button></div>" +
     "</div>" +
     /* ---- MODULES ---- */
@@ -765,7 +765,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s12",
       title: "Where learners stall",
-      caption: "unit-by-unit drop-off inside each module (whole-school figures) — the fix-first list for content improvement",
+      caption: "unit-by-unit drop-off inside each module (whole-school figures) - the fix-first list for content improvement",
       body: "<div id='mh-list' class='muted'>Loading…</div>",
     }) +
     panel({
@@ -783,13 +783,13 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s12",
       title: "Safeguarding flags",
-      caption: "crisis language detected in reflection answers — machine-flagged, not a judgement; a flag means read it and decide, fast",
+      caption: "crisis language detected in reflection answers - machine-flagged, not a judgement; a flag means read it and decide, fast",
       body: "<div id='sg-list'></div>",
     }) +
     panel({
       span: "s12",
       title: "Confidence shift",
-      caption: "learners' own before-and-after self-ratings per module — personal development evidence in their words",
+      caption: "learners' own before-and-after self-ratings per module - personal development evidence in their words",
       right: "<span class='muted' id='reflect-meta' style='font-size:11.5px'></span>",
       body: "<div id='shift-list'></div>",
     }) +
@@ -798,7 +798,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s12",
       title: "Reflection unit matching",
-      caption: "the exact pre/post units identified in each module — a dash means the unit needs renaming to be picked up",
+      caption: "the exact pre/post units identified in each module - a dash means the unit needs renaming to be picked up",
       body: "<div id='coverage-list'></div>",
     }) +
     "</div></div></div>" +
@@ -807,7 +807,7 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     panel({
       span: "s12",
       title: "Evidence narrative",
-      caption: "drafted for your SAR / personal development reporting — honest about what the data can and cannot claim",
+      caption: "drafted for your SAR / personal development reporting - honest about what the data can and cannot claim",
       body: "<div class='narr' id='narrative'></div>" +
         "<div class='actions' style='margin-top:20px'>" +
         "<button class='abtn' id='copy-narr'>Copy narrative</button><span class='copied' id='copied-narr' hidden>Copied ✓</span>" +
@@ -818,12 +818,12 @@ export function renderPortalDashboard(label: string, tag: string | null): string
     }) +
     "</div>" +
     "<p class='fineprint'>Figures describe engagement with Fledglings life-skills modules; sampled figures are labelled as such. " +
-    "They evidence provision, participation and active monitoring — not attributed outcomes. The CSV lists your learners " +
+    "They evidence provision, participation and active monitoring - not attributed outcomes. The CSV lists your learners " +
     "with module counts, days since last login and attention level" +
     (tag ? ", limited to your cohort" : "") +
     ".</p></div>" +
     "</main>" +
     `<script>${portalAppSource}</script>`;
 
-  return portalShell(`Fledglings Portal — ${label}`, body);
+  return portalShell(`Fledglings Portal - ${label}`, body);
 }

@@ -10,7 +10,7 @@
  * answers surface ONLY as safeguarding flags (minimum necessary to act)
  * behind the provider access code, tag-scoped. */
 
-import { crisisHeuristic } from "./safety";
+import { safeguardingHeuristic } from "./safety";
 
 /* ---------------- shapes ---------------- */
 
@@ -122,7 +122,7 @@ export function scanForSafeguarding(
   for (const a of response.answers) {
     if (a.answer.length < 12) continue; // ratings/choices, not prose
     if (/^[\d\s./-]+$/.test(a.answer)) continue;
-    if (crisisHeuristic(a.answer)) {
+    if (safeguardingHeuristic(a.answer)) {
       flags.push({
         email: response.email,
         courseTitle: unit.courseTitle,
@@ -305,6 +305,7 @@ export interface RawReflectionRow {
   answer: string;
 }
 
+export const SAFEGUARD_SCAN_VERSION = 2;
 export const RAW_ANSWER_MAX_CHARS = 600;
 export const RAW_ROWS_MAX = 20000;
 
@@ -370,6 +371,8 @@ export interface ReflectionsState {
    * catalogue at build start - a scheme releasing new modules joins
    * automatically on the next rebuild. */
   courseList?: Array<{ title: string; id: string }>;
+  /** Deterministic safeguarding pattern-set version this build used. */
+  patternsVersion?: number;
   /** emails seen per kind, for the completion stat */
   preRespondents: string[];
   postRespondents: string[];
@@ -389,6 +392,7 @@ export function emptyState(totalCourses: number, now: Date): ReflectionsState {
     userTags: {},
     learnerEmails: [],
     attempts: {},
+    patternsVersion: SAFEGUARD_SCAN_VERSION,
     preRespondents: [],
     postRespondents: [],
     builtAt: now.toISOString(),

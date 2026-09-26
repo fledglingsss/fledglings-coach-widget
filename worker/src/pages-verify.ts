@@ -104,7 +104,24 @@ table(['Pull','State'],[
 ['Reflections module coverage',p.reflections.coveredCourses+' of '+p.reflections.totalCourses+' modules swept'+(coverageShort?" - <b class='vbad'>rebuilding; fills over the next few hours</b>":' ✓')],
 ['Account capacity',p.accountCapacity.seen+' of '+p.accountCapacity.max+' the pull can cover'+(p.accountCapacity.seen/p.accountCapacity.max>0.9?" - <b class='vbad'>raise the page cap soon</b>":'')]]));
 
-document.getElementById('v-body').innerHTML=out;})
+/* safeguarding self-test */
+out+="<section class='vcard'><h2>Safeguarding self-test <span class='vchip warn'>ON DEMAND</span></h2>"+
+"<p class='vp'>Pushes labelled synthetic disclosures (true positives across the KCSIE categories, plus true negatives including topic mentions) through the REAL detection layers: the deterministic screen and the AI rubric. Nothing synthetic touches learner data.</p>"+
+"<button type='button' class='vbtn' id='st-run'>Run the self-test</button>"+
+"<div id='st-out' style='margin-top:12px'></div></section>";
+document.getElementById('v-body').innerHTML=out;
+var stBtn=document.getElementById('st-run');
+if(stBtn)stBtn.onclick=function(){
+stBtn.disabled=true;stBtn.textContent='Running (about 20 seconds)…';
+fetch('/ops/scan-test').then(function(r){return r.json()}).then(function(t){
+stBtn.disabled=false;stBtn.textContent='Run the self-test again';
+var box=document.getElementById('st-out');
+if(!t||!t.ok){box.innerHTML="<p class='vp vbad'>Self-test failed to run - "+esc((t&&t.error)||'no response')+"</p>";return;}
+box.innerHTML="<p class='vp'><b>Caught "+esc(t.recall)+" of the true disclosures; correctly left "+esc(t.precision)+" of the innocent answers alone.</b></p>"+
+table(['Case','Answer','Expected','Pattern layer','AI layer','Verdict'],t.results.map(function(rr){
+return [esc(rr.id),esc(rr.answer),rr.expect==='flag'?'flag':'leave alone',rr.deterministic?'flagged':'-',rr.ai?'flagged':'-',
+rr.pass?"<b style='color:#1B7A4B'>PASS</b>":"<b class='vbad'>MISS</b>"]}));})
+.catch(function(){stBtn.disabled=false;stBtn.textContent='Run the self-test again';});};})
 .catch(function(){document.getElementById('v-body').innerHTML="<div class='vempty'>Could not reach the console service - refresh to retry.</div>";});
 })();`;
 

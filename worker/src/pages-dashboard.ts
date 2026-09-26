@@ -699,6 +699,16 @@ el.innerHTML=
 block('⚠ Worth a check-in','con',d.safeguarding,'Nothing met the safeguarding rubric across the '+fmtN(d.scanned)+' written answers read.')+
 block('🛟 Reasonable adjustments to consider','adj',d.adjustments,'No support needs surfaced in the written answers.')+
 block('✨ Positive reinforcement to pass on','pos',d.positives,'No standout answers yet.');
+/* The header chip is set from the crisis-pattern layer alone, so an
+ * "all clear" there would sit beside AI-read cards that say "follow
+ * up today" - escalate the chip once the deeper read lands (never
+ * downgrade an open crisis count). */
+var chip=$('rf-flags-count');
+if(chip&&chip.textContent==='all clear'){
+var sg=(d.safeguarding||[]).filter(function(h){return inCoh(h.email)});
+if(sg.length){var con=sg.filter(function(h){return h.severity==='concern'}).length;
+chip.className='dtag warn';
+chip.textContent=con?con+' to follow up today':sg.length+' to check in';}}
 wireDrills();}
 function loadReflections(){if(REF){renderReflections();return;}
 if(refLoading)return;refLoading=true;
