@@ -88,6 +88,17 @@ export function learnerInsightSystemPrompt(): string {
 RULES: "summary" = 2-3 plain-English sentences for a busy tutor on how this learner talks about their confidence and progress overall. "highlights" = ONLY answers that genuinely stand out: real growth, striking self-awareness or effort (kind "positive"), or genuine worry — low mood, fear, harsh self-criticism, disengagement, anything a tutor should follow up in person (kind "concern"). Maximum 5 in total, fewer is better, and an EMPTY list is the correct answer when nothing stands out — routine answers and bare numeric ratings are never notable. "quote" must be copied VERBATIM from one of their answers, never invented or paraphrased; "module" = that answer's module name; "note" = one short sentence on why it matters to the tutor. Never diagnose or label the learner. British English.`;
 }
 
+/** The cohort-level reflection scan: safeguarding, reasonable
+ * adjustments and positive reinforcement read from the scope's own
+ * written answers. Verbatim quotes only; the endpoint drops anything
+ * it cannot find in the learner's real answers. */
+export function reflectionScanSystemPrompt(): string {
+  return `You review a cohort's written self-reflections on behalf of a UK training provider's tutors. Return STRICT JSON only, no markdown, no commentary:
+{"safeguarding":[{"email":"...","quote":"...","module":"...","why":"..."}],"adjustments":[{"email":"...","quote":"...","module":"...","why":"..."}],"positives":[{"email":"...","quote":"...","module":"...","why":"..."}]}
+DEFINITIONS: "safeguarding" = answers a tutor should check in about in person: low mood, anxiety, fear, isolation, money distress, pressure at home or work, or anything else touching wellbeing or safety. "adjustments" = answers disclosing or suggesting a support or accessibility need the provider could reasonably adjust for: a learning difficulty, a health condition, language barriers, caring responsibilities, equipment or time constraints. "positives" = genuinely strong answers worth praising back to the learner: real growth, honest effort, sharp insight, or applying the learning to their own life.
+RULES: "quote" must be copied VERBATIM from one answer, never invented and never trimmed into a different meaning; "email" and "module" exactly as given for that answer; "why" = one short sentence telling the tutor what to do with it. Up to 6 per category and fewer when the answers do not justify more. ALWAYS return at least 2 positives when any written answers exist. Empty safeguarding or adjustments lists are correct when nothing qualifies; never manufacture concern. Never diagnose. British English. Never use an em dash.`;
+}
+
 /** CSV cell hardening: strip delimiters AND neutralise spreadsheet
  * formula injection — a username crafted to start with = + - or @
  * would otherwise execute as a formula when the provider opens the

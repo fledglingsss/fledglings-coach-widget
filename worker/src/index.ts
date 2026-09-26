@@ -90,6 +90,7 @@ import {
   RAW_ROWS_MAX,
   rawRows,
   scanForSafeguarding,
+  answerScore,
   shiftsFromRows,
   type ReflectionResponse,
   type ReflectionsState,
@@ -239,6 +240,7 @@ import {
   EXCLUDED_TITLES,
   learnerInsightSystemPrompt,
   narrativeSystemPrompt,
+  reflectionScanSystemPrompt,
 } from "./lib/portal";
 import {
   appendHistory,
@@ -2229,20 +2231,17 @@ const REFLECT_BUILD_KEY = `${REFLECT_KV_KEY}:building`;
  * the last complete data, never a half-filled sweep. */
 async function advanceReflections(env: Env): Promise<ReflectionsState> {
   const now = new Date();
-  const courseEntries = sweepCourseEntries();
   const main: ReflectionsState | null = JSON.parse(
     (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
   );
-  const mainUsable =
+  const mainFresh =
     main !== null &&
     main.status === "ready" &&
     main.responses !== undefined &&
-    main.totalCourses === courseEntries.length;
-  const mainFresh =
-    mainUsable &&
-    /* Snapshots built before the learner filter existed still carry
-     * staff/test-account answers — serve them, but rebuild promptly. */
+    /* Snapshots without these fields predate the learner filter or
+     * catalogue discovery - serve them, but rebuild promptly. */
     main.learnerEmails !== undefined &&
+    main.courseList !== undefined &&
     now.getTime() - new Date(main.builtAt).getTime() <= REFLECT_MAX_AGE_MS;
   if (mainFresh) return main!;
 
@@ -2252,13 +2251,32 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
   if (
     state === null ||
     state.status === "ready" || // finished builds live in main
-    state.totalCourses !== courseEntries.length ||
-    state.responses === undefined
+    state.responses === undefined ||
+    state.courseList === undefined
   ) {
-    state = emptyState(courseEntries.length, now);
+    state = emptyState(0, now);
   }
 
   let calls = 0;
+
+  /* The module list comes from the LIVE catalogue at the start of
+   * each build, so a scheme releasing new modules never needs a code
+   * change (found live 2026-09-26). The static list is the fallback
+   * when the catalogue call fails. */
+  if (!state.courseList || state.courseList.length === 0) {
+    try {
+      calls++;
+      const live = await listCourses(env);
+      state.courseList = live
+        .filter((cr) => cr.title && !EXCLUDED_TITLES.has(cr.title.trim()))
+        .filter((cr) => cr.title.trim() !== "Hub sign-in")
+        .map((cr) => ({ title: cr.title.trim(), id: cr.id }));
+    } catch {
+      state.courseList = sweepCourseEntries().map(([title, id]) => ({ title, id }));
+    }
+    state.totalCourses = state.courseList.length;
+  }
+  const courseEntries: Array<[string, string]> = state.courseList.map((cr) => [cr.title, cr.id]);
 
   /* Capture email -> tags for every learner (1 call per 100 users) so
    * cohort scoping is self-contained. Retried on EVERY build step while
@@ -2345,8 +2363,9 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
               kind === "pre" ? state.preRespondents : state.postRespondents;
             if (parsed.email && !bucket.includes(parsed.email)) bucket.push(parsed.email);
           }
-          /* Fixed 20/page: five pages covers 100 responses per unit. */
-          if (page >= res.totalPages || page >= 5) break;
+          /* Fixed 20/page; fifteen pages covers 300 responses per unit -
+           * whole-cohort modules passed 100 respondents (2026-09-26). */
+          if (page >= res.totalPages || page >= 15) break;
           page++;
         }
       }
@@ -2482,6 +2501,104 @@ app.get("/portal/reflections", async (c) => {
   } catch (err) {
     console.error("[coach] reflections error:", String(err));
     return c.json({ error: "service_error" });
+  }
+});
+
+/* Cohort reflection scan - the AI read across the scope's written
+ * answers: safeguarding to check in about, reasonable adjustments to
+ * consider, and positives to pass on. One model call per scope,
+ * cached until new answers arrive; verbatim quotes are enforced
+ * server-side. The deterministic crisis patterns stay separate and
+ * always run first. */
+app.get("/portal/reflection-scan", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  try {
+    const state = await readReflections(c.env);
+    const tagPatch = JSON.parse(
+      (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
+    ) as Record<string, string[]>;
+    const tagsOf = (email: string): string[] =>
+      tagPatch[email.toLowerCase()] ?? state.userTags[email.toLowerCase()] ?? [];
+    const scoped = access.tag
+      ? state.responses.filter((r) => inScope(tagsOf(r.email), access.tag))
+      : state.responses;
+    /* Only written prose can carry a disclosure or a win - ratings
+     * and one-word answers are noise to this read. */
+    const prose = scoped.filter(
+      (r) => r.answer.length >= 25 && answerScore(r.answer) === null,
+    );
+    if (prose.length < 5) {
+      return c.json({ ok: true, status: "too_few", scanned: prose.length, totalAnswers: scoped.length });
+    }
+    const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
+    const cacheKey = `reflect:scan:v1:${scopeKey}:${scoped.length}`;
+    const cached = await c.env.RATE_LIMITS.get(cacheKey);
+    if (cached) return c.json(JSON.parse(cached));
+    const sample = prose
+      .slice()
+      .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
+      .slice(0, 250)
+      .map((r) => ({
+        email: r.email,
+        module: r.courseTitle,
+        question: r.question.slice(0, 120),
+        answer: r.answer.slice(0, 320),
+      }));
+    const raw = await generate(
+      c.env.ANTHROPIC_API_KEY,
+      c.env.COACH_MODEL || "claude-sonnet-4-6",
+      reflectionScanSystemPrompt(),
+      JSON.stringify({ answers: sample }),
+      1500,
+    );
+    const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as Record<
+      string,
+      unknown
+    >;
+    /* Honesty guard: an item survives only when its quote really
+     * appears in that learner's own answers. */
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+    const blobByEmail = new Map<string, string>();
+    for (const r of prose) {
+      const key = r.email.toLowerCase();
+      blobByEmail.set(key, (blobByEmail.get(key) ?? "") + " \n " + norm(r.answer));
+    }
+    const clean = (list: unknown): Array<{ email: string; quote: string; module: string; why: string }> =>
+      (Array.isArray(list) ? list : [])
+        .filter((h): h is Record<string, string> => {
+          if (typeof h !== "object" || h === null) return false;
+          const hh = h as Record<string, unknown>;
+          return (
+            typeof hh.email === "string" &&
+            typeof hh.quote === "string" &&
+            hh.quote.trim().length > 0 &&
+            (blobByEmail.get(hh.email.toLowerCase()) ?? "").includes(norm(hh.quote))
+          );
+        })
+        .slice(0, 6)
+        .map((h) => ({
+          email: h.email,
+          quote: h.quote.slice(0, 400),
+          module: (h.module ?? "").slice(0, 120),
+          why: (h.why ?? "").slice(0, 200),
+        }));
+    const payload = {
+      ok: true,
+      status: "ready",
+      scanned: prose.length,
+      totalAnswers: scoped.length,
+      safeguarding: clean(parsed.safeguarding),
+      adjustments: clean(parsed.adjustments),
+      positives: clean(parsed.positives),
+    };
+    await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
+      expirationTtl: 30 * 24 * 3600,
+    });
+    return c.json(payload);
+  } catch (err) {
+    console.error("[coach] reflection scan failed:", String(err));
+    return c.json({ ok: true, status: "unavailable" });
   }
 });
 
@@ -5330,26 +5447,27 @@ app.post("/internal/job", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { job?: string; depth?: number };
   const job = typeof body.job === "string" ? body.job : "";
   try {
-    if (job === "roster") await rosterTick(c.env);
-    else if (job === "roster_cycle") {
-      /* One slice per invocation, chained until every learner's
-       * course data is fresh — a full refresh at any roster size
-       * without one invocation ever carrying the whole load. */
-      const depth = typeof body.depth === "number" ? body.depth : 0;
-      await rosterTick(c.env, depth === 0);
-      const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
-      const staleLeft = (roster?.entries ?? []).filter(
-        (e) => Date.now() - e.fetchedAt > 30 * 60_000,
-      ).length;
-      if (staleLeft > 0 && depth < 11) {
-        const next = dispatchJob(c.env, "roster_cycle", { depth: depth + 1 });
-        try {
-          c.executionCtx.waitUntil(next);
-        } catch {
-          next.catch(() => {});
-        }
+    if (job === "roster") {
+      /* One slice: list sync + a batch of course pulls. The groups
+       * overlay refreshes on the first slice of a cycle only. */
+      await rosterTick(c.env, body.depth === undefined || body.depth === 0);
+    } else if (job === "roster_cycle") {
+      /* The cycle AWAITS each slice as a child invocation and only
+       * returns when the roster is fresh - a fire-and-forget chain
+       * dies with its parent (found live 2026-09-26: course data sat
+       * 3.5 days stale because only the first slice ever ran). Each
+       * child gets its own subrequest budget; this parent spends one
+       * dispatch per slice. */
+      let slices = 0;
+      for (; slices < 12; slices++) {
+        if (!(await dispatchJob(c.env, "roster", { depth: slices }))) break;
+        const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
+        const staleLeft = (roster?.entries ?? []).filter(
+          (e) => Date.now() - e.fetchedAt > 30 * 60_000,
+        ).length;
+        if (staleLeft === 0) break;
       }
-      console.log(`[coach] kind=roster-cycle depth=${depth} staleLeft=${staleLeft}`);
+      console.log(`[coach] kind=roster-cycle slices=${slices + 1}`);
     } else if (job === "reflect") await advanceReflections(c.env);
     else if (job === "risk") await getRiskReport(c.env, true);
     else return c.json({ error: "unknown_job" }, 400);

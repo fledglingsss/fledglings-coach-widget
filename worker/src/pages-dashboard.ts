@@ -145,10 +145,11 @@ export function renderDashboardPage(): string {
     "</div>" +
     "<p class='dmut' id='rf-cohort-note' hidden style='margin:-4px 0 12px'></p>" +
     "<div class='chips' id='rf-deck-chips' style='margin-bottom:14px'></div>" +
-    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing - worrying answers first <span class='dtag' id='rf-flags-count'></span></h2>" +
-    "<p class='rf-p'>Every answer is scanned against the same crisis patterns that guard the coach. Anything that matches appears here, first - read it yourself: this is a prompt to check in, not a verdict.</p>" +
+    "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing, adjustments and wins <span class='dtag' id='rf-flags-count'></span></h2>" +
+    "<p class='rf-p'>Two layers read every answer: crisis patterns run on every sweep, and an AI read of the written answers surfaces who to check in with, reasonable adjustments to consider, and strong answers worth praising back.</p>" +
     "<div id='rf-flags'></div>" +
-    "<div class='dempty' id='rf-flags-empty' hidden>✅ Nothing worrying right now - every answer on record has been scanned, and the scan re-runs on every sweep. Anything that matches will appear here before everything else.</div></div>" +
+    "<div class='dempty' id='rf-flags-empty' hidden>✅ No crisis-pattern matches - every answer on record is checked on every sweep. The written-answer read below goes deeper.</div>" +
+    "<div id='rf-scan'><div class='dempty'>Reading the written answers…</div></div></div>" +
     "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h2>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h2>" +
     "<div id='rf-shifts'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
@@ -306,11 +307,14 @@ var $=function(id){return document.getElementById(id)};
 function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 /* liveness: rise-in on view swaps + count-up numbers */
 var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* Thousands separators on every counter - a bare "2024" reads as a
+ * year, not a count (founder, 2026-09-26). */
+function fmtN(n){return Math.round(n).toLocaleString('en-GB')}
 function countUp(el,to,suffix){suffix=suffix||'';to=Math.round(to);
-if(reduce||document.hidden||!window.requestAnimationFrame){el.textContent=to+suffix;return;}
+if(reduce||document.hidden||!window.requestAnimationFrame){el.textContent=fmtN(to)+suffix;return;}
 var start=performance.now(),dur=600;
 (function tick(now){var p=Math.min(1,(now-start)/dur);p=1-Math.pow(1-p,3);
-el.textContent=Math.round(to*p)+suffix;if(p<1)requestAnimationFrame(tick);})(start);}
+el.textContent=fmtN(to*p)+suffix;if(p<1)requestAnimationFrame(tick);})(start);}
 function band(s){return s>=70?'#1A7649':s>=50?'#9A5812':'#B93A22'}
 var DATA=null,view='home',cohortFilter=null,search='';
 /* ---------- navigation ---------- */
@@ -660,6 +664,34 @@ document.querySelectorAll('[data-cohort]').forEach(function(b){b.onclick=functio
 cohortFilter=b.dataset.cohort;go('students');};});}
 /* ---------- reflections (lazy) ---------- */
 var REF=null,refLoading=false;
+/* The AI read of written answers: check-ins, adjustments, wins. */
+var SCAN=null,scanLoading=false;
+function loadScan(){if(SCAN){renderScan();return;}
+if(scanLoading)return;scanLoading=true;
+fetch('/portal/reflection-scan').then(function(r){return r.json()}).then(function(d){
+scanLoading=false;SCAN=d&&d.ok?d:{status:'unavailable'};renderScan();})
+.catch(function(){scanLoading=false;SCAN={status:'unavailable'};renderScan();});}
+function renderScan(){var el=$('rf-scan');if(!el||!SCAN)return;
+var d=SCAN;
+if(d.status==='too_few'){el.innerHTML="<p class='dmut' style='margin-top:12px'>Only "+fmtN(d.scanned||0)+" written answers so far - the deeper read starts once learners write more.</p>";return;}
+if(d.status!=='ready'){el.innerHTML="<p class='dmut' style='margin-top:12px'>The written-answer read is unavailable just now - leave this tab and come back to retry.</p>";return;}
+function inCoh(em){if(!cohortFilter)return true;
+var r=DATA&&DATA.learners.find(function(x){return x.email.toLowerCase()===String(em).toLowerCase()});
+return !!(r&&r.tags.indexOf(cohortFilter)>-1);}
+function block(title,cls,items,empty){
+var list=(items||[]).filter(function(h){return inCoh(h.email)});
+return "<h3 class='scan-h'>"+title+"</h3>"+(list.length?"<div class='ins-list'>"+list.map(function(h){
+var inRows=DATA&&DATA.learners.some(function(r){return r.email.toLowerCase()===h.email.toLowerCase()});
+return "<div class='ins-hl "+cls+"'><span class='ins-k'>"+esc2(h.email)+(h.module?" <i>· "+esc2(h.module)+"</i>":'')+"</span>"+
+"<div class='ins-q'>“"+esc2(h.quote)+"”</div>"+
+(h.why?"<div class='ins-n'>"+esc2(h.why)+"</div>":'')+
+(inRows?"<div class='rf-acts'><button type='button' class='dlink' data-drill='"+esc2(h.email)+"'>View student →</button></div>":'')+
+"</div>";}).join('')+"</div>":"<p class='dmut'>"+empty+"</p>");}
+el.innerHTML=
+block('⚠ Worth a check-in','con',d.safeguarding,'Nothing qualifying in the '+fmtN(d.scanned)+' written answers read.')+
+block('🛟 Reasonable adjustments to consider','adj',d.adjustments,'No support needs surfaced in the written answers.')+
+block('✨ Positive reinforcement to pass on','pos',d.positives,'No standout answers yet.');
+wireDrills();}
 function loadReflections(){if(REF){renderReflections();return;}
 if(refLoading)return;refLoading=true;
 fetch('/portal/reflections').then(function(r){return r.json()}).then(function(d){
@@ -764,7 +796,7 @@ return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"
  * founder: browse a taste here, download everything. */
 var recent=(d.recent||[]).filter(function(rr){return inCohortEmail(rr.email)}).slice(0,10);
 $('rf-recent-empty').hidden=recent.length>0;
-$('rf-recent-note').textContent=recent.length?('the newest '+recent.length+' of '+(d.rawCount||recent.length)+' - the Excel download has every answer'):'';
+$('rf-recent-note').textContent=recent.length?('the newest '+recent.length+' of '+fmtN(d.rawCount||recent.length)+' - the Excel download has every answer'):'';
 $('rf-recent').innerHTML=recent.map(function(r){
 return "<tr><td class='dmut'>"+esc2(r.email)+"</td><td>"+esc2(r.courseTitle)+"</td>"+
 "<td class='dmut'>"+(r.submittedAt?new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):' - ')+"</td>"+
@@ -779,14 +811,18 @@ $('rf-deck-chips').innerHTML=rfSecs.map(function(s){
 var lbl=s.dataset.rfl;if(s.id==='rf-flags-card'&&flags.length)lbl+=' ('+flags.length+')';
 return "<button type='button' class='chip' aria-pressed='false'>"+esc2(lbl)+"</button>"}).join('');
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.onclick=function(){rfShow(i)}});
-rfShow(rfSecs.indexOf($('rf-flags-card')));}
+rfShow(rfSecs.indexOf($('rf-flags-card')));
+loadScan();}
 /* ---------- richer instruments: radar, donut, recency area ---------- */
 var RADAR_PALETTE=['#13507F','#D9452B','#1B7A4B','#ED9249','#7C5CBF'];
 var radarHidden={};
 function cohortMeasures(members){var n=members.length||1;
 var avgMins=members.reduce(function(s,r){return s+r.learning.minutes},0)/n;
 var avgMods=Math.round(members.reduce(function(s,r){return s+r.learning.completed},0)*10/n)/10;
+var enr=members.reduce(function(s,r){return s+r.learning.enrolled},0);
+var dne=members.reduce(function(s,r){return s+r.learning.completed},0);
 return {avgMods:avgMods,
+complRate:enr?Math.round(dne*100/enr):0,
 loggedIn:Math.round(members.filter(function(r){return r.engagement.daysSinceLogin!==null}).length*100/n),
 active:Math.round(members.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length*100/n),
 started:Math.round(members.filter(function(r){return r.learning.completed+r.learning.inProgress>0}).length*100/n),
@@ -831,15 +867,16 @@ return series;}
  * colour weight - the precise dissection next to the shape. */
 function heatTable(series){
 if(!series||series.length<2)return "<div class='dempty'>Appears once two or more cohorts have learners.</div>";
-var COLS=[['Learners','n'],['Logged in','loggedIn'],['Active 7d','active'],['Started','started'],['Completed','completed'],['Avg time','avgMins']];
+var COLS=[['Learners','n'],['Logged in','loggedIn'],['Active 7d','active'],['Avg modules','avgMods'],['Completion','complRate'],['Avg time','avgMins']];
 var maxMins=Math.max.apply(null,series.map(function(s){return s.m.avgMins}).concat([1]));
+var maxMods=Math.max.apply(null,series.map(function(s){return s.m.avgMods}).concat([0.1]));
 var out="<table class='heat'><thead><tr><th></th>"+COLS.map(function(cl){return "<th>"+esc2(cl[0])+"</th>"}).join('')+"</tr></thead><tbody>";
 series.forEach(function(sr){
 out+="<tr><th><i class='dotc' style='background:"+sr.c+"'></i>"+esc2(sr.tag)+"</th>";
 COLS.forEach(function(cl){
 var raw=cl[1]==='n'?sr.n:sr.m[cl[1]];
-var alpha=cl[1]==='n'?0:cl[1]==='avgMins'?(raw/maxMins)*0.5:(raw/100)*0.5;
-var label=cl[1]==='n'?String(raw):cl[1]==='avgMins'?fmtMins(Math.round(raw)):raw+'%';
+var alpha=cl[1]==='n'?0:cl[1]==='avgMins'?(raw/maxMins)*0.5:cl[1]==='avgMods'?(raw/maxMods)*0.5:(raw/100)*0.5;
+var label=cl[1]==='n'?String(raw):cl[1]==='avgMins'?fmtMins(Math.round(raw)):cl[1]==='avgMods'?String(raw):raw+'%';
 out+="<td style='background:rgba(27,122,73,"+alpha.toFixed(2)+")'>"+label+"</td>";});
 out+="</tr>";});
 return out+"</tbody></table>";}
@@ -1378,6 +1415,9 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .ins-hl{background:#FAF8F7;border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
 .ins-hl.pos{border-left:3px solid var(--ok);}
 .ins-hl.con{border-left:3px solid #9A5812;}
+.ins-hl.adj{border-left:3px solid var(--blue);}
+.ins-hl.adj .ins-k{color:var(--blue);}
+.scan-h{margin:18px 0 8px;font-size:14px;font-weight:700;color:var(--navy);}
 .ins-k{font-size:12px;font-weight:700;letter-spacing:.02em;}
 .ins-hl.pos .ins-k{color:var(--ok);}
 .ins-hl.con .ins-k{color:#9A5812;}

@@ -306,7 +306,7 @@ export interface RawReflectionRow {
 }
 
 export const RAW_ANSWER_MAX_CHARS = 600;
-export const RAW_ROWS_MAX = 5000;
+export const RAW_ROWS_MAX = 20000;
 
 export function rawRows(
   unit: AssessmentUnit,
@@ -366,6 +366,10 @@ export interface ReflectionsState {
   /** Failed fetch attempts per course id — a course is retried on
    * later budget steps and only skipped after three failures. */
   attempts?: Record<string, number>;
+  /** The module list this build swept, discovered from the live
+   * catalogue at build start - a scheme releasing new modules joins
+   * automatically on the next rebuild. */
+  courseList?: Array<{ title: string; id: string }>;
   /** emails seen per kind, for the completion stat */
   preRespondents: string[];
   postRespondents: string[];
