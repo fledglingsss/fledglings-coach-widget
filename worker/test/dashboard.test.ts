@@ -186,11 +186,12 @@ describe("GET /dashboard/data", () => {
     expect(data.kpis.learners).toBe(2);
     expect(data.kpis.avgCv).toBe(72);
     expect(data.kpis.modulesCompleted).toBe(1);
-    /* The cross-system funnel: Amy advances every stage, Ben none. */
+    /* Learning-only funnel (career stages held back until the tools
+     * launch): Amy advances every stage, Ben none. */
     const funnel = (data as unknown as { funnel: Array<{ stage: string; n: number }> }).funnel;
-    expect(funnel.map((f) => f.n)).toEqual([2, 1, 1, 1, 1, 1]);
+    expect(funnel.map((f) => f.n)).toEqual([2, 1, 1, 1]);
     expect(funnel[0]!.stage).toBe("In your scope");
-    expect(funnel[5]!.stage).toBe("Job-ready (70+)");
+    expect(funnel[3]!.stage).toBe("Completed a module");
     /* Learning rollups for the analytics charts. */
     const budgeting = data.analytics.courses.find((cs) => cs.title === "Budgeting That Actually Works");
     expect(budgeting).toMatchObject({ enrolled: 1, completed: 1, pct: 100 });
@@ -292,13 +293,15 @@ describe("GET /dashboard/export.csv", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("text/csv");
     const lines = (await res.text()).split("\r\n");
-    expect(lines[0]).toContain("CV score");
-    expect(lines[0]).toContain("Modules completed");
+    /* Learning columns only: no career-tool scores until the tools
+     * launch for providers. */
+    expect(lines[0]).toBe(
+      "Name,Email,Tags,Modules enrolled,Modules completed,Modules in progress,Study time (minutes),Days since login",
+    );
     expect(lines).toHaveLength(3); // header + 2 in-scope learners
     expect(lines[1]).toContain('"amy@swift.test"');
-    expect(lines[1]).toContain("72");
     /* Modules enrolled=2, completed=1 straight after the tags column. */
-    expect(lines[1]).toMatch(/"Swift Learners",2,1,1,2,/);
+    expect(lines[1]).toMatch(/"Swift Learners",2,1,1,\d+,2$/);
     expect(lines.join("\n")).not.toContain("cal@other.test");
   });
 
@@ -337,9 +340,9 @@ describe("GET /dashboard/modules.csv and cohorts.csv", () => {
     const lines = (await res.text()).split("\r\n");
     expect(lines[0]).toContain("Cohort,Learners,Modules enrolled");
     const swift = lines.find((l) => l.includes("Swift Learners"))!;
-    /* 2 learners, 2 modules enrolled, 1 completed, 50%, 1 using tools,
-     * avg 76, 0 journeys done, 1 never logged in. */
-    expect(swift).toBe('"Swift Learners",2,2,1,50,1,76,0,1');
+    /* 2 learners, 2 modules enrolled, 1 completed, 50%, 1 never
+     * logged in - learning columns only until the tools launch. */
+    expect(swift).toBe('"Swift Learners",2,2,1,50,1');
   });
 
   it("both reject without a session", async () => {

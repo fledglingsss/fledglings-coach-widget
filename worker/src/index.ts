@@ -4087,17 +4087,13 @@ app.get("/dashboard/data", async (c) => {
       }))
       .sort((a, b) => b.enrolled - a.enrolled);
 
-    /* The intertwine centrepiece: one funnel spanning both systems -
-     * LearnWorlds presence and learning on the left, career-tool
-     * progress and job-readiness on the right. Stage counts, not
-     * forced-monotonic: a learner can use the tools standalone. */
+    /* Learning funnel only: career-tool stages are held back until the
+     * tools launch for providers (founder, 2026-09-26). */
     const funnel = [
       { stage: "In your scope", n: rows.length },
       { stage: "Logged in to Fledglings", n: rows.filter((r) => r.engagement.daysSinceLogin !== null).length },
       { stage: "Learning modules", n: rows.filter((r) => r.learning.completed + r.learning.inProgress > 0).length },
       { stage: "Completed a module", n: rows.filter((r) => r.learning.completed > 0).length },
-      { stage: "Using career tools", n: rows.filter((r) => r.readiness !== null || HUB_TOOLS.some((t) => r.employability[t]!.attempts > 0)).length },
-      { stage: "Job-ready (70+)", n: rows.filter((r) => (r.readiness ?? 0) >= 70).length },
     ];
 
     const payload = {
@@ -4182,23 +4178,17 @@ app.get("/dashboard/cohorts.csv", async (c) => {
     const { rows } = await dashboardRows(c.env, access.tag);
     const tags = [...new Set(rows.flatMap((r) => r.tags))].sort();
     const lines = [
-      "Cohort,Learners,Modules enrolled,Modules completed,Completion %,Using career tools,Avg job-ready,Career journey complete,Never logged in",
+      "Cohort,Learners,Modules enrolled,Modules completed,Completion %,Never logged in",
       ...tags.map((tag) => {
         const m = rows.filter((r) => r.tags.includes(tag));
         const enrolled = m.reduce((s, r) => s + r.learning.enrolled, 0);
         const completed = m.reduce((s, r) => s + r.learning.completed, 0);
-        const scored = m.filter((r) => r.readiness !== null);
         return [
           csvField(tag),
           m.length,
           enrolled,
           completed,
           enrolled ? Math.round((completed / enrolled) * 100) : 0,
-          scored.length,
-          scored.length
-            ? Math.round(scored.reduce((s, r) => s + (r.readiness ?? 0), 0) / scored.length)
-            : "",
-          m.filter((r) => r.tasksDone === 7).length,
           m.filter((r) => r.engagement.tier === "high" && r.engagement.daysSinceLogin === null).length,
         ].join(",");
       }),
@@ -4383,7 +4373,7 @@ app.get("/dashboard/export.csv", async (c) => {
     const { rows } = await dashboardRows(c.env, access.tag);
     const esc = csvField;
     const lines = [
-      "Name,Email,Tags,Modules enrolled,Modules completed,Modules in progress,Days since login,CV score,CV attempts,LinkedIn score,LinkedIn attempts,Interview score,Interview attempts,Letters created,Journey tasks done (of 7),Job-ready score",
+      "Name,Email,Tags,Modules enrolled,Modules completed,Modules in progress,Study time (minutes),Days since login",
       ...rows.map((r) =>
         [
           esc(r.name),
@@ -4392,23 +4382,15 @@ app.get("/dashboard/export.csv", async (c) => {
           r.learning.enrolled,
           r.learning.completed,
           r.learning.inProgress,
+          r.learning.minutes,
           r.engagement.daysSinceLogin ?? "",
-          r.employability.cv!.latest ?? "",
-          r.employability.cv!.attempts,
-          r.employability.linkedin!.latest ?? "",
-          r.employability.linkedin!.attempts,
-          r.employability.interview!.latest ?? "",
-          r.employability.interview!.attempts,
-          r.employability.cover!.attempts,
-          r.tasksDone,
-          r.readiness ?? "",
         ].join(","),
       ),
     ];
     return new Response(lines.join("\r\n"), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="fledglings-employability-${access.tag ?? "all"}.csv"`,
+        "Content-Disposition": `attachment; filename="fledglings-learners-${access.tag ?? "all"}.csv"`,
       },
     });
   } catch (err) {
