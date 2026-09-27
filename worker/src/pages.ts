@@ -564,7 +564,7 @@ export function appShell(opts: {
       `${NAV_ICONS[n.icon]}<span>${esc(n.label)}</span></a>`,
   ).join("");
   return (
-    "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
+    "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><link rel='icon' type='image/png' href='/favicon.png?v=2'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
     "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>" +
     "<meta name='robots' content='noindex'>" +
@@ -640,7 +640,7 @@ export function pageShell(opts: {
   extraCss?: string;
 }): string {
   return (
-    "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'>" +
+    "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><link rel='icon' type='image/png' href='/favicon.png?v=2'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
     "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>" +
     "<meta name='robots' content='noindex'>" +
