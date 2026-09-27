@@ -150,7 +150,7 @@ export function renderDashboardPage(): string {
     "<p class='dmut' id='rf-cohort-note' hidden style='margin:-4px 0 12px'></p>" +
     "<div class='chips' id='rf-deck-chips' style='margin-bottom:14px'></div>" +
     "<div class='dcard rf-flags rf-sec' data-rfl='⚠ Wellbeing' id='rf-flags-card' hidden><h2>⚠ Wellbeing, adjustments and wins <span class='dtag' id='rf-flags-count'></span></h2>" +
-    "<p class='rf-p'>Two layers read every answer: crisis patterns run on every sweep, and an AI read of the written answers surfaces who to check in with, reasonable adjustments to consider, and strong answers worth praising back.</p>" +
+    "<p class='rf-p'>Two layers read every answer: crisis patterns run on every data sweep, and a deeper read of the written answers every Monday morning surfaces who to check in with, reasonable adjustments to consider, and strong answers worth praising back.</p>" +
     "<div id='rf-flags'></div>" +
     "<div class='dempty' id='rf-flags-empty' hidden>✅ No crisis-pattern matches - every answer on record is checked on every sweep. The written-answer read below goes deeper.</div>" +
     "<div id='rf-scan'><div class='dempty'>Reading the written answers…</div></div></div>" +
@@ -659,7 +659,8 @@ return "<div class='ins-hl "+cls+"'><span class='ins-k'>"+sev+esc2(h.email)+(h.m
 (inRows?"<div class='rf-acts'><button type='button' class='dlink' data-drill='"+esc2(h.email)+"'>View student →</button></div>":'')+
 "</div>";}).join('')+"</div>":"<p class='dmut'>"+empty+"</p>");}
 el.innerHTML=
-"<p class='dmut' style='margin-top:12px;font-size:12.5px'>Every one of the "+fmtN(d.scanned)+" written answers was read against KCSIE-aligned safeguarding indicators, Equality Act reasonable-adjustment duties and strengths-based feedback practice"+(d.batches>1?' ('+d.batches+' reads)':'')+".</p>"+
+"<p class='dmut' style='margin-top:12px;font-size:12.5px'>Every one of the "+fmtN(d.scanned)+" written answers was read against KCSIE-aligned safeguarding indicators, Equality Act reasonable-adjustment duties and strengths-based feedback practice"+(d.batches>1?' ('+d.batches+' reads)':'')+
+(d.ranAt?". Last deep read "+new Date(d.ranAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+" - it refreshes every Monday morning; crisis patterns still run on every data sweep.":".")+"</p>"+
 block('⚠ Worth a check-in','con',d.safeguarding,'Nothing met the safeguarding rubric across the '+fmtN(d.scanned)+' written answers read.')+
 block('🛟 Reasonable adjustments to consider','adj',d.adjustments,'No support needs surfaced in the written answers.')+
 block('✨ Positive reinforcement to pass on','pos',d.positives,'No standout answers yet.');

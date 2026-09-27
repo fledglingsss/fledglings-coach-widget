@@ -93,6 +93,7 @@ import {
   SAFEGUARD_SCAN_VERSION,
   scanForSafeguarding,
   answerScore,
+  scanWeekStamp,
   shiftsFromRows,
   type RawReflectionRow,
   type ReflectionResponse,
@@ -2660,7 +2661,15 @@ app.get("/portal/reflection-scan", async (c) => {
       return c.json({ ok: true, status: "too_few", scanned: prose.length, totalAnswers: scoped.length });
     }
     const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
-    const cacheKey = `reflect:scan:v2:${scopeKey}:${scoped.length}`;
+    /* The deep AI read runs ONCE A WEEK per scope, on Monday morning
+     * (founder, 2026-09-27, cost control) - the key carries the
+     * Monday-anchored week stamp, never the answer count, so nothing
+     * else triggers a re-read: not new answers, not the provider's
+     * Refresh button. A Monday cron pre-runs it so the section is
+     * already warm when tutors arrive. The deterministic crisis-
+     * pattern screen still runs over every answer on every sweep, so
+     * urgent language never waits a week. */
+    const cacheKey = `reflect:scan:v4:${scopeKey}:${scanWeekStamp(new Date())}`;
     const cached = await c.env.RATE_LIMITS.get(cacheKey);
     if (cached) return c.json(JSON.parse(cached));
     /* EVERY written answer is read, in batches - never a sample. Each
@@ -2741,12 +2750,15 @@ app.get("/portal/reflection-scan", async (c) => {
       scanned: prose.length,
       totalAnswers: scoped.length,
       batches,
+      ranAt: new Date().toISOString(),
       safeguarding: merged.safeguarding,
       adjustments: merged.adjustments.slice(0, 8),
       positives: merged.positives.slice(0, 8),
     };
+    /* The week stamp in the key is the cadence; the TTL just tidies
+     * up old weeks' entries. */
     await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
-      expirationTtl: 30 * 24 * 3600,
+      expirationTtl: 21 * 24 * 3600,
     });
     return c.json(payload);
   } catch (err) {
@@ -5697,7 +5709,33 @@ app.post("/internal/job", async (c) => {
       console.log(`[coach] kind=roster-cycle slices=${slices + 1}`);
     } else if (job === "reflect") await advanceReflections(c.env);
     else if (job === "risk") await getRiskReport(c.env, true);
-    else return c.json({ error: "unknown_job" }, 400);
+    else if (job === "scan_warm") {
+      /* Run this week's deep read through the REAL endpoint for one
+       * code per distinct scope - the route owns caching, batching
+       * and the honesty guard, so warming reuses it rather than
+       * duplicating it. Sessions are minted server-side exactly as
+       * the login handler mints them. */
+      const list = await c.env.RATE_LIMITS.list({ prefix: "portal:code:" });
+      const codeByScope = new Map<string, string>();
+      for (const k of list.keys) {
+        const code = k.name.slice("portal:code:".length);
+        const meta = await portalCodeMeta({ env: c.env }, code);
+        if (!meta) continue;
+        const scope = meta.tag ? meta.tag.toLowerCase() : "";
+        if (!codeByScope.has(scope)) codeByScope.set(scope, code);
+      }
+      let warmed = 0;
+      const target = c.env.SELF ?? { fetch };
+      for (const code of codeByScope.values()) {
+        const iat = Math.floor(Date.now() / 1000);
+        const sig = await signPayload(c.env.LEARNWORLDS_CLIENT_SECRET || "", `portal:${code}:${iat}`);
+        const res = await target.fetch("https://self.internal/portal/reflection-scan", {
+          headers: { Cookie: `${PORTAL_COOKIE}=${code}.${iat}.${sig}` },
+        });
+        if (res.ok) warmed++;
+      }
+      console.log(`[coach] kind=scan-warm scopes=${codeByScope.size} ok=${warmed}`);
+    } else return c.json({ error: "unknown_job" }, 400);
     return c.json({ ok: true, job });
   } catch (err) {
     console.error(`[coach] job ${job} failed:`, String(err));
@@ -5731,6 +5769,16 @@ async function scheduled(
   /* The hourly tick only rolls the roster; the heavyweight jobs stay
    * nightly. Each job carries its own catch so one failing cannot
    * take the others down with it. */
+  if (event.cron === "0 6 * * 1") {
+    /* Monday morning: pre-run the weekly safeguarding deep read for
+     * every scope so the section is warm before staff arrive. */
+    ctx.waitUntil(
+      dispatchJob(env, "scan_warm").catch((err) =>
+        console.error("[coach] scan warm dispatch failed:", String(err)),
+      ),
+    );
+    return;
+  }
   if (event.cron === "0 */12 * * *") {
     /* Twice a day: a FULL roster cycle (the job chains itself, one
      * slice per invocation, until every learner's course data is

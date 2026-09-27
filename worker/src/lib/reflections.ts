@@ -153,6 +153,19 @@ export interface ModuleShift {
 /** Parse one answer string as a self-rating. Learners answer rating
  * blocks as "8 / 10" (live data 2026-08-03) — parse the fraction,
  * else a bare 0-10 number; anything else is not a rating. */
+/** The Monday-morning bucket a deep scan belongs to (founder: the AI
+ * read runs once a week, Monday morning, and nothing else - not new
+ * answers, not the Refresh button - triggers it sooner). Anchored at
+ * Monday 06:00 UTC, which is 7am UK in summer and 6am in winter, the
+ * same moment the warm-up cron fires. Returns the date of that
+ * Monday; the stamp only changes when the boundary passes. */
+export function scanWeekStamp(now: Date): string {
+  const shifted = new Date(now.getTime() - 6 * 3_600_000);
+  const daysSinceMonday = (shifted.getUTCDay() + 6) % 7;
+  shifted.setUTCDate(shifted.getUTCDate() - daysSinceMonday);
+  return shifted.toISOString().slice(0, 10);
+}
+
 export function answerScore(answer: string): { got: number; max: number } | null {
   const frac = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*$/.exec(answer);
   if (frac && Number(frac[2]) > 0 && Number(frac[1]) <= Number(frac[2])) {

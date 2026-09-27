@@ -9,6 +9,7 @@ import {
   RAW_ANSWER_MAX_CHARS,
   rawRows,
   scanForSafeguarding,
+  scanWeekStamp,
   type AssessmentUnit,
   type ReflectionResponse,
 } from "../src/lib/reflections";
@@ -242,5 +243,18 @@ describe("rich-text stripping", () => {
       answers: [{ blockType: "freeText", description: "Do you think budgets are restrictive?", answer: "<strong>empowering</strong> — I can plan ahead.<br />More freedom.", points: 0, blockMaxScore: 0 }],
     })!;
     expect(r.answers[0]!.answer).toBe("empowering — I can plan ahead. More freedom.");
+  });
+});
+
+describe("scanWeekStamp - the Monday-morning deep-read cadence", () => {
+  it("holds the same stamp all week, whatever happens in between", () => {
+    // 2026-09-23 is a Wednesday; its scan week began Monday the 21st.
+    expect(scanWeekStamp(new Date("2026-09-23T15:30:00Z"))).toBe("2026-09-21");
+    expect(scanWeekStamp(new Date("2026-09-27T10:00:00Z"))).toBe("2026-09-21");
+  });
+
+  it("rolls over exactly at Monday 06:00 UTC, when the warm cron fires", () => {
+    expect(scanWeekStamp(new Date("2026-09-28T05:59:59Z"))).toBe("2026-09-21");
+    expect(scanWeekStamp(new Date("2026-09-28T06:00:01Z"))).toBe("2026-09-28");
   });
 });
