@@ -52,7 +52,7 @@ out+=card('Learner reconciliation',rec.agree?'PASS':'FAIL',
 table(['Source','Learners'],[['Role census (live from the platform)',String(rec.census)],
 ['Rolling roster (what refreshes hourly)',String(rec.roster)],
 ['Dashboard rows (what providers see)',String(rec.dashboard)]])+
-(rec.agree?"":"<p class='vp vwarn'>Counts disagree - the roster reconciles on the next hourly tick; if this persists past an hour, something is wrong.</p>"));
+(rec.agree?"":"<p class='vp vwarn'>Counts disagree - press Refresh data on the dashboard (or wait for Monday morning) and re-check; if it persists after a refresh, something is wrong.</p>"));
 
 /* structure */
 var oddState=d.structure.oddities.length?'WARN':'PASS';
@@ -98,7 +98,7 @@ table(['Pull','State'],[
 ['Learner list sync',ro.listSyncedMinutesAgo===null?'never':ro.listSyncedMinutesAgo+' minutes ago'],
 ['Course data - freshest learner',ro.newestCourseFetchMinutesAgo===null?' - ':ro.newestCourseFetchMinutesAgo+' minutes ago'],
 ['Course data - stalest learner',ro.oldestCourseFetchMinutesAgo===null?' - ':ro.oldestCourseFetchMinutesAgo+' minutes ago'],
-['Refresh cadence',ro.refreshedPerHourlyTick+' learners per hourly tick - full cycle ≈ '+ro.fullCycleHours+' hours at '+ro.size+' learners'],
+['Refresh cadence','automatic every Monday morning; the dashboard Refresh button any time - '+ro.size+' learners per full pull'],
 ['Learners awaiting their first course pull',ro.awaitingFirstFetch===0?'none ✓':"<b>"+ro.awaitingFirstFetch+"</b>"],
 ['Reflections snapshot',esc(p.reflections.status)+' · '+p.reflections.answersOnRecord+' answers · built '+p.reflections.builtHoursAgo+'h ago'],
 ['Reflections module coverage',p.reflections.coveredCourses+' of '+p.reflections.totalCourses+' modules swept'+(coverageShort?" - <b class='vbad'>rebuilding; fills over the next few hours</b>":' ✓')],

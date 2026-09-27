@@ -15,12 +15,12 @@ compatibility_flags = ["nodejs_compat"]
 # reason to sit anywhere near the provider's rate limit for data that
 # changes a few times a day.
 [triggers]
-# Nightly heavy jobs at 03:10; the data roster refreshes twice a day
-# (providers press Refresh on the dashboard for anything sooner).
-# The Monday 06:00 UTC firing pre-runs the weekly safeguarding deep
-# read (7am UK in summer, 6am in winter) so it is warm before staff
-# arrive; nothing else - including the Refresh button - triggers it.
-crons = ["10 3 * * *", "0 */12 * * *", "0 6 * * 1"]
+# ONE automatic update a week: Monday 06:00 UTC (7am UK in summer,
+# 6am in winter) refreshes course/engagement data, rebuilds the
+# reflections snapshot, then runs the safeguarding deep read over the
+# fresh answers. Between Mondays, only the provider's own Refresh
+# button moves data (founder, 2026-09-27, cost control).
+crons = ["0 6 * * 1"]
 
 # Self service binding: lets the cron fan each heavyweight data pull
 # out into its own invocation (a worker cannot fetch its own public

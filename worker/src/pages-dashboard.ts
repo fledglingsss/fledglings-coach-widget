@@ -1087,7 +1087,7 @@ $('dsample').textContent=(d.scopedTag?
 'your '+d.sampleSize+' learners covered':
 (d.totalUsers!==null&&d.sampleSize>=d.totalUsers)?'all '+d.totalUsers+' accounts covered':
 d.sampleSize+' of '+(d.totalUsers===null?'all':d.totalUsers)+' accounts sampled')+
-', refreshed automatically twice a day - the Refresh button pulls the latest';
+', refreshed automatically every Monday morning - the Refresh button pulls the latest any time';
 $('dperiod').textContent=(d.scopedTag?d.scopedTag+' · ':'')+d.sampleSize+' learners';
 $('g-bar').hidden=!GBAR_VIEWS[view];renderGlobalChips();
 refresh();if(view!=='home')renderHome();}

@@ -5180,7 +5180,7 @@ app.post("/ops/action", async (c) => {
     }
     if (op === "roster_tick") {
       /* Founder-triggered full refresh: the same chained cycle the
-       * twice-daily cron dispatches, plus one reflections step. */
+       * weekly Monday cron dispatches, plus one reflections step. */
       const roster = await dispatchJob(c.env, "roster_cycle");
       const reflect = await dispatchJob(c.env, "reflect");
       console.log("[coach] kind=ops op=roster_tick");
@@ -5188,7 +5188,7 @@ app.post("/ops/action", async (c) => {
     }
     if (op === "reflect_step") {
       /* One budgeted sweep step on demand - lets the founder walk a
-       * rebuild through without waiting for hourly ticks. */
+       * rebuild through without waiting for the weekly cron. */
       const ok = await dispatchJob(c.env, "reflect");
       console.log("[coach] kind=ops op=reflect_step");
       return c.json({ ok });
@@ -5709,7 +5709,26 @@ app.post("/internal/job", async (c) => {
       console.log(`[coach] kind=roster-cycle slices=${slices + 1}`);
     } else if (job === "reflect") await advanceReflections(c.env);
     else if (job === "risk") await getRiskReport(c.env, true);
-    else if (job === "scan_warm") {
+    else if (job === "weekly") {
+      /* The Monday-morning sequence, strictly ordered: the deep read
+       * at the end must cover the week's NEW answers, so the
+       * reflections snapshot is driven to a fresh build first (each
+       * step is a child invocation with its own budget; a full
+       * rebuild takes several). */
+      await dispatchJob(c.env, "roster_cycle");
+      for (let steps = 0; steps < 14; steps++) {
+        if (!(await dispatchJob(c.env, "reflect"))) break;
+        const main = JSON.parse(
+          (await c.env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
+        ) as ReflectionsState | null;
+        if (main && Date.now() - new Date(main.builtAt).getTime() < 2 * 3_600_000) break;
+      }
+      await getRiskReport(c.env, true).catch((err) =>
+        console.error("[coach] weekly risk refresh failed:", String(err)),
+      );
+      await dispatchJob(c.env, "scan_warm");
+      console.log("[coach] kind=weekly done");
+    } else if (job === "scan_warm") {
       /* Run this week's deep read through the REAL endpoint for one
        * code per distinct scope - the route owns caching, batching
        * and the honesty guard, so warming reuses it rather than
@@ -5766,55 +5785,16 @@ async function scheduled(
   ctx: ExecutionContext,
 ): Promise<void> {
   if (!lwConfigured(env)) return;
-  /* The hourly tick only rolls the roster; the heavyweight jobs stay
-   * nightly. Each job carries its own catch so one failing cannot
-   * take the others down with it. */
-  if (event.cron === "0 6 * * 1") {
-    /* Monday morning: pre-run the weekly safeguarding deep read for
-     * every scope so the section is warm before staff arrive. */
-    ctx.waitUntil(
-      dispatchJob(env, "scan_warm").catch((err) =>
-        console.error("[coach] scan warm dispatch failed:", String(err)),
-      ),
-    );
-    return;
-  }
-  if (event.cron === "0 */12 * * *") {
-    /* Twice a day: a FULL roster cycle (the job chains itself, one
-     * slice per invocation, until every learner's course data is
-     * fresh), then one budgeted reflections step. Anything sooner is
-     * the provider's own Refresh button. */
-    ctx.waitUntil(
-      (async () => {
-        await dispatchJob(env, "roster_cycle");
-        await dispatchJob(env, "reflect");
-      })().catch((err) =>
-        console.error("[coach] twice-daily dispatch failed:", String(err)),
-      ),
-    );
-    return;
-  }
+  /* ONE automatic update a week (founder, 2026-09-27): Monday
+   * morning refreshes everything in order - course and engagement
+   * data, the reflections snapshot, the early-warning tiers, then
+   * the safeguarding deep read over the fresh answers. Between
+   * Mondays, only the provider's own Refresh button moves data. */
+  if (event.cron !== "0 6 * * 1") return;
   ctx.waitUntil(
-    getRiskReport(env, true)
-      .then((r) =>
-        console.log(
-          `[coach] kind=risk-cron learners=${r.summary.learners} high=${r.summary.tiers.high}`,
-        ),
-      )
-      .catch((err) => console.error("[coach] risk cron failed:", String(err))),
-  );
-  /* Keep the reflections sweep warm overnight: a stale snapshot gets
-   * rebuilt (re-probing the plan-gated endpoints, so a supplier-side
-   * enablement is picked up within a day even if nobody visits), and
-   * an in-progress build advances a few budget steps. */
-  ctx.waitUntil(
-    (async () => {
-      /* Each step is its own invocation - four steps rebuilds the
-       * whole sweep overnight without touching one budget. */
-      for (let i = 0; i < 4; i++) {
-        if (!(await dispatchJob(env, "reflect"))) break;
-      }
-    })().catch((err) => console.error("[coach] reflect cron failed:", String(err))),
+    dispatchJob(env, "weekly").catch((err) =>
+      console.error("[coach] weekly dispatch failed:", String(err)),
+    ),
   );
 }
 
