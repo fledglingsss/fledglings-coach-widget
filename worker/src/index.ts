@@ -26,8 +26,9 @@
  * and is sent with each request. KV holds only hashed rate-limit
  * counters. Logs carry outcome kinds and latency, never message text. */
 
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
+import { FAVICON_PNG_B64 } from "./favicon";
 
 import { isOriginAllowed } from "./lib/origin";
 import { checkAndIncrement, hashLearnerId, limits } from "./lib/rate-limit";
@@ -638,25 +639,16 @@ app.get("/", (c) =>
 
 /* Browsers ask for /favicon.ico on every page whether or not a page
  * names an icon; without one, each visit logged a 404 and the tab sat
- * blank. The mark is the brand flame, inline, so nothing else loads. */
-const FAVICON_SVG =
-  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>" +
-  "<rect width='64' height='64' rx='14' fill='#05253C'/>" +
-  "<path d='M32 10c6 8 12 14 12 24a12 12 0 0 1-24 0c0-6 3-9 5-12 0 5 2 8 5 8 4 0 4-8 2-20z' fill='#ED9249'/>" +
-  "<path d='M32 30c3 4 6 7 6 12a6 6 0 0 1-12 0c0-4 2-6 3-8 0 2 1 4 2 4 2 0 2-4 1-8z' fill='#D2432A'/>" +
-  "</svg>";
-app.get("/favicon.ico", (c) =>
-  c.body(FAVICON_SVG, 200, {
-    "Content-Type": "image/svg+xml",
+ * blank. The official feather mark (founder-supplied, 2026-09-27)
+ * ships embedded, so nothing else loads. */
+const FAVICON_BYTES = Uint8Array.from(atob(FAVICON_PNG_B64), (ch) => ch.charCodeAt(0));
+const serveFavicon = (c: { body: Context["body"] }) =>
+  c.body(FAVICON_BYTES, 200, {
+    "Content-Type": "image/png",
     "Cache-Control": "public, max-age=604800",
-  }),
-);
-app.get("/favicon.svg", (c) =>
-  c.body(FAVICON_SVG, 200, {
-    "Content-Type": "image/svg+xml",
-    "Cache-Control": "public, max-age=604800",
-  }),
-);
+  });
+app.get("/favicon.ico", serveFavicon);
+app.get("/favicon.png", serveFavicon);
 
 app.get("/health", (c) => {
   /* Surfaces missing configuration loudly at deploy time instead of
