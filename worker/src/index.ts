@@ -4055,7 +4055,15 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
           .slice(0, 12),
       },
       engagement: {
-        tier: risk?.tier ?? null,
+        /* A learner the cached tier report has not met yet still gets
+         * the new-starter week of grace - without this, a cohort added
+         * today reads "Inactive" and floods the attention list until
+         * the next tier rebuild (found live with Kido, 2026-09-28). */
+        tier:
+          risk?.tier ??
+          (typeof user.created === "number" && Date.now() / 1000 - user.created < 7 * 86_400
+            ? "new"
+            : null),
         daysSinceLogin: risk?.daysSinceLogin ?? null,
         nudge: risk?.nudge ?? null,
       },
@@ -4080,7 +4088,14 @@ app.post("/dashboard/refresh", async (c) => {
   await c.env.RATE_LIMITS.delete(`dash:v13:${scopeKey}`);
   const work = (async () => {
     await dispatchJob(c.env, "roster_cycle");
+    /* Engagement tiers rebuild with the data, so a cohort added since
+     * Monday stops reading "Inactive" the moment anyone refreshes. */
+    await dispatchJob(c.env, "risk");
     await dispatchJob(c.env, "reflect");
+    /* The dash cache was already cleared, but a client refetch may
+     * have re-filled it with pre-rebuild tiers - clear it again now
+     * the tiers are fresh. */
+    await c.env.RATE_LIMITS.delete(`dash:v13:${scopeKey}`);
   })().catch((err) => console.error("[coach] refresh dispatch failed:", String(err)));
   try {
     c.executionCtx.waitUntil(work);
@@ -5172,11 +5187,13 @@ app.post("/ops/action", async (c) => {
     }
     if (op === "roster_tick") {
       /* Founder-triggered full refresh: the same chained cycle the
-       * weekly Monday cron dispatches, plus one reflections step. */
+       * weekly Monday cron dispatches, plus tier and reflections
+       * steps. */
       const roster = await dispatchJob(c.env, "roster_cycle");
+      const risk = await dispatchJob(c.env, "risk");
       const reflect = await dispatchJob(c.env, "reflect");
       console.log("[coach] kind=ops op=roster_tick");
-      return c.json({ ok: true, roster, reflect });
+      return c.json({ ok: true, roster, risk, reflect });
     }
     if (op === "reflect_step") {
       /* One budgeted sweep step on demand - lets the founder walk a
