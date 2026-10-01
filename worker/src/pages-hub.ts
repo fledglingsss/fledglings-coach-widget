@@ -8,6 +8,7 @@
  * standalone; only integer scores are ever stored. */
 
 import { appShell, esc, NAV_ICONS } from "./pages";
+import { OUTREACH_TEMPLATES } from "./lib/outreach";
 
 interface HubCardDef {
   tool: string;
@@ -88,11 +89,25 @@ export function renderHubPage(): string {
     "<div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div>" +
     "<div id='next-reason'></div>" +
     "<div class='btnrow' style='margin-top:14px'><a class='btn' id='next-btn' href='/tools'>Open</a></div></div>" +
+    /* The words that go with the documents. Not a scored step, so it
+     * sits beside the journey as a band rather than a fifth card: the
+     * seven tasks and the readiness maths are untouched. */
+    "<a class='card tplband' data-tool='templates' href='/templates'>" +
+    `<span class='tb-ico'>${NAV_ICONS.templates}</span>` +
+    "<span class='tb-body'><span class='tb-label'>TEMPLATES AND SCRIPTS</span>" +
+    "<b>Not sure what to say? Start from words that work.</b>" +
+    `<span class='tb-sub'>Emails, phone calls and networking messages for ${OUTREACH_TEMPLATES.length} real ` +
+    "situations, from asking about work experience to saying yes to an offer.</span></span>" +
+    "<span class='tb-cta'>Browse templates</span></a>" +
     /* recent activity */
     "<h3 class='sec-title' id='recent-title' hidden>Recent</h3>" +
     "<div class='recentgrid' id='recent-list'></div>" +
-    /* tasks checklist */
-    "<div class='card' id='tasks-card' hidden><h3>Your seven tasks</h3><ul class='tasklist' id='task-list'></ul></div>" +
+    /* tasks checklist. A tester read "Your seven tasks" as an order.
+     * It is a list the learner owns and ticks off in any order, so it
+     * is named and introduced that way. */
+    "<div class='card' id='tasks-card' hidden><h3>Your to-do list</h3>" +
+    "<p class='task-sub'>Tick these off in any order. Each one moves your Career Readiness score.</p>" +
+    "<ul class='tasklist' id='task-list'></ul></div>" +
     /* identity */
     "<div class='card idcard' id='account'>" +
     "<div id='id-known' hidden>💾 <b>Progress saving as <span id='id-email'></span></b>" +
@@ -461,6 +476,24 @@ const HUB_CSS = `
 .re-l{font-weight:600;flex:1;}
 .re-s{font-weight:800;font-size:15px;}
 .re-a{color:var(--mut);font-size:11.5px;}
+.task-sub{font-size:13px;color:var(--mut);line-height:1.5;margin:-4px 0 10px;}
+/* templates band: a way in to the words, beside the scored journey */
+.tplband{display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--navy);
+  border-left:4px solid var(--mango);transition:transform .15s,box-shadow .15s;}
+.tplband:hover{transform:translateY(-2px);box-shadow:0 12px 26px -14px rgba(14,36,56,.28);}
+.tb-ico{width:52px;height:52px;border-radius:50%;background:#FDF3EC;color:#B93A22;flex:none;
+  display:flex;align-items:center;justify-content:center;}
+.tb-ico svg{width:23px;height:23px;}
+.tb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.tb-label{font-size:10.5px;font-weight:800;letter-spacing:.1em;color:var(--amber);}
+.tplband b{font-size:15.5px;line-height:1.35;}
+.tb-sub{font-size:13px;color:var(--mut);line-height:1.5;}
+.tb-cta{flex:none;border:1.5px solid var(--line);border-radius:12px;padding:11px 16px;font-size:14px;
+  font-weight:600;white-space:nowrap;background:#fff;}
+.tb-cta::after{content:' →';white-space:pre;}
+.tplband:hover .tb-cta{border-color:#B93A22;color:#B93A22;}
+@media(max-width:640px){.tplband{flex-direction:column;align-items:flex-start;gap:12px;}
+  .tb-cta{width:100%;text-align:center;}}
 .tasklist{list-style:none;columns:2;column-gap:28px;}
 @media(max-width:640px){.tasklist{columns:1;}}
 .tasklist li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:13.5px;color:var(--mut);break-inside:avoid;}

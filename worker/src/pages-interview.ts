@@ -10,16 +10,51 @@
  * evaluation (wpm, fillers) + camera presence, blended 80/10/10. */
 
 import { appShell, esc } from "./pages";
-import { INTERVIEW_ROLES, ROLE_LABELS, questionSet, ANSWER_RUBRIC } from "./lib/interview";
+import {
+  INTERVIEW_GROUP_LABELS,
+  INTERVIEW_ROLES,
+  INTERVIEW_SETS,
+  questionSet,
+  ANSWER_RUBRIC,
+} from "./lib/interview";
+import type { InterviewGroup } from "./lib/interview";
+
+/* One picker card per question set: what it is called, and one line on
+ * what that interview is actually like - "Apprenticeship interview"
+ * means more to a sixteen-year-old with the sentence under it. */
+function pickerCards(group: InterviewGroup): string {
+  return INTERVIEW_ROLES.filter((r) => INTERVIEW_SETS[r].group === group)
+    .map((r) => {
+      const s = INTERVIEW_SETS[r];
+      return (
+        `<button type='button' class='rolebtn' data-role='${r}' data-label='${esc(s.label)}'>` +
+        `<span class='pk-ico' aria-hidden='true'>${s.icon}</span>` +
+        `<span class='pk-txt'><b>${esc(s.label)}</b><i>${esc(s.blurb)}</i></span></button>`
+      );
+    })
+    .join("");
+}
+
+function groupCount(group: InterviewGroup): number {
+  return INTERVIEW_ROLES.filter((r) => INTERVIEW_SETS[r].group === group).length;
+}
 
 export function renderInterviewPage(): string {
-  const roleButtons = INTERVIEW_ROLES.map(
-    (r) =>
-      `<button type='button' class='rolebtn' data-role='${r}'>${esc(ROLE_LABELS[r])}</button>`,
-  ).join("");
   const questionsJson = JSON.stringify(
     Object.fromEntries(INTERVIEW_ROLES.map((r) => [r, questionSet(r)])),
   );
+  /* Labels, icons and groups reach the browser from the same table the
+   * server validates against, so the question bank can never list a
+   * set the scorer would refuse, or call one by a stale name. */
+  const setsJson = JSON.stringify(
+    Object.fromEntries(
+      INTERVIEW_ROLES.map((r) => [
+        r,
+        { label: INTERVIEW_SETS[r].label, icon: INTERVIEW_SETS[r].icon, group: INTERVIEW_SETS[r].group },
+      ]),
+    ),
+  );
+  const groupsJson = JSON.stringify(INTERVIEW_GROUP_LABELS);
 
   const body =
     "<main class='wrap' style='max-width:940px'>" +
@@ -40,10 +75,10 @@ export function renderInterviewPage(): string {
     "<h3 class='learn-sec'>Modules</h3>" +
     "<div class='modgrid' id='learn-list'></div>" +
     "<div id='learn-reader' hidden></div>" +
-    "<h3 class='learn-sec'>Practise by role</h3>" +
-    "<p class='sub' style='margin-bottom:12px'>Pick a role to see its questions - practise any single one on camera " +
-    "with the full AI review.</p>" +
-    "<div class='rolegrid' id='qbank-roles'></div>" +
+    "<h3 class='learn-sec'>Question bank</h3>" +
+    "<p class='sub' style='margin-bottom:12px'>Pick a type of interview or a kind of work to see its questions, then " +
+    "practise any single one on camera with the full AI review.</p>" +
+    "<div id='qbank-roles'></div>" +
     "<div id='qbank' hidden></div></div>" +
     "<div id='home-recs' hidden>" +
     "<div class='card'><h3>Your practice library</h3>" +
@@ -62,9 +97,21 @@ export function renderInterviewPage(): string {
     "<span class='trust'>🔒 Video &amp; voice stay on your device</span>" +
     "<span class='trust'>🎯 Scores your words, not your background</span>" +
     "<span class='trust'>🐣 Built for first jobs &amp; apprenticeships</span></div></div>" +
+    /* Two ways in, because learners arrive with one of two facts: the
+     * kind of interview they have been invited to, or the kind of work
+     * they want. One group shows at a time so the card stays short and
+     * "Generate your own" is never pushed off the first screen. */
     "<div class='card'><h3>Pick your interview</h3>" +
-    "<p class='sub' style='margin-bottom:14px'>Five questions a real interviewer for that kind of role would ask.</p>" +
-    `<div class='roles'>${roleButtons}</div></div>` +
+    "<p class='sub' style='margin-bottom:14px'>Five questions a real interviewer would ask. Choose by the kind of " +
+    "interview you have coming up, or by the kind of work you are going for.</p>" +
+    "<div class='pkseg' role='tablist' aria-label='Choose your interview'>" +
+    `<button type='button' class='pkseg-b on' role='tab' id='pk-tab-type' aria-selected='true' aria-controls='pk-type' data-pk='type'>${esc(INTERVIEW_GROUP_LABELS.type)}<span>${groupCount("type")}</span></button>` +
+    `<button type='button' class='pkseg-b' role='tab' id='pk-tab-sector' aria-selected='false' aria-controls='pk-sector' data-pk='sector'>${esc(INTERVIEW_GROUP_LABELS.sector)}<span>${groupCount("sector")}</span></button>` +
+    "</div>" +
+    `<div class='roles' id='pk-type' role='tabpanel' aria-labelledby='pk-tab-type'>${pickerCards("type")}</div>` +
+    `<div class='roles' id='pk-sector' role='tabpanel' aria-labelledby='pk-tab-sector' hidden>${pickerCards("sector")}</div>` +
+    "<p class='pk-foot'>Can't see yours? <b>Generate your own interview</b> just below writes five questions " +
+    "from any job advert, your CV or a course.</p></div>" +
     "<div class='card'><h3>🚀 Generate your own interview</h3>" +
     "<p class='sub' style='margin-bottom:14px'>Choose how to build your five personalised questions - Fledge writes " +
     "what that interviewer would actually ask.</p>" +
@@ -272,7 +319,8 @@ export function renderInterviewPage(): string {
     "only your words are reviewed, and if anything you say worries Fledge about your wellbeing it will point you to real support " +
     "instead of scoring.</p>" +
     "</main>" +
-    "<script>var FL_QUESTIONS=" + questionsJson + ";</script>" +
+    "<script>var FL_QUESTIONS=" + questionsJson + ";var FL_SETS=" + setsJson +
+    ";var FL_GROUPS=" + groupsJson + ";</script>" +
     "<script>" + INTERVIEW_APP_JS + "</script>";
 
   return appShell({
@@ -629,7 +677,13 @@ beginInterview(mode);});
 
 /* ---------------- role selection / question sources ---------------- */
 document.querySelectorAll('.rolebtn').forEach(function(b){b.addEventListener('click',function(){
-role=b.dataset.role;roleLabel=b.textContent;qs=FL_QUESTIONS[role];sig='';toSetup();});});
+role=b.dataset.role;roleLabel=b.dataset.label||b.textContent;qs=FL_QUESTIONS[role];sig='';toSetup();});});
+/* the two ways in: by type of interview, or by kind of work */
+document.querySelectorAll('.pkseg-b').forEach(function(t){t.addEventListener('click',function(){
+var g=t.dataset.pk;
+document.querySelectorAll('.pkseg-b').forEach(function(o){var on=o===t;
+o.classList.toggle('on',on);o.setAttribute('aria-selected',on?'true':'false');});
+['type','sector'].forEach(function(k){$('pk-'+k).hidden=k!==g;});});});
 $('pitchbtn').addEventListener('click',function(){
 role='general';roleLabel='Your 60-second pitch';qs=[FL_QUESTIONS['general'][0]];sig='';toSetup();});
 /* three generation sources as expandable icon cards */
@@ -1012,15 +1066,21 @@ body:'Availability, notice, pay expectations, references - these have right answ
 moves:['Know your true availability before you walk in','Pay: "What is the range for this role?" is a fine answer early on','Have two referees who know they might be called']},
 {id:'after',track:'comp',title:'After the interview',mins:3,
 body:'The candidates who follow up stand out - and the ones who treat a no as information come back stronger. Every interview is practice for the one that says yes.',
-moves:['Same-day short thank-you email - two sentences, name something you discussed','Write down the questions you were asked while fresh','If it is a no, ask for one piece of feedback - then practise exactly that here']}];
+moves:['Same-day short thank-you email - two sentences, name something you discussed','Write down the questions you were asked while fresh','If it is a no, ask for one piece of feedback - then practise exactly that here'],
+links:[{href:'/templates#thank-you-interview',label:'Thank-you email template'},
+{href:'/templates#feedback-request',label:'Asking for feedback template'}]}];
 var LEARN_KEY='fl_iv_learn_v1';
 function learnRead(){try{return JSON.parse(localStorage.getItem(LEARN_KEY)||'[]')}catch(e){return []}}
 function learnMark(id){var r=learnRead();if(r.indexOf(id)===-1){r.push(id);
 try{localStorage.setItem(LEARN_KEY,JSON.stringify(r))}catch(e){}}renderTracks();}
 var MOD_ICONS={rounds:'🎬',star:'⭐',prep:'🗺️',ask:'💬',unknown:'🧭',video:'🎥',logistics:'📅',after:'📮'};
-var ROLE_ICONS={'customer-service':'🎧',retail:'🛍️',trades:'🛠️','office-admin':'🗂️',care:'🤝',hospitality:'☕',general:'🐣'};
-var ROLE_LABELS_JS={'customer-service':'Customer service',retail:'Retail','office-admin':'Office & admin',
-trades:'Trades & construction',care:'Care',hospitality:'Hospitality',general:'Any first job'};
+/* Names, icons and groups come from the server's own table (FL_SETS),
+ * so this page cannot drift from what the scorer accepts. */
+function setMeta(rk){return FL_SETS[rk]||{label:rk,icon:'💼',group:'sector'};}
+/* A link out of a module keeps the learner signed in on the way. */
+function withToken(href){var t=flToken();if(!t)return href;
+var hi=href.indexOf('#');var hash=hi>-1?href.slice(hi):'';var base=hi>-1?href.slice(0,hi):href;
+return base+(base.indexOf('?')>-1?'&':'?')+'t='+encodeURIComponent(t)+hash;}
 function readPct(list){var r=learnRead();
 var done=list.filter(function(m){return r.indexOf(m.id)>-1}).length;
 return Math.round(done*100/list.length);}
@@ -1047,6 +1107,9 @@ $('learn-reader').innerHTML="<div class='card reader'>"+
 "<p class='reader-body'>"+esc2(m.body)+"</p>"+
 "<div class='reader-h'>THE MOVES</div><ul class='reader-moves'>"+
 m.moves.map(function(v){return "<li><span class='tick'>✓</span>"+esc2(v)+"</li>"}).join('')+"</ul>"+
+/* where a module says "send an email", the words are one tap away */
+(m.links?"<div class='reader-links'>"+m.links.map(function(l){
+return "<a class='reader-link' href='"+withToken(l.href)+"'>"+esc2(l.label)+" →</a>"}).join('')+"</div>":'')+
 (m.example?"<div class='reader-h'>THE SAME STORY, TOLD TWICE</div>"+
 "<p class='wex-q'>“"+esc2(m.example.q)+"”</p>"+
 "<div class='wex weak'><span class='wex-t'>Most people say</span><p>"+esc2(m.example.weak)+"</p></div>"+
@@ -1069,17 +1132,20 @@ return "<button type='button' class='modcard' data-mod='"+m.id+"'>"+
 "<b>"+esc2(m.title)+"</b><p>"+esc2(m.body.split('.')[0])+".</p>"+
 "<span class='mod-foot'>"+(read?"<i class='mod-done'>✓ Read</i>":"▶ "+m.mins+" min read")+"<i class='mod-arr'>›</i></span></button>";}).join('');
 document.querySelectorAll('.modcard').forEach(function(b){b.onclick=function(){openModule(b.dataset.mod)};});
-/* question bank: role cards first, drill into questions */
-$('qbank-roles').innerHTML=Object.keys(FL_QUESTIONS).map(function(rk){
+/* question bank: the picker's two groups, then drill into questions */
+function qbCards(group){return Object.keys(FL_QUESTIONS).filter(function(rk){return setMeta(rk).group===group})
+.map(function(rk){var m=setMeta(rk);
 return "<button type='button' class='rolecard' data-qbrole='"+rk+"'>"+
-"<span class='mod-ico'>"+(ROLE_ICONS[rk]||'💼')+"</span>"+
-"<b>"+esc2(ROLE_LABELS_JS[rk]||rk)+"</b>"+
-"<span class='rolecount'>❓ "+FL_QUESTIONS[rk].length+" questions</span></button>";}).join('');
+"<span class='mod-ico'>"+m.icon+"</span>"+
+"<b>"+esc2(m.label)+"</b>"+
+"<span class='rolecount'>"+FL_QUESTIONS[rk].length+" questions</span></button>";}).join('');}
+$('qbank-roles').innerHTML=['type','sector'].map(function(g){
+return "<div class='qb-group'>"+esc2(FL_GROUPS[g]||g)+"</div><div class='rolegrid'>"+qbCards(g)+"</div>";}).join('');
 document.querySelectorAll('[data-qbrole]').forEach(function(b){b.onclick=function(){
 var rk=b.dataset.qbrole;
 $('qbank').hidden=false;
 $('qbank').innerHTML="<div class='card'><div class='listhead2'><h3>"+
-(ROLE_ICONS[rk]||'')+" "+esc2(ROLE_LABELS_JS[rk]||rk)+" questions</h3>"+
+setMeta(rk).icon+" "+esc2(setMeta(rk).label)+"</h3>"+
 "<button type='button' class='rev-redo' id='qb-close'>Close</button></div>"+
 FL_QUESTIONS[rk].map(function(q,qi){
 return "<div class='qb-q'><span class='qb-n'>Q"+(qi+1)+"</span><span>"+esc2(q)+"</span>"+
@@ -1088,7 +1154,7 @@ $('qbank').scrollIntoView({behavior:'smooth',block:'start'});
 $('qb-close').onclick=function(){$('qbank').hidden=true};
 document.querySelectorAll('[data-pr-role]').forEach(function(pb){pb.onclick=function(){
 var rk2=pb.dataset.prRole;var q=FL_QUESTIONS[rk2][+pb.dataset.prIdx];if(!q)return;
-role=rk2;roleLabel='Single question · '+(ROLE_LABELS_JS[rk2]||rk2);qs=[q];sig='';toSetup();};});};});}
+role=rk2;roleLabel='Single question · '+setMeta(rk2).label;qs=[q];sig='';toSetup();};});};});}
 
 /* ---------------- self review ---------------- */
 var SELF_ITEMS=['I actually answered the question that was asked','I used a real example, not a vague claim',
@@ -1216,6 +1282,15 @@ const INTERVIEW_CSS = `
 .qb-q:last-child{border-bottom:none;}
 .qb-n{font-size:11px;font-weight:800;color:#B93A22;flex:none;}
 .qb-q span{flex:1;line-height:1.5;}
+/* ".qb-q span" out-ranks ".qb-n", so the question number was growing
+ * to half the row and squeezing the question into a column a few
+ * words wide. The number keeps its own width. */
+.qb-q .qb-n{flex:none;}
+/* On a phone the question gets the full line and the button sits
+ * under it, rather than three columns fighting over 300px. */
+@media(max-width:560px){.qb-q{flex-wrap:wrap;align-items:flex-start;gap:8px 10px;}
+  .qb-q span:not(.qb-n){flex:1 1 calc(100% - 40px);}
+  .qb-q .qb-go{margin-left:auto;}}
 .qb-go{padding:8px 16px;min-height:36px;font-size:12.5px;flex:none;}
 /* self review - toggle cards */
 .selflist{list-style:none;}
@@ -1305,10 +1380,43 @@ const INTERVIEW_CSS = `
 .hero-note{font-size:12.5px;color:#616A71;align-self:center;}
 .trustrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
 .trust{background:var(--off);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--blue);}
-.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;}
-.rolebtn{border:1.5px solid #DCD5D2;background:#fff;border-radius:14px;padding:16px 12px;
-  font-family:inherit;font-size:14.5px;font-weight:600;color:var(--navy);cursor:pointer;transition:all .12s;}
+/* The picker: two groups behind a segmented switch, each set a card
+ * with its name and one line on what that interview is like. */
+.pkseg{display:inline-flex;flex-wrap:wrap;gap:6px;background:var(--off);border-radius:14px;padding:5px;margin-bottom:14px;}
+.pkseg-b{border:none;background:transparent;border-radius:10px;padding:10px 16px;min-height:44px;
+  font-family:inherit;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;}
+.pkseg-b span{background:#fff;color:var(--mut);border-radius:999px;min-width:22px;height:22px;padding:0 7px;
+  font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;}
+.pkseg-b.on{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(5,37,60,.14);}
+.pkseg-b.on span{background:var(--navy);color:#fff;}
+/* On a phone the two halves share the row equally. Left to their own
+ * widths they wrapped into a ragged stack that read as a list of two
+ * unrelated buttons rather than one switch. */
+@media(max-width:560px){.pkseg{display:flex;}
+  .pkseg-b{flex:1 1 0;min-width:0;justify-content:center;text-align:center;padding:10px 8px;font-size:13.5px;line-height:1.2;gap:6px;}}
+@media(max-width:400px){.pkseg-b span{display:none;}}
+/* min() keeps one column from overflowing a 320px phone, where the
+ * card's inner width is narrower than the 250px track minimum. */
+.roles{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr));gap:10px;}
+.rolebtn{display:flex;align-items:flex-start;gap:12px;text-align:left;border:1.5px solid #DCD5D2;background:#fff;
+  border-radius:14px;padding:14px;font-family:inherit;color:var(--navy);cursor:pointer;
+  transition:border-color .12s,transform .12s,box-shadow .12s;}
 .rolebtn:hover{border-color:#B93A22;transform:translateY(-2px);box-shadow:0 8px 18px -10px rgba(5,37,60,.35);}
+.pk-ico{width:42px;height:42px;border-radius:12px;background:#FDF3EC;font-size:20px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;}
+#pk-sector .pk-ico{background:#EAF2FA;}
+.pk-txt{min-width:0;display:flex;flex-direction:column;gap:3px;}
+.pk-txt b{font-size:14.5px;font-weight:700;line-height:1.3;}
+.pk-txt i{font-style:normal;font-size:12.5px;line-height:1.45;color:var(--mut);}
+.pk-foot{font-size:12.5px;color:var(--mut);margin:14px 0 0;line-height:1.5;}
+.pk-foot b{color:var(--navy);}
+.qb-group{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin:16px 0 8px;}
+.qb-group:first-child{margin-top:0;}
+.reader-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.reader-link{display:inline-flex;align-items:center;min-height:44px;padding:10px 16px;border:1.5px solid var(--line);
+  border-radius:999px;font-size:13px;font-weight:700;color:var(--blue);text-decoration:none;background:#fff;}
+.reader-link:hover{border-color:#B93A22;color:#B93A22;}
 .note-a11y{background:#EAF2FA;border:1.5px solid #C4D9EC;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:12px;}
 .note-focus{background:#FCE9E5;border:1.5px solid #F2C4BA;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:12px;}
 .setupgrid{display:grid;grid-template-columns:1.2fr 1fr;gap:22px;align-items:start;}

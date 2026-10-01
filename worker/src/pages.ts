@@ -184,6 +184,8 @@ return r;});}
  * one's CVs, letters and interview recordings. */
 function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');
 ['fl_builder_cvs_v1','fl_letters_v1','fl_iv_learn_v1'].forEach(flLsDel);
+/* the details typed into Templates and scripts live in this tab */
+try{sessionStorage.removeItem('fl_outreach_v1')}catch(e){}
 try{if(window.indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('fl_interview_v1');}catch(e){}}
 /* Leave the current page as nobody - strips identity from the URL too,
  * or the ?t= we just cleared would sign us straight back in. */
@@ -363,6 +365,7 @@ export const NAV_ICONS: Record<string, string> = {
   interview: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='6' width='13' height='12' rx='2.5'/><path d='m15.5 10.5 6-3.5v10l-6-3.5'/></svg>",
   privacy: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V6z'/><path d='m9 12 2 2 4-4'/></svg>",
   library: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5.5A1.5 1.5 0 0 1 5.5 4H9v16H5.5A1.5 1.5 0 0 1 4 18.5z'/><path d='M9 4h4.5A1.5 1.5 0 0 1 15 5.5v13A1.5 1.5 0 0 1 13.5 20H9z'/><path d='m17 5.5 2.6.7a1.5 1.5 0 0 1 1 1.9l-3.2 11.6'/></svg>",
+  templates: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21.5 2.5 11 13'/><path d='M21.5 2.5 15 21.5l-4-8.5-8.5-4z'/></svg>",
   account: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg>",
 };
 
@@ -373,6 +376,7 @@ export const APP_NAV: Array<{ id: string; icon: string; label: string; href: str
   { id: "cover", icon: "cover", label: "Cover Letter", href: "/cover-letter" },
   { id: "linkedin", icon: "linkedin", label: "LinkedIn Review", href: "/linkedin" },
   { id: "interview", icon: "interview", label: "Interview Practice", href: "/interview" },
+  { id: "templates", icon: "templates", label: "Templates & Scripts", href: "/templates" },
   { id: "library", icon: "library", label: "My Work", href: "/library" },
 ];
 
@@ -438,6 +442,13 @@ label .opt{color:var(--mut);font-weight:500;font-size:12.5px;}
 a:focus-visible,button:focus-visible,summary:focus-visible,
 select:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--navy);
   outline-offset:2px;border-radius:6px;}
+/* A heading that focus is MOVED to when a stage appears is a landmark
+ * for a screen reader, not a control, so it takes no ring. Without
+ * this the full-width heading wore a boxed outline whenever the
+ * learner had last typed rather than clicked - which, on a page of
+ * text boxes, is most of the time. */
+h1[tabindex='-1']:focus-visible,h2[tabindex='-1']:focus-visible,
+h3[tabindex='-1']:focus-visible{outline:none;}
 .badge{display:inline-block;background:var(--off);color:var(--mut);border-radius:99px;padding:3px 10px;
   font-size:11.5px;font-weight:600;}
 .notice{background:#FFF6F0;border-left:4px solid var(--orange);border-radius:10px;padding:12px 14px;
@@ -566,7 +577,6 @@ export function appShell(opts: {
   return (
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><link rel='icon' type='image/png' href='/favicon.png?v=2'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
-    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>" +
     "<meta name='robots' content='noindex'>" +
     `<title>${esc(opts.title)}</title>` +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
@@ -642,7 +652,6 @@ export function pageShell(opts: {
   return (
     "<!doctype html><html lang='en-GB'><head><meta charset='utf-8'><link rel='icon' type='image/png' href='/favicon.png?v=2'>" +
     "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
-    "<link rel='icon' href='/favicon.svg' type='image/svg+xml'>" +
     "<meta name='robots' content='noindex'>" +
     `<title>${esc(opts.title)}</title>` +
     "<link rel='preconnect' href='https://fonts.googleapis.com'>" +
@@ -1387,7 +1396,12 @@ export function renderAiPrivacyPage(): string {
     "<p><b>Never stored:</b> your interview answers, your video or your voice. PDFs are read inside your " +
     "own browser. Interview recordings never leave your device - the AI only ever sees the words, and " +
     "forgets them once your feedback is written. Nothing in My work is ever shown to your tutor, your " +
-    "provider or anyone else: they see scores and progress, never a document.</p></div></div>" +
+    "provider or anyone else: they see scores and progress, never a document.</p>" +
+    /* Templates and scripts has no server side at all, and the page
+     * that says what is stored has to say so. */
+    "<p><b>Templates and scripts:</b> the details you type into an email, call script or networking message " +
+    "stay in that browser tab. They are never sent to us, and they are gone when you close the tab. No AI is " +
+    "involved on that page.</p></div></div>" +
     "<div class='card'><h3>How your progress stays yours</h3><div class='result'>" +
     "<p>The proper front door is <b>Sign in with your school account</b> on the Hub: you get a short code, " +
     "type it on a page that sits behind your school's own login, and this browser is given a signed pass - " +

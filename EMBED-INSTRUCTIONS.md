@@ -45,8 +45,14 @@ paste the file's contents into a Custom Code / HTML block.
 it the browser silently blocks the camera/mic inside LearnWorlds and
 learners can only type. Do not remove that attribute.
 
-**How it works:** learners practise their 60-second pitch, pick a role
-set, or paste a real job advert to generate five tailored questions
+**How it works:** learners practise their 60-second pitch, pick an
+interview from the built-in bank, or paste a real job advert to generate
+five tailored questions. The bank is organised two ways: **by type of
+interview** (apprenticeship, part-time or weekend job, work experience,
+first full-time job, internship or graduate scheme, phone screening,
+competency/STAR, strengths-based, and the classic questions) and **by
+kind of work** (15 sectors, from retail and care to digital,
+engineering and public services) - 24 sets of five questions
 (HMAC-signed, 5/day). A camera/mic setup check (with an accessibility
 note) leads into think-time countdowns and recorded answers with live
 captions; recordings can be reviewed and re-recorded before submitting.
@@ -82,7 +88,8 @@ can see. Scores update live from module completions.
 Every employability tool also works as a normal website at
 `https://fledglings-coach.fledglings.workers.dev/hub` — the suite has
 its own sidebar navigation (Home, Resume Builder, CV Review, Cover
-Letter, LinkedIn Review, Interview Practice, AI & Privacy). Learners
+Letter, LinkedIn Review, Interview Practice, Templates & Scripts, My
+Work, AI & Privacy). Learners
 who arrive outside LearnWorlds save their email once on the Home page
 and their scores follow them; inside LearnWorlds the Liquid email does
 it automatically. Every tool shows a "Saving progress as … · Not you?"
@@ -138,6 +145,21 @@ their real CV; the draft only claims what the CV actually says, with
 [bracket] placeholders for everything only they can write. Three letter
 designs, editable in place, copy + print-to-PDF. 3 drafts/day; nothing
 stored.
+
+## Templates and scripts - `templates-embed.html`
+
+**Where:** a page or embed activity for logged-in learners. It is
+already reachable from the hub and the sidebar, so a standalone page is
+optional. 22 authored templates across three channels - emails,
+phone-call scripts and networking messages - each channel with a short
+guide, plus safety notes for contacting people you do not know. The
+learner types their own details and the page fills the template in
+their browser: **there is no API behind this page and no AI**, so
+nothing typed is sent or stored. Details are held in that browser tab
+only and cleared when it closes; anything not yet filled in stays as a
+[bracket]. Individual templates are linkable, for example
+`/templates#thank-you-interview`. `allow="clipboard-write"` keeps the
+copy buttons working inside the iframe.
 
 ## Resume Builder — `builder-embed.html`
 

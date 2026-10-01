@@ -187,6 +187,7 @@ import {
   validDocId,
 } from "./lib/library";
 import { renderLibraryPage } from "./pages-library";
+import { renderOutreachPage } from "./pages-outreach";
 import { textToSeed } from "./lib/cv-import";
 import { renderCoverLetterPage } from "./pages-cover-letter";
 import { renderBuilderPage } from "./pages-builder";
@@ -1717,6 +1718,12 @@ app.post("/api/linkedin", async (c) => {
  * ================================================================== */
 
 app.get("/library", (c) => c.html(renderLibraryPage(), 200, FRAME_HEADERS));
+
+/* Templates and scripts: authored emails, call scripts and networking
+ * messages, filled in on the learner's own device. A page only - there
+ * is deliberately no API behind it, so nothing a learner types here
+ * ever reaches the worker. */
+app.get("/templates", (c) => c.html(renderOutreachPage(), 200, FRAME_HEADERS));
 
 app.get("/cover-letter", (c) => c.html(renderCoverLetterPage(), 200, FRAME_HEADERS));
 

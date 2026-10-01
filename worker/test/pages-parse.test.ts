@@ -10,6 +10,8 @@ import { renderInterviewPage } from "../src/pages-interview";
 import { renderLinkedInPage } from "../src/pages-linkedin";
 import { renderCoverLetterPage } from "../src/pages-cover-letter";
 import { renderBuilderPage } from "../src/pages-builder";
+import { renderLibraryPage } from "../src/pages-library";
+import { renderOutreachPage } from "../src/pages-outreach";
 import { renderAiPrivacyPage, renderToolsPage } from "../src/pages";
 import { renderDashboardPage } from "../src/pages-dashboard";
 import { renderInspectBuilding, renderInspectExpired, renderInspectPage } from "../src/pages-inspect";
@@ -35,6 +37,8 @@ const PAGES: Array<[string, () => string]> = [
   ["builder", renderBuilderPage],
   ["tools", renderToolsPage],
   ["ai-privacy", renderAiPrivacyPage],
+  ["library", renderLibraryPage],
+  ["templates", renderOutreachPage],
 ];
 
 /* Script-free pages: covered by the white-label guard below, exempt
@@ -103,6 +107,21 @@ describe("no page can loop on identity adoption", () => {
       expect(html, `${name}: unconditional reload after adoption`).not.toMatch(
         /flAdoptEmbedEmail[\s\S]{0,160}?location\.reload\(\)/,
       );
+    });
+  }
+});
+
+describe("every icon a page asks for is one the worker serves", () => {
+  /* Each page once linked /favicon.svg, which the worker stopped
+   * serving when the icon became a PNG. Every page load then logged a
+   * 404 in the console, and a browser that prefers SVG icons had
+   * nothing to show. Only /favicon.png and /favicon.ico exist. */
+  for (const [name, render] of PAGES.concat(STATIC_PAGES)) {
+    it(`${name} links only icons that exist`, () => {
+      const icons = [...render().matchAll(/<link rel='icon'[^>]*href='([^']+)'/g)].map((m) => m[1]!);
+      for (const href of icons) {
+        expect(["/favicon.png", "/favicon.ico"], `${name}: ${href}`).toContain(href.split("?")[0]);
+      }
     });
   }
 });
