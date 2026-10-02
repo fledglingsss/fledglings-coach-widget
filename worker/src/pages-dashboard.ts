@@ -56,7 +56,7 @@ export function renderDashboardPage(): string {
     "<h2>Provider access</h2><p>Enter your Fledglings access code - your code decides which learners you see.</p>" +
     "<p class='derr' id='login-err' hidden>That code didn&#39;t work - check it and try again.</p>" +
     "<form method='POST' action='/portal/login'><input type='hidden' name='next' value='/dashboard'>" +
-    "<input type='password' name='code' placeholder='Access code' autocomplete='off' required>" +
+    "<input type='password' name='code' aria-label='Access code' placeholder='Access code' autocomplete='off' required>" +
     "<button type='submit' class='dbtn'>Open dashboard</button></form></div></section>" +
 
     /* ---------- home ---------- */
@@ -136,7 +136,7 @@ export function renderDashboardPage(): string {
     "<textarea class='rf-ask' id='rf-ask' aria-label='Message to send to platform support' readonly rows='4'></textarea>" +
     "<button type='button' class='dbtn sm' id='rf-copy'>Copy message for platform support</button>" +
     "</div>" +
-    "<p class='dmut' id='rf-coverage-note'></p></div>" +
+    "<p class='dmut' id='rf-coverage-note' style='margin-top:10px'></p></div>" +
     /* building state */
     "<div class='dcard' id='rf-building' hidden><h2>Reading reflections…</h2>" +
     "<p class='rf-p' id='rf-progress'></p><div class='msb wide'><b id='rf-progress-bar' style='background:#13507F'></b></div></div>" +
@@ -243,7 +243,7 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h2>Inspector link</h2>" +
     "<p class='dmut'>A read-only evidence snapshot you can hand to an inspector or governor - aggregate figures and the narrative " +
     "only, no learner names or emails anywhere on it. Each link works for 7 days; create a fresh one any time.</p>" +
-    "<div class='dbar'><button type='button' class='dbtn' id='ev-link-make'>🔗 Create inspector link (7 days)</button></div>" +
+    "<div class='dbar' style='margin-top:12px'><button type='button' class='dbtn' id='ev-link-make'>🔗 Create inspector link (7 days)</button></div>" +
     "<div id='ev-link-out' hidden style='margin-top:10px'>" +
     "<input type='text' id='ev-link-url' aria-label='Shareable evidence link' readonly style='width:100%;padding:10px 12px;border:1px solid #E3DDDA;border-radius:10px;font-size:13px'>" +
     "<div class='dbar' style='margin-top:8px'>" +
@@ -493,6 +493,12 @@ return "<span class='dtag'>"+esc2(t)+"</span>"}).join('')+"</span>":'')+
 "<span class='sc-line'><span class='sc-k'>Last active</span><span class='sc-v'>"+esc2(lastInFor(en))+"</span></span>"+
 "<span class='sr-only'>Open profile</span></button>";}).join('');
 wireDrills();}
+/* A learner's words, in quotation marks - or, where the read flagged
+ * an answer but its wording could not be matched to what the learner
+ * typed, a plain statement that no quote is shown. Never the model's
+ * own wording dressed as theirs. */
+function quoteLine(q){return q?"<div class='ins-q'>“"+esc2(q)+"”</div>"
+:"<div class='ins-q unq'>No quote shown: the wording could not be matched to their exact words. Read their answers before acting.</div>";}
 function wireDrills(){document.querySelectorAll('[data-drill]').forEach(function(el){
 el.onclick=function(){var r=DATA.learners.find(function(x){return x.email===el.dataset.drill});
 if(!r)return;showProfile(r);};});}
@@ -583,9 +589,12 @@ if(hls.length){out+="<div class='ins-list'>"+hls.map(function(h){
 var pos=h.kind==='positive';
 return "<div class='ins-hl "+(pos?'pos':'con')+"'><span class='ins-k'>"+(pos?'✨ Bright spot':'⚠ Worth a word')+
 (h.module?" <i>· "+esc2(h.module)+"</i>":'')+"</span>"+
-"<div class='ins-q'>“"+esc2(h.quote)+"”</div>"+
+quoteLine(h.quote)+
 (h.note?"<div class='ins-n'>"+esc2(h.note)+"</div>":'')+"</div>";}).join('')+"</div>";}
-else{out+="<p class='dmut'>Nothing stands out for a tutor to act on - their answers read as steady. All "+ins.count+" are in the CSV below.</p>";}
+/* An empty list says only that no answer is quoted here. The line
+ * that used to sit here went on to describe how the learner was doing,
+ * which an empty list cannot support. */
+else{out+="<p class='dmut'>No single answer is picked out here. All "+ins.count+" are in the CSV below.</p>";}
 el.innerHTML=out;})
 .catch(function(){var el=$('prof-insight');
 if(el)el.innerHTML="<span class='dmut'>Could not read their answers just now - the CSV below has all of them.</span>";});}
@@ -654,14 +663,20 @@ return "<h3 class='scan-h'>"+title+"</h3>"+(list.length?"<div class='ins-list'>"
 var inRows=DATA&&DATA.learners.some(function(r){return r.email.toLowerCase()===h.email.toLowerCase()});
 var sev=h.severity==='concern'?"<span class='dtag warn'>follow up today</span> ":h.severity==='monitor'?"<span class='dtag'>check in</span> ":'';
 return "<div class='ins-hl "+cls+"'><span class='ins-k'>"+sev+esc2(h.email)+(h.module?" <i>· "+esc2(h.module)+"</i>":'')+"</span>"+
-"<div class='ins-q'>“"+esc2(h.quote)+"”</div>"+
+quoteLine(h.quote)+
 (h.why?"<div class='ins-n'>"+esc2(h.why)+"</div>":'')+
 (inRows?"<div class='rf-acts'><button type='button' class='dlink' data-drill='"+esc2(h.email)+"'>View student →</button></div>":'')+
 "</div>";}).join('')+"</div>":"<p class='dmut'>"+empty+"</p>");}
 el.innerHTML=
 "<p class='dmut' style='margin-top:12px;font-size:12.5px'>Every one of the "+fmtN(d.scanned)+" written answers was read against KCSIE-aligned safeguarding indicators, Equality Act reasonable-adjustment duties and strengths-based feedback practice"+(d.batches>1?' ('+d.batches+' reads)':'')+
 (d.ranAt?". Last deep read "+new Date(d.ranAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+" - it refreshes every Monday morning; crisis patterns still run on every data sweep.":".")+"</p>"+
-block('⚠ Worth a check-in','con',d.safeguarding,'Nothing met the safeguarding rubric across the '+fmtN(d.scanned)+' written answers read.')+
+/* "Nothing met the rubric" is only said of a read made with the
+ * word-level quote check (reader 2). An earlier read dropped any entry
+ * whose quote differed by a character, so an empty list from one of
+ * those is not an all-clear and is not described as one. */
+block('⚠ Worth a check-in','con',d.safeguarding,d.reader>=2
+?'Nothing met the safeguarding rubric across the '+fmtN(d.scanned)+' written answers read.'
+:'This read has no safeguarding quotes to show. The read on Monday checks every answer again.')+
 block('🛟 Reasonable adjustments to consider','adj',d.adjustments,'No support needs surfaced in the written answers.')+
 block('✨ Positive reinforcement to pass on','pos',d.positives,'No standout answers yet.');
 /* The header chip is set from the crisis-pattern layer alone, so an
@@ -799,6 +814,11 @@ loadScan();}
 /* ---------- richer instruments: radar, donut, recency area ---------- */
 var RADAR_PALETTE=['#13507F','#D9452B','#1B7A4B','#ED9249','#7C5CBF'];
 var radarHidden={};
+/* A chart is drawn to a fixed size and scaled to fit, lettering and
+ * all. Drawn 680 wide and shown on a phone, its ten-pixel axis labels
+ * come out under five. So on a phone the charts are DRAWN narrow, and
+ * the lettering stays the size it was written. */
+function narrow(){return window.innerWidth<560}
 function cohortMeasures(members){var n=members.length||1;
 var avgMins=members.reduce(function(s,r){return s+r.learning.minutes},0)/n;
 var avgMods=Math.round(members.reduce(function(s,r){return s+r.learning.completed},0)*10/n)/10;
@@ -823,7 +843,13 @@ var members=DATA.learners.filter(function(r){return r.tags.indexOf(t.tag)>-1});
 return {tag:t.tag,n:members.length,c:RADAR_PALETTE[i%RADAR_PALETTE.length],m:cohortMeasures(members)};});
 var maxMins=Math.max.apply(null,series.map(function(s){return s.m.avgMins}).concat([1]));
 series.forEach(function(s){s.m.study=Math.round(s.m.avgMins*100/maxMins)});
-var W=460,H=380,cx=W/2,cy=H/2+6,R=132;
+/* Each label sits beyond its corner and is anchored on the side away
+ * from the chart. Centred on the corner, a cohort at 100% drew its line
+ * straight through the word. On a phone the words would shrink with the
+ * chart to about six pixels, so the corners are numbered there and the
+ * key is printed underneath at a size that can be read. */
+var small=narrow();
+var W=small?400:560,H=small?330:380,cx=W/2,cy=H/2+6,R=small?120:132;
 function pt(axis,val){var ang=-Math.PI/2+axis*2*Math.PI/AXES.length;
 var r=R*Math.max(0,Math.min(100,val))/100;
 return (cx+r*Math.cos(ang)).toFixed(1)+','+(cy+r*Math.sin(ang)).toFixed(1);}
@@ -832,14 +858,20 @@ var s="<svg viewBox='0 0 "+W+" "+H+"' class='radar' role='img' aria-label='Cohor
 s+="<polygon points='"+AXES.map(function(_,i){return pt(i,ring)}).join(' ')+"' fill='none' stroke='#E3DDDA' stroke-width='1'/>";});
 AXES.forEach(function(ax,i){var edge=pt(i,100).split(',');
 s+="<line x1='"+cx+"' y1='"+cy+"' x2='"+edge[0]+"' y2='"+edge[1]+"' stroke='#E3DDDA' stroke-width='1'/>";
-var lab=pt(i,124).split(',');
-s+="<text x='"+lab[0]+"' y='"+lab[1]+"' text-anchor='middle' font-size='11' font-weight='600' fill='#6A7A88'>"+esc2(ax[0])+"</text>";});
+/* worked out here rather than with pt(): pt() stops at 100, which is
+ * what put the old labels on the corners in the first place */
+var ang=-Math.PI/2+i*2*Math.PI/AXES.length;
+var lx=Math.round(cx+R*1.1*Math.cos(ang)),ly=Math.round(cy+R*1.1*Math.sin(ang));
+var anchor=lx>cx+12?'start':lx<cx-12?'end':'middle';
+var dy=ly>cy+12?13:ly<cy-12?-3:4;
+s+="<text x='"+lx+"' y='"+(ly+dy)+"' text-anchor='"+anchor+"' font-size='"+(small?17:12)+"' font-weight='"+(small?800:600)+"' fill='#6A7A88'>"+(small?(i+1):esc2(ax[0]))+"</text>";});
 series.forEach(function(sr){if(radarHidden[sr.tag])return;
 var pts=AXES.map(function(ax,i){return pt(i,sr.m[ax[1]])}).join(' ');
 s+="<polygon points='"+pts+"' fill='"+sr.c+"22' stroke='"+sr.c+"' stroke-width='2.2' stroke-linejoin='round'/>";
 AXES.forEach(function(ax,i){var p=pt(i,sr.m[ax[1]]).split(',');
 s+="<circle cx='"+p[0]+"' cy='"+p[1]+"' r='3' fill='"+sr.c+"'/>";});});
-$('ch-radar').innerHTML=s+"</svg>";
+$('ch-radar').innerHTML=s+"</svg>"+(small?"<div class='radar-key'>"+AXES.map(function(ax,i){
+return "<span><b>"+(i+1)+"</b> "+esc2(ax[0])+"</span>"}).join('')+"</div>":'');
 $('radar-legend').innerHTML=series.map(function(sr){
 return "<button type='button' class='chip"+(radarHidden[sr.tag]?'':' on')+"' data-radar='"+esc2(sr.tag)+"' aria-pressed='"+(radarHidden[sr.tag]?'false':'true')+"'>"+
 "<i class='dotc' style='background:"+sr.c+"'></i>"+esc2(sr.tag)+" <i>"+sr.n+"</i></button>";}).join('');
@@ -873,7 +905,8 @@ var maxX=Math.max.apply(null,rows.map(function(r){return r.learning.minutes}).co
  * square-root x-scale stops one marathon learner squashing the crowd
  * against the left edge. */
 var maxY=Math.max.apply(null,rows.map(function(r){return r.learning.completed}).concat([3]));
-var W=680,H=280,L=52,Rt=16,T=14,B=42;
+var small=narrow();
+var W=small?340:680,H=small?250:280,L=small?34:52,Rt=small?22:16,T=14,B=42;
 var px=function(v){return L+(W-L-Rt)*Math.sqrt(Math.max(0,v)/maxX)},py=function(v){return T+(H-T-B)*(1-v/maxY)};
 var s="<svg viewBox='0 0 "+W+" "+H+"' class='scatter' role='img' aria-label='Study time against modules completed for every learner'>";
 for(var gy=0;gy<=maxY;gy++){s+="<line x1='"+L+"' y1='"+py(gy)+"' x2='"+(W-Rt)+"' y2='"+py(gy)+"' stroke='#F0EBE9' stroke-width='1'/>";
@@ -980,7 +1013,8 @@ return s+"</svg>";}
 function recencyArea(rows){
 var BUCKETS=[['Today',function(d2){return d2===0}],['This week',function(d2){return d2!==null&&d2>=1&&d2<=7}],['2 weeks',function(d2){return d2!==null&&d2>7&&d2<=14}],['A month',function(d2){return d2!==null&&d2>14&&d2<=30}],['Older',function(d2){return d2!==null&&d2>30}],['Never',function(d2){return d2===null}]];
 var vals=BUCKETS.map(function(b){return rows.filter(function(r){return b[1](r.engagement.daysSinceLogin)}).length});
-var W=680,H=190,base=150,left=20,step=(W-2*left)/(BUCKETS.length-1),max=Math.max.apply(null,vals.concat([1]));
+var small=narrow();
+var W=small?340:680,H=190,base=150,left=small?24:20,step=(W-2*left)/(BUCKETS.length-1),max=Math.max.apply(null,vals.concat([1]));
 function py(v){return (base-v*(base-28)/max).toFixed(1)}
 var pts=vals.map(function(v,i){return (left+i*step).toFixed(1)+','+py(v)});
 var s="<svg viewBox='0 0 "+W+" "+H+"' class='areachart' role='img' aria-label='Learners by last visit: "+BUCKETS.map(function(b,i){return b[0]+' '+vals[i]}).join(', ')+"'>";
@@ -1093,6 +1127,10 @@ $('g-bar').hidden=!GBAR_VIEWS[view];renderGlobalChips();
 refresh();if(view!=='home')renderHome();}
 fetch('/dashboard/data').then(function(r){
 if(r.status===401){document.querySelectorAll('.dview').forEach(function(s){s.hidden=true});
+/* Signed out, the page is only the way in. The workbench links used to
+ * stay live with no data behind them: pressing one hid the sign-in
+ * form and left an empty page until a reload. */
+document.body.classList.add('signed-out');
 $('v-login').hidden=false;$('dh-title').textContent='Sign in';$('dh-sub').textContent='Provider access';
 if(location.search.indexOf('login=failed')>-1)$('login-err').hidden=false;
 return null;}
@@ -1437,4 +1475,59 @@ body{display:block;}
 #dh-title,.dhead{scroll-margin-top:68px;}
 .dview{scroll-margin-top:68px;}
 }
+/* A row's label is what the row IS. These were cut off with an
+ * ellipsis at a fixed width - "Budgeting That Actuall...", "Felt
+ * practical and rel..." - on screens with room to spare, so a provider
+ * had to hover to learn which module or question a bar was about, and a
+ * phone has no hover. They wrap instead. */
+.hb-l,.sh-l,.stk-l,.dr-mt{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.3;}
+@media(min-width:761px){
+.sh-row{grid-template-columns:230px 1fr 150px 110px;}
+.stk{grid-template-columns:170px 1fr 205px;}
+}
+/* These two charts are labelled with whole sentences and module
+ * titles. Beside the bar where there is room; above it on a phone,
+ * where a 96px column would stand each label five lines tall. */
+@media(min-width:701px){#rf-experience .hb-l,#ch-stalls .hb-l{width:250px;}}
+@media(max-width:700px){
+#rf-experience .hb,#ch-stalls .hb{flex-wrap:wrap;gap:4px 10px;}
+#rf-experience .hb-l,#ch-stalls .hb-l{width:100%;}
+#ch-stalls .hb-v{width:100%;text-align:left;}
+}
+/* one learner's modules: the bar stays within reach of its title */
+#prof-body .dr-mods{max-width:700px;}
+/* a flagged answer shown without a quote (see quoteLine) */
+.ins-q.unq{font-size:13px;font-style:italic;color:var(--mut);}
+/* The cohort numbers table has seven columns. On a phone it pushed the
+ * whole page sideways; it scrolls inside its own card instead. */
+#ch-heat{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+/* the numbered corners of the cohort chart, spelt out (phones only) */
+.radar-key{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:12px;color:var(--mut);}
+.radar-key b{color:var(--navy);}
+@media(max-width:760px){
+/* Label and figure share the first line and the bar takes the second.
+ * Without dense packing the figure dropped to a third line of its own,
+ * adrift under the bar. */
+.fu-row{grid-auto-flow:dense;}
+}
+@media(max-width:560px){
+/* Four full-width tiles were a screen and a half of scrolling before
+ * anything else; two across. */
+.kpigrid{grid-template-columns:1fr 1fr;gap:10px;}
+.kpi{padding:14px;}
+.kpi-n{font-size:26px;}
+}
+/* Touch targets. A provider triaging on a handset was pressing links
+ * 24 to 37px tall; a thumb needs 44. Phone and tablet widths only. */
+@media(max-width:820px){
+.dn,.chip,.dbtn,.dlink,.dout{min-height:44px;}
+.chip{padding:9px 14px;}
+.dlink{display:inline-flex;align-items:center;padding:8px 4px;}
+#cmp-mods .hb,#cmp-time .hb,#cmp-active .hb{min-height:44px;}
+#ev-link-url{min-height:44px;}
+}
+/* Signed out: nothing but the way in. */
+body.signed-out .dn,body.signed-out .dsec,body.signed-out .dfoot,
+body.signed-out .dheadr,body.signed-out .dnote{display:none!important;}
+@media(max-width:820px){body.signed-out .dside{display:none;}}
 `;

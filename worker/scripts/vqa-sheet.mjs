@@ -24,6 +24,9 @@ const puppeteer = require("puppeteer-core");
 const tag = process.argv[2] || "phone";
 const from = Number(process.argv[3]) || 0;
 const to = Number(process.argv[4]) || 999;
+/* --prefix=d picks one walk's shots by the letter its names start with
+ * (d = dashboard, w = widget); without it, the numbered learner walk. */
+const prefix = (process.argv.find((a) => a.startsWith("--prefix=")) || "").slice(9);
 const SHEETS = path.join(QA_DIR, "sheets");
 fs.mkdirSync(SHEETS, { recursive: true });
 
@@ -47,8 +50,13 @@ function pngSize(file) {
 const suffix = `-${tag}.png`;
 const shots = fs.readdirSync(SHOTS)
   .filter((f) => f.endsWith(suffix))
-  .filter((f) => { const n = parseInt(f, 10); return Number.isNaN(n) ? from === 0 : n >= from && n <= to; })
+  .filter((f) => {
+    if (prefix) return f.startsWith(prefix) && !/^\d/.test(f);
+    const n = parseInt(f, 10);
+    return !Number.isNaN(n) && n >= from && n <= to;
+  })
   .sort();
+const sheetName = prefix ? `${tag}-${prefix}` : tag;
 if (!shots.length) { console.log(`no shots for "${tag}"`); process.exit(1); }
 
 const columns = [];
@@ -75,7 +83,9 @@ if (current.cols.length) sheets.push(current);
 
 /* Clear the last run's sheets for this tag so a shorter run leaves no
  * stale pages behind to be read by mistake. */
-fs.readdirSync(SHEETS).filter((f) => f.startsWith(`${tag}-`)).forEach((f) => fs.unlinkSync(path.join(SHEETS, f)));
+fs.readdirSync(SHEETS)
+  .filter((f) => new RegExp(`^${sheetName}-\\d+\\.png$`).test(f))
+  .forEach((f) => fs.unlinkSync(path.join(SHEETS, f)));
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: "new", args: ["--no-sandbox", "--allow-file-access-from-files"] });
 const page = await browser.newPage();
@@ -91,7 +101,7 @@ for (let s = 0; s < sheets.length; s++) {
   fs.writeFileSync(htmlFile, html);
   await page.setViewport({ width: sheet.width, height: COLUMN_HEIGHT + LABEL_HEIGHT, deviceScaleFactor: 1 });
   await page.goto(pathToFileURL(htmlFile).href, { waitUntil: "load" });
-  const name = `${tag}-${String(s + 1).padStart(2, "0")}.png`;
+  const name = `${sheetName}-${String(s + 1).padStart(2, "0")}.png`;
   await page.screenshot({ path: path.join(SHEETS, name) });
   console.log(`${name}  ${sheet.cols.map((c) => c.label).join(" | ")}`);
 }

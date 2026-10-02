@@ -106,7 +106,7 @@ describe("what the Share button sends", () => {
   });
 
   it("tells a learner it cannot sign in what to do, instead of 'try again'", () => {
-    expect(html).toContain("sign in on your Employability Hub first");
+    expect(html).toContain("Sign in on your Employability Hub first");
   });
 
   it("parses", () => {

@@ -355,6 +355,15 @@ export function renderLinkedInPage(): string {
 .secbar-t i{display:block;height:100%;border-radius:999px;animation:secgrow .8s cubic-bezier(.2,.7,.3,1) both;}
 @keyframes secgrow{from{width:0}}
 .secbar-v{font-size:13px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+/* On a small phone the name and the score take 212 of the card's 242
+ * pixels, which left the bar itself six pixels wide. The bar gets a
+ * line of its own under them. */
+@media(max-width:480px){
+  .secbar{grid-template-columns:1fr 62px;gap:4px 12px;padding:8px 0;}
+  .secbar-l{grid-area:1/1;}
+  .secbar-v{grid-area:1/2;}
+  .secbar-t{grid-area:2/1/3/3;}
+}
 .secbar-v i{font-style:normal;color:#616A71;font-weight:600;font-size:11px;}
 .journeynext{display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--navy);
   border-left:4px solid var(--orange);transition:box-shadow .2s;}

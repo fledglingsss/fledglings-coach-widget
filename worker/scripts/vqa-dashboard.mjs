@@ -81,6 +81,12 @@ try {
   await shot("d01-signin");
   await go("/dashboard?login=failed");
   await shot("d02-signin-failed");
+  /* signed out, the page is only the way in */
+  const exposed = await page.evaluate(() =>
+    [...document.querySelectorAll(".dn, #dh-refresh, .dout")].filter((e) => e.getBoundingClientRect().width > 0).length);
+  if (exposed) note("signed-out page still shows workbench controls", String(exposed));
+  /* the 401 behind that screen is the gate working, not a fault */
+  for (let i = S.problems.length - 1; i >= 0; i--) if (/401/.test(S.problems[i])) S.problems.splice(i, 1);
 
   /* ---- a provider scoped to one cohort tag ---- */
   world.signedIn = true;
@@ -115,7 +121,7 @@ try {
   await page.evaluate(() => { const i = document.getElementById("s-search"); i.value = ""; i.dispatchEvent(new Event("input")); });
 
   /* a learner's profile: one with a read of their answers, one flagged, one too new */
-  for (const [email, name] of [["amy@swift.test", "d09-profile-full"], ["cara@swift.test", "d10-profile-flagged"], ["idris@swift.test", "d11-profile-new"]]) {
+  for (const [email, name] of [["amy@swift.test", "d09-profile-full"], ["cara@swift.test", "d10-profile-flagged"], ["idris@swift.test", "d11-profile-new"], ["dev@swift.test", "d11b-profile-nothing-picked"]]) {
     await view("students");
     const opened = await page.evaluate((email) => {
       const el = [...document.querySelectorAll("[data-drill]")].find((x) => x.dataset.drill === email && x.getBoundingClientRect().width > 0);

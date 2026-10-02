@@ -290,7 +290,7 @@ import {
   moderate,
 } from "./lib/anthropic";
 import { classifyModelError } from "./lib/model-error";
-import { isGrounded, keepGrounded } from "./lib/verbatim";
+import { isGrounded, keepGrounded, learnerWords } from "./lib/verbatim";
 import widgetSource from "./widget/coach-widget.js.txt";
 
 export interface Env {
@@ -2750,6 +2750,12 @@ app.get("/portal/reflections", async (c) => {
  * exactly as they are. Only the commentary takes the house style. */
 const PROVIDER_VERBATIM_KEYS: ReadonlySet<string> = new Set(["quote", "module", "email"]);
 
+/* The generation of the quote check behind a provider read. 2 = quotes
+ * are matched on their words and shown in the learner's own typing, and
+ * a concern that cannot be quoted is kept rather than dropped. A read
+ * with no version came from the character-for-character check. */
+const PROVIDER_READER_VERSION = 2;
+
 app.get("/portal/reflection-scan", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
@@ -2800,37 +2806,66 @@ app.get("/portal/reflection-scan", async (c) => {
       }));
     const BATCH = 200;
     const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-    const blobByEmail = new Map<string, string>();
+    const answersByEmail = new Map<string, string[]>();
     for (const r of prose) {
       const key = r.email.toLowerCase();
-      blobByEmail.set(key, (blobByEmail.get(key) ?? "") + " \n " + norm(r.answer));
+      const list = answersByEmail.get(key);
+      if (list) list.push(r.answer);
+      else answersByEmail.set(key, [r.answer]);
     }
-    type ScanItem = { email: string; quote: string; module: string; why: string; severity?: string };
-    const merged: Record<"safeguarding" | "adjustments" | "positives", ScanItem[]> = {
+    type ScanCategory = "safeguarding" | "adjustments" | "positives";
+    type ScanItem = {
+      email: string;
+      quote: string;
+      module: string;
+      why: string;
+      severity?: string;
+      unquoted?: true;
+    };
+    const merged: Record<ScanCategory, ScanItem[]> = {
       safeguarding: [],
       adjustments: [],
       positives: [],
     };
     const seen = new Set<string>();
-    const clean = (list: unknown, withSeverity: boolean): ScanItem[] =>
-      (Array.isArray(list) ? list : [])
-        .filter((h): h is Record<string, string> => {
-          if (typeof h !== "object" || h === null) return false;
-          const hh = h as Record<string, unknown>;
-          return (
-            typeof hh.email === "string" &&
-            typeof hh.quote === "string" &&
-            hh.quote.trim().length > 0 &&
-            (blobByEmail.get(hh.email.toLowerCase()) ?? "").includes(norm(hh.quote))
-          );
-        })
-        .map((h) => ({
-          email: h.email,
-          quote: h.quote.slice(0, 400),
-          module: (h.module ?? "").slice(0, 120),
-          why: (h.why ?? "").slice(0, 200),
-          ...(withSeverity ? { severity: h.severity === "concern" ? "concern" : "monitor" } : {}),
-        }));
+    /* What the model hands back, made fit to show a tutor.
+     *
+     * A quote is only ever shown in the learner's own words (see
+     * learnerWords). What happens when it cannot be matched depends on
+     * what the entry is FOR:
+     *   - praise is dropped: the tutor would be passing on words the
+     *     learner never wrote;
+     *   - a safeguarding concern or a support need is KEPT, without a
+     *     quote, so the tutor is still told to look. These two lists
+     *     exist so that nothing is missed; losing an entry because the
+     *     model tidied an apostrophe fails in exactly the wrong
+     *     direction, and it used to happen silently.
+     * An entry about someone who is not one of this scope's learners is
+     * dropped whatever it is - there is nobody for the tutor to see. */
+    const clean = (list: unknown, cat: ScanCategory): ScanItem[] => {
+      const out: ScanItem[] = [];
+      for (const h of Array.isArray(list) ? list : []) {
+        if (typeof h !== "object" || h === null) continue;
+        const hh = h as Record<string, unknown>;
+        if (typeof hh.email !== "string") continue;
+        const answers = answersByEmail.get(hh.email.toLowerCase());
+        if (!answers) continue;
+        const own = typeof hh.quote === "string" ? learnerWords(hh.quote, answers) : null;
+        if (own === null && cat === "positives") continue;
+        out.push({
+          email: hh.email,
+          quote: (own ?? "").slice(0, 400),
+          module: typeof hh.module === "string" ? hh.module.slice(0, 120) : "",
+          why: typeof hh.why === "string" ? hh.why.slice(0, 200) : "",
+          ...(cat === "safeguarding"
+            ? { severity: hh.severity === "concern" ? "concern" : "monitor" }
+            : {}),
+          ...(own === null ? { unquoted: true as const } : {}),
+        });
+      }
+      return out;
+    };
+    let unquoted = 0;
     let batches = 0;
     for (let start = 0; start < all.length; start += BATCH) {
       batches++;
@@ -2846,13 +2881,23 @@ app.get("/portal/reflection-scan", async (c) => {
         unknown
       >;
       for (const cat of ["safeguarding", "adjustments", "positives"] as const) {
-        for (const item of clean(parsed[cat], cat === "safeguarding")) {
-          const key = cat + "|" + item.email.toLowerCase() + "|" + norm(item.quote).slice(0, 60);
+        for (const item of clean(parsed[cat], cat)) {
+          /* one unquoted entry per learner per list is enough to send
+           * the tutor to their answers */
+          const key =
+            cat + "|" + item.email.toLowerCase() + "|" +
+            (item.unquoted ? "unquoted" : norm(item.quote).slice(0, 60));
           if (seen.has(key)) continue;
           seen.add(key);
           merged[cat].push(item);
+          if (item.unquoted) unquoted++;
         }
       }
+    }
+    if (unquoted > 0) {
+      /* Counts only, never the words: a rising number here means the
+       * model has stopped copying quotes faithfully. */
+      console.warn(`[coach] kind=reflection-scan kept_without_quote=${unquoted}`);
     }
     /* Safety findings are never truncated; the softer lists show the
      * strongest handful. Immediate concerns sort first. */
@@ -2867,6 +2912,11 @@ app.get("/portal/reflection-scan", async (c) => {
         totalAnswers: scoped.length,
         batches,
         ranAt: new Date().toISOString(),
+        /* Marks a read made with the word-level quote check. The page
+         * only says "nothing met the rubric" of a read that carries it:
+         * an older cached read may have lost entries, and an empty list
+         * from it proves nothing. */
+        reader: PROVIDER_READER_VERSION,
         safeguarding: merged.safeguarding,
         adjustments: merged.adjustments.slice(0, 8),
         positives: merged.positives.slice(0, 8),
@@ -4560,31 +4610,43 @@ app.get("/dashboard/learner-insight", async (c) => {
       highlights?: unknown;
     };
     const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 600) : "";
-    /* Honesty guard: a highlight only survives if its quote really
-     * appears in the learner's answers - a paraphrase or invention is
-     * dropped, never shown. */
-    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-    const answerBlob = norm(rows.map((r) => r.answer).join(" \n "));
-    const highlights = (Array.isArray(parsed.highlights) ? parsed.highlights : [])
-      .filter((h): h is { kind: string; quote: string; module?: string; note?: string } => {
-        if (typeof h !== "object" || h === null) return false;
-        const hh = h as Record<string, unknown>;
-        return (
-          (hh.kind === "positive" || hh.kind === "concern") &&
-          typeof hh.quote === "string" &&
-          hh.quote.trim().length > 0 &&
-          answerBlob.includes(norm(hh.quote))
-        );
-      })
-      .slice(0, 5)
-      .map((h) => ({
-        kind: h.kind,
-        quote: h.quote.slice(0, 400),
-        module: typeof h.module === "string" ? h.module.slice(0, 120) : "",
-        note: typeof h.note === "string" ? h.note.slice(0, 200) : "",
-      }));
+    /* Honesty guard: a quote is only ever shown in the learner's own
+     * words. Praise that cannot be matched to them is dropped. A worry
+     * that cannot be matched is KEPT without a quote - the tutor is
+     * still told to look - because losing it would leave this profile
+     * saying nothing was found (see learnerWords and the scan above). */
+    const answers = rows.map((r) => r.answer);
+    const highlights: Array<{
+      kind: "positive" | "concern";
+      quote: string;
+      module: string;
+      note: string;
+      unquoted?: true;
+    }> = [];
+    for (const h of Array.isArray(parsed.highlights) ? parsed.highlights : []) {
+      if (highlights.length === 5) break;
+      if (typeof h !== "object" || h === null) continue;
+      const hh = h as Record<string, unknown>;
+      if (hh.kind !== "positive" && hh.kind !== "concern") continue;
+      const own = typeof hh.quote === "string" ? learnerWords(hh.quote, answers) : null;
+      if (own === null && hh.kind === "positive") continue;
+      highlights.push({
+        kind: hh.kind,
+        quote: (own ?? "").slice(0, 400),
+        module: typeof hh.module === "string" ? hh.module.slice(0, 120) : "",
+        note: typeof hh.note === "string" ? hh.note.slice(0, 200) : "",
+        ...(own === null ? { unquoted: true as const } : {}),
+      });
+    }
     const payload = plainDashesDeep(
-      { ok: true, status: "ready", count: rows.length, summary, highlights },
+      {
+        ok: true,
+        status: "ready",
+        count: rows.length,
+        reader: PROVIDER_READER_VERSION,
+        summary,
+        highlights,
+      },
       PROVIDER_VERBATIM_KEYS,
     );
     await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {

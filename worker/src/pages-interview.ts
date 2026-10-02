@@ -1509,7 +1509,10 @@ const INTERVIEW_CSS = `
   text-underline-offset:3px;text-align:left;}
 .outlink:hover{color:#B93A22;}
 .revcard.skipped{opacity:.72;}
-.revcard.skipped .qc-n{background:#8A97A1;}
+/* The number is plain red text, not a filled badge, so a grey
+ * BACKGROUND left it as red on grey at 1.6 to 1. A skipped question's
+ * number simply goes grey. */
+.revcard.skipped .qc-n{color:#5C6A76;}
 .revcard{padding:0;overflow:hidden;}
 .rev-vid{width:100%;max-height:320px;background:#0b1620;display:block;}
 .rev-vid.inrep{max-height:260px;}

@@ -128,10 +128,12 @@ export const REFLECTIONS_READY = {
       { word: "long", count: 4, forms: ["long"] },
       { word: "confusing", count: 2, forms: ["confusing"] },
     ],
+    /* the labels the worker really sends (lib/reflection-insights.ts) */
     experience: [
-      { label: "Easy to follow", pct: 84, responses: 19 },
-      { label: "Relevant to my life", pct: 78, responses: 19 },
-      { label: "Right amount of content", pct: 61, responses: 17 },
+      { label: "Felt safe, respected and not judged", pct: 88, responses: 19 },
+      { label: "Felt practical and relevant to real life", pct: 78, responses: 19 },
+      { label: "Ready to use it in real life or work", pct: 61, responses: 17 },
+      { label: "Knowledge improved because of the module", pct: 44, responses: 17 },
     ],
     requests: [
       { text: "More examples about wages when you are on an apprenticeship, not a full time job.", courseTitle: "Pay, Payslips, and Planning for Tax & NI", submittedAt: NOW - 2 * DAY },
@@ -153,10 +155,12 @@ export const REFLECTIONS_GATED = {
 };
 
 export const SCAN_READY = {
-  ok: true, status: "ready", scanned: 96, batches: 2, ranAt: new Date((NOW - 3 * DAY) * 1000).toISOString(),
+  ok: true, status: "ready", reader: 2, scanned: 96, batches: 2, ranAt: new Date((NOW - 3 * DAY) * 1000).toISOString(),
   safeguarding: [
     { email: "niamh@swift.test", module: "Money Confidence & Everyday Decisions", quote: "we dont really have food in the house at the end of the month so budgeting is not the problem", why: "Describes going without food. Worth a private, practical conversation about support.", severity: "concern" },
     { email: "kofi@swift.test", module: "Building Real Confidence", quote: "i just keep quiet in the workshop because the others laugh", why: "Possible bullying at placement. A check-in would tell you more.", severity: "monitor" },
+    /* flagged, but the wording could not be matched to what they typed */
+    { email: "finn@swift.test", module: "Handling Change & Uncertainty", quote: "", unquoted: true, why: "Mentions trouble at home in passing. Worth asking how things are.", severity: "monitor" },
   ],
   adjustments: [
     { email: "hattie@swift.test", module: "Budgeting That Actually Works", quote: "the videos go too fast for me to read the words", why: "May benefit from transcripts or slower pacing.", severity: null },
@@ -199,7 +203,7 @@ export function learnerReflections(email) {
   if (email === "cara@swift.test") {
     return { ok: true, count: 9, flags: [{ courseTitle: "Building Real Confidence", question: "How are you feeling after this module?", answer: "honestly some days I do not want to be here any more" }] };
   }
-  return { ok: true, count: email === "amy@swift.test" ? 22 : 2, flags: [] };
+  return { ok: true, count: { "amy@swift.test": 22, "dev@swift.test": 6 }[email] ?? 2, flags: [] };
 }
 
 export function learnerInsight(email) {
@@ -213,6 +217,14 @@ export function learnerInsight(email) {
       ],
     };
   }
-  if (email === "cara@swift.test") return { ok: true, status: "ready", count: 9, summary: "Cara's early answers are engaged and specific; the most recent one is worrying and should be followed up in person.", highlights: [] };
+  if (email === "cara@swift.test") {
+    return {
+      ok: true, status: "ready", reader: 2, count: 9,
+      summary: "Cara's early answers are engaged and specific; the most recent one is worrying and should be followed up in person.",
+      highlights: [{ kind: "concern", module: "Building Real Confidence", quote: "", unquoted: true, note: "The latest answer sounds low. Worth a conversation in person." }],
+    };
+  }
+  /* a learner with answers on record and nothing picked out */
+  if (email === "dev@swift.test") return { ok: true, status: "ready", reader: 2, count: 6, summary: "Dev writes briefly and practically about each module.", highlights: [] };
   return { ok: true, status: "too_few", count: 2 };
 }

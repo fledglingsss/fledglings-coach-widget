@@ -437,7 +437,7 @@ export function renderSkillsPassport(
         "sh.disabled=true;var lid=stored(localStorage,'fl_coach_learner_v1');" +
         "tokenFor(lid).then(function(tok){" +
         "if(!tok){sh.disabled=false;" +
-        "say('To share from this device, sign in on your Employability Hub first - open Career journey on this page.',7000);return;}" +
+        "say('Sign in on your Employability Hub first, then come back and press Share.',7000);return;}" +
         "fetch('/api/passport',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
         "learner_id:lid,session_id:stored(sessionStorage,'fl_coach_session_v1'),token:tok})})" +
         ".then(function(r){return r.json()}).then(function(d){sh.disabled=false;" +

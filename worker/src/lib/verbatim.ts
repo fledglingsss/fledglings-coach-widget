@@ -94,3 +94,80 @@ export function keepGrounded(
   const kept = items.filter((item) => isGrounded(item, ...sources));
   return { kept, dropped: items.length - kept.length };
 }
+
+/* ------------------------------------------------------------------
+ * The same law on the provider's side: a quote shown to a tutor as a
+ * learner's words must BE that learner's words.
+ *
+ * The two AI reads a provider sees (one learner's reflections, and the
+ * weekly read across a cohort) each hand back quotes. They used to be
+ * checked by comparing the model's quote to the answer character for
+ * character, and an entry that failed was dropped without trace.
+ *
+ * A model asked to copy text does not copy it character for character.
+ * It tidies as it goes: "i dont want to be here" comes back as "I don't
+ * want to be here", a straight apostrophe comes back curly. Each of
+ * those failed the comparison - so the answers written most roughly,
+ * which are often the ones that matter most, were the ones most likely
+ * to be thrown away, and the page then reported that nothing had been
+ * found.
+ *
+ * So the comparison is made on the WORDS: the same words, in the same
+ * order, in one answer. Capital letters, apostrophes, quotation marks,
+ * dashes, spacing and other punctuation are not words. And what comes
+ * back is the span of the learner's answer, exactly as they typed it -
+ * never the model's tidied copy - so the evidence a tutor reads is the
+ * evidence that exists.
+ * ------------------------------------------------------------------ */
+
+/* Straight, curly, modifier, backtick and acute: every mark a learner
+ * or a model uses as an apostrophe. Built from code points so this file
+ * holds no look-alike characters. */
+const APOSTROPHE_CHARS = "'" + String.fromCharCode(0x2018, 0x2019, 0x02bc, 0x0060, 0x00b4);
+const WORD = new RegExp(`[\\p{L}\\p{N}]+(?:[${APOSTROPHE_CHARS}][\\p{L}\\p{N}]+)*`, "gu");
+const APOSTROPHE = new RegExp(`[${APOSTROPHE_CHARS}]`, "g");
+
+interface WordAt {
+  /** Lower-cased, apostrophes removed: "Don't" and "dont" are one word. */
+  word: string;
+  start: number;
+  /** Exclusive. */
+  end: number;
+}
+
+function wordsOf(text: string): WordAt[] {
+  const found: WordAt[] = [];
+  for (const match of text.matchAll(WORD)) {
+    const start = match.index ?? 0;
+    found.push({
+      word: match[0].toLowerCase().replace(APOSTROPHE, ""),
+      start,
+      end: start + match[0].length,
+    });
+  }
+  return found;
+}
+
+/**
+ * The learner's own words for a quote the model handed back.
+ *
+ * Returns the matching span of one of `answers`, exactly as the learner
+ * wrote it, or null when the quote is not theirs: different words, a
+ * paraphrase, a corrected spelling, or words stitched together from two
+ * separate answers.
+ */
+export function learnerWords(quote: string, answers: readonly string[]): string | null {
+  const wanted = wordsOf(quote).map((w) => w.word);
+  if (wanted.length === 0) return null;
+  for (const answer of answers) {
+    const have = wordsOf(answer);
+    for (let from = 0; from + wanted.length <= have.length; from++) {
+      let matched = 0;
+      while (matched < wanted.length && have[from + matched]!.word === wanted[matched]) matched++;
+      if (matched === wanted.length) {
+        return answer.slice(have[from]!.start, have[from + wanted.length - 1]!.end);
+      }
+    }
+  }
+  return null;
+}
