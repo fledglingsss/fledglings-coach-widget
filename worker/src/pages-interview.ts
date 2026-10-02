@@ -124,15 +124,15 @@ export function renderInterviewPage(): string {
     "<button type='button' class='srchead' aria-expanded='false'><span class='srcico' style='background:#FDF3EC'>📄</span>" +
     "<span class='srctxt'><b>From your CV</b><i>Questions that dig into your genuine experience - great for “walk me through your CV”</i></span>" +
     "<span class='srcchev'>▾</span></button>" +
-    "<div class='srcbody' id='src-cv' hidden><textarea id='gen-cv' rows='4' maxlength='9000' placeholder='Paste your CV text here…'></textarea></div></div>" +
+    "<div class='srcbody' id='src-cv' hidden><textarea id='gen-cv' aria-label='Paste your CV text' rows='4' maxlength='9000' placeholder='Paste your CV text here…'></textarea></div></div>" +
     "<div class='srccard closed' data-src='admission'>" +
     "<button type='button' class='srchead' aria-expanded='false'><span class='srcico' style='background:#F0EFFB'>🎓</span>" +
     "<span class='srctxt'><b>Admission interview</b><i>For a course, college or university place - tailored to your programme</i></span>" +
     "<span class='srcchev'>▾</span></button>" +
     "<div class='srcbody' id='src-admission' hidden>" +
-    "<input type='text' id='gen-degree' maxlength='120' placeholder='The course or degree, e.g. Business BTEC, Psychology BSc'>" +
-    "<textarea id='gen-course' rows='2' maxlength='3000' style='margin-top:10px' placeholder='Course description (optional - sharpens the questions)'></textarea>" +
-    "<textarea id='gen-adm-cv' rows='2' maxlength='9000' style='margin-top:10px' placeholder='Your CV or personal statement (optional)'></textarea></div></div>" +
+    "<input type='text' id='gen-degree' aria-label='The course or degree you are applying for' maxlength='120' placeholder='The course or degree, e.g. Business BTEC, Psychology BSc'>" +
+    "<textarea id='gen-course' aria-label='Course description, optional' rows='2' maxlength='3000' style='margin-top:10px' placeholder='Course description (optional - sharpens the questions)'></textarea>" +
+    "<textarea id='gen-adm-cv' aria-label='Your CV or personal statement, optional' rows='2' maxlength='9000' style='margin-top:10px' placeholder='Your CV or personal statement (optional)'></textarea></div></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn' id='genbtn'>Generate AI interview</button>" +
     "<span class='hero-note' id='genstate' role='status'>Up to 5 custom interviews a day</span></div></div>" +
     "</div>" +
@@ -171,7 +171,8 @@ export function renderInterviewPage(): string {
     "<div class='vover' id='think-over'><div class='think-l'>Think time</div>" +
     "<div class='think-n' id='think-n' role='status' aria-live='polite'>30</div>" +
     "<button type='button' class='btn rec' id='rec-now'>● Start recording</button></div>" +
-    "<div class='recbar' id='recbar' hidden><span class='recdot'></span>Recording <b id='rec-t'>0:00</b> / 3:00" +
+    "<div class='recbar' id='recbar' hidden><span class='recdot'></span><span class='rec-w'>Recording</span>" +
+    "<b id='rec-t'>0:00</b><span class='rec-max'>/ 3:00</span>" +
     "<button type='button' class='btn rec small' id='rec-stop'>■ Stop</button></div></div>" +
     "<div class='captions' id='captions' aria-live='polite'>Your words appear here as you speak…</div></div>" +
     /* voice-only capture area */
@@ -184,7 +185,7 @@ export function renderInterviewPage(): string {
     "<div class='micstate' id='micstate' role='status'>Tap to answer out loud</div></div>" +
     "<div class='transcript' id='transcript' aria-live='polite'></div></div>" +
     "<details class='typefall' id='typefall'><summary>Prefer to type (or fix the transcript)?</summary>" +
-    "<textarea id='typed' rows='4' maxlength='2000' placeholder='Type your answer instead…'></textarea></details>" +
+    "<textarea id='typed' aria-label='Type your answer' rows='4' maxlength='2000' placeholder='Type your answer instead…'></textarea></details>" +
     "<div class='btnrow'>" +
     "<button type='button' class='btn' id='next' disabled>Next question</button>" +
     "<button type='button' class='btn ghost' id='redo' hidden>Answer again</button></div>" +
@@ -268,6 +269,11 @@ export function renderInterviewPage(): string {
 
     /* ---- speech & presence ---- */
     "<div class='rpanel' id='rp-delivery' hidden>" +
+    /* Typed answers have no pace and no camera, so both cards below
+     * stay hidden - and the tab used to open onto nothing at all. This
+     * says why, and that the score did not suffer for it. */
+    "<div class='card' id='dl-none' hidden><h3 id='dl-none-h'>Not measured this time</h3>" +
+    "<p class='sub' id='dl-none-p' style='margin:0'></p></div>" +
     /* speech detail - gauge, fraction bars and a per-answer time chart */
     "<div class='card' id='sp-card' hidden><h3>Speech evaluation <span class='badge' id='sp-badge'></span></h3>" +
     "<div class='spgrid'>" +
@@ -635,8 +641,12 @@ function answeredCount(){return scoredAnswers().length;}
 /* The report says what was actually marked. Claiming "5 questions"
  * when two were skipped would overstate the score's basis. */
 function metaCount(){var done=answeredCount(),total=answers.length;
-var s=done+' question'+(done===1?'':'s');
-return done<total?s+' answered of '+total:s;}
+return done<total?done+' of '+total+' questions answered':done+' question'+(done===1?'':'s');}
+/* The Speech & presence tab when there is nothing in it to show. */
+function deliveryNone(show,heading,text){$('dl-none').hidden=!show;
+if(show){$('dl-none-h').textContent=heading;$('dl-none-p').textContent=text;}}
+function deliveryUnavailable(){deliveryNone(true,'Not available for this one',
+'This recording was saved without a report, so there is no speech or camera feedback to show for it.');}
 $('skipq').addEventListener('click',function(){closeCapture();
 if(answers[idx]&&answers[idx].blobUrl){try{URL.revokeObjectURL(answers[idx].blobUrl)}catch(e){}}
 answers[idx]={question:qs[idx],answer:'',duration_secs:null,blobUrl:'',skipped:true};
@@ -849,6 +859,8 @@ $('b-answer-s').textContent=$('b-speech-s').textContent=$('b-presence-s').textCo
 ['b-answer-v','b-speech-v','b-presence-v'].forEach(function(id){var el=$(id);if(el)el.textContent='';});
 var qsCard=$('qs-card');if(qsCard)qsCard.hidden=true;
 $('sp-card').hidden=true;$('pr-card').hidden=true;$('r-cheercard').hidden=true;
+if(scoring)deliveryNone(true,'On its way','Your speech and camera feedback appears here as soon as the report is ready.');
+else deliveryUnavailable();
 repShowScoring(Boolean(scoring));
 var out='';scoredAnswers().forEach(function(a,i){
 out+="<div class='card qcard'><div class='qc-head'><span class='qc-n'>Q"+(i+1)+"</span>"+
@@ -883,10 +895,10 @@ payload.presence=pr;}
 fetch('/api/interview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
 .then(function(r){return r.json()}).then(function(d){
 if(d&&d.report){saveSession('done',d.report);repShowScoring(false);renderReport(d.report);return;}
-saveSession('unscored',null);repShowScoring(false);
+saveSession('unscored',null);repShowScoring(false);deliveryUnavailable();
 $('r-verdict').textContent='Recording saved - scoring unavailable';
 $('r-meta').textContent=(d&&d.reply)||'Fledge could not score this one - your recording is safe in My recordings.';})
-.catch(function(){saveSession('unscored',null);repShowScoring(false);
+.catch(function(){saveSession('unscored',null);repShowScoring(false);deliveryUnavailable();
 $('r-verdict').textContent='Recording saved - scoring unavailable';
 $('r-meta').textContent='Could not reach Fledge - your recording is safe in My recordings.';});}
 /* A missing score must not read as a bad one: undefined fell through
@@ -998,6 +1010,10 @@ prStat('Warmth',PR_ICONS.warm,m.warmth||null,noKp)+
 prStat('Posture',PR_ICONS.posture,m.posture||null,noKp)+
 prStat('Stillness',PR_ICONS.still,m.stillness||null,noKp);}
 else{$('pr-card').hidden=true;}
+deliveryNone(!r.speech&&!r.presence,'Not measured this time',
+'Speech pace and filler words are measured from answers you speak out loud, and camera presence from answers you record on camera. '+
+'Neither was measured in this practice, so there is nothing to show here - and nothing was marked down for it. '+
+'Your score came entirely from what you said.');
 /* Per-question: Hiration-style assessment (left) + guidance (right) */
 var out='';var SC=scoredAnswers();r.answers.forEach(function(a,i){var c=band(a.score);
 /* the marking scheme, from the same constant the prompt was built
@@ -1094,7 +1110,7 @@ function renderTracks(){
 var fast=LEARN.filter(function(m){return m.track==='fast'});
 function tk(icon,name,list){var p=readPct(list);
 return "<div class='trackcard'><span class='tk-ico'>"+icon+"</span>"+
-"<div class='tk-main'><b>"+name+" · "+p+"%</b>"+
+"<div class='tk-main'><b>"+name+" <i>· "+p+"%</i></b>"+
 "<span>"+list.length+" modules · "+list.reduce(function(s,m){return s+m.mins},0)+" min total</span>"+
 "<div class='tk-bar'><i style='width:"+p+"%'></i></div></div>"+
 "<button type='button' class='btn tk-go' data-track-start='"+firstUnread(list)+"'>"+(p===0?'Start →':p===100?'Revisit →':'Continue →')+"</button></div>";}
@@ -1237,6 +1253,9 @@ const INTERVIEW_CSS = `
   display:inline-flex;align-items:center;justify-content:center;}
 .tk-main{flex:1;min-width:0;}
 .tk-main b{display:block;font-size:14.5px;}
+/* the percentage travels as one piece, so a narrow card breaks the
+ * title before it rather than leaving a dot hanging at the line end */
+.tk-main b i{font-style:normal;white-space:nowrap;}
 .tk-main span{font-size:11.5px;color:var(--mut);}
 .tk-bar{height:7px;border-radius:999px;background:var(--off);overflow:hidden;margin-top:7px;}
 .tk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--mango),var(--orange));border-radius:999px;}
@@ -1446,10 +1465,25 @@ const INTERVIEW_CSS = `
 .think-l{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#CFE0EE;}
 .think-n{font-size:64px;font-weight:800;line-height:1;}
 .btn.rec{background:#D9452B;border-radius:999px;margin-top:10px;}
-.btn.rec.small{min-height:34px;padding:6px 16px;font-size:13.5px;margin:0 0 0 14px;}
+.btn.rec.small{min-height:40px;padding:6px 16px;font-size:13.5px;margin:0 0 0 auto;flex:none;}
 .recbar{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(5,22,38,.78);color:#fff;border-radius:999px;
-  padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;}
-.recdot{width:10px;height:10px;border-radius:50%;background:#FF5A48;animation:flDot 1.1s infinite;}
+  padding:6px 8px 6px 16px;display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;white-space:nowrap;}
+.recdot{width:10px;height:10px;border-radius:50%;background:#FF5A48;animation:flDot 1.1s infinite;flex:none;}
+.rec-max{opacity:.8;}
+/* A small phone's video is 258px wide. At 16:9 that is 145px tall -
+ * shorter than the countdown stacked on top of it, so "THINK TIME" was
+ * cut off at the top edge - and the recording bar needed 240px for its
+ * words, so "/ 3:00" broke over two lines. The frame goes to 4:3 (which
+ * also suits a phone held upright), the countdown shrinks to fit, and
+ * the bar keeps the dot and the clock and lets the word go. */
+@media(max-width:480px){
+  .vidwrap video,.setupvid video{aspect-ratio:4/3;}
+  .think-n{font-size:44px;}
+  .think-l{font-size:11.5px;}
+  .vover .btn.rec{margin-top:4px;min-height:44px;padding:10px 20px;font-size:14.5px;}
+  .recbar{left:8px;right:8px;bottom:8px;}
+  .rec-w{display:none;}
+}
 @keyframes flDot{0%,100%{opacity:1}50%{opacity:.25}}
 .captions{min-height:44px;border:1.5px dashed #DCD5D2;border-radius:12px;padding:11px 14px;margin-top:12px;
   font-size:14.5px;line-height:1.55;color:#616A71;background:#FBFAF9;}
@@ -1531,6 +1565,14 @@ const INTERVIEW_CSS = `
 .qc-head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--off);}
 .qc-n{font-size:12px;font-weight:800;color:#B93A22;flex:none;}
 .qc-q{font-size:14.5px;font-weight:600;flex:1;line-height:1.4;}
+/* On a phone the question takes the row and the button or score chip
+ * drops beneath it. Side by side they left the question a column a
+ * few words wide - six lines for one sentence at 320px. */
+@media(max-width:560px){
+  .qc-head{flex-wrap:wrap;align-items:flex-start;gap:8px 12px;padding:14px 16px;}
+  .qc-q{flex:1 1 calc(100% - 46px);}
+  .qc-head .qchip{margin-left:auto;}
+}
 .qc-s{font-size:22px;font-weight:800;flex:none;font-variant-numeric:tabular-nums;}
 .qc-row{padding:13px 20px;font-size:14px;line-height:1.65;color:#4a5b66;border-bottom:1px solid var(--off);}
 .qc-row:last-child{border-bottom:none;}

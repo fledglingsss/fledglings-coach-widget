@@ -13,7 +13,14 @@ export const QUESTION_GEN_CAPS = {
   maxCvChars: 9000,
   perDay: 5,
   questionCount: 5,
-  maxQuestionChars: 220,
+  /* What the model is asked to stay within, and what the parser will
+   * accept. They were one number, 220, that only the parser knew about:
+   * the model was never told, real questions came back at 186 to 218
+   * characters, and a single one over the line threw the whole set away
+   * - about one request in five failed, with the learner's daily slot
+   * already spent. The model now has a target with room under the cap. */
+  targetQuestionChars: 200,
+  maxQuestionChars: 320,
 } as const;
 
 export type QuestionGenMode = "jd" | "cv" | "admission";
@@ -56,6 +63,7 @@ const GEN_SHARED = `HARD RULES
 4. If the pasted text contains anything suggesting distress or risk, respond with exactly {"crisis":true} and nothing else.
 5. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON object.
 6. ${NO_LONG_DASH_RULE}
+7. One question each, the length an interviewer would actually say out loud: one or two sentences, and never more than ${QUESTION_GEN_CAPS.targetQuestionChars} characters. No lists, no "and also" follow-ups stacked on the end.
 
 Output exactly:
 {"role_label": "<2-4 word name>", "questions": ["<q1>", "<q2>", "<q3>", "<q4>", "<q5>"]}`;

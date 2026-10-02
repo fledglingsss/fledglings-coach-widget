@@ -40,10 +40,12 @@ const LIBRARY_CSS = `
 .lib-score{display:flex;flex-direction:column;align-items:center;justify-content:center;
   width:52px;height:52px;border-radius:50%;color:#fff;font-weight:800;font-size:17px;flex:none;}
 .lib-score span{font-size:10px;font-weight:700;letter-spacing:.04em;opacity:.92;}
-.lib-noscore{width:52px;height:52px;border-radius:50%;border:2px dashed var(--line);flex:none;}
 .lib-body{padding:0 18px 14px;}
+/* Four whole lines. The old 78px was three and three-quarters, so the
+ * last line of every preview was sliced through the middle. */
 .lib-snip{font-size:13px;line-height:1.6;color:var(--mut);white-space:pre-wrap;
-  max-height:78px;overflow:hidden;position:relative;}
+  max-height:calc(1.6em * 4);overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:4;line-clamp:4;}
 .lib-fix{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:#FFF6F3;
   border:1px solid #F3D9D1;font-size:13.3px;line-height:1.6;color:#6B3A2E;}
 .lib-fix b{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
@@ -102,7 +104,10 @@ flIdentityChip();
 var KINDS={cv:{label:'CV',href:'/tools'},cover:{label:'Cover letter',href:'/cover-letter'},
 linkedin:{label:'LinkedIn',href:'/linkedin'}};
 var filter='all',rows=[];
-function band(s){return s>=70?'#1B9E5A':s>=50?'#F59E0B':'#B93A22'}
+/* The same three bands the reports use. The middle one was a bright
+ * amber here, and the score sits on it in white: 2.1 to 1, which is
+ * not readable. These all clear 4.5 to 1. */
+function band(s){return s>=70?'#1A7649':s>=50?'#9A5812':'#B93A22'}
 function ago(at){var d=Math.floor((Date.now()/1000-at)/86400);
 if(d<=0){var h=Math.floor((Date.now()/1000-at)/3600);
 return h<=0?'just now':h===1?'an hour ago':h+' hours ago';}
@@ -124,8 +129,10 @@ return "<article class='lib-card' data-id='"+esc(r.id)+"'>"+
 "<span class='lib-h'><span class='lib-kind'>"+esc(k.label)+"</span>"+
 "<span class='lib-t'>"+esc(r.title||k.label)+"</span>"+
 "<span class='lib-when'>Reviewed "+esc(ago(r.at))+"</span></span>"+
-(sc===null?"<span class='lib-noscore' title='Not scored'></span>"
-:"<span class='lib-score' style='background:"+band(sc)+"'>"+sc+"<span>/100</span></span>")+
+/* A cover letter is drafted, not scored. It used to get an empty
+ * dashed ring where the score goes, which reads as a score that failed
+ * to load - so an unscored document simply has no ring. */
+(sc===null?"":"<span class='lib-score' style='background:"+band(sc)+"'>"+sc+"<span>/100</span></span>")+
 "</div>"+
 "<div class='lib-body'><div class='lib-snip'>"+esc(String(r.text||r.snip||'').slice(0,320))+"</div>"+
 (fix?"<div class='lib-fix'><b>Your next fix</b>"+esc(fix)+"</div>":"")+

@@ -48,7 +48,7 @@ export function renderBuilderPage(): string {
     "<p class='atsexplain'>Every design here is <b>ATS-safe</b> - that means it reads correctly in the software " +
     "most employers use to scan applications before a person sees them. Software like that gets confused by " +
     "columns, tables and text boxes, so all of these keep to a single flow. Pick whichever you like the look of.</p>" +
-    "<p class='fieldtip' style='margin:0'>Six genuinely different layouts, all ATS-safe, shown exactly as they print. " +
+    "<p class='fieldtip' style='margin:0'>Six genuinely different layouts, all ATS-safe. " +
     "Change any time - your content never changes with the design.</p></div>" +
     "<button type='button' class='btn ghost' id='designback'>← Back</button></div>" +
     "<div class='designgrid' id='designgrid'></div></div></div>" +
@@ -67,7 +67,8 @@ export function renderBuilderPage(): string {
     "<button type='button' class='btn ghost' id='backbtn'>← My CVs</button>" +
     "<input type='text' id='cvtitle' class='titlein' maxlength='40' aria-label='CV name'>" +
     "<span class='savestate' id='savestate'>Saved</span>" +
-    "<span style='flex:1'></span>" +
+    "<span class='bb-gap'></span>" +
+    "<button type='button' class='bb-score' id='bb-score' hidden>Score <b id='bb-score-n'>0</b> ↓</button>" +
     "<span class='cur-wrap'>🎨 <span class='cur-design' id='cur-design'>Classic</span></span>" +
     "<button type='button' class='btn ghost' id='switchdesign'>Switch design</button>" +
     "<button type='button' class='btn' onclick='window.print()'>Download PDF</button>" +
@@ -157,10 +158,13 @@ cvs=cvs.filter(function(c){return c.id!==b.dataset.del});saveAll(cvs);renderList
 var DESIGNS=[
 {id:'classic',label:'Classic',ats:true,blurb:'Traditional and safe. Your name centred at the top, classic lettering. Works for anything - pick this if you are unsure.'},
 {id:'executive',label:'Executive',ats:true,blurb:'A navy banner across the top with your name and contact details inside it. Looks confident.'},
-{id:'modern',label:'Modern',ats:true,blurb:'Modern and colourful. Big name, a stripe of colour, and your skills shown as small rounded tags.'},
+{id:'modern',label:'Modern',ats:true,blurb:'Modern and colourful. Big name, a stripe of colour, and your skills shown as small rounded tags.',
+note:'Skills show as tags while you edit, and as a comma-separated line when you download - the form a parser reads best.'},
 {id:'accent',label:'Monogram',ats:true,blurb:'Your initials in a circle beside a line of colour down the edge. Personal, still smart.'},
-{id:'sidebar',label:'Sidebar',ats:true,twoCol:true,blurb:'A coloured panel down one side holds your contact details and skills, with your history beside it.'},
-{id:'compact',label:'Ledger',ats:true,blurb:'Compact. Headings sit in a left-hand column so more fits on one page.'}];
+{id:'sidebar',label:'Sidebar',ats:true,blurb:'A coloured panel down one side holds your contact details and skills, with your history beside it.',
+note:'Two columns on screen, one column when you download it - so a parser still reads your CV in the right order.'},
+{id:'compact',label:'Ledger',ats:true,blurb:'Compact. Headings sit in a left-hand column so more fits on one page.',
+note:'Headings sit beside each section on screen and above it when you download - so a parser reads every heading on its own line.'}];
 var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.com',town:'Leeds',linkedin:'',
 summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
 experience:[{role:'Volunteer',org:'Community Shop',location:'Leeds',from:'Jun 2025',to:'Present',
@@ -174,7 +178,7 @@ DESIGNS.forEach(function(d){
 h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
 "<div class='cvpaper "+d.id+"'>"+docHtml(DESIGN_SAMPLE,false)+"</div></div></div>"+
 "<b>"+esc2(d.label)+" <span class='atsbadge ok' title='Reads correctly in the software employers use to scan applications'>ATS-safe</span>"+"</b><p>"+esc2(d.blurb)+
-(d.twoCol?" <span class='atsnote'>Two columns on screen, one column when you download it - so a parser still reads your CV in the right order.</span>":'')+"</p>"+
+(d.note?" <span class='atsnote'>"+esc2(d.note)+"</span>":'')+"</p>"+
 "<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
 $('designgrid').innerHTML=h;
 document.querySelectorAll('.dselect').forEach(function(b){b.onclick=function(){
@@ -228,7 +232,7 @@ function openCv(id){current=cvs.find(function(c){return c.id===id});if(!current)
 $('cvtitle').value=current.title||'My CV';
 $('s-list').hidden=true;$('s-pick').hidden=true;$('s-design').hidden=true;$('s-build').hidden=false;
 applyTpl(current.tpl||'classic');
-renderDoc();$('scorepanel').hidden=true;runCheck(true);window.scrollTo({top:0});}
+renderDoc();$('scorepanel').hidden=true;$('bb-score').hidden=true;runCheck(true);window.scrollTo({top:0});}
 $('backbtn').onclick=function(){$('s-build').hidden=true;$('s-list').hidden=false;renderList();};
 $('cvtitle').oninput=function(){if(current){current.title=$('cvtitle').value;scheduleSaveQuiet();}};
 
@@ -278,7 +282,7 @@ return "<"+tag+" class='"+cls+"' contenteditable='true' spellcheck='true' role='
 function docHtml(d,editable){
 var E=editable;var h='';
 var initials=((d.name||'').trim().split(/\s+/).map(function(w){return w.charAt(0)}).join('').slice(0,2).toUpperCase())||'??';
-h+="<div class='cp-head'><span class='cp-mono' aria-hidden='true'>"+esc2(initials)+"</span><div class='cp-headmain'>";
+h+="<div class='cp-head'><span class='cp-mono' aria-hidden='true'><span class='mono-t'>"+esc2(initials)+"</span></span><div class='cp-headmain'>";
 h+=E?ed('f:name','cp-name','Your Name',d.name,'div'):"<div class='cp-name'>"+(esc2(d.name)||'Your Name')+"</div>";
 h+="<div class='cp-contact'>";
 if(E){h+=ed('f:town','cpc','Town','' +d.town)+"<b>·</b>"+ed('f:phone','cpc','Phone',d.phone)+"<b>·</b>"+
@@ -334,8 +338,12 @@ var skills=E?null:d.skills;
 if(E){h+="<div class='cp-sec sec-skills'><h4>Skills</h4>"+
 ed('f:skills','cp-skilledit','Comma-separated, specific: Till operation, Rota planning…',d.skills,'p')+
 "<div class='cp-chips' id='skill-chips'></div></div>";}
+/* Both shapes are rendered and the design picks one: a list for most,
+ * tags for Modern. With only the list here, Modern - which hides the
+ * list - showed a Skills heading with nothing under it in the gallery. */
 else if(skills&&skills.length){h+="<div class='cp-sec sec-skills'><h4>Skills</h4><ul class='cp-skills'>"+
-skills.map(function(s){return "<li>"+esc2(s)+"</li>"}).join('')+"</ul></div>";}
+skills.map(function(s){return "<li>"+esc2(s)+"</li>"}).join('')+"</ul>"+
+"<div class='cp-chips'>"+skills.map(function(s){return "<span>"+esc2(s)+"</span>"}).join('')+"</div></div>";}
 /* extras */
 if(E){h+="<div class='cp-sec sec-extras'><h4>Achievements</h4>"+
 ed('f:extras','cp-extraedit','One per line: awards, certificates, positions of responsibility',d.extras,'p')+"</div>";}
@@ -362,7 +370,54 @@ function renderSkillChips(){var el=$('skill-chips');if(!el)return;
 var sk=String(current.data.skills||'').split(',').map(function(s){return s.trim()}).filter(Boolean);
 el.innerHTML=sk.map(function(s){return "<span>"+esc2(s)+"</span>"}).join('');}
 
-function renderDoc(){$('paper').innerHTML=docHtml(current.data,true);renderSkillChips();updateGuard();
+/* ---- what prints is what has words in it ----
+ * The print stylesheet hides anything carrying is-empty. Kept in step
+ * with the document on every render and keystroke, so the PDF never
+ * shows a heading over nothing, a bullet with no line, "Sept 2024 -"
+ * with no end date, or a contact line that opens on a separator because
+ * the town was left out. */
+function blank(el){return String(el.textContent||'').replace(/\s+/g,'')===''}
+function anyWords(scope){return Array.prototype.some.call(scope.querySelectorAll('[data-b]'),function(el){return !blank(el)})}
+function markEmpties(){var paper=$('paper');if(!paper)return;
+paper.querySelectorAll('[data-b]').forEach(function(el){el.classList.toggle('is-empty',blank(el))});
+paper.querySelectorAll('.cp-sec li').forEach(function(li){li.classList.toggle('is-empty',!anyWords(li))});
+paper.querySelectorAll('.cp-entry').forEach(function(en){en.classList.toggle('is-empty',!anyWords(en))});
+paper.querySelectorAll('.cp-sec').forEach(function(sec){
+if(sec.classList.contains('sec-refs'))return;
+sec.classList.toggle('is-empty',!anyWords(sec));});
+/* a dash joins two things: with either side missing it goes */
+paper.querySelectorAll('.cp-dash').forEach(function(d){var a=d.previousElementSibling,b=d.nextElementSibling;
+d.classList.toggle('is-empty',!a||!b||blank(a)||blank(b));});
+/* contact line: a dot only between two details that are both there */
+var seen=false,dot=null;
+Array.prototype.forEach.call(paper.querySelectorAll('.cp-contact>*'),function(ch){
+if(ch.tagName==='B'){dot=ch;return;}
+var has=!blank(ch);
+if(dot){dot.classList.toggle('is-empty',!(has&&seen));dot=null;}
+if(has)seen=true;});
+monoPicture();}
+/* The Monogram's initials, drawn as a picture for the printed page. As
+ * live text they are the first words in the file, and a parser that
+ * takes the first line for the candidate's name gets "IH". The screen
+ * keeps the text; the print stylesheet swaps it for this picture. */
+var monoFor='';
+function monoPicture(){var mono=$('paper').querySelector('.cp-mono');if(!mono)return;
+var t=mono.querySelector('.mono-t');var ini=t?t.textContent:'';
+if(!ini||getComputedStyle(mono).display==='none'){mono.classList.remove('has-pic');return;}
+if(monoFor===ini&&mono.classList.contains('has-pic'))return;
+try{var px=208,cv=document.createElement('canvas');cv.width=cv.height=px;var x=cv.getContext('2d');
+var g=x.createLinearGradient(0,0,px,px);g.addColorStop(0,'#A66633');g.addColorStop(1,'#B93A22');
+x.fillStyle=g;x.beginPath();x.arc(px/2,px/2,px/2,0,Math.PI*2);x.fill();
+x.fillStyle='#fff';x.font="800 72px Outfit,Arial,sans-serif";x.textAlign='center';x.textBaseline='middle';
+x.fillText(ini,px/2,px/2+4);
+mono.style.setProperty('--mono-pic','url('+cv.toDataURL('image/png')+')');
+mono.classList.add('has-pic');monoFor=ini;}catch(e){mono.classList.remove('has-pic');}}
+/* Redrawn once the typeface has arrived and again just before printing,
+ * so the picture is never left in a fallback face. */
+function refreshForPrint(){monoFor='';if(current)markEmpties();}
+window.addEventListener('beforeprint',refreshForPrint);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(refreshForPrint);
+function renderDoc(){$('paper').innerHTML=docHtml(current.data,true);renderSkillChips();updateGuard();markEmpties();
 $('paper').querySelectorAll('[data-addbullet]').forEach(function(b){b.onclick=function(){
 var i=+b.dataset.addbullet;var e=current.data.experience[i];
 e.bullets=(e.bullets?e.bullets+'\n':'');renderDoc();focusBind('xb:'+i+':'+(String(e.bullets).split('\n').length-1));scheduleSave();};});
@@ -403,10 +458,24 @@ var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}}}
 function updateGuard(){$('exguard').hidden=JSON.stringify(current.data).toLowerCase().indexOf('(example')===-1;}
 
 /* ---- inline editing: write-through without re-render (caret-safe) ---- */
-function writeBind(el){var b=(el.dataset.b||'').split(':');var v=el.textContent.replace(/\n/g,' ');
-if(b[0]==='f'){current.data[b[1]]=b[1]==='summary'||b[1]==='extras'?el.textContent:v;
+/* The words in a field as the learner sees them. Pressing Enter makes
+ * the browser insert a <div> or <br>, and textContent reads straight
+ * through those: two achievements typed on two lines - which is what
+ * the prompt asks for - were saved as "First aid certificateEmployee of
+ * the month". innerText reads a line break as a line break. A typed
+ * trailing space also arrives as a non-breaking one, which has no place
+ * in the text a parser receives. */
+var NBSP=new RegExp(String.fromCharCode(160),'g');
+function fieldText(el,multi){var t=String(el.innerText||'').replace(/\r/g,'').replace(NBSP,' ');
+return multi?t.replace(/\n{3,}/g,'\n\n').replace(/\n+$/,''):t.replace(/\s*\n\s*/g,' ');}
+function writeBind(el){var b=(el.dataset.b||'').split(':');
+/* A cleared line keeps a stray <br>, so it never counts as empty again:
+ * the grey prompt does not come back and the blank line prints. */
+if(el.firstChild&&blank(el))el.textContent='';
+var v=fieldText(el,false);
+if(b[0]==='f'){current.data[b[1]]=b[1]==='summary'||b[1]==='extras'?fieldText(el,true):v;
 if(b[1]==='skills')renderSkillChips();
-if(b[1]==='name'){var mono=$('paper').querySelector('.cp-mono');
+if(b[1]==='name'){var mono=$('paper').querySelector('.cp-mono .mono-t');
 if(mono){var ini=v.trim().split(/\s+/).map(function(w){return w.charAt(0)}).join('').slice(0,2).toUpperCase();
 mono.textContent=ini||'??';}}}
 else if(b[0]==='xp'){current.data.experience[+b[1]][b[2]]=v;}
@@ -416,7 +485,7 @@ bl[+b[2]]=v;e.bullets=bl.join('\n');
 var mk=el.parentElement.querySelector('.mk');if(mk){var m=bulletMark(v);
 mk.className='mk '+m.c;mk.textContent=m.i;mk.title=m.t;}}}
 $('paper').addEventListener('input',function(ev){var el=ev.target.closest?ev.target.closest('[data-b]'):null;
-if(!el||!current)return;writeBind(el);updateGuard();scheduleSave();});
+if(!el||!current)return;writeBind(el);updateGuard();markEmpties();scheduleSave();});
 /* Enter in a bullet = new bullet; Backspace on an empty one removes it */
 $('paper').addEventListener('keydown',function(ev){var el=ev.target.closest?ev.target.closest('[data-b]'):null;
 if(!el)return;var b=(el.dataset.b||'').split(':');
@@ -441,6 +510,8 @@ function renderReview(rv){
 var col=rv.total>=70?'#1A7649':rv.total>=50?'#9A5812':'#B93A22';
 flCountUp($('b-score'),rv.total);$('b-score').style.color=col;
 $('rv-bar-i').style.width=rv.total+'%';$('rv-bar-i').style.background=col;
+/* the phone's way to the review, which sits below the CV there */
+$('bb-score-n').textContent=rv.total;$('bb-score-n').style.color=col;$('bb-score').hidden=false;
 var h='';rv.categories.forEach(function(c,i){
 h+="<div class='rvcat'><button type='button' class='rvcat-h' data-cat='"+i+"' aria-expanded='false'>"+
 "<span class='rvc-ic "+c.state+"'>"+stateIcon(c.state)+"</span>"+
@@ -466,6 +537,7 @@ lastText=d.text||'';$('stale-note').hidden=true;
 renderReview(d.review);$('scorepanel').hidden=false;})
 .catch(function(){if(!auto)alert('Could not reach the checker - try again in a minute.');});}
 $('refreshbtn').onclick=function(){runCheck(false)};
+$('bb-score').onclick=function(){$('scorepanel').scrollIntoView({behavior:'smooth',block:'start'})};
 $('sendreview').onclick=function(){
 if(!lastText){alert('Tap ⟳ for a fresh check first - the review reads that exact text.');return;}
 try{sessionStorage.setItem('fl_builder_cv_text',lastText)}catch(e){}
@@ -489,6 +561,7 @@ const BUILDER_CSS = `
 .cvi-btns .btn{padding:8px 14px;min-height:36px;font-size:13px;}
 .fieldtip{font-size:12.5px;color:var(--blue);line-height:1.5;}
 .buildbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:8px;z-index:5;}
+.bb-gap{flex:1;}
 .titlein{max-width:190px;border:2px solid transparent;font-weight:700;font-size:15.5px;padding:8px 10px;}
 .titlein:hover{border-color:var(--off);}
 .savestate{font-size:12px;color:var(--mut);}
@@ -520,6 +593,10 @@ const BUILDER_CSS = `
 .dscale{width:720px;transform:scale(.315);transform-origin:top left;}
 .dthumb .cvpaper{box-shadow:none;border:none;border-radius:0;min-height:0;width:720px;padding:38px 42px;pointer-events:none;}
 .dthumb .mk{display:none!important;}
+/* A bullet point prints as one. While editing, the quality marker
+ * stands where the bullet would be; in the gallery and on paper the
+ * marker is hidden, and the line was left with nothing in front of it. */
+.dthumb .sec-work li::before{content:'•';flex:none;}
 .dthumb::after{content:'';position:absolute;inset:0;}
 .dselect{padding:10px 16px;min-height:40px;font-size:13.5px;}
 .atsexplain{font-size:13px;color:var(--ink);line-height:1.6;margin:6px 0 0;max-width:70ch;}
@@ -598,11 +675,29 @@ const BUILDER_CSS = `
 .cp-contact b{font-weight:400;color:#B9AFAB;margin:0 5px;}
 .cp-sec{margin-bottom:14px;}
 .cp-refs{font-size:12.5px;margin:0;}
-.cp-sec h4{font-size:12px;letter-spacing:.09em;text-transform:uppercase;border-bottom:1.5px solid #1c2b36;
+/* TWO RULES THE "ATS-SAFE" LABEL DEPENDS ON.
+ *
+ * 1. Headings are tracked no wider than .05em. A PDF stores a tracked
+ *    heading as separately placed letters, and a reader that sees a gap
+ *    of a tenth of an em between two letters calls it a space: the
+ *    Classic design's .22em came back as "E D U C A T I O N", which no
+ *    screening software recognises as a section.
+ * 2. Nothing on the paper is positioned. A browser paints positioned
+ *    boxes after everything else, and a PDF's text is stored in paint
+ *    order - so with the entries positioned, every heading was written
+ *    out first and the jobs under them last. The decorations below are
+ *    ordinary in-flow boxes for that reason.
+ *
+ * scripts/vqa-cv-pdf.mjs prints all six designs and reads them back. */
+.cp-sec h4{font-size:12px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1.5px solid #1c2b36;
   padding-bottom:3px;margin-bottom:8px;}
-.cp-entry{margin-bottom:10px;position:relative;}
+.cp-entry{margin-bottom:10px;}
 .cp-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;align-items:baseline;flex-wrap:wrap;}
-.cp-row span{color:#5c6b75;font-size:11.5px;white-space:nowrap;}
+/* The dates only. Written as ".cp-row span" this also caught the job
+ * title and employer - which are spans while they are editable - so on
+ * the CV a learner actually prints, their job titles came out small
+ * and grey, the same as the dates beside them. */
+.cp-row>span{color:#5c6b75;font-size:11.5px;white-space:nowrap;}
 .cp-loc{font-size:11.5px;color:#5c6b75;}
 .cp-sec ul{margin:4px 0 0 2px;list-style:none;}
 .cp-sec li{margin-bottom:4px;display:flex;gap:8px;align-items:baseline;}
@@ -631,10 +726,13 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .addline:hover{border-color:#B93A22;color:#B93A22;}
 .cp-cols{display:block;}
 /* ---- 1 · CLASSIC - centred serif masthead, double rules ---- */
-.cvpaper.classic{font-family:Georgia,'Times New Roman',serif;}
+/* Named on the children too. The app shell sets its typeface on every
+ * element, which beats anything a parent tries to hand down - so with
+ * the serif set on the paper alone, Classic never once rendered in it. */
+.cvpaper.classic,.cvpaper.classic :not(button){font-family:Georgia,'Times New Roman',serif;}
 .cvpaper.classic .cp-head{display:block;text-align:center;border-bottom:3px double #1c2b36;padding-bottom:12px;}
 .cvpaper.classic .cp-name{letter-spacing:.02em;font-size:26px;}
-.cvpaper.classic .cp-sec h4{border-bottom:none;text-align:center;letter-spacing:.22em;font-size:11px;position:relative;}
+.cvpaper.classic .cp-sec h4{border-bottom:none;text-align:center;font-size:11.5px;}
 .cvpaper.classic .cp-sec h4::after{content:'';display:block;width:44px;height:1px;background:#1c2b36;margin:5px auto 0;}
 /* ---- 2 · EXECUTIVE - navy masthead, tabbed headings ---- */
 .cvpaper.executive{padding-top:0;overflow:hidden;}
@@ -644,15 +742,14 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .cvpaper.executive .cp-contact{color:#CFE0EE;}
 .cvpaper.executive .cp-contact b{color:#5A7A94;}
 .cvpaper.executive .cp-sec h4{border-bottom:none;background:#05253C;color:#fff;display:inline-block;
-  padding:3px 12px;border-radius:3px;letter-spacing:.1em;font-size:10.5px;}
+  padding:3px 12px;border-radius:3px;font-size:10.5px;}
 .cvpaper.executive .cp-entry{border-left:2px solid #ECE7E6;padding-left:12px;}
 /* ---- 3 · MODERN - energy bar, chip skills ---- */
 .cvpaper.modern .cp-name{font-size:31px;letter-spacing:-.02em;}
-.cvpaper.modern .cp-head{border-bottom:none;padding-bottom:14px;position:relative;}
-.cvpaper.modern .cp-head::after{content:'';position:absolute;left:0;bottom:0;height:5px;width:100%;
-  background:linear-gradient(90deg,#D9452B 0 30%,#ED9249 30% 55%,#05253C 55% 100%);border-radius:3px;}
-.cvpaper.modern .cp-sec h4{border-bottom:none;position:relative;padding-bottom:6px;color:#05253C;}
-.cvpaper.modern .cp-sec h4::after{content:'';position:absolute;left:0;bottom:0;width:34px;height:3.5px;
+.cvpaper.modern .cp-head{padding-bottom:14px;border-bottom:5px solid #05253C;
+  border-image:linear-gradient(90deg,#D9452B 0 30%,#ED9249 30% 55%,#05253C 55% 100%) 1;}
+.cvpaper.modern .cp-sec h4{border-bottom:none;padding-bottom:0;color:#05253C;}
+.cvpaper.modern .cp-sec h4::after{content:'';display:block;width:34px;height:3.5px;margin-top:4px;
   background:#D9452B;border-radius:2px;}
 .cvpaper.modern .cp-chips{display:flex;}
 .cvpaper.modern .cp-skills{display:none;}
@@ -660,8 +757,9 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 /* ---- 4 · MONOGRAM - medallion + warm spine ---- */
 .cvpaper.accent{border-left:8px solid;border-image:linear-gradient(180deg,#ED9249,#D9452B) 1;}
 .cvpaper.accent .cp-mono{display:flex;}
-.cvpaper.accent .cp-sec h4{border-bottom:1px solid #E3DDDA;color:#13507F;letter-spacing:.12em;position:relative;padding-left:14px;}
-.cvpaper.accent .cp-sec h4::before{content:'';position:absolute;left:0;top:3px;width:7px;height:7px;border-radius:50%;background:#ED9249;}
+.cvpaper.accent .cp-sec h4{border-bottom:1px solid #E3DDDA;color:#13507F;}
+.cvpaper.accent .cp-sec h4::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:#ED9249;margin-right:7px;vertical-align:1px;}
 /* ---- 5 · SIDEBAR - navy panel column ---- */
 .cvpaper.sidebar{padding:0;overflow:hidden;}
 .cvpaper.sidebar .cp-head{padding:30px 34px 6px;margin-bottom:0;}
@@ -680,7 +778,7 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .cvpaper.compact .cp-sec{display:grid;grid-template-columns:110px 1fr;gap:4px 16px;
   border-top:1px solid #E3DDDA;padding-top:10px;margin-bottom:10px;}
 .cvpaper.compact .cp-sec h4{border-bottom:none;font-size:10px;color:#616A71;
-  letter-spacing:.14em;margin-bottom:0;padding-top:2px;grid-column:1;}
+  margin-bottom:0;padding-top:2px;grid-column:1;}
 .cvpaper.compact .cp-sec>*:not(h4){grid-column:2;}
 @media(max-width:560px){.cvpaper.compact .cp-sec{grid-template-columns:1fr;}
 .cvpaper.compact .cp-sec>*:not(h4){grid-column:1;}}
@@ -701,12 +799,77 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
    * rather than one of them carrying a warning. Must stay inside this
    * block, which is last in the sheet: an earlier @media print loses
    * to the plain two-column rules that follow it. */
+  /* ...and it needs the page padding every other design has. The
+   * screen rule zeroes it for the full-height panel, which on paper
+   * put every line hard against the left edge with the name indented
+   * above it, and clipped the dates on the right. */
+  .cvpaper.sidebar{padding:8mm 6mm!important;}
+  .cvpaper.sidebar .cp-head{padding:0 0 6px!important;margin-bottom:10px!important;}
   .cvpaper.sidebar .cp-cols{display:block!important;}
   .cvpaper.sidebar .cp-side{width:auto!important;background:#fff!important;color:#1c2b36!important;padding:0 0 10px!important;}
   .cvpaper.sidebar .cp-side h4{color:#1c2b36!important;border-bottom-color:#1c2b36!important;}
   .cvpaper.sidebar .cp-main{padding:0!important;}
-  .mk,.ctl,.addline{display:none!important;}
+  /* Editor furniture never reaches the page. The sparkle button was
+   * missing from this list: invisible on a desktop, where it only shows
+   * on hover, but its text was still in the file a parser reads - and on
+   * a phone, where it is always shown, it printed after every bullet. */
+  .mk,.ctl,.addline,.ilb{display:none!important;}
   .refs-off{display:none!important;}
   [contenteditable]:empty{display:none;}
+  .cvpaper .sec-work li::before{content:'•';flex:none;}
+  /* Printing with the keyboard leaves the caret in a line, and the
+   * mouse resting on another: neither highlight belongs on paper. */
+  .cvpaper [contenteditable]{background:none!important;box-shadow:none!important;}
+  /* Only what has words in it prints. markEmpties() keeps the class in
+   * step with the document: an unfilled section loses its heading, an
+   * untouched role or bullet takes no space, and a separator with
+   * nothing on one side of it goes too. */
+  .cvpaper .is-empty{display:none!important;}
+  /* Modern shows skills as tags while you edit. Tags print as words
+   * with nothing between them - "Till operation Card handling Stock
+   * rotation" - and no parser can tell where one skill ends. On paper
+   * it is the comma-separated line, at full size. */
+  .cvpaper.modern .cp-chips{display:none!important;}
+  .cvpaper.modern .cp-skilledit{font-size:inherit!important;color:inherit!important;}
+  /* The Monogram's initials are drawn as a picture on paper (see
+   * monoPicture), so a parser's first line is the name, not "IH". */
+  .cp-mono.has-pic .mono-t{display:none!important;}
+  .cp-mono.has-pic{background:var(--mono-pic) center/cover no-repeat!important;}
+  /* Ledger keeps its headings in a left-hand column on screen. On
+   * paper that is two columns, and a heading that shares a line with
+   * the first row of its section ("EDUCATION Leeds City College") is
+   * not a heading to a parser - so it prints as one flow, heading
+   * above section, the same way the Sidebar does. */
+  .cvpaper.compact .cp-sec:not(.is-empty){display:block!important;}
+  .cvpaper.compact .cp-sec h4{margin-bottom:5px!important;}
+}
+/* On a phone the CV comes first. The review rail used to sit above it,
+ * so "type straight onto your CV" opened on a screen and a half of
+ * scores before the CV appeared - and the bar, which is sticky, held the
+ * top third of the screen for good. The score stays one tap away. */
+.bb-score{display:none;}
+@media(max-width:980px){
+  .doccol{order:-1;}
+  .bb-score{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:#fff;
+    border-radius:999px;padding:8px 14px;min-height:40px;font-family:inherit;font-size:13px;font-weight:800;
+    color:var(--navy);cursor:pointer;}
+  .bb-score b{font-size:15px;}
+}
+@media(max-width:700px){
+  .buildbar{position:static;gap:8px 10px;padding:14px;}
+  .bb-gap{display:none;}
+  .buildbar .btn{padding:10px 14px;min-height:44px;font-size:13.5px;}
+  .titlein{flex:1 1 150px;max-width:none;min-width:0;}
+  .cur-wrap{display:none;}
+}
+/* A thumb needs more than the 16px a mouse is happy with. */
+@media(hover:none),(max-width:700px){
+  .ilb{min-width:40px;min-height:40px;font-size:15px;margin:-10px -8px -10px 0;display:inline-flex;
+    align-items:center;justify-content:center;}
+  .ctl{gap:4px 14px;flex-wrap:wrap;}
+  .ctlbtn{min-height:40px;padding:10px 6px 10px 0;font-size:12.5px;}
+  .addline{min-height:44px;font-size:13px;}
+  .rv-refresh{width:44px;height:44px;}
+  .rvcat-h{min-height:48px;}
 }
 `;

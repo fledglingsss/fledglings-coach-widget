@@ -191,8 +191,25 @@ body{font-family:'Outfit',sans-serif;background:#ECE7E6;color:#05253C;-webkit-fo
 /* The platform's touch-target floor is 44px; these two sat at 38 and
  * were missed because the passport has its own stylesheet. */
 .share,.tabbar button{min-height:44px}
+/* "#4 / 120" and "7 / 10" are one figure each and break as one. */
+.stat .v .fig{white-space:nowrap}
+/* The narrowest phones, and the passport framed inside another page:
+ * two tiles across leave each about a hundred pixels, which the 36px
+ * figures and 24px padding overran - "12 days" lost its last letter. */
+@media (max-width:420px){.inner{padding:16px}.topbar{padding:16px}.cards{gap:10px}
+  .stat{padding:14px}.stat .v{font-size:26px}.stat .v small{font-size:13px}
+  .who{gap:14px}.who .nm{font-size:26px}.avatar{width:64px;height:64px;font-size:24px;border-radius:18px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 `;
+
+/** A value written into an inline script as a string literal. JSON
+ * leaves "<" alone, and "</script>" inside a string still ends the
+ * script block - so the angle bracket is written as an escape. The
+ * address here has already matched a real account, which makes this
+ * belt and braces, but a page should not depend on that. */
+function scriptString(value: string): string {
+  return JSON.stringify(value).split("<").join("\\x3c");
+}
 
 function badgeChip(b: {
   code: string;
@@ -230,7 +247,7 @@ export function renderSkillsPassport(
   const earned = model.badges.filter((b) => b.state === "earned");
   const rankMain =
     s.rank !== null && s.cohortSize !== null && s.cohortSize > 1
-      ? `#${s.rank} <small>/ ${s.cohortSize}</small>`
+      ? `<span class='fig'>#${s.rank} <small>/ ${s.cohortSize}</small></span>`
       : " - ";
   const rankSub =
     s.rank !== null && s.cohortSize !== null && s.cohortSize > 1
@@ -333,7 +350,7 @@ export function renderSkillsPassport(
     `<div class='stat st3'><div class='h'>${ICONS.trophy}<span>Cohort rank</span></div>` +
     `<div class='v'>${rankMain}</div><div class='s'>${rankSub}</div></div>` +
     `<div class='stat st4'><div class='h'>${ICONS.book}<span>Modules</span></div>` +
-    `<div class='v'>${s.modulesDone} <small>/ ${s.modulesTotal}</small></div>` +
+    `<div class='v'><span class='fig'>${s.modulesDone} <small>/ ${s.modulesTotal}</small></span></div>` +
     (s.stepsTotal > 0
       ? `<div class='s'>${s.stepsDone} of ${s.stepsTotal} learning steps done</div>`
       : "") +
@@ -390,14 +407,40 @@ export function renderSkillsPassport(
     "document.querySelectorAll('.view').forEach(function(v){v.className='view'});" +
     "document.getElementById('v-'+t.dataset.v).className='view on';});});" +
     (opts.shareEmail
-      ? "var sh=document.getElementById('share');if(sh){sh.addEventListener('click',function(){" +
-        "sh.disabled=true;" +
-        "function stored(st,k){try{var v=st.getItem(k);if(!v){v=Math.random().toString(16).slice(2)+Date.now().toString(16);st.setItem(k,v)}return v}catch(e){return 'anon'+Date.now()}}" +
+      ? /* Sharing mints a passport link, and the worker only does that
+         * for an identity this device can prove - a signed token, never
+         * a bare address. This button went on posting the bare address
+         * after that rule came in (11 August), so every learner who
+         * pressed Share was told "could not create your share link".
+         * It now does what every other tool does: use the token this
+         * device already holds for this learner, or ask for one under
+         * the same first-claim rules, and send that. */
+        `var EM=${scriptString(opts.shareEmail)};var IDS={};var TOKEN='';` +
+        "function stored(st,k){var v='';try{v=st.getItem(k)||''}catch(e){}" +
+        "if(!v)v=IDS[k]||Math.random().toString(16).slice(2)+Date.now().toString(16);" +
+        "IDS[k]=v;try{st.setItem(k,v)}catch(e){}return v}" +
+        "function claims(tok){try{var dot=String(tok||'').indexOf('.');if(dot<1)return null;" +
+        "var b=tok.slice(0,dot).replace(/-/g,'+').replace(/_/g,'/');" +
+        "var cl=JSON.parse(decodeURIComponent(atob(b).split('').map(function(c){" +
+        "return '%'+c.charCodeAt(0).toString(16).padStart(2,'0')}).join('')));" +
+        "if(!cl||typeof cl.e!=='string'||typeof cl.exp!=='number'||cl.exp*1000<=Date.now())return null;" +
+        "return cl}catch(e){return null}}" +
+        "function tokenFor(lid){if(TOKEN)return Promise.resolve(TOKEN);" +
+        "var held='';try{held=localStorage.getItem('fl_hub_token_v1')||''}catch(e){}" +
+        "var cl=claims(held);if(cl&&String(cl.e).toLowerCase()===EM){TOKEN=held;return Promise.resolve(held);}" +
+        "return fetch('/api/identity',{method:'POST',headers:{'Content-Type':'application/json'}," +
+        "body:JSON.stringify({learner_id:lid,email:EM})}).then(function(r){return r.json()})" +
+        ".then(function(d){TOKEN=(d&&d.ok&&d.token)||'';return TOKEN}).catch(function(){return ''});}" +
+        "var say=function(msg,ms){var t=document.getElementById('toast');t.textContent=msg;" +
+        "t.className='toast on';setTimeout(function(){t.className='toast'},ms||3200);};" +
+        "var sh=document.getElementById('share');if(sh){sh.addEventListener('click',function(){" +
+        "sh.disabled=true;var lid=stored(localStorage,'fl_coach_learner_v1');" +
+        "tokenFor(lid).then(function(tok){" +
+        "if(!tok){sh.disabled=false;" +
+        "say('To share from this device, sign in on your Employability Hub first - open Career journey on this page.',7000);return;}" +
         "fetch('/api/passport',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
-        `learner_id:stored(localStorage,'fl_coach_learner_v1'),session_id:stored(sessionStorage,'fl_coach_session_v1'),email:${JSON.stringify(opts.shareEmail)}})})` +
+        "learner_id:lid,session_id:stored(sessionStorage,'fl_coach_session_v1'),token:tok})})" +
         ".then(function(r){return r.json()}).then(function(d){sh.disabled=false;" +
-        "var say=function(msg){var t=document.getElementById('toast');t.textContent=msg;" +
-        "t.className='toast on';setTimeout(function(){t.className='toast'},3200);};" +
         "if(d&&d.ok&&d.url){var u=location.origin+d.url;" +
         "var ok=function(){say('Link copied - share away!')};" +
         /* Clipboard API is blocked in iframes without an allow attribute -
@@ -412,8 +455,8 @@ export function renderSkillsPassport(
         "'Share limit reached for today - try again tomorrow.':" +
         "'Could not create your share link - please try again.')}" +
         "}).catch(function(){sh.disabled=false;" +
-        "var t=document.getElementById('toast');t.textContent='Could not create your share link - please try again.';" +
-        "t.className='toast on';setTimeout(function(){t.className='toast'},3200);});});}"
+        "say('Could not create your share link - please try again.');});" +
+        "});});}"
       : "") +
     /* Tell the embedding page (the course iframe) how tall we are so it
      * can size the frame without clipping or a scrollbar. */

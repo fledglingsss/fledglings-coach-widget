@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  QUESTION_GEN_CAPS,
   parseGeneratedQuestions,
+  questionGenSystemPrompt,
   questionsSigFresh,
   questionsSigningPayload,
   validateQuestionGenRequest,
@@ -61,6 +63,38 @@ describe("parseGeneratedQuestions", () => {
 
   it("passes crisis through", () => {
     expect(parseGeneratedQuestions('{"crisis":true}')).toBe("crisis");
+  });
+});
+
+describe("question length: the model is told the limit the parser enforces", () => {
+  /* The parser used to reject anything over 220 characters and the
+   * model was never told. Real questions came back at 186 to 218, and
+   * one over the line threw the whole set away - about one request in
+   * five, with the learner's daily go already spent. */
+  const ofLength = (n: number) => `${"Tell me about a time you had to be accurate. ".repeat(10).slice(0, n - 1)}?`;
+
+  it("accepts a question as long as a real interviewer's two sentences", () => {
+    const set = [ofLength(215), ofLength(240), ofLength(260), ...FIVE.slice(3)];
+    const parsed = parseGeneratedQuestions(JSON.stringify({ role_label: "Role", questions: set }));
+    expect(parsed).not.toBeNull();
+    expect(parsed).not.toBe("crisis");
+  });
+
+  it("still refuses a question that has turned into a paragraph", () => {
+    const set = [ofLength(QUESTION_GEN_CAPS.maxQuestionChars + 40), ...FIVE.slice(1)];
+    expect(parseGeneratedQuestions(JSON.stringify({ role_label: "Role", questions: set }))).toBeNull();
+  });
+
+  it("gives the model a target with room to spare under the cap", () => {
+    expect(QUESTION_GEN_CAPS.targetQuestionChars).toBeLessThan(QUESTION_GEN_CAPS.maxQuestionChars - 50);
+  });
+
+  it("states that target in every version of the prompt", () => {
+    for (const mode of ["jd", "cv", "admission"] as const) {
+      expect(questionGenSystemPrompt(mode), mode).toContain(
+        `never more than ${QUESTION_GEN_CAPS.targetQuestionChars} characters`,
+      );
+    }
   });
 });
 

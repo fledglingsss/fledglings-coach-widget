@@ -84,6 +84,16 @@ describe("service endpoints", () => {
     });
   });
 
+  it("GET /health reports a missing key instead of failing on it", async () => {
+    /* The health check exists to say "the key is missing". A stricter
+     * key check once made it answer 500 in exactly that case. */
+    for (const key of ["", "   ", undefined as unknown as string]) {
+      const res = await app.request("/health", {}, makeEnv({ ANTHROPIC_API_KEY: key }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ ok: true, api_key_looks_valid: false });
+    }
+  });
+
   it("GET /widget.js serves JavaScript with nosniff", async () => {
     const res = await app.request("/widget.js", {}, makeEnv());
     expect(res.status).toBe(200);

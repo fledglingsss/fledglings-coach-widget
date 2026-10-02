@@ -49,9 +49,11 @@ export function renderLinkedInPage(): string {
     "<path d='M12 16V4m0 0l-4 4m4-4l4 4'/><path d='M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'/></svg></div>" +
     "<div class='drop-big'>Drop your LinkedIn PDF here</div>" +
     "<div class='drop-hint'>or click to choose a file · PDF only · max 10&nbsp;MB</div></div>" +
-    "<div id='d-err' class='drop-err' role='alert' hidden></div>" +
+    /* the drop zone closes here - Back must not be inside the one big
+     * "choose a file" button (it opened the file picker too) */
+    "<div id='d-err' class='drop-err' role='alert' hidden></div></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='li-b2'>← Back</button>" +
-    "<span class='hero-note' id='li-aim-note'></span></div></div>" +
+    "<span class='hero-note' id='li-aim-note'></span></div>" +
     /* closes step 2 then #u-card itself - report/spinner must be
      * siblings of u-card, never children (same blanking bug as /tools). */
     "</div></div>" +

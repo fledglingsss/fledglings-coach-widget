@@ -459,6 +459,13 @@ h3[tabindex='-1']:focus-visible{outline:none;}
   font-size:13.5px;line-height:1.5;margin-bottom:18px;}
 .result{line-height:1.7;font-size:14.5px;}
 .result p{margin-bottom:8px;white-space:pre-wrap;}
+/* A quiet explanatory line, and the small capital label over a
+ * call-out ("NEXT ON YOUR JOURNEY"). Both lived in the CV review's own
+ * stylesheet while the LinkedIn, interview and cover letter pages used
+ * the same classes - where, with no rule to find, they fell back to
+ * full-size body text. Shared classes belong in the shared sheet. */
+.kw-note{font-size:13px;color:var(--blue);line-height:1.55;margin-bottom:14px;}
+.ns-label{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:#B93A22;margin-bottom:6px;}
 .footer{padding:14px 20px;text-align:center;font-size:12px;color:var(--mut);}
 .cheer{display:flex;gap:14px;align-items:flex-start;background:#F3FBF6;border:1px solid #CBE9D6;}
 .cheer-ico{font-size:22px;line-height:1;}
@@ -565,6 +572,19 @@ textarea,input[type=text],input[type=email],input[type=password],input[type=sear
   border-radius:0 8px 8px 0;padding:7px 10px;margin:0 0 9px;line-height:1.5;font-weight:600;}
 .rb-you{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);}
 @media(max-width:560px){.rb-row{grid-template-columns:84px 1fr;}.rb-you{display:none;}}
+/* Touch targets. Each of these was sized for a mouse in its own page's
+ * stylesheet and measured between 18 and 38px on a phone; a thumb
+ * needs 44. Phone and tablet widths only, so desktop density is as it
+ * was. Here rather than per page so a new report tab or pager chip
+ * cannot quietly be born too small - and LAST in the sheet, because a
+ * rule of equal weight further down would simply win. */
+@media (max-width:880px){
+.rtab,.qpick,.rev-redo,.rev-copy,.qb-go,.cvi-btns .btn,.letteritem .btn{min-height:44px;}
+.rev-redo,.rev-copy{padding-left:16px;padding-right:16px;}
+.secarrow,.fbbtn{width:44px;height:44px;}
+.rb summary{min-height:44px;}
+.typefall summary{padding:13px 0;}
+}
 `;
 
 export function appShell(opts: {
@@ -711,9 +731,12 @@ export function renderToolsPage(): string {
     "<path d='M12 16V4m0 0l-4 4m4-4l4 4'/><path d='M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3'/></svg></div>" +
     "<div class='drop-big' id='d-title'>Drop your CV here</div>" +
     "<div class='drop-hint' id='d-hint'>or click to choose a file · PDF only · max 10&nbsp;MB</div></div>" +
-    "<div id='d-err' class='drop-err' role='alert' hidden></div>" +
+    /* The drop zone closes HERE. Back used to sit inside it, and the
+     * whole zone is one big "choose a file" button - so pressing Back
+     * went back and opened the file picker as well. */
+    "<div id='d-err' class='drop-err' role='alert' hidden></div></div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cv-b2'>← Back</button>" +
-    "<span class='hero-note' id='aim-note'></span></div></div>" +
+    "<span class='hero-note' id='aim-note'></span></div>" +
     /* one close for step 2, one for #u-card itself - the spinner and
      * report MUST be u-card's siblings: show() hides u-card when the
      * report appears, and a child report vanishes with it (the bug
@@ -905,7 +928,7 @@ export function renderToolsPage(): string {
     "if(qs.get('from')==='builder'){try{var bTxt=sessionStorage.getItem('fl_builder_cv_text')||'';" +
     "if(bTxt.length>=120){var bb=document.createElement('div');bb.className='card';" +
     "bb.innerHTML=\"<h3>Review the CV you just built?</h3><p class='kw-note'>Fledge has the text from your Resume Builder - \"+" +
-    "\"no PDF needed. Add a target role above first if you have one.</p>\";" +
+    "\"no PDF needed. Add a target role in the box below first if you have one.</p>\";" +
     "var bbtn=document.createElement('button');bbtn.type='button';bbtn.className='btn';" +
     "bbtn.textContent='Review my built CV now';" +
     "bbtn.onclick=function(){lastName='Your built CV';show('a-card');startMsgs();submit(bTxt);};" +
@@ -1338,7 +1361,6 @@ export function renderToolsPage(): string {
   display:flex;align-items:center;justify-content:center;flex:none;margin-top:2px;}
 .fix-t{font-weight:700;font-size:14.5px;}
 .fix-d{font-size:13.5px;color:#4a5b66;line-height:1.55;margin-top:2px;}
-.kw-note{font-size:13px;color:var(--blue);line-height:1.55;margin-bottom:14px;}
 .kw-h{font-size:12.5px;font-weight:700;color:var(--ok);margin:12px 0 8px;letter-spacing:.03em;}
 .kw-h.miss{color:#B93A22;}
 .chips{display:flex;flex-wrap:wrap;gap:8px;}

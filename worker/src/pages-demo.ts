@@ -63,6 +63,16 @@ body{background:#F6F3F1;color:var(--navy);}
   font-size:15px;border-radius:12px;padding:15px 28px;position:relative;}
 .cta a:hover{background:#c23a22;}
 .foot{border-top:1px solid var(--hair);color:var(--mut);font-size:12.5px;text-align:center;padding:22px;}
+/* A phone has no room for desktop gutters. With 28px each side the
+ * embedded passport was left 264px on a small phone and its right-hand
+ * tiles were cut off at the frame's edge. */
+@media(max-width:560px){
+  .hero-in{padding:26px 18px 44px;}
+  .wrap{padding:32px 16px 64px;}
+  .tool{padding:22px;}
+  .cta{padding:26px 22px;}
+  .cta a{margin-left:0;}
+}
 .foot b{color:#B93A22;}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 `;
@@ -136,11 +146,14 @@ export function renderDemoPage(provider: string | null): string {
     "<p class='lead'>The provider portal is where Fledglings earns its keep with Ofsted - we don't show it " +
     "here because it holds real learner records, but yours would include:</p>" +
     "<ul class='plist'>" +
-    "<li><i>✓</i><b>Live engagement figures</b>&nbsp;- cohort pulse, trend, and who was last seen when, scoped to your learners only.</li>" +
-    "<li><i>✓</i><b>Early-warning view</b>&nbsp;- learners going quiet, tiered by urgency, each with a ready-to-send encouraging nudge.</li>" +
-    "<li><i>✓</i><b>Pre/post reflection shift</b>&nbsp;- learners' own before-and-after confidence ratings per module: personal development evidence in their own words.</li>" +
-    "<li><i>✓</i><b>Safeguarding flags</b>&nbsp;- reflection answers screened for crisis language, surfaced to your safeguarding lead the same day.</li>" +
-    "<li><i>✓</i><b>An evidence narrative</b>&nbsp;- drafted for your SAR, honest about what the data can and cannot claim.</li>" +
+    /* The words sit in one span. Loose in the flex row, the bold label
+     * and the sentence after it were separate columns: on a phone the
+     * label stacked one word per line beside a ragged strip of text. */
+    "<li><i>✓</i><span><b>Live engagement figures</b> - cohort pulse, trend, and who was last seen when, scoped to your learners only.</span></li>" +
+    "<li><i>✓</i><span><b>Early-warning view</b> - learners going quiet, tiered by urgency, each with a ready-to-send encouraging nudge.</span></li>" +
+    "<li><i>✓</i><span><b>Pre/post reflection shift</b> - learners' own before-and-after confidence ratings per module: personal development evidence in their own words.</span></li>" +
+    "<li><i>✓</i><span><b>Safeguarding flags</b> - reflection answers screened for crisis language, surfaced to your safeguarding lead the same day.</span></li>" +
+    "<li><i>✓</i><span><b>An evidence narrative</b> - drafted for your SAR, honest about what the data can and cannot claim.</span></li>" +
     "</ul>" +
     /* cta */
     "<div class='cta'>" +

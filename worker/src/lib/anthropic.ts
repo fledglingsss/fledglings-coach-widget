@@ -29,9 +29,22 @@ export type ModerationVerdict = "ALLOW" | "BLOCK" | "CRISIS";
  * sk-ant-… token found anywhere in the value wins; otherwise the value
  * is stripped of anything a header cannot carry. */
 export function cleanApiKey(raw: string): string {
+  /* Never throws: /health calls this to REPORT a missing or mangled
+   * key, so it has to survive one. */
+  if (typeof raw !== "string") return "";
   const match = raw.match(/sk-ant-[A-Za-z0-9_-]{10,}/);
   if (match) return match[0];
   return raw.replace(/[^\x21-\x7E]/g, "");
+}
+
+/** The key for an actual model call. A missing secret (local
+ * development without one, or a deployment that lost it) used to die
+ * deep in the cleaning step with "Cannot read properties of undefined
+ * (reading 'match')", which says nothing about the cause. */
+function requireApiKey(raw: string): string {
+  const key = cleanApiKey(raw);
+  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
+  return key;
 }
 
 const COACH_MAX_TOKENS = 400;
@@ -55,7 +68,7 @@ export async function moderate(
   message: string,
 ): Promise<ModerationVerdict> {
   const client = new Anthropic({
-    apiKey: cleanApiKey(apiKey),
+    apiKey: requireApiKey(apiKey),
     timeout: MODERATION_TIMEOUT_MS,
     maxRetries: MAX_RETRIES,
   });
@@ -94,7 +107,7 @@ export async function coach(
   context: { learnerName: string; page: string },
 ): Promise<string> {
   const client = new Anthropic({
-    apiKey: cleanApiKey(apiKey),
+    apiKey: requireApiKey(apiKey),
     timeout: COACH_TIMEOUT_MS,
     maxRetries: MAX_RETRIES,
   });
@@ -151,7 +164,7 @@ export async function generate(
   maxTokens: number,
 ): Promise<string> {
   const client = new Anthropic({
-    apiKey: cleanApiKey(apiKey),
+    apiKey: requireApiKey(apiKey),
     timeout: GENERATE_TIMEOUT_MS,
     maxRetries: MAX_RETRIES,
   });
@@ -161,6 +174,12 @@ export async function generate(
     system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: user }],
   });
+  /* A reply that stopped because it ran out of room is cut off mid-JSON
+   * and will not parse. Said here, by name, so the log shows the cause
+   * rather than only the symptom downstream. */
+  if (response.stop_reason === "max_tokens") {
+    console.warn(`[coach] generation hit its ${maxTokens}-token limit and was cut short`);
+  }
   const text = textOf(response);
   if (!text) throw new Error("Empty generation response");
   return text;

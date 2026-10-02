@@ -136,7 +136,13 @@ describe("POST /api/review", () => {
     let out = await (
       await app.request(post("/api/review", body), undefined, makeEnv())
     ).json();
-    expect(out.reply).toBe(FALLBACK_REPLY);
+    /* Nothing of the leak reaches the learner, and a failed REVIEW is
+     * not answered in the chat coach's voice: no helpline numbers on
+     * "your review did not come out". */
+    expect(out.kind).toBe("fallback");
+    expect(out.report).toBeUndefined();
+    expect(out.reply).not.toBe(FALLBACK_REPLY);
+    expect(out.reply).not.toMatch(/HARD RULES|system prompt|Samaritans|Childline/);
 
     generateMock.mockRejectedValue(new Error("down"));
     out = await (

@@ -74,7 +74,7 @@ export function renderCoverLetterPage(): string {
     "<h3>📋 Paste the advert</h3>" +
     "<p class='fieldtip' style='margin-bottom:10px'>The letter answers what the advert actually asks for - paste the " +
     "whole thing, requirements and all.</p>" +
-    "<textarea id='cl-jd' rows='7' maxlength='3000' placeholder='Paste the job advert here…'></textarea>" +
+    "<textarea id='cl-jd' aria-label='Paste the job advert' rows='7' maxlength='3000' placeholder='Paste the job advert here…'></textarea>" +
     "<div id='cl-err2' class='drop-err' hidden>A few sentences of the advert at least - it is what the letter answers.</div>" +
     "<div class='btnrow' style='margin-top:14px'><button type='button' class='btn ghost' id='cl-b2'>← Back</button>" +
     "<button type='button' class='btn' id='cl-n2'>Next: your experience →</button></div></div>" +
@@ -88,7 +88,7 @@ export function renderCoverLetterPage(): string {
     "<input type='file' id='cl-file' accept='.pdf,application/pdf' hidden>" +
     "<span id='cl-drop-t'>📄 Drop your CV PDF here or click to choose</span></div>" +
     "<details class='typefall'><summary>Or paste your CV as text</summary>" +
-    "<textarea id='cl-cv' rows='5' maxlength='9000' placeholder='Paste your CV text here…'></textarea></details></div>" +
+    "<textarea id='cl-cv' aria-label='Paste your CV as text' rows='5' maxlength='9000' placeholder='Paste your CV text here…'></textarea></details></div>" +
     "<div id='cl-err' class='drop-err' hidden></div>" +
     "<div class='btnrow' style='margin-top:16px'><button type='button' class='btn ghost' id='cl-b3'>← Back</button>" +
     "<button type='button' class='btn' id='cl-go'>✨ Draft my letter</button>" +
@@ -425,7 +425,10 @@ const COVER_LETTER_CSS = `
 .lp-sign{margin-top:26px;font-size:14.5px;}
 .lp-signname{font-weight:700;margin-top:34px;}
 /* Classic - serif, centred head, rule */
-.letterpaper.classic{font-family:Georgia,'Times New Roman',serif;}
+/* Named on the children too: the app shell sets its typeface on every
+ * element, which beats anything a parent hands down, so the "timeless
+ * serif" letter had only ever printed in the sans. */
+.letterpaper.classic,.letterpaper.classic *{font-family:Georgia,'Times New Roman',serif;}
 .letterpaper.classic .lp-head{text-align:center;border-bottom:1.5px solid #1c2b36;padding-bottom:16px;}
 .letterpaper.classic .lp-name{letter-spacing:.02em;}
 /* Elegant - Outfit, left, thin accent rule */

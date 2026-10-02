@@ -166,10 +166,15 @@ function fieldHtml(id){var f=F[id];if(!f)return '';
 var roomy=f.kind==='sentence'||f.max>100;
 var common=" id='of-"+id+"' data-f='"+id+"' maxlength='"+f.max+"' placeholder='"+esc('e.g. '+f.example)+"'";
 return "<label for='of-"+id+"'>"+esc(f.label)+"</label>"+
-(roomy?"<textarea rows='2'"+common+">"+esc(values[id]||'')+"</textarea>"
+(roomy?"<textarea rows='3'"+common+">"+esc(values[id]||'')+"</textarea>"
 :"<input type='"+(id==='yourPhone'?'tel':'text')+"'"+common+" value='"+esc(values[id]||'')+"' autocomplete='"+
 (id==='yourName'?'name':id==='yourPhone'?'tel':'off')+"'>")+
 (f.hint?"<span class='ohint'>"+esc(f.hint)+"</span>":"");}
+/* A box that grows with what is typed in it. On a phone a sentence
+ * that sat on one line at a desk runs to three or four, and a fixed box
+ * hid the end of it behind a scrollbar a thumb cannot easily use. */
+function fit(el){if(el.tagName!=='TEXTAREA')return;
+el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px';}
 function fill(text){return flOutParts(text,values,F);}
 function partsHtml(parts){return parts.map(function(p){
 return p.t==='blank'?"<span class='ob'>"+esc(p.v)+"</span>"
@@ -213,7 +218,7 @@ function openTemplate(t){current=t;channel=t.channel;
 $('ow-kind').textContent=kindLabel(t);$('ow-title').textContent=t.title;$('ow-when').textContent=t.when;
 $('ow-fields').innerHTML=t.fields.map(fieldHtml).join('');
 $('ow-fields').querySelectorAll('[data-f]').forEach(function(el){el.addEventListener('input',function(){
-values[el.getAttribute('data-f')]=el.value;save();renderPreview();});});
+values[el.getAttribute('data-f')]=el.value;save();fit(el);renderPreview();});});
 $('ow-tips').innerHTML=t.tips.map(function(x){return '<li><span>'+esc(x)+'</span></li>'}).join('');
 var lk=$('ow-link');
 if(t.link){lk.hidden=false;lk.textContent=t.link.label;
@@ -223,7 +228,10 @@ $('opv-title').textContent=t.script?(t.channel==='call'?'Your call':'In person')
 $('opv-subrow').hidden=!t.subject;$('opv-mail').hidden=!t.subject;
 $('opv-copy').textContent=copyLabel(t);$('opv-copysub').textContent='Copy';
 renderPreview();
-$('o-list').hidden=true;$('o-work').hidden=false;window.scrollTo(0,0);}
+$('o-list').hidden=true;$('o-work').hidden=false;
+/* measured only once the boxes are on screen - hidden, they have no height */
+$('ow-fields').querySelectorAll('textarea').forEach(fit);
+window.scrollTo(0,0);}
 
 /* ---------------- copy ---------------- */
 function copyText(text,btn,label){
