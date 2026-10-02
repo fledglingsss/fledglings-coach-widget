@@ -173,7 +173,9 @@ export function runCvChecks(text: string, kind: "cv" | "linkedin"): ChecksResult
     detail:
       weakLines.length === 0
         ? "No weak openers - your lines lead with what you actually did."
-        : `${weakLines.length} line${weakLines.length === 1 ? "" : "s"} open with a weak verb that hides what you did.`,
+        : weakLines.length === 1
+          ? "1 line opens with a weak verb that hides what you did."
+          : `${weakLines.length} lines open with a weak verb that hides what you did.`,
     evidence: weakLines.length > 0 ? evidence(weakLines[0]!) : undefined,
   });
 

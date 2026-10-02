@@ -64,6 +64,20 @@ async function visible(id, timeout = 15000) {
 async function text(id) {
   return page.evaluate((id) => (document.getElementById(id) || {}).textContent || "", id);
 }
+/* A score counts up on screen. Read too soon and the log carries a
+ * number that was never the result: a run once printed 18 for a review
+ * that scored 58. This waits until the figure has stopped moving. */
+async function settledText(id) {
+  let last = await text(id);
+  let still = 0;
+  for (let i = 0; i < 20 && still < 2; i++) {
+    await sleep(350);
+    const now = await text(id);
+    still = now === last ? still + 1 : 0;
+    last = now;
+  }
+  return last;
+}
 async function section(name, fn) {
   if (ONLY.length && !ONLY.includes(name)) return;
   console.log(`\n== ${name} ==`);
@@ -199,7 +213,7 @@ await section("tools", async () => {
     await visible("a-card", 8000);
     await shot("22-tools-analysing");
     await page.waitForFunction(() => !document.getElementById("r-card").hidden || !document.getElementById("m-card").hidden || !document.getElementById("d-err").hidden, { timeout: 150000 });
-    if (await page.evaluate(() => !document.getElementById("r-card").hidden)) console.log("  real review:", await text("r-score"), "|", await text("r-verdict"), "|", await text("r-file"));
+    if (await page.evaluate(() => !document.getElementById("r-card").hidden)) console.log("  real review:", await settledText("r-score"), "|", await text("r-verdict"), "|", await text("r-file"));
     else note("review did not produce a report", (await text("m-text")).slice(0, 160) || (await text("d-err")).slice(0, 160));
   } else {
     const f = captured.review || FALLBACK_REVIEW;
@@ -244,7 +258,7 @@ await section("linkedin", async () => {
     await p2.close();
     await (await page.$("#file")).uploadFile(LI_PDF);
     await page.waitForFunction(() => !document.getElementById("r-card").hidden || !document.getElementById("m-card").hidden || !document.getElementById("d-err").hidden, { timeout: 150000 });
-    if (await page.evaluate(() => !document.getElementById("r-card").hidden)) console.log("  real linkedin review:", await text("r-score"), "|", await text("r-verdict"));
+    if (await page.evaluate(() => !document.getElementById("r-card").hidden)) console.log("  real linkedin review:", await settledText("r-score"), "|", await text("r-verdict"));
     else note("linkedin review did not produce a report", (await text("m-text")).slice(0, 160) || (await text("d-err")).slice(0, 160));
   } else {
     await page.evaluate((r) => window.__flLiRender(r), (captured.linkedin || FALLBACK_LINKEDIN).report);
@@ -384,7 +398,7 @@ await section("interview", async () => {
   }
   await sleep(1300);
   await page.evaluate(() => window.scrollTo(0, 0));
-  console.log("  report:", await text("r-score"), "|", await text("r-verdict"), "|", await text("r-meta"));
+  console.log("  report:", await settledText("r-score"), "|", await text("r-verdict"), "|", await text("r-meta"));
   await stageChecks("interview report overview");
   await shot("58-interview-report-overview");
   await clickSel(".rtab[data-rp='delivery']");

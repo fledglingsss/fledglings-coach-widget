@@ -790,9 +790,15 @@ export function renderToolsPage(): string {
     "<div class='rpanel' id='rp-match' hidden>" +
     "<div class='card' id='r-kwcard' hidden><h3>Match against the job advert</h3>" +
     "<div class='kwgauge-wrap'><div id='r-kwgauge'></div>" +
-    "<p class='kw-note' style='margin:0'>Screening software compares your wording to the advert's - the flag marks the 75% target. " +
+    "<p class='kw-note' style='margin:0'>Screening software looks for the advert's own words, so this counts the " +
+    "advert's key terms that appear in your document in those words - the flag marks the 75% target. " +
     "Only claim a missing skill if you genuinely have it.</p></div>" +
-    "<div class='kw-h'>✓ Found in your document</div><div class='chips' id='r-kwm'></div>" +
+    "<div class='kw-h'>✓ In your document, in the advert's words</div><div class='chips' id='r-kwm'></div>" +
+    /* the middle group: the model saw evidence, the document lacks the
+     * wording - the quickest wins on the whole tab */
+    "<div id='r-kwr-wrap' hidden><div class='kw-h near'>≈ You show this, but not in the advert's words</div>" +
+    "<p class='kw-sub'>Fledge can see these in what you wrote, but screening software matches the wording. " +
+    "Where it is true of you, say it the way the advert does.</p><div class='chips' id='r-kwr'></div></div>" +
     "<div class='kw-h miss'>Missing from your document</div><div class='chips' id='r-kwx'></div></div>" +
     "<div class='card' id='r-kwnone' hidden><p class='kw-note' style='margin:0'>No job advert was given this time. " +
     "Paste the actual advert on the first step and this tab scores your wording against its exact terms - " +
@@ -1095,11 +1101,16 @@ export function renderToolsPage(): string {
     "$('r-radar').innerHTML=radar(r.dimensions||[]);" +
     "loadCompare();" +
     /* keyword match (Jobscan model) */
-    "var kw=r.keywords||{matched:[],missing:[]};var kwTotal=kw.matched.length+kw.missing.length;" +
+    /* `reword` arrived with the word-level check; a report saved before
+     * it has none, and its matched list is the model's judgement */
+    "var kw=r.keywords||{matched:[],missing:[]};var kwR=kw.reword||[];" +
+    "var kwTotal=kw.matched.length+kwR.length+kw.missing.length;" +
     "var pct=null;" +
     "if(kwTotal>0){pct=Math.round(kw.matched.length*100/kwTotal);" +
     "$('r-kwgauge').innerHTML=kwGauge(pct);" +
-    "$('r-kwm').innerHTML=kw.matched.map(function(k){return \"<span class='chip ok'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>none yet</span>\";" +
+    "$('r-kwm').innerHTML=kw.matched.map(function(k){return \"<span class='chip ok'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>none yet - the terms below are the ones to add</span>\";" +
+    "$('r-kwr').innerHTML=kwR.map(function(k){return \"<span class='chip near'>\"+esc(k)+'</span>'}).join('');" +
+    "$('r-kwr-wrap').hidden=kwR.length===0;" +
     "$('r-kwx').innerHTML=kw.missing.map(function(k){return \"<span class='chip miss'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>nothing important missing</span>\";" +
     "$('r-kwcard').hidden=false;$('r-kwnone').hidden=true}" +
     "else{$('r-kwcard').hidden=true;$('r-kwnone').hidden=false}" +
@@ -1215,7 +1226,10 @@ export function renderToolsPage(): string {
   const extraCss = `
 .ov2{display:grid;grid-template-columns:1.25fr 1fr;gap:14px;align-items:stretch;}
 @media(max-width:760px){.ov2{grid-template-columns:1fr;}}
-.radar{width:230px;max-width:100%;display:block;margin:0 auto;}
+/* Drawn 1:1 with its 400-unit box, so the labels are 11.5px type. At
+ * 230px wide (the old value) they were 6.6px, which nobody can read;
+ * the key underneath exists for the phone, where the box does shrink. */
+.radar{width:400px;max-width:100%;display:block;margin:0 auto;}
 .r-compare{margin-top:10px;}
 .dmut2{font-size:12.5px;color:#616A71;}
 .cmp{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -1363,9 +1377,12 @@ export function renderToolsPage(): string {
 .fix-d{font-size:13.5px;color:#4a5b66;line-height:1.55;margin-top:2px;}
 .kw-h{font-size:12.5px;font-weight:700;color:var(--ok);margin:12px 0 8px;letter-spacing:.03em;}
 .kw-h.miss{color:#B93A22;}
+.kw-h.near{color:#9A5812;margin-bottom:4px;}
+.kw-sub{font-size:13px;color:#4E5B66;line-height:1.5;margin:0 0 8px;}
 .chips{display:flex;flex-wrap:wrap;gap:8px;}
 .chip{border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;}
 .chip.ok{background:#E7F3EC;color:var(--ok);border:1.5px solid #BBDECB;}
+.chip.near{background:#FBF3E8;color:#9A5812;border:1.5px solid #EBCFA6;}
 .chip.miss{background:#fff;color:#B93A22;border:1.5px dashed var(--orange);}
 .kw-none{font-size:13px;color:#616A71;font-style:italic;}
 .ck-g{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;

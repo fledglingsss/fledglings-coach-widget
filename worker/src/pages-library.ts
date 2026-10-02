@@ -128,7 +128,8 @@ return "<article class='lib-card' data-id='"+esc(r.id)+"'>"+
 "<div class='lib-top'>"+
 "<span class='lib-h'><span class='lib-kind'>"+esc(k.label)+"</span>"+
 "<span class='lib-t'>"+esc(r.title||k.label)+"</span>"+
-"<span class='lib-when'>Reviewed "+esc(ago(r.at))+"</span></span>"+
+/* a cover letter is drafted, not reviewed */
+"<span class='lib-when'>"+(r.kind==='cover'?'Drafted ':'Reviewed ')+esc(ago(r.at))+"</span></span>"+
 /* A cover letter is drafted, not scored. It used to get an empty
  * dashed ring where the score goes, which reads as a score that failed
  * to load - so an unscored document simply has no ring. */

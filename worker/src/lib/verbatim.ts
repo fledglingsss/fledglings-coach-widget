@@ -171,3 +171,105 @@ export function learnerWords(quote: string, answers: readonly string[]): string 
   }
   return null;
 }
+
+/* ------------------------------------------------------------------
+ * The law once more, for the lines Fledge writes FOR a learner to use
+ * as their own: an example bullet, a rewritten headline, a cover
+ * letter, a refined interview answer.
+ *
+ * Praise is checked by its quote. A line written for them has no quote
+ * to check - it is new wording - so what can be checked is what it
+ * CLAIMS. Most claims need judgement ("reducing customer wait times":
+ * did it?), and those are the prompt's job, below. A number does not:
+ * it is either in what the learner gave us or it is not. A live review
+ * offered "BTEC Business - Level 3" to a learner whose CV says only
+ * "BTEC Business"; pasted in, that is a qualification level on their CV
+ * that nobody told us was true.
+ * ------------------------------------------------------------------ */
+
+/** One wording of the rule for every prompt that writes lines for the
+ * learner, so the tools cannot drift into promising different things.
+ * The examples in it are the inventions the live reports actually made. */
+export const MISSING_PIECE_RULE =
+  "THE MISSING-PIECE RULE: in any line you write for the learner to use as their own, the only facts " +
+  "are the ones they gave you. A number, result, outcome, reason, level, grade, date or feeling they " +
+  "did not write is not yours to supply, however likely it sounds: 'reducing customer wait times', " +
+  "'with no errors reported', 'which taught me to stay calm under pressure' and 'Level 3' are all " +
+  "inventions unless their own text says so. Where the line needs one, put a [square-bracket " +
+  "placeholder] that names what to add - [what this led to], [how many], [which level] - and leave " +
+  "the truth to them. They will be asked about every word of it in an interview.";
+
+/* Anything in [square brackets] is a placeholder for the learner to
+ * fill in, not a claim. "1. " or "2) " at the start of a line is a list
+ * marker, not a number the line states. */
+const PLACEHOLDER = /\[[^\]]*\]/g;
+const LIST_MARKER = /^\s*\d+[.)]\s+/gm;
+const NUMBER = /\d+(?:[.,]\d+)*/g;
+const THOUSANDS_COMMA = /,(?=\d{3}(?!\d))/g;
+const LETTERS = /[a-z]+/g;
+
+const UNITS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+};
+/* A learner who wrote "two new starters" gave the number 2: a line that
+ * says "2 new starters" has not invented it. */
+const NUMBER_WORDS: Record<string, number> = {
+  ...UNITS,
+  zero: 0, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40,
+  fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000,
+  dozen: 12, once: 1, twice: 2,
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8,
+  ninth: 9, tenth: 10,
+};
+
+/** "1,200", "200+" and "9.50" compared as the numbers they are. */
+function canonicalNumber(written: string): string {
+  const value = Number.parseFloat(written.replace(THOUSANDS_COMMA, ""));
+  return Number.isFinite(value) ? String(value) : written;
+}
+
+/** Every number a text states, in digits or in words. */
+function numbersStated(text: string): Set<string> {
+  const stated = new Set<string>();
+  for (const match of text.matchAll(NUMBER)) stated.add(canonicalNumber(match[0]));
+  const words = text.toLowerCase().match(LETTERS) ?? [];
+  words.forEach((word, i) => {
+    const value = NUMBER_WORDS[word];
+    if (value === undefined) return;
+    stated.add(String(value));
+    /* "twenty-four": a tens word and a unit are one number */
+    const unit = UNITS[words[i + 1] ?? ""];
+    if (value >= 20 && value <= 90 && unit !== undefined) stated.add(String(value + unit));
+  });
+  return stated;
+}
+
+/** "Sept 23" written out as "September 2023" is the same date, not a
+ * new one. Only this direction: a line that says "23" when the learner
+ * wrote "2023" is far more likely to be a count than a year. */
+function yearWrittenInFull(number: string, given: ReadonlySet<string>): boolean {
+  if (number.length !== 4) return false;
+  const year = Number.parseInt(number, 10);
+  return year >= 2000 && year <= 2099 && given.has(String(year - 2000));
+}
+
+/**
+ * The numbers a line written for the learner states that they never
+ * gave, as written in the line.
+ *
+ * `sources` is everything the learner supplied for the job: their CV,
+ * profile or answer, and any advert they pasted. An empty result means
+ * every number in the line is theirs (or a placeholder).
+ */
+export function inventedNumbers(line: string, sources: readonly string[]): string[] {
+  const claims = line.replace(PLACEHOLDER, " ").replace(LIST_MARKER, "");
+  const given = numbersStated(sources.join("\n"));
+  const invented: string[] = [];
+  for (const match of claims.matchAll(NUMBER)) {
+    const number = canonicalNumber(match[0]);
+    if (given.has(number) || yearWrittenInFull(number, given)) continue;
+    invented.push(match[0]);
+  }
+  return invented;
+}
