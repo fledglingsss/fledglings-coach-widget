@@ -6,7 +6,7 @@
  * deliberate opposite of tools that invent experience for young
  * people. Nothing is stored; the letter exists only in their browser. */
 
-import { neutraliseAngles, sanitiseLine, sanitiseText } from "./safety";
+import { NO_LONG_DASH_RULE, neutraliseAngles, sanitiseLine, sanitiseText } from "./safety";
 
 export const COVER_LETTER_CAPS = {
   minJdChars: 60,
@@ -52,6 +52,7 @@ HARD RULES
 5. British English. Warm, confident, plain - the voice of a keen young person, not corporate sludge. No cliches like "I am writing to apply" as an opener if a stronger honest opener exists. Three short paragraphs, roughly 220-300 words total.
 6. If anything in the text suggests distress or risk, respond with exactly {"crisis":true} and nothing else.
 7. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON object.
+8. ${NO_LONG_DASH_RULE} In the letter itself prefer the comma or the full stop: this goes out under the learner's name.
 
 THE SALUTATION RULE (National Careers Service, and the convention a
 British employer notices): a named recipient takes "Dear Ms Prior," and

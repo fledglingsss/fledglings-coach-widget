@@ -137,3 +137,20 @@ describe("white-label: no vendor name in any served page", () => {
     });
   }
 });
+
+describe("founder's copy law: no em dash in any served page", () => {
+  /* The pages were swept by hand in September 2026 and nothing held
+   * the line afterwards. This does: authored copy, inline scripts and
+   * the comments inside them all ship to the browser, so the whole
+   * rendered page is checked. Text the model writes is covered
+   * separately, where it is produced (plain-dashes.test.ts). */
+  const EM_DASH = String.fromCharCode(0x2014);
+  for (const [name, render] of PAGES.concat(STATIC_PAGES)) {
+    it(`${name} contains none`, () => {
+      const html = render();
+      const at = html.indexOf(EM_DASH);
+      const context = at === -1 ? "" : html.slice(Math.max(0, at - 60), at + 60);
+      expect(at, `${name}: near "${context}"`).toBe(-1);
+    });
+  }
+});

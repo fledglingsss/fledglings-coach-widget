@@ -1,4 +1,4 @@
-/* Fledglings coach widget — floating chat for the LearnWorlds school.
+/* Fledglings coach widget - floating chat for the LearnWorlds school.
  * Self-contained: injects its own styles, loads the Outfit font, keeps
  * conversation history in sessionStorage only. Served by the
  * fledglings-coach worker at GET /widget.js.
@@ -39,7 +39,7 @@
         }
       }
       doomed.forEach(function (n) { n.textContent = ""; });
-    } catch (e) { /* cosmetic only — never break the page */ }
+    } catch (e) { /* cosmetic only - never break the page */ }
   }
   removeLegacySnippetText();
   if (document.readyState === "loading") {
@@ -53,7 +53,7 @@
   var MAX_TURNS_SENT = 12;
   var MAX_INPUT_CHARS = 1000;
 
-  /* ---- identity (rate limiting only — no personal data) ---- */
+  /* ---- identity (rate limiting only - no personal data) ---- */
   function randomId() {
     try {
       var a = new Uint8Array(16);
@@ -242,8 +242,8 @@
 
   var SUPPORT_TEXT =
     "If you need someone to talk to right now: your tutor, or a trusted adult, is a great first step.\n" +
-    "**Childline** — 0800 1111 (under 19)\n**Samaritans** — 116 123, free, any time\n" +
-    "**Shout** — text 85258\nIn immediate danger, call **999**.";
+    "**Childline** - 0800 1111 (under 19)\n**Samaritans** - 116 123, free, any time\n" +
+    "**Shout** - text 85258\nIn immediate danger, call **999**.";
 
   var QUICK_STARTS = [
     { label: "Find my pathway 🧭", wizard: true },
@@ -257,7 +257,7 @@
   /* ---- pathway wizard (deterministic, no model calls) ---- */
   var WIZARD_STEPS = {
     stage: {
-      question: "Love it — let's find your starting point. Where are you at right now?",
+      question: "Love it - let's find your starting point. Where are you at right now?",
       options: [
         { label: "School 🏫", value: "school" },
         { label: "College 📚", value: "college" },
@@ -369,14 +369,14 @@
         setBusy(false);
         var reply = data && typeof data.reply === "string" && data.reply
           ? data.reply
-          : "Sorry — something went wrong. Try again in a minute.";
+          : "Sorry - something went wrong. Try again in a minute.";
         addMsg("coach", reply, data && data.kind === "crisis");
         history.push({ role: "assistant", content: reply });
         saveHistory(history);
       })
       .catch(function () {
         setBusy(false);
-        addMsg("coach", "I can't reach the coach right now — give it another go in a minute.\n" + SUPPORT_TEXT, true);
+        addMsg("coach", "I can't reach the coach right now - give it another go in a minute.\n" + SUPPORT_TEXT, true);
       });
   }
 
@@ -435,7 +435,7 @@
     removeChipRows();
     addMsg("user", "My passport 📜");
     addLinkMsg(
-      "Your **Skills Passport** — score, streak, badges and your place in your cohort, all live:",
+      "Your **Skills Passport** - score, streak, badges and your place in your cohort, all live:",
       "Open my Skills Passport",
       ENDPOINT + "/skills-passport?email=" + encodeURIComponent(learnerEmail),
     );
@@ -496,12 +496,12 @@
         setBusy(false);
         var recs = (data && data.recommendations) || [];
         if (!recs.length) {
-          addMsg("coach", "Sorry — I couldn't build your pathway just now. Try again in a minute.");
+          addMsg("coach", "Sorry - I couldn't build your pathway just now. Try again in a minute.");
           return;
         }
-        var lines = ["Here's your pathway — in this order:"];
+        var lines = ["Here's your pathway - in this order:"];
         for (var i = 0; i < recs.length; i++) {
-          lines.push((i + 1) + ". **" + recs[i].title + "** — " + recs[i].why);
+          lines.push((i + 1) + ". **" + recs[i].title + "** - " + recs[i].why);
         }
         var summary = lines.join("\n");
         addMsg("coach", summary);
@@ -514,27 +514,27 @@
         if (data.can_enrol && learnerEmail) {
           offerEnrolment(recs);
         } else {
-          addMsg("coach", "You can start any of these from the course catalogue — just search the name.");
+          addMsg("coach", "You can start any of these from the course catalogue - just search the name.");
         }
       })
       .catch(function () {
         setBusy(false);
-        addMsg("coach", "I couldn't reach the pathway service — give it another go in a minute.");
+        addMsg("coach", "I couldn't reach the pathway service - give it another go in a minute.");
       });
   }
 
   function offerEnrolment(recs) {
     addMsg("coach", "Would you like me to add any of these to your dashboard? Nothing gets added unless you choose it.");
     chipRow(
-      [{ label: "Yes — let me choose ✅", value: "yes" }, { label: "No thanks", value: "no" }],
+      [{ label: "Yes - let me choose ✅", value: "yes" }, { label: "No thanks", value: "no" }],
       function (opt) {
         removeChipRows();
         addMsg("user", opt.label);
         if (opt.value === "no") {
-          addMsg("coach", "No problem — they'll be in the course catalogue whenever you're ready.");
+          addMsg("coach", "No problem - they'll be in the course catalogue whenever you're ready.");
           return;
         }
-        addMsg("coach", "Tap a module to add it — each one is added only when you tap it. Tap **Done** when you're finished.");
+        addMsg("coach", "Tap a module to add it - each one is added only when you tap it. Tap **Done** when you're finished.");
         showEnrolChips(recs.map(function (r) { return r.title; }));
       },
     );
@@ -570,12 +570,12 @@
           if (data && data.ok) {
             addMsg("coach", "✅ **" + opt.value + "** is on your dashboard.");
           } else if (data && data.reason === "account_not_found") {
-            addMsg("coach", "I couldn't match your account automatically — you can add it yourself from the course catalogue.");
+            addMsg("coach", "I couldn't match your account automatically - you can add it yourself from the course catalogue.");
           } else if (data && data.reason === "daily_cap") {
-            addMsg("coach", "That's your adding done for today — the rest are in the course catalogue whenever you want them.");
+            addMsg("coach", "That's your adding done for today - the rest are in the course catalogue whenever you want them.");
             return;
           } else {
-            addMsg("coach", "That one didn't go through — find **" + opt.value + "** in the course catalogue instead.");
+            addMsg("coach", "That one didn't go through - find **" + opt.value + "** in the course catalogue instead.");
             remaining = titles.filter(function (t) { return t !== opt.value; });
           }
           if (remaining.length) {
@@ -586,7 +586,7 @@
         })
         .catch(function () {
           setBusy(false);
-          addMsg("coach", "I couldn't reach the enrolment service — you can add modules from the course catalogue instead.");
+          addMsg("coach", "I couldn't reach the enrolment service - you can add modules from the course catalogue instead.");
         });
     });
   }
@@ -596,7 +596,7 @@
     if (history.length === 0) {
       addMsg("coach",
         (firstName ? "Hi " + firstName + "! " : "Hi! ") +
-        "I'm **Fledge**, your Fledglings coach. Money, work, confidence, staying safe online — ask me anything, or pick a quick start:");
+        "I'm **Fledge**, your Fledglings coach. Money, work, confidence, staying safe online - ask me anything, or pick a quick start:");
       renderChips();
     } else {
       for (var i = 0; i < history.length; i++) {
@@ -610,14 +610,14 @@
   });
 
   var open = false;
-  /* Continue where you left off — once per session, on first open. */
+  /* Continue where you left off - once per session, on first open. */
   /* Identity is a signed token, not the address itself: the widget
    * exchanges the LearnWorlds email for one (this page is served by
    * the school, so the mint is allowed) and reuses it afterwards.
-   * Note this store belongs to the SCHOOL's origin — the tools live on
+   * Note this store belongs to the SCHOOL's origin - the tools live on
    * the worker's origin and mint their own; the two are independent by
    * design, and both are bound to this browser. */
-  /* A token past its expiry must be discarded, not returned for ever —
+  /* A token past its expiry must be discarded, not returned for ever
    * otherwise the nudge silently dies after 30 days and can never
    * re-mint because the stale value is always found first. */
   function tokenAlive(token) {
@@ -676,7 +676,7 @@
         .then(function (d) {
           if (!d || !d.ok || !d.title) return;
           var lead = d.percent > 0
-            ? "Pick up where you left off — you're " + d.percent + "% through **" + d.title + "**:"
+            ? "Pick up where you left off - you're " + d.percent + "% through **" + d.title + "**:"
             : "Ready for your next step? **" + d.title + "** is waiting:";
           addLinkMsg(lead, "Continue " + (d.percent > 0 ? "→" : "▸"), d.url);
         });
@@ -730,7 +730,7 @@
     }
   });
 
-  /* Liveness probe — if the worker is unreachable or killed, remove the
+  /* Liveness probe - if the worker is unreachable or killed, remove the
    * button entirely rather than showing a broken chat. */
   fetch(ENDPOINT + "/health")
     .then(function (r) { return r.json(); })

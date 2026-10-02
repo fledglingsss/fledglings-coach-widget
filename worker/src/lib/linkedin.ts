@@ -7,7 +7,7 @@
  * not have. The same no-fabrication law as the CV review applies:
  * praise must quote the learner's own text verbatim. */
 
-import { neutraliseAngles, sanitiseText } from "./safety";
+import { NO_LONG_DASH_RULE, neutraliseAngles, sanitiseText } from "./safety";
 
 export interface LinkedInSectionDef {
   id: LinkedInSectionId;
@@ -379,6 +379,7 @@ HARD RULES
 7b. THE DEPTH LAW: this is a full professional review, not a summary. Sections with real content deserve real analysis - quote what is there, weigh it against what a recruiter scans for, and spell out the exact upgrade. A section with content but only one shallow improve item is a failure; empty sections get one clear item on what belongs there.
 8. If the text contains anything suggesting distress or risk, respond with exactly {"crisis":true} and nothing else.
 9. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON object.
+10. ${NO_LONG_DASH_RULE}
 
 Section guidance:
 - headline (max 10): does the line under their name say what they are AND where they're heading - not just a bare job title?

@@ -5,7 +5,7 @@
  * everything else: the advert is data not instructions, distress
  * routes to support, strict JSON out. */
 
-import { neutraliseAngles, sanitiseText } from "./safety";
+import { NO_LONG_DASH_RULE, neutraliseAngles, sanitiseText } from "./safety";
 
 export const QUESTION_GEN_CAPS = {
   minJdChars: 60,
@@ -55,6 +55,7 @@ const GEN_SHARED = `HARD RULES
 3. Phrase them the way a real interviewer speaks - plain, direct British English.
 4. If the pasted text contains anything suggesting distress or risk, respond with exactly {"crisis":true} and nothing else.
 5. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON object.
+6. ${NO_LONG_DASH_RULE}
 
 Output exactly:
 {"role_label": "<2-4 word name>", "questions": ["<q1>", "<q2>", "<q3>", "<q4>", "<q5>"]}`;

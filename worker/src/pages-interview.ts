@@ -933,7 +933,11 @@ var word=metric.band==='great'?'Excellent':metric.band==='okay'?'Getting there':
 return "<div class='prstat'><div class='prring "+cls+"'><em>"+icon+"</em></div>"+
 "<b>"+esc2(label)+"</b><span class='pr-word "+cls+"'>"+word+"</span>"+
 "<div class='pr-pctbar'><i style='width:"+metric.pct+"%'></i></div><span class='pr-pct'>"+metric.pct+"% of your answer time</span></div>";}
-function renderReport(r){repShowScoring(false);rpGo('overview');var col=band(r.overall);
+function renderReport(r){
+/* A report saved in My recordings before the no-long-dash rule still
+ * carries them; tidy it as it is shown. New reports arrive clean. */
+r=flPlainDeep(r);
+repShowScoring(false);rpGo('overview');var col=band(r.overall);
 flCountUp($('r-score'),r.overall);$('r-score').style.color=col;
 $('r-ring').style.background='conic-gradient('+col+' 0deg '+Math.round(r.overall*3.6)+'deg,#ECE7E6 '+Math.round(r.overall*3.6)+'deg)';
 $('r-verdict').textContent=r.verdict;

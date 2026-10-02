@@ -117,7 +117,8 @@ return (i.title?i.title+' - ':'')+(i.detail||'');}
 return '';}
 function card(r){var k=KINDS[r.kind]||{label:r.kind,href:'/hub'};
 var sc=typeof r.score==='number'?r.score:null;
-var fix=topFix(r);
+/* saved before the no-long-dash rule? tidy the advice as it is shown */
+var fix=flPlain(topFix(r));
 return "<article class='lib-card' data-id='"+esc(r.id)+"'>"+
 "<div class='lib-top'>"+
 "<span class='lib-h'><span class='lib-kind'>"+esc(k.label)+"</span>"+

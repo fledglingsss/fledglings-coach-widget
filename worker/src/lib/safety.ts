@@ -143,6 +143,93 @@ export function guardReply(
   return cleaned;
 }
 
+/* ---------------- house style for words the model writes ----------------
+ *
+ * The founder's copy law: no em dashes anywhere a learner or provider
+ * reads. The copy we author was swept by hand. This is the same law
+ * applied to text we do not write: every prompt asks the model not to
+ * use them, and a prompt is a request, so this makes it true.
+ *
+ * What it changes:
+ *   - an em dash (or the horizontal bar that looks like one), spaced
+ *     or not, becomes a plain hyphen with a space either side
+ *   - a SPACED en dash does too: British typography uses it as a dash,
+ *     and on screen it is the same mark to a reader
+ * What it leaves alone:
+ *   - an unspaced en dash, which is a range ("16-24" written with one)
+ *   - ordinary hyphens
+ * A dash that opens a line, as in a list, becomes "- ". One left
+ * dangling at the very end is dropped.
+ *
+ * Apply it AFTER the verbatim checks, never before: those compare the
+ * model's quotes with the learner's own words.
+ *
+ * The patterns are kept as source strings so the browser copy below is
+ * built from the very same ones - saved reports are tidied on the
+ * device when they are shown, and the two must not drift apart. They
+ * are written with escapes, so this file contains no dash for a later
+ * sweep to trip over. */
+const EM_DASH_SOURCE = "[ \\t\\u00A0]*[\\u2014\\u2015]+[ \\t\\u00A0]*";
+const SPACED_EN_DASH_SOURCE = "[ \\t\\u00A0]+\\u2013[ \\t\\u00A0]+";
+
+const EM_DASH_AT_END = new RegExp(EM_DASH_SOURCE + "$");
+const EM_DASH = new RegExp(EM_DASH_SOURCE, "g");
+const SPACED_EN_DASH = new RegExp(SPACED_EN_DASH_SOURCE, "g");
+const DASH_OPENING_A_LINE = /(^|\n) - /g;
+
+/** Rewrite the dashes in one piece of model-written text. */
+export function plainDashes(text: string): string {
+  return text
+    .replace(EM_DASH_AT_END, "")
+    .replace(EM_DASH, " - ")
+    .replace(SPACED_EN_DASH, " - ")
+    .replace(DASH_OPENING_A_LINE, "$1- ");
+}
+
+const NO_KEYS: ReadonlySet<string> = new Set();
+
+/** The same, over every string in a report - whatever its shape, so a
+ * field added to a report later is covered without anyone remembering
+ * to list it. `keep` names keys whose values must stay exactly as they
+ * are: a learner's own words quoted to a provider are evidence, and are
+ * not ours to restyle. Returns a copy; the input is not changed. */
+export function plainDashesDeep<T>(value: T, keep: ReadonlySet<string> = NO_KEYS): T {
+  if (typeof value === "string") return plainDashes(value) as T;
+  if (Array.isArray(value)) return value.map((item) => plainDashesDeep(item, keep)) as T;
+  if (value !== null && typeof value === "object") {
+    const copy: Record<string, unknown> = {};
+    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      copy[key] = keep.has(key) ? inner : plainDashesDeep(inner, keep);
+    }
+    return copy as T;
+  }
+  return value;
+}
+
+/** The same law as a request, for every prompt that asks the model to
+ * write something a learner will read. One wording, so the prompts
+ * cannot drift into saying different things. The rewrite above is what
+ * makes it true; this is what makes it rarely needed, and lets the
+ * model choose a comma or a full stop where a swapped-in hyphen would
+ * read clumsily. */
+export const NO_LONG_DASH_RULE =
+  "Punctuation: never use an em dash, and never use an en dash as a dash. " +
+  "Write a comma, a full stop, or a plain hyphen with a space either side instead.";
+
+/** The browser's copy, for feedback that was saved on a device before
+ * this rule existed and is being shown again. Built from the same
+ * pattern sources as the functions above. */
+export const PLAIN_DASHES_JS =
+  "var FL_EM_DASH=" + JSON.stringify(EM_DASH_SOURCE) + ",FL_EN_DASH=" + JSON.stringify(SPACED_EN_DASH_SOURCE) + ";" +
+  "function flPlain(t){if(typeof t!=='string')return t;" +
+  "return t.replace(new RegExp(FL_EM_DASH+'$'),'').replace(new RegExp(FL_EM_DASH,'g'),' - ')" +
+  ".replace(new RegExp(FL_EN_DASH,'g'),' - ').replace(/(^|\\n) - /g,'$1- ');}" +
+  "function flPlainDeep(v){if(typeof v==='string')return flPlain(v);" +
+  "if(Array.isArray(v))return v.map(flPlainDeep);" +
+  "if(v&&typeof v==='object'){var o={};for(var k in v){" +
+  "if(Object.prototype.hasOwnProperty.call(v,k))o[k]=flPlainDeep(v[k]);}return o;}" +
+  "return v;}";
+
 /** Keys that only ever hold machine values — skipping them keeps the
  * raw scan to text a learner actually typed. */
 const NON_TEXT_KEYS = new Set([

@@ -6,7 +6,7 @@
  * their words, sharper answers may only re-frame what they actually
  * said, with [brackets] for anything they'd need to add themselves. */
 
-import { neutraliseAngles, sanitiseText } from "./safety";
+import { NO_LONG_DASH_RULE, neutraliseAngles, sanitiseText } from "./safety";
 
 /* ---------------- question sets ----------------
  *
@@ -603,6 +603,7 @@ HARD RULES
 5. THE SPECIFICITY LAW: generic coaching is banned. Every "improve" must reference what THEY actually said (or failed to say) in THAT answer and name the one concrete move that fixes it - e.g. which detail to add, which moment to open with, which claim needs a number. "Give more detail" or "use the STAR method" alone is a failure.
 6. If any answer suggests distress or risk, respond with exactly {"crisis":true} and nothing else.
 7. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON.
+8. ${NO_LONG_DASH_RULE}
 
 Output exactly this shape:
 {

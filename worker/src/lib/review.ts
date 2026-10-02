@@ -14,7 +14,7 @@ import {
  * may only praise what it can quote VERBATIM from the learner's own
  * text, and must never invent experience, metrics, or employers. */
 
-import { neutraliseAngles, sanitiseText } from "./safety";
+import { NO_LONG_DASH_RULE, neutraliseAngles, sanitiseText } from "./safety";
 
 export type ReviewKind = "cv" | "linkedin";
 
@@ -55,7 +55,8 @@ HARD RULES
 6. THE SPECIFICITY LAW: generic advice is banned. "Add more detail", "be more specific", "improve your formatting" are failures. Every tip and improvement must (a) name or quote the exact line/section of THEIR document it applies to, and (b) show a concrete example of the improved phrasing built from their own content, with [brackets] for facts only they have. If a target advert was provided, tie improvements to its actual wording.
 6b. THE DEPTH LAW: this is a full professional review, not a summary. Work through the WHOLE document - every section and every experience entry should be reflected somewhere in the report. Each improvement must diagnose (what exactly is weak, quoting it), explain (why it costs them with a recruiter or with screening software), and prescribe (the exact edit, with example phrasing from their own content). One-sentence improvements are failures.
 7. If the text contains anything suggesting distress or risk, respond with exactly {"crisis":true} and nothing else.
-8. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON object.`;
+8. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON object.
+9. ${NO_LONG_DASH_RULE}`;
 
 const JSON_SHAPE = `
 Output exactly this JSON shape:

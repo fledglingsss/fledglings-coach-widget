@@ -1,4 +1,5 @@
 import { PDF_TEXT_JS } from "./lib/pdf-text";
+import { PLAIN_DASHES_JS } from "./lib/safety";
 /* Branded page layer for every non-widget surface the worker serves:
  * /tools, /passport, /portal. One design system, Outfit throughout,
  * mobile-first, print-aware. All dynamic values are escaped by the
@@ -346,7 +347,10 @@ return flLibTx('readwrite',function(st){extra.forEach(function(r){st.delete(r.id
  * URL, so a CV never lands in browser history or a server log. */
 function flLibHandoff(text){try{sessionStorage.setItem('fl_reopen_v1',String(text||''));return true}catch(e){return false}}
 function flLibTakeHandoff(){try{var v=sessionStorage.getItem('fl_reopen_v1');
-if(v)sessionStorage.removeItem('fl_reopen_v1');return v||'';}catch(e){return ''}}`;
+if(v)sessionStorage.removeItem('fl_reopen_v1');return v||'';}catch(e){return ''}}
+/* flPlain / flPlainDeep follow: feedback saved on this device before
+ * the no-long-dash rule existed is tidied when it is shown again. */
+` + PLAIN_DASHES_JS;
 
 /* ------------------------------------------------------------------
  * App shell - the Hiration-style light application chrome used by the
