@@ -177,7 +177,7 @@ export function careerPathsBrief(): string {
   const list = CAREER_ROLES.map((role) => `${role.id}: ${role.label}`).join("; ");
   return `CAREER PATHS ("direction" and "paths"). Learners asked for this: most 16-24s only know the jobs they have seen, so show them where else what they have ALREADY done could take them.
 - "direction" is a reading of the document, not a judgement of the person: say what it points at as written.
-- "paths": choose up to ${CAREER_PATHS_SHOWN} roles from the CAREER LIST whose everyday work genuinely uses something this document shows. Not the role they already aim at, not the job they already do, and not three versions of the same thing - widen the view.
+- "paths": choose up to ${CAREER_PATHS_SHOWN} roles from the CAREER LIST whose everyday work genuinely uses something this document shows. Not the role they already aim at, not the job they already do, and not three versions of the same thing - widen the view. Someone who already works in a shop does not need telling about sales-assistant or customer-service-assistant: that is the door they are standing in. Look for where the same evidence counts in a different kind of workplace.
 - Every path rests on a line they wrote: quote it. A path you cannot tie to a quote is left out. If the document supports fewer than ${CAREER_PATHS_SHOWN} honest paths, give fewer; an empty list is better than a stretch.
 - Never promise they would get the job. Never state pay, entry requirements, qualifications needed or age rules: you do not know the current ones, and the page links each role to its official job profile, which does.
 - Use ONLY ids from this list, copied exactly.
