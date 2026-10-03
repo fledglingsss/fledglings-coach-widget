@@ -21,7 +21,8 @@ export function renderLinkedInPage(): string {
     "<h2 class='page'>LinkedIn Optimizer</h2>" +
     "<p class='sub'>Recruiters look you up - make what they find work for you. Save your profile as a PDF, " +
     "upload it here, and Fledge scores every section like a recruiter would: honestly, and grounded only in " +
-    "what you've genuinely done. Your PDF is read in your browser, reviewed, then forgotten.</p>" +
+    "what you've genuinely done. Your PDF is read in your browser, and your feedback is kept in My work so you can " +
+    "come back to it.</p>" +
     /* guided upload flow: aim -> get the PDF -> drop it */
     "<div id='u-card'>" +
     "<div class='clsteps' aria-hidden='true'>" +
@@ -72,7 +73,9 @@ export function renderLinkedInPage(): string {
     "<div class='ring2' id='r-ring'><div class='in'><div class='pc' id='r-score'>0</div><div class='lb'>LINKEDIN SCORE</div></div></div>" +
     "<div class='r-headtxt'><div class='r-kind'>LINKEDIN REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
-    "<div class='r-file' id='r-file'></div></div></div>" +
+    "<div class='r-file' id='r-file'></div>" +
+    /* shown when this is saved feedback opened again, not a new score */
+    "<div class='r-saved no-print' id='r-saved' hidden></div></div></div>" +
     /* report sections - focused screens, not one long scroll; print
      * shows everything */
     "<div class='rtabs no-print' role='tablist'>" +
@@ -150,6 +153,7 @@ export function renderLinkedInPage(): string {
     "var e2=$(p[0]);e2.className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');" +
     "if(p[1]==='on')e2.setAttribute('aria-current','step');else e2.removeAttribute('aria-current');});}" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
+    "var lc=$('last-card');if(lc)lc.hidden=card!=='u-card';" +
     "if(card==='a-card')dots('done','done','on');" +
     "else if(card==='r-card')dots('done','done','done');" +
     "else if(card==='u-card')dots($('list-2').hidden?'on':'done',$('list-2').hidden?'':'on','');}" +
@@ -209,8 +213,12 @@ export function renderLinkedInPage(): string {
     "fetch('/api/linkedin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
     "learner_id:lid,session_id:sid,text:text,target:$('target').value,token:flToken()})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
-    "if(d&&d.report){renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});" +
-    "try{flLibSave('linkedin','My LinkedIn profile',text,d.report,d.report.overall)}catch(e){}" +
+    "if(d&&d.report){$('r-saved').hidden=true;renderReport(d.report);show('r-card');window.scrollTo({top:0,behavior:'smooth'});" +
+    /* what it was aimed at rides with the report, so it can be shown
+     * again exactly as it was */
+    "var keep={};for(var k in d.report){if(Object.prototype.hasOwnProperty.call(d.report,k))keep[k]=d.report[k];}" +
+    "keep._target=$('target').value.trim().slice(0,400);" +
+    "try{flLibSave('linkedin','My LinkedIn profile',text,keep,d.report.overall)}catch(e){}" +
     "return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong - try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
@@ -307,6 +315,35 @@ export function renderLinkedInPage(): string {
     ".catch(function(){$('rw-btn').disabled=false;$('rw-btn').textContent='Generate my rewrite';" +
     "alert('Could not reach Fledge - try again in a minute.');});};" +
     "$('r-again').onclick=function(){show('u-card')};$('m-again').onclick=function(){show('u-card')};" +
+    /* ---- saved feedback, opened again ----
+     * The same way back as the CV review: a saved review is shown as it
+     * was, with no upload and no model call. The export's text comes
+     * too, so the Rewrite tab still has something to work from. */
+    "function openSaved(row){if(!row)return Promise.resolve(false);" +
+    "return flLibReport(row).then(function(rep){if(!rep||!rep.sections)return false;" +
+    "lastName=row.title||'My LinkedIn profile';$('target').value=rep._target||'';" +
+    "renderReport(flPlainDeep(rep));show('r-card');" +
+    "var sv=$('r-saved');sv.hidden=false;" +
+    "sv.textContent='Saved feedback from '+flAgo(row.at)+'. This is the review you already had: nothing was scored again.';" +
+    "flLibText(row).then(function(txt){lastLiText=txt||''});" +
+    "window.scrollTo({top:0});return true;}).catch(function(){return false});}" +
+    "function openFail(msg){$('m-text').textContent=msg;show('m-card');}" +
+    "function lastCard(){flLibLatest('linkedin').then(function(row){if(!row||$('last-card'))return;" +
+    "var c=document.createElement('div');c.className='card lastrev';c.id='last-card';" +
+    "var sc=typeof row.score==='number'?row.score:null;" +
+    "c.innerHTML=(sc!==null?\"<span class='lastrev-score' style='background:\"+band(sc)+\"'>\"+sc+\"<i>/100</i></span>\":'')+" +
+    "\"<div class='lastrev-b'><div class='ns-label'>YOUR LAST REVIEW</div><b>\"+esc2(row.title||'My LinkedIn profile')+\"</b>\"+" +
+    "\"<span>\"+esc2(flAgo(row.at))+\" · your improvement points are saved - open them any time</span></div>\";" +
+    "var b=document.createElement('button');b.type='button';b.className='btn';b.textContent='Open my feedback';" +
+    "b.onclick=function(){b.disabled=true;b.textContent='Opening…';openSaved(row).then(function(ok){" +
+    "b.disabled=false;b.textContent='Open my feedback';" +
+    "if(!ok)openFail('Could not open that feedback just now - check your connection and try again.');});};" +
+    "c.appendChild(b);var uc=$('u-card');uc.parentNode.insertBefore(c,uc);c.hidden=uc.hidden;});}" +
+    "(function(){var openId=qs.get('open');" +
+    "if(!openId){lastCard();return;}" +
+    "flLibFind(openId).then(openSaved).then(function(ok){lastCard();" +
+    "if(!ok)openFail('That saved feedback is not on this device any more - it may have been deleted. Your other work is in My work.');" +
+    "try{var u=new URL(location.href);u.searchParams.delete('open');history.replaceState(null,'',u.pathname+u.search)}catch(e){}});})();" +
     /* QA hook: render a report without a model call. */
     "window.__flLiRender=function(r){renderReport(r);show('r-card');};" +
     "})();</script>";

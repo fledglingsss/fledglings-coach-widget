@@ -233,10 +233,132 @@ await section("tools", async () => {
     builderBtnShown: !document.getElementById("r-builder").hidden,
     emDashes: document.getElementById("r-card").textContent.split(String.fromCharCode(0x2014)).length - 1,
   }))));
+  /* career paths: what the CV points at, and where else it could lead */
+  if (await page.evaluate(() => !document.getElementById("rtab-paths").hidden)) {
+    await clickSel("#rtab-paths");
+    console.log("  career:", JSON.stringify(await page.evaluate(() => ({
+      readsAs: document.getElementById("crp-reads").textContent,
+      pill: document.getElementById("crp-pill").hidden ? null : document.getElementById("crp-pill").textContent,
+      paths: [...document.querySelectorAll("#crp-paths h4")].map((h) => h.textContent),
+      links: [...document.querySelectorAll("#crp-paths .crp-link")].map((a) => a.getAttribute("href").split("/").pop()),
+    }))));
+    await stageChecks("tools report career paths");
+    await shot("28-tools-career-paths");
+  } else note("no career section in the report", "the Career paths tab stayed hidden");
   /* the LinkedIn tab of the same page */
   await go("/tools");
   await clickSel("#tab-li");
   await shot("27-tools-linkedin-tab");
+});
+
+/* ---------------------------------------------------------------- saved
+ * Getting back to feedback. A tester could not find their improvement
+ * points after leaving the review. This drives every way back: a CV
+ * sent from the builder returns to that CV with the fixes beside it;
+ * the fixes tick off; the full review opens again from the builder and
+ * from the start of the review page.
+ *
+ * The review itself is answered from the report production last gave
+ * (captured.json), through the page's real submit path - so saving and
+ * handing back are exercised for real, and no model call is spent. */
+await section("saved", async () => {
+  const f = captured.review || FALLBACK_REVIEW;
+  await page.setRequestInterception(true);
+  const answer = (req) => {
+    if (req.method() === "POST" && new URL(req.url()).pathname === "/api/review") {
+      req.respond({ status: 200, contentType: "application/json", body: JSON.stringify({ report: f.report, checks: f.checks, kind: "review" }) });
+    } else req.continue();
+  };
+  page.on("request", answer);
+  const nav = (click) => Promise.all([
+    page.waitForNavigation({ waitUntil: "networkidle2", timeout: 30000 }).catch(() => note("no navigation", "saved flow")),
+    click(),
+  ]);
+  const reportShown = () => page.waitForFunction(() => !document.getElementById("r-card").hidden, { timeout: 20000 })
+    .then(() => true).catch(() => { note("report never appeared", "saved flow"); return false; });
+  try {
+    /* a CV in the builder, sent for its AI review (a page has to be
+     * open before its storage can be written to) */
+    await go("/builder");
+    await page.evaluate((t) => sessionStorage.setItem("fl_reopen_v1", t), CV_TEXT);
+    await go("/builder?from=text");
+    await visible("s-build");
+    await sleep(1600);
+    await nav(() => clickSel("#sendreview"));
+    await clickText(".card .btn", /Review my built CV now/);
+    if (!(await reportShown())) return;
+    await sleep(1000);
+    console.log("  after review:", JSON.stringify(await page.evaluate(() => ({
+      builderButton: document.getElementById("r-builder").textContent,
+      savedNote: !document.getElementById("r-saved").hidden,
+    }))));
+
+    /* back to the same CV, with the fixes beside it */
+    await nav(() => clickSel("#r-builder"));
+    await visible("s-build");
+    await sleep(1400);
+    console.log("  builder:", JSON.stringify(await page.evaluate(() => ({
+      panel: !document.getElementById("revfix").hidden,
+      fixes: document.querySelectorAll("#rvf-list .rvf-item").length,
+      sub: document.getElementById("rvf-sub").textContent,
+      cvs: (JSON.parse(localStorage.getItem("fl_builder_cvs_v1") || "{}").cvs || []).length,
+    }))));
+    await stageChecks("builder with review fixes");
+    await shot("17-builder-review-fixes");
+    await page.evaluate(() => {
+      document.querySelector("[data-rvf='0']").click();
+      document.querySelector(".rvf-more").open = true;
+    });
+    await sleep(700);
+    console.log("  ticked:", await text("rvf-sub"));
+    await stageChecks("builder fix ticked");
+    await shot("18-builder-fix-ticked");
+    /* the tick is the learner's record: it must survive leaving */
+    await go("/builder");
+    await clickSel("#cvlist [data-open]");
+    await visible("s-build");
+    await sleep(900);
+    console.log("  tick kept after leaving:", await page.evaluate(() => document.querySelector("[data-rvf='0']").checked));
+
+    /* the whole review, opened again from the builder */
+    await nav(() => clickSel("#rvf-open"));
+    if (await reportShown()) {
+      await sleep(900);
+      console.log("  reopened:", await text("r-saved"), "|", await settledText("r-score"));
+      await stageChecks("tools saved feedback");
+      await shot("29-tools-saved-feedback");
+    }
+
+    /* and from the start of the review page, where the tester looked */
+    await go("/tools");
+    await sleep(1300);
+    console.log("  last review card:", JSON.stringify(await page.evaluate(() => {
+      const c = document.getElementById("last-card");
+      return c ? c.textContent.replace(/\s+/g, " ").trim().slice(0, 120) : null;
+    })));
+    await stageChecks("tools start with last review");
+    await shot("29b-tools-last-review");
+    await clickSel("#last-card .btn");
+    if (await reportShown()) console.log("  opened from the card:", await text("r-saved"));
+
+    /* the LinkedIn review keeps its feedback the same way */
+    const li = (captured.linkedin || FALLBACK_LINKEDIN).report;
+    await go("/linkedin");
+    await page.evaluate((report, lines) => flLibSave("linkedin", "My LinkedIn profile", lines, report, report.overall), li, LINKEDIN_LINES.join("\n"));
+    await go("/linkedin");
+    await sleep(1300);
+    await stageChecks("linkedin start with last review");
+    await shot("36-linkedin-last-review");
+    await clickSel("#last-card .btn");
+    if (await reportShown()) {
+      await sleep(900);
+      console.log("  linkedin reopened:", await text("r-saved"), "|", await settledText("r-score"));
+      await shot("37-linkedin-saved-feedback");
+    }
+  } finally {
+    page.off("request", answer);
+    await page.setRequestInterception(false);
+  }
 });
 
 /* ------------------------------------------------------------- linkedin */

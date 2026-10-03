@@ -14,6 +14,14 @@ import {
  * may only praise what it can quote VERBATIM from the learner's own
  * text, and must never invent experience, metrics, or employers. */
 
+import {
+  CAREER_JSON_FIELDS,
+  type CareerDirection,
+  type CareerPath,
+  careerPathsBrief,
+  parseDirection,
+  parsePaths,
+} from "./career-paths";
 import { NO_LONG_DASH_RULE, neutraliseAngles, sanitiseText } from "./safety";
 import { MISSING_PIECE_RULE } from "./verbatim";
 
@@ -60,7 +68,9 @@ HARD RULES
 8. Output STRICT JSON only - no markdown, no code fences, no text outside the JSON object.
 9. ${NO_LONG_DASH_RULE}`;
 
-const JSON_SHAPE = `
+/* `extraFields` is how the CV review asks for its career section; a
+ * LinkedIn review has no such section and passes nothing. */
+const jsonShape = (extraFields: string) => `
 Output exactly this JSON shape:
 {
   "overall": <integer 0-100>,
@@ -76,7 +86,7 @@ Output exactly this JSON shape:
     "before": "<ONE verbatim weak line copied exactly from the learner's text>",
     "after": "<that same line rewritten to lead with an action verb and end on its result, using ONLY facts already in their text. A number or a result they have not given is a placeholder in square brackets for them to fill in - [how many], [how often], [what this led to] - never one you supply>"
   },
-  "keywords": {"matched": ["<term from the job advert their text genuinely evidences>"], "missing": ["<important term from the advert their text does not evidence>"]},
+  "keywords": {"matched": ["<term from the job advert their text genuinely evidences>"], "missing": ["<important term from the advert their text does not evidence>"]},${extraFields}
   "next_step": "<the single highest-impact edit and WHY it moves their score most. TWO sentences, 45 words at most - this is read on a phone as one short card, not a paragraph>",
   "encouragement": "<ONE warm, genuine closing sentence anchored in their strongest real moment (quote or reference it) - no hedging, no 'but', no advice; this is the sentence they remember>"
 }
@@ -91,12 +101,14 @@ The "rewrite" field teaches the XYZ/STAR pattern - accomplished X, measured by Y
 
 const CV_SYSTEM = `You are Fledge, the Fledglings employability coach, reviewing a young person's (16-24) CV. Fledglings is a UK life-skills platform.
 ${SHARED_RULES}
-${JSON_SHAPE}
-${dimensionBrief(CV_RUBRIC)}`;
+${jsonShape(CAREER_JSON_FIELDS)}
+${dimensionBrief(CV_RUBRIC)}
+
+${careerPathsBrief()}`;
 
 const LINKEDIN_SYSTEM = `You are Fledge, the Fledglings employability coach, reviewing a young person's (16-24) LinkedIn profile (usually a "Save to PDF" export: headline, about, experience, education, skills). Fledglings is a UK life-skills platform.
 ${SHARED_RULES}
-${JSON_SHAPE}
+${jsonShape("")}
 ${dimensionBrief(LINKEDIN_RUBRIC)}
 
 WHAT A PDF EXPORT CANNOT SHOW YOU. You are reading an export, not the
@@ -133,6 +145,11 @@ export interface ReviewReport {
    * matched / reword / missing (see keyword-match.ts), so straight from
    * the parser `reword` is empty and `matched` is the model's view. */
   keywords: { matched: string[]; reword: string[]; missing: string[] };
+  /** CV reviews only: what the document points at, and where else the
+   * same experience could lead (career-paths.ts). As the model wrote
+   * them here; the route holds both to the learner's own words. */
+  direction: CareerDirection | null;
+  paths: CareerPath[];
   next_step: string;
   /** Warm closing line anchored in their strongest real moment;
    * optional - a report without it is still a report. */
@@ -252,6 +269,10 @@ export function parseReviewReport(
     improvements,
     rewrite,
     keywords,
+    /* Optional, like the rewrite: a review without a career section is
+     * still a review. */
+    direction: kind === "cv" ? parseDirection(p.direction) : null,
+    paths: kind === "cv" ? parsePaths(p.paths) : [],
     next_step: next,
     encouragement: asString(p.encouragement, 300),
   };

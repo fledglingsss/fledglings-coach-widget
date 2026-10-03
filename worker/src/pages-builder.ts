@@ -69,6 +69,8 @@ export function renderBuilderPage(): string {
     "<span class='savestate' id='savestate'>Saved</span>" +
     "<span class='bb-gap'></span>" +
     "<button type='button' class='bb-score' id='bb-score' hidden>Score <b id='bb-score-n'>0</b> ↓</button>" +
+    /* same job for the review's fixes, which also sit below the CV on a phone */
+    "<button type='button' class='bb-score' id='bb-fixes' hidden>Fixes <b id='bb-fixes-n'>0</b> ↓</button>" +
     "<span class='cur-wrap'>🎨 <span class='cur-design' id='cur-design'>Classic</span></span>" +
     "<button type='button' class='btn ghost' id='switchdesign'>Switch design</button>" +
     "<button type='button' class='btn' onclick='window.print()'>Download PDF</button>" +
@@ -79,6 +81,17 @@ export function renderBuilderPage(): string {
     "<div class='docgrid'>" +
     /* review + tips rail */
     "<div class='revcol no-print'>" +
+    /* The improvement points from this CV's AI review, kept beside the
+     * words they are about - first in the rail, because acting on them
+     * is what the learner came back to do. A tester got their review,
+     * came here to act on it, and the points were on a page they could
+     * no longer reach. Shown only for a CV that has been reviewed. */
+    "<div class='card revfix' id='revfix' hidden>" +
+    "<div class='rvf-head'><div class='rv-t'>Fixes from your AI review</div><span class='rvf-score' id='rvf-score'></span></div>" +
+    "<p class='rvf-sub' id='rvf-sub'></p>" +
+    "<ol class='rvf-list' id='rvf-list'></ol>" +
+    "<a class='rvf-open' id='rvf-open' href='/tools'>Open the full review →</a>" +
+    "</div>" +
     "<div class='card revpanel' id='scorepanel' role='status' hidden>" +
     "<div class='rv-head'><div class='rv-t'>Resume Review</div>" +
     "<button type='button' class='rv-refresh' id='refreshbtn' aria-label='Re-check score' title='Re-check score'>⟳</button></div>" +
@@ -217,8 +230,16 @@ cvs.unshift(c);saveAll(cvs);openCv(c.id);};});
  * hand (?from=text): parse them into sections on the worker - no
  * model, nothing kept - and open the editor on the result. Deferred a
  * tick so every var this script sets up is in place first. */
-setTimeout(function(){if(!/[?&]from=text\b/.test(location.search))return;
+setTimeout(function(){
+/* Back from a review of a CV that lives here (?cv=<id>): open that CV,
+ * where the review's fixes are now waiting beside it. */
+var backTo=params.get('cv');
+if(backTo){cvs=loadAll();if(cvs.some(function(c){return c.id===backTo}))openCv(backTo);
+try{history.replaceState(null,'',location.pathname)}catch(e){}return;}
+if(!/[?&]from=text\b/.test(location.search))return;
 var txt='';try{txt=flLibTakeHandoff()||''}catch(e){}
+/* which saved review these words came from, if any */
+var refId='';try{refId=flLibTakeHandoffRef()||''}catch(e){}
 if(!txt||txt.length<40)return;
 fetch('/api/builder-import',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({learner_id:lid,text:txt})})
@@ -226,13 +247,19 @@ body:JSON.stringify({learner_id:lid,text:txt})})
 var data=seedToModel(d.seed);
 data.name=d.seed.name||'';data.phone=d.seed.phone||'';data.email=d.seed.email||'';data.linkedin=d.seed.linkedin||'';
 var c={id:Math.random().toString(16).slice(2),title:'From my CV review',updated:Date.now(),tpl:pendingTpl,data:data};
-cvs.unshift(c);saveAll(cvs);openCv(c.id);
-try{history.replaceState(null,'',location.pathname)}catch(e){}}).catch(function(){});},0);
+var open=function(){cvs.unshift(c);saveAll(cvs);openCv(c.id);
+try{history.replaceState(null,'',location.pathname)}catch(e){}};
+if(!refId){open();return;}
+/* bring the review's fixes with the words, then open either way */
+flLibFind(refId).then(function(row){if(!row)return null;
+return flLibReport(row).then(function(rep){
+var rv=flReviewForBuilder(row.id,row.at,row.score,rep);if(rv)c.review=rv;});})
+.catch(function(){}).then(open);}).catch(function(){});},0);
 function openCv(id){current=cvs.find(function(c){return c.id===id});if(!current)return;
 $('cvtitle').value=current.title||'My CV';
 $('s-list').hidden=true;$('s-pick').hidden=true;$('s-design').hidden=true;$('s-build').hidden=false;
 applyTpl(current.tpl||'classic');
-renderDoc();$('scorepanel').hidden=true;$('bb-score').hidden=true;runCheck(true);window.scrollTo({top:0});}
+renderDoc();$('scorepanel').hidden=true;$('bb-score').hidden=true;runCheck(true);renderReviewFixes();window.scrollTo({top:0});}
 $('backbtn').onclick=function(){$('s-build').hidden=true;$('s-list').hidden=false;renderList();};
 $('cvtitle').oninput=function(){if(current){current.title=$('cvtitle').value;scheduleSaveQuiet();}};
 
@@ -540,11 +567,46 @@ $('refreshbtn').onclick=function(){runCheck(false)};
 $('bb-score').onclick=function(){$('scorepanel').scrollIntoView({behavior:'smooth',block:'start'})};
 $('sendreview').onclick=function(){
 if(!lastText){alert('Tap ⟳ for a fresh check first - the review reads that exact text.');return;}
-try{sessionStorage.setItem('fl_builder_cv_text',lastText)}catch(e){}
+try{sessionStorage.setItem('fl_builder_cv_text',lastText);
+/* which CV this is, so the review can hand its fixes back to it */
+sessionStorage.setItem('fl_builder_cv_id',current?current.id:'')}catch(e){}
 /* The identity is a TOKEN - it must ride as t=, never as the e=
  * embed-email param (which /tools decodes with atob and would drop). */
 var q=['from=builder'];var ev=flToken();if(ev)q.push('t='+encodeURIComponent(ev));
 location.href='/tools?'+q.join('&');};
+
+/* ---------------- fixes from the AI review ----------------
+ * The review's improvement points, as a list to tick off while editing
+ * the words they are about. The ticks are the learner's own record and
+ * are saved with the CV; they change no score. */
+function rvfSummary(rv){var n=rv.fixes.length,done=rv.fixes.filter(function(_,i){return rv.done[i]}).length;
+$('bb-fixes-n').textContent=String(n-done);
+$('rvf-sub').textContent=done===n
+?'All '+n+' ticked off. Send it for a fresh AI review to see what moved.'
+:'From your review '+flAgo(rv.at)+'. Tick each one off as you make the change: '+done+' of '+n+' done.';}
+function renderReviewFixes(){var box=$('revfix');var rv=current&&current.review;
+if(!rv||!rv.fixes||!rv.fixes.length){box.hidden=true;$('bb-fixes').hidden=true;return;}
+rv.done=rv.done||{};box.hidden=false;$('bb-fixes').hidden=false;
+$('bb-fixes').onclick=function(){box.scrollIntoView({behavior:'smooth',block:'start'})};
+$('rvf-score').textContent=typeof rv.score==='number'?rv.score+'/100':'';
+$('rvf-score').hidden=typeof rv.score!=='number';
+$('rvf-list').innerHTML=rv.fixes.map(function(f,i){
+return "<li class='rvf-item"+(rv.done[i]?' done':'')+"'>"+
+"<label class='rvf-tick'><input type='checkbox' data-rvf='"+i+"'"+(rv.done[i]?' checked':'')+">"+
+"<span>"+esc2(f.title)+"</span></label>"+
+"<details class='rvf-more'><summary>What to do</summary><p>"+esc2(f.detail)+"</p>"+
+(f.example?"<p class='rvf-ex'><b>Try:</b> "+esc2(f.example)+"</p>"+
+"<p class='rvf-own'>An example, not a script: keep only what is true of you.</p>":"")+
+"</details></li>";}).join('');
+/* a review that was never saved to My work has nothing to open */
+$('rvf-open').hidden=!rv.id;
+var tok=flToken();
+$('rvf-open').href='/tools?open='+encodeURIComponent(rv.id||'')+(tok?'&t='+encodeURIComponent(tok):'');
+document.querySelectorAll('[data-rvf]').forEach(function(cb){cb.onchange=function(){
+rv.done[cb.dataset.rvf]=cb.checked;
+cb.closest('.rvf-item').classList.toggle('done',cb.checked);
+rvfSummary(rv);scheduleSaveQuiet();};});
+rvfSummary(rv);}
 
 renderList();
 })();`;
@@ -645,6 +707,27 @@ const BUILDER_CSS = `
 .rvcat.open .rvc-ch{transform:rotate(180deg);}
 .rvcat-b{padding:4px 12px 10px;border-top:1px solid var(--off);}
 .rv-send{width:100%;margin-top:6px;}
+/* ---- fixes from the AI review ---- */
+.revfix{padding:16px 18px;border-left:4px solid #13507F;}
+.rvf-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px;}
+.rvf-score{font-size:12px;font-weight:800;color:#13507F;background:rgba(19,80,127,.08);border-radius:999px;padding:4px 10px;white-space:nowrap;}
+.rvf-sub{font-size:12.5px;color:#4E5B66;line-height:1.5;margin:0 0 10px;}
+.rvf-list{list-style:none;margin:0;padding:0;counter-reset:rvf;}
+.rvf-item{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff;}
+.rvf-item.done{background:#F1F8F3;border-color:#CBE3D4;}
+.rvf-tick{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13.5px;font-weight:700;
+  line-height:1.4;color:var(--ink);min-height:28px;}
+.rvf-tick input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:#1A7649;cursor:pointer;}
+.rvf-item.done .rvf-tick span{text-decoration:line-through;color:#4E5B66;}
+.rvf-more{margin:6px 0 0 30px;}
+.rvf-more summary{cursor:pointer;font-size:12.5px;font-weight:700;color:#13507F;padding:4px 0;}
+.rvf-more p{font-size:12.5px;line-height:1.55;color:#4a5b66;margin:6px 0 0;}
+.rvf-more .rvf-ex{background:#F1F8F3;border:1px solid #CBE3D4;border-radius:9px;padding:8px 10px;color:var(--ink);}
+.rvf-ex b{color:#1A7649;margin-right:4px;}
+.rvf-more .rvf-own{font-size:11.5px;color:#5C6A76;}
+.rvf-open{display:inline-flex;align-items:center;min-height:44px;font-size:13px;font-weight:800;color:#B93A22;text-decoration:none;}
+.rvf-open:hover{text-decoration:underline;}
+@media(max-width:980px){.rvf-more summary{padding:14px 0;line-height:1.3;}.rvf-tick{min-height:44px;align-items:center;}}
 .ck{display:flex;gap:12px;padding:9px 0;}
 .ck-i{width:24px;height:24px;border-radius:50%;font-weight:800;font-size:13px;flex:none;
   display:flex;align-items:center;justify-content:center;margin-top:1px;}

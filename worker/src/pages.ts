@@ -348,6 +348,59 @@ return flLibTx('readwrite',function(st){extra.forEach(function(r){st.delete(r.id
 function flLibHandoff(text){try{sessionStorage.setItem('fl_reopen_v1',String(text||''));return true}catch(e){return false}}
 function flLibTakeHandoff(){try{var v=sessionStorage.getItem('fl_reopen_v1');
 if(v)sessionStorage.removeItem('fl_reopen_v1');return v||'';}catch(e){return ''}}
+/* ---- getting back to feedback ----
+ * A tester got a review, went to edit the CV, and could not find the
+ * improvement points again: the whole report was saved with the
+ * document, and no screen opened it. These are how every tool finds a
+ * saved review and shows it again, with no new model call. */
+/* Which saved review a handed-over document came from, so the builder
+ * can show that review's fixes beside the words. An id only. */
+function flLibHandoffRef(id){try{if(id)sessionStorage.setItem('fl_reopen_ref_v1',String(id));
+else sessionStorage.removeItem('fl_reopen_ref_v1');}catch(e){}}
+function flLibTakeHandoffRef(){try{var v=sessionStorage.getItem('fl_reopen_ref_v1');
+if(v)sessionStorage.removeItem('fl_reopen_ref_v1');return v||'';}catch(e){return ''}}
+/* One saved piece of work by id: this device first, then the list that
+ * includes work saved on another device. */
+function flLibFind(id){if(!id)return Promise.resolve(null);
+return flLibGet(id).then(function(row){if(row)return row;
+return flLibList().then(function(all){
+return (all||[]).filter(function(r){return r.id===id})[0]||null;});})
+.catch(function(){return null});}
+/* The newest saved review of one kind. */
+function flLibLatest(kind){return flLibList().then(function(all){
+return (all||[]).filter(function(r){return r.kind===kind&&r.report})[0]||null;})
+.catch(function(){return null});}
+/* The whole report for a row. One saved on another device arrives in
+ * the list as its next fix only; the rest is fetched when it is opened. */
+function flLibReport(row){if(!row)return Promise.resolve(null);
+if(row.report&&!row.remote)return Promise.resolve(row.report);
+return flLibApi('get',{id:row.id}).then(function(res){
+if(res&&res.ok&&res.text)row.text=res.text;
+return res&&res.ok&&res.report?res.report:null;}).catch(function(){return null});}
+/* The part of a review the builder shows beside the CV: its fixes, as a
+ * list to tick off. A copy, kept with the CV in the builder's own
+ * store, so the list is still there if the saved review is deleted. */
+function flReviewForBuilder(id,at,score,report){
+if(!report||!report.improvements||!report.improvements.length)return null;
+return {id:String(id||''),at:at||Math.floor(Date.now()/1000),score:(typeof score==='number'?score:null),
+next:String(report.next_step||'').slice(0,400),done:{},
+fixes:report.improvements.slice(0,6).map(function(f){return {title:String(f.title||'').slice(0,120),
+detail:String(f.detail||'').slice(0,800),example:f.example?String(f.example).slice(0,320):''};})};}
+/* Attach a review's fixes to a CV already in the builder (the CV that
+ * was sent for review), so they are waiting when the learner goes back
+ * to edit it. True when that CV was found. */
+function flBuilderAttachReview(cvId,review){if(!cvId||!review)return false;
+try{var d=JSON.parse(localStorage.getItem('fl_builder_cvs_v1')||'{}');
+var cvs=Array.isArray(d.cvs)?d.cvs:[];
+var cv=cvs.filter(function(c){return c&&c.id===cvId})[0];if(!cv)return false;
+cv.review=review;localStorage.setItem('fl_builder_cvs_v1',JSON.stringify({cvs:cvs}));return true;}catch(e){return false}}
+function flBuilderHasCv(cvId){if(!cvId)return false;
+try{var d=JSON.parse(localStorage.getItem('fl_builder_cvs_v1')||'{}');
+return (Array.isArray(d.cvs)?d.cvs:[]).some(function(c){return c&&c.id===cvId});}catch(e){return false}}
+function flAgo(at){var secs=Date.now()/1000-at;var d=Math.floor(secs/86400);
+if(d<=0){var h=Math.floor(secs/3600);
+return h<=0?'just now':h===1?'an hour ago':h+' hours ago';}
+return d===1?'yesterday':d<7?d+' days ago':d<30?Math.round(d/7)+' weeks ago':Math.round(d/30)+' months ago';}
 /* flPlain / flPlainDeep follow: feedback saved on this device before
  * the no-long-dash rule existed is tidied when it is shown again. */
 ` + PLAIN_DASHES_JS;
@@ -466,6 +519,18 @@ h3[tabindex='-1']:focus-visible{outline:none;}
  * full-size body text. Shared classes belong in the shared sheet. */
 .kw-note{font-size:13px;color:var(--blue);line-height:1.55;margin-bottom:14px;}
 .ns-label{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:#B93A22;margin-bottom:6px;}
+/* Saved feedback and the way back to it - on both review pages. */
+.r-saved{display:inline-block;margin-top:8px;font-size:12.5px;font-weight:600;color:#13507F;background:#EAF2F8;
+  border-radius:8px;padding:7px 11px;line-height:1.45;}
+.lastrev{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-left:4px solid #13507F;}
+.lastrev-score{flex:none;width:58px;height:58px;border-radius:50%;color:#fff;font-weight:800;font-size:19px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;}
+.lastrev-score i{font-style:normal;font-size:10px;font-weight:700;opacity:.92;margin-top:2px;}
+.lastrev-b{flex:1 1 220px;min-width:0;}
+.lastrev-b .ns-label{color:#13507F;margin-bottom:3px;}
+.lastrev-b b{display:block;font-size:15.5px;color:var(--navy,#05253C);overflow-wrap:anywhere;}
+.lastrev-b span{display:block;font-size:13px;color:#4E5B66;margin-top:2px;line-height:1.45;}
+@media(max-width:560px){.lastrev .btn{width:100%;}}
 .footer{padding:14px 20px;text-align:center;font-size:12px;color:var(--mut);}
 .cheer{display:flex;gap:14px;align-items:flex-start;background:#F3FBF6;border:1px solid #CBE9D6;}
 .cheer-ico{font-size:22px;line-height:1;}
@@ -699,8 +764,10 @@ export function renderToolsPage(): string {
     "<main class='wrap'>" +
     "<h2 class='page'>CV &amp; LinkedIn review</h2>" +
     "<p class='sub'>Upload your PDF and Fledge scores it like a recruiter would - honestly, and grounded only in what " +
+    /* "nothing is stored" stopped being true when My work began keeping
+     * each review; this says what actually happens, as /ai-privacy does. */
     "you've genuinely done. It never invents experience for you, because employers can tell. Your PDF is read in your " +
-    "browser, reviewed, then forgotten - nothing is stored.</p>" +
+    "browser, and your feedback is kept in My work so you can come back to it - delete it there any time.</p>" +
     /* tabs */
     "<div class='tabs' role='tablist'>" +
     "<button type='button' role='tab' class='tab on' id='tab-cv' aria-selected='true'>📄 My CV</button>" +
@@ -757,7 +824,9 @@ export function renderToolsPage(): string {
     "<div class='ring2' id='r-ring'><div class='in'><div class='pc' id='r-score'>0</div><div class='lb'>/ 100</div></div></div>" +
     "<div class='r-headtxt'><div class='r-kind' id='r-kind'>CV REVIEW</div>" +
     "<div class='r-verdict' id='r-verdict'></div>" +
-    "<div class='r-file' id='r-file'></div></div></div>" +
+    "<div class='r-file' id='r-file'></div>" +
+    /* shown when this is saved feedback opened again, not a new score */
+    "<div class='r-saved no-print' id='r-saved' hidden></div></div></div>" +
     /* report sections - one focused screen at a time, never a scroll
      * marathon; print shows everything */
     "<div class='rtabs no-print' role='tablist'>" +
@@ -765,6 +834,9 @@ export function renderToolsPage(): string {
     "<button type='button' class='rtab' data-rp='match' id='rtab-match' role='tab'>Job match</button>" +
     "<button type='button' class='rtab' data-rp='checks' role='tab'>Recruiter checks</button>" +
     "<button type='button' class='rtab' data-rp='improve' role='tab'>Feedback &amp; fixes</button>" +
+    /* hidden until a report carries a career section (older saved
+     * reviews, and LinkedIn reviews, have none) */
+    "<button type='button' class='rtab' data-rp='paths' id='rtab-paths' role='tab' hidden>Career paths</button>" +
     "</div>" +
 
     /* ---- overview panel ---- */
@@ -864,6 +936,26 @@ export function renderToolsPage(): string {
     "<div class='rw before'><div class='rw-tag'>BEFORE</div><div id='r-rwb'></div></div>" +
     "<div class='rw after'><div class='rw-tag'>AFTER</div><div id='r-rwa'></div></div></div>" +
     "</div>" +
+
+    /* ---- career paths panel: what the CV points at as written, and
+     * where else the same experience could lead. A tester asked for it:
+     * most young people only know the jobs they have seen. The roles
+     * and their descriptions are a checked list (lib/career-paths.ts);
+     * the review only matches the learner's own lines to them. ---- */
+    "<div class='rpanel' id='rp-paths' hidden>" +
+    "<div class='card' id='crp-dircard' hidden><h3>Where this CV points</h3>" +
+    "<div class='crp-dir'><span class='crp-dir-l'>As it is written, it reads as</span>" +
+    "<b class='crp-reads' id='crp-reads'></b><span class='crp-pill' id='crp-pill' hidden></span></div>" +
+    "<div class='crp-ev' id='crp-ev' hidden></div>" +
+    "<p class='crp-fit' id='crp-fit'></p></div>" +
+    "<div class='card' id='crp-pathcard' hidden><h3>Other doors your experience could open</h3>" +
+    "<p class='kw-note'>Jobs that use what you have already done. They are possibilities, not promises: " +
+    "each one links to its official job profile, where you can see what the work involves and how people get in.</p>" +
+    "<div class='crp-paths' id='crp-paths'></div>" +
+    "<p class='crp-src'>Job profiles come from the National Careers Service. Fledge only matched them to lines " +
+    "from your own CV - it never adds experience to make a job fit. To get feedback aimed at one of these, " +
+    "start a new review and paste an advert for it.</p></div>" +
+    "</div>" +
     "<div class='fbrow no-print' id='fbrow'><span>Was this review helpful?</span>" +
     "<button type='button' class='fbbtn' data-fb='1' aria-label='Yes, helpful'>👍</button>" +
     "<button type='button' class='fbbtn' data-fb='0' aria-label='Not helpful'>👎</button></div>" +
@@ -876,6 +968,9 @@ export function renderToolsPage(): string {
     "if anything in your document worries Fledge about your wellbeing, it will point you to real support instead of reviewing.</p>" +
     "</main>" +
     "<script>(function(){var kind='cv';var lastName='';" +
+    /* set when the text being reviewed was sent from a CV in the
+     * builder, so the fixes can be handed back to that same CV */
+    "var builderCvId='';" +
     /* The marking scheme, shipped to the page from the same module the
      * review was scored against - a learner can see what each score is
      * judged on and what the next band up actually asks for. */
@@ -892,6 +987,8 @@ export function renderToolsPage(): string {
     "var e2=$(p[0]);e2.className='clstep'+(p[1]==='on'?' on':p[1]==='done'?' done':'');" +
     "if(p[1]==='on')e2.setAttribute('aria-current','step');else e2.removeAttribute('aria-current');});}" +
     "function show(card){['u-card','a-card','m-card','r-card'].forEach(function(k){$(k).hidden=k!==card});" +
+    /* the "your last review" card belongs to the start of the flow */
+    "var lc=$('last-card');if(lc)lc.hidden=card!=='u-card';" +
     "if(card==='a-card')dots('done','done','on');" +
     "else if(card==='r-card')dots('done','done','done');" +
     "else if(card==='u-card')dots($('cvst-2').hidden?'on':'done',$('cvst-2').hidden?'':'on','');}" +
@@ -929,7 +1026,7 @@ export function renderToolsPage(): string {
     "see what moved - or upload your edited CV below and Fledge will mark the new one.</p>\";" +
     "var rbtn=document.createElement('button');rbtn.type='button';rbtn.className='btn';" +
     "rbtn.textContent='Score my saved version again';" +
-    "rbtn.onclick=function(){lastName='My saved CV';show('a-card');startMsgs();submit(rTxt);};" +
+    "rbtn.onclick=function(){lastName='My saved CV';builderCvId='';show('a-card');startMsgs();submit(rTxt);};" +
     "b.appendChild(rbtn);var uc=$('u-card');if(uc)uc.parentNode.insertBefore(b,uc);})();" +
     "if(qs.get('from')==='builder'){try{var bTxt=sessionStorage.getItem('fl_builder_cv_text')||'';" +
     "if(bTxt.length>=120){var bb=document.createElement('div');bb.className='card';" +
@@ -937,7 +1034,9 @@ export function renderToolsPage(): string {
     "\"no PDF needed. Add a target role in the box below first if you have one.</p>\";" +
     "var bbtn=document.createElement('button');bbtn.type='button';bbtn.className='btn';" +
     "bbtn.textContent='Review my built CV now';" +
-    "bbtn.onclick=function(){lastName='Your built CV';show('a-card');startMsgs();submit(bTxt);};" +
+    "bbtn.onclick=function(){lastName='Your built CV';" +
+    "try{builderCvId=sessionStorage.getItem('fl_builder_cv_id')||''}catch(e){builderCvId=''}" +
+    "show('a-card');startMsgs();submit(bTxt);};" +
     "bb.appendChild(bbtn);var uc=$('u-card');uc.parentNode.insertBefore(bb,uc);}}catch(e){}}" +
     /* ---- pdf.js on demand ---- */
     "var PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';" +
@@ -959,7 +1058,7 @@ export function renderToolsPage(): string {
     "function handleFile(f){if(!f)return;dropErr('');" +
     "if(!/pdf$/i.test(f.type||'')&&!/\\.pdf$/i.test(f.name)){dropErr('That is not a PDF - export or save your document as PDF first.');return;}" +
     "if(f.size>10*1024*1024){dropErr('That PDF is over 10 MB - export a smaller version.');return;}" +
-    "lastName=f.name;show('a-card');startMsgs();" +
+    "lastName=f.name;builderCvId='';show('a-card');startMsgs();" +
     "extractPdf(f).then(function(text){" +
     "text=text.replace(/[ \\t]+/g,' ').replace(/\\n{3,}/g,'\\n\\n').trim();" +
     "if(text.length<120){stopMsgs();show('u-card');fileIn.value='';" +
@@ -981,18 +1080,74 @@ export function renderToolsPage(): string {
     "function stopMsgs(){if(msgTimer){clearInterval(msgTimer);msgTimer=null}}" +
     /* ---- submit + report ---- */
     "function band(s){return s>=70?'#1A7649':s>=50?'#9A5812':'#B93A22'}" +
+    /* review -> builder: the reviewed words, handed to the editor in
+     * this tab only (sessionStorage) and parsed into sections there,
+     * with the id of the saved review so the builder can show its fixes
+     * beside the words. */
+    /* A CV that was SENT from the builder goes back to that same CV -
+     * importing it again would leave the learner with two copies and
+     * the fixes on the wrong one. */
+    "function builderButton(text,getId){var rb=$('r-builder');if(!rb)return;" +
+    "if(builderCvId){rb.hidden=false;rb.textContent='Back to my CV in the builder';" +
+    "rb.onclick=function(){location.href='/builder?cv='+encodeURIComponent(builderCvId)};return;}" +
+    "rb.textContent='Edit this in the builder';rb.hidden=kind!=='cv'||!text;" +
+    "rb.onclick=function(){flLibHandoffRef(getId());if(flLibHandoff(text))location.href='/builder?from=text';};}" +
+    /* ---- saved feedback, opened again ----
+     * A tester could not get back to their improvement points after
+     * leaving the page: the report was saved with the document and no
+     * screen opened it. This shows a saved review exactly as it was -
+     * no upload, no model call, none of the day's reviews used. */
+    "function openSaved(row){if(!row)return Promise.resolve(false);" +
+    "return flLibReport(row).then(function(rep){if(!rep||!rep.dimensions||!rep.improvements)return false;" +
+    "lastName=row.title||'My CV';$('target').value=rep._target||'';" +
+    "builderCvId=flBuilderHasCv(rep._builderCv)?rep._builderCv:'';" +
+    /* feedback saved before the no-long-dash rule is tidied as shown;
+     * the learner's own lines in the checks are left as they wrote them */
+    "renderReport(flPlainDeep(rep),rep._checks||null);show('r-card');" +
+    "var sv=$('r-saved');sv.hidden=false;" +
+    "sv.textContent='Saved feedback from '+flAgo(row.at)+'. This is the review you already had: nothing was scored again.';" +
+    "builderButton('',function(){return row.id});" +
+    "flLibText(row).then(function(txt){builderButton(txt||'',function(){return row.id})});" +
+    "window.scrollTo({top:0});return true;}).catch(function(){return false});}" +
+    "function lastCard(){flLibLatest('cv').then(function(row){if(!row||$('last-card'))return;" +
+    "var c=document.createElement('div');c.className='card lastrev';c.id='last-card';" +
+    "var sc=typeof row.score==='number'?row.score:null;" +
+    "c.innerHTML=(sc!==null?\"<span class='lastrev-score' style='background:\"+band(sc)+\"'>\"+sc+\"<i>/100</i></span>\":'')+" +
+    "\"<div class='lastrev-b'><div class='ns-label'>YOUR LAST REVIEW</div><b>\"+esc(row.title||'My CV')+\"</b>\"+" +
+    "\"<span>\"+esc(flAgo(row.at))+\" · your improvement points are saved - open them any time</span></div>\";" +
+    "var b=document.createElement('button');b.type='button';b.className='btn';b.textContent='Open my feedback';" +
+    "b.onclick=function(){b.disabled=true;b.textContent='Opening…';openSaved(row).then(function(ok){" +
+    "b.disabled=false;b.textContent='Open my feedback';" +
+    "if(!ok)openFail('Could not open that feedback just now - check your connection and try again.');});};" +
+    "c.appendChild(b);var uc=$('u-card');uc.parentNode.insertBefore(c,uc);c.hidden=$('u-card').hidden;});}" +
+    "function openFail(msg){$('m-text').textContent=msg;show('m-card');}" +
+    /* ?open=<id> comes from My work and from the builder */
+    "(function(){var openId=qs.get('open');" +
+    "if(!openId){lastCard();return;}" +
+    "flLibFind(openId).then(openSaved).then(function(ok){lastCard();" +
+    "if(!ok)openFail('That saved feedback is not on this device any more - it may have been deleted. Your other work is in My work.');" +
+    "try{var u=new URL(location.href);u.searchParams.delete('open');history.replaceState(null,'',u.pathname+u.search)}catch(e){}});})();" +
     "function submit(text){" +
     "fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({" +
     "learner_id:lid,session_id:sid,kind:kind,text:text,target:$('target').value,token:flToken()})})" +
     ".then(function(r){return r.json()}).then(function(d){stopMsgs();fileIn.value='';" +
-    "if(d&&d.report){renderReport(d.report,d.checks);show('r-card');window.scrollTo({top:0,behavior:'smooth'});" +
+    "if(d&&d.report){$('r-saved').hidden=true;renderReport(d.report,d.checks);show('r-card');window.scrollTo({top:0,behavior:'smooth'});" +
     /* Keep it in their own library, with the feedback attached, so
      * the advice is still there tomorrow and they can edit the words
-     * instead of re-pasting the whole document. */
-    "try{flLibSave(kind==='linkedin'?'linkedin':'cv',lastName||'My CV',text,d.report,d.report.overall)}catch(e){}" +
-    /* review -> builder: the reviewed words, handed to the editor in
-     * this tab only (sessionStorage), parsed into sections there */
-    "var rb=$('r-builder');if(rb){rb.hidden=kind!=='cv';rb.onclick=function(){if(flLibHandoff(text))location.href='/builder?from=text';};}" +
+     * instead of re-pasting the whole document. The line-by-line checks
+     * and what it was aimed at ride with the report (_checks, _target),
+     * so the whole thing can be opened again exactly as it was. */
+    "var keep={};for(var k in d.report){if(Object.prototype.hasOwnProperty.call(d.report,k))keep[k]=d.report[k];}" +
+    "keep._checks=d.checks||null;keep._target=$('target').value.trim().slice(0,400);" +
+    "if(builderCvId)keep._builderCv=builderCvId;" +
+    "var savedId='';" +
+    /* the fixes go back to the builder with the learner: on to the CV
+     * they sent, now, so the list is waiting there even if the save to
+     * My work fails */
+    "if(builderCvId)flBuilderAttachReview(builderCvId,flReviewForBuilder('',0,d.report.overall,d.report));" +
+    "try{flLibSave(kind==='linkedin'?'linkedin':'cv',lastName||'My CV',text,keep,d.report.overall).then(function(id){savedId=id||'';" +
+    "if(builderCvId&&savedId)flBuilderAttachReview(builderCvId,flReviewForBuilder(savedId,0,d.report.overall,d.report));});}catch(e){}" +
+    "builderButton(text,function(){return savedId});" +
     "return;}" +
     "$('m-text').textContent=(d&&d.reply)||'Something went wrong - try again in a minute.';show('m-card');" +
     "}).catch(function(){stopMsgs();fileIn.value='';" +
@@ -1097,6 +1252,8 @@ export function renderToolsPage(): string {
     "\"<span class='cmp-n'>\"+n+\" attempts</span></div>\";}).catch(function(){el.textContent='';});}" +
     "function renderReport(r,checks){" +
     "var col=band(r.overall);rpGo('overview');" +
+    /* a review saved before its checks were kept has none to show */
+    "var ckTab=document.querySelector(\".rtab[data-rp='checks']\");if(ckTab)ckTab.hidden=!(checks&&checks.groups);" +
     "$('r-scale').innerHTML=scaleChart(r.overall);" +
     "$('r-radar').innerHTML=radar(r.dimensions||[]);" +
     "loadCompare();" +
@@ -1114,6 +1271,26 @@ export function renderToolsPage(): string {
     "$('r-kwx').innerHTML=kw.missing.map(function(k){return \"<span class='chip miss'>\"+esc(k)+'</span>'}).join('')||\"<span class='kw-none'>nothing important missing</span>\";" +
     "$('r-kwcard').hidden=false;$('r-kwnone').hidden=true}" +
     "else{$('r-kwcard').hidden=true;$('r-kwnone').hidden=false}" +
+    /* career paths. The profile address is rebuilt from the role's id
+     * rather than trusted from a saved report. */
+    "var cpDir=r.direction||null,cpPaths=(r.paths||[]).filter(function(p){return p&&p.id&&p.role&&p.because});" +
+    "$('rtab-paths').hidden=!(cpDir||cpPaths.length);" +
+    "$('crp-dircard').hidden=!cpDir;" +
+    "if(cpDir){$('crp-reads').textContent=cpDir.reads_as;$('crp-fit').textContent=cpDir.fit;" +
+    "var ev=$('crp-ev');ev.hidden=!cpDir.evidence;" +
+    "if(cpDir.evidence)ev.innerHTML=\"<span>The line that says so most</span>“\"+esc(cpDir.evidence)+\"”\";" +
+    "var pill=$('crp-pill');pill.hidden=cpDir.on_target===null||cpDir.on_target===undefined;" +
+    "pill.className='crp-pill '+(cpDir.on_target?'on':'off');" +
+    "pill.textContent=cpDir.on_target?'✓ Points at what you are aiming for':'Points somewhere else than your target';}" +
+    "$('crp-pathcard').hidden=!cpPaths.length;" +
+    "$('crp-paths').innerHTML=cpPaths.map(function(p,i){" +
+    "return \"<article class='crp-path'><div class='crp-n'>\"+(i+1)+\"</div><div class='crp-b'>\"+" +
+    "\"<h4>\"+esc(p.role)+\"</h4><p class='crp-about'>\"+esc(p.about||'')+\"</p>\"+" +
+    "\"<div class='crp-row'><b>Why you</b><span>\"+esc(p.because)+\"</span></div>\"+" +
+    "(p.bridge?\"<div class='crp-row'><b>To point your CV this way</b><span>\"+esc(p.bridge)+\"</span></div>\":'')+" +
+    "\"<a class='crp-link' target='_blank' rel='noopener' href='https://nationalcareers.service.gov.uk/job-profiles/\"+encodeURIComponent(p.id)+\"'>\"+" +
+    "\"See what this job involves <span aria-hidden='true'>↗</span><span class='crp-sr'> (National Careers Service, opens in a new tab)</span></a>\"+" +
+    "\"</div></article>\";}).join('');" +
     /* deterministic recruiter checks - visual summary first: a
      * segmented pass/warn/fail bar, passes as compact chips, prose
      * only where action is needed. */
@@ -1189,6 +1366,7 @@ export function renderToolsPage(): string {
     "if(checks&&checks.groups&&checks.groups.length&&typeof checks.passed==='number'&&typeof checks.total==='number'&&checks.total>0)" +
     "glance+=\"<button type='button' class='gl' data-rp='checks'><b style='color:\"+(checks.passed>=checks.total-1?'#1A7649':checks.passed>=checks.total-4?'#ED9249':'#B93A22')+\"'>\"+checks.passed+\"/\"+checks.total+\"</b><span>recruiter checks passed</span><i>see the rest →</i></button>\";" +
     "if(weakest)glance+=\"<button type='button' class='gl' data-rp='improve'><b style='color:\"+band(weakest.score)+\"'>\"+esc(weakest.label)+\"</b><span>your weakest area</span><i>fix it →</i></button>\";" +
+    "if(cpPaths.length)glance+=\"<button type='button' class='gl' data-rp='paths'><b style='color:#13507F'>\"+cpPaths.length+\"</b><span>other \"+(cpPaths.length===1?'job':'jobs')+\" your experience fits</span><i>explore →</i></button>\";" +
     "$('r-glance').innerHTML=glance;" +
     "document.querySelectorAll('.gl').forEach(function(g){g.onclick=function(){rpGo(g.dataset.rp)}});" +
     /* Praise that failed the verbatim check is dropped server-side, so
@@ -1202,7 +1380,11 @@ export function renderToolsPage(): string {
     "return \"<div class='card fb-slide' data-fbl='Fix \"+(i+1)+\"'><h3>What to improve <span class='badge'>\"+(i+1)+' of '+r.improvements.length+\"</span></h3>\"+" +
     "\"<div class='fix'><div class='fix-n'>\"+(i+1)+\"</div><div><div class='fix-t'>\"+esc(f.title)+\"</div>\"+" +
     "\"<div class='fix-d'>\"+esc(f.detail)+'</div>'+" +
-    "(f.example?\"<div class='fix-ex'><b>Try:</b> \"+esc(f.example)+'</div>':'')+'</div></div></div>';}).join('');" +
+    /* The example is the model's wording of the learner's facts. The
+     * prompt and the number check hold it to what they wrote, but only
+     * the learner knows whether every word is true of them - so it says
+     * so, right where the line is. */
+    "(f.example?\"<div class='fix-ex'><b>Try:</b> \"+esc(f.example)+\"</div><div class='fix-own'>An example, not a script: keep only what is true of you, and fill every [bracket] yourself.</div>\":'')+'</div></div></div>';}).join('');" +
     "fbInit();" +
     "$('r-next').textContent=r.next_step;" +
     "if(r.encouragement){$('r-cheer').textContent=r.encouragement;$('r-cheercard').hidden=false}" +
@@ -1317,6 +1499,36 @@ export function renderToolsPage(): string {
 .fix-ex{margin-top:8px;background:#F1F8F3;border:1px solid #CBE3D4;border-radius:9px;padding:9px 12px;
   font-size:13px;line-height:1.55;}
 .fix-ex b{color:#1A7649;margin-right:4px;}
+.fix-own{font-size:12px;color:#5C6A76;margin-top:6px;line-height:1.5;}
+/* career paths */
+.crp-dir{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:2px 0 12px;}
+.crp-dir-l{flex:1 1 100%;font-size:12.5px;font-weight:700;color:#5C6A76;}
+.crp-reads{font-size:24px;font-weight:800;color:var(--navy,#05253C);line-height:1.2;}
+.crp-pill{font-size:12px;font-weight:800;border-radius:999px;padding:5px 12px;}
+.crp-pill.on{background:#E7F3EC;color:#1A7649;}
+.crp-pill.off{background:#FBF3E8;color:#8A4A0C;}
+.crp-ev{border-left:3px solid var(--mango,#ED9249);padding:2px 0 2px 12px;margin:0 0 12px;font-size:14px;
+  font-style:italic;color:var(--ink,#25394B);line-height:1.55;}
+.crp-ev span{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:#8A4A0C;margin-bottom:3px;}
+.crp-fit{font-size:14.5px;line-height:1.6;color:var(--ink,#25394B);margin:0;}
+.crp-paths{display:grid;gap:12px;margin-top:4px;}
+.crp-path{display:flex;gap:14px;border:1.5px solid var(--line,#E3DDDA);border-radius:14px;padding:16px;background:#FCFBFA;}
+.crp-n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--navy,#05253C);color:#fff;font-weight:800;
+  font-size:14px;display:flex;align-items:center;justify-content:center;}
+.crp-b{flex:1;min-width:0;}
+.crp-b h4{margin:3px 0 2px;font-size:17px;color:var(--navy,#05253C);}
+.crp-about{margin:0 0 10px;font-size:13.5px;color:#4E5B66;line-height:1.5;}
+.crp-row{display:grid;grid-template-columns:190px 1fr;gap:4px 12px;padding:9px 0;
+  border-top:1px dashed var(--line,#E3DDDA);font-size:13.5px;line-height:1.55;color:var(--ink,#25394B);}
+.crp-row b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#13507F;padding-top:3px;}
+.crp-link{display:inline-flex;align-items:center;gap:6px;margin-top:8px;min-height:44px;font-weight:800;
+  font-size:13.5px;color:#B93A22;text-decoration:none;}
+.crp-link:hover{text-decoration:underline;}
+.crp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+.crp-src{font-size:12.5px;color:#5C6A76;line-height:1.55;margin:14px 0 0;}
+@media(max-width:560px){.crp-row{grid-template-columns:1fr;}.crp-path{padding:14px;gap:10px;}
+  .crp-reads{font-size:21px;}}
 .journeynext{display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--navy);
   border-left:4px solid var(--orange);transition:box-shadow .2s;}
 .journeynext:hover{box-shadow:0 4px 14px rgba(5,37,60,.12);}

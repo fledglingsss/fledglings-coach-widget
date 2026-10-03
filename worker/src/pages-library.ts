@@ -139,11 +139,21 @@ return "<article class='lib-card' data-id='"+esc(r.id)+"'>"+
 (fix?"<div class='lib-fix'><b>Your next fix</b>"+esc(fix)+"</div>":"")+
 "<div class='lib-full' id='full-"+esc(r.id)+"' hidden></div></div>"+
 "<div class='lib-acts'>"+
-"<a class='lib-btn' href='"+k.href+"' data-open='"+esc(r.id)+"'>Edit this in the tool</a>"+
+/* A review's whole feedback opens again in the tool that wrote it -
+ * every fix, not just the one on this card. A tester could not find
+ * their improvement points after leaving the review: they were saved
+ * here all along, with no button that showed them. A cover letter has
+ * no report to open; its tool reopens the letter itself. */
+(r.kind==='cover'
+?"<a class='lib-btn' href='"+k.href+"' data-open='"+esc(r.id)+"'>Edit this in the tool</a>"
+:"<a class='lib-btn' href='"+feedbackHref(k.href,r.id)+"'>Open the feedback</a>"+
+"<a class='lib-btn ghost' href='"+k.href+"' data-open='"+esc(r.id)+"'>Score it again</a>")+
 (r.kind==='cv'?"<a class='lib-btn ghost' href='/builder?from=text' data-openb='"+esc(r.id)+"'>Open in the builder</a>":"")+
-"<button type='button' class='lib-btn ghost' data-toggle='"+esc(r.id)+"'>Read it all</button>"+
+"<button type='button' class='lib-btn ghost' data-toggle='"+esc(r.id)+"'>Show the document</button>"+
 "<button type='button' class='lib-btn danger' data-del='"+esc(r.id)+"'>Delete</button>"+
 "</div></article>";}
+function feedbackHref(tool,id){var t=flToken();
+return tool+'?open='+encodeURIComponent(id)+(t?'&t='+encodeURIComponent(t):'');}
 function render(){
 var list=rows.filter(function(r){return filter==='all'||r.kind===filter});
 if(!list.length){
@@ -157,12 +167,12 @@ $('lib-grid').innerHTML=list.map(card).join('');
 $('lib-grid').querySelectorAll('[data-toggle]').forEach(function(b){b.addEventListener('click',function(){
 var id=b.getAttribute('data-toggle');var box=$('full-'+id);var row=rows.filter(function(r){return r.id===id})[0];
 if(!box||!row)return;
-if(!box.hidden){box.hidden=true;b.textContent='Read it all';return;}
+if(!box.hidden){box.hidden=true;b.textContent='Show the document';return;}
 /* A document saved on another device has no words here yet - fetch
  * them on demand rather than pulling every body into the list. */
 b.disabled=true;b.textContent='Opening…';
 flLibText(row).then(function(txt){b.disabled=false;
-if(!txt){b.textContent='Read it all';
+if(!txt){b.textContent='Show the document';
 box.textContent='Could not load this one just now - check your connection and try again.';
 box.hidden=false;return;}
 row.text=txt;box.textContent=txt;box.hidden=false;b.textContent='Hide';});});});
@@ -171,7 +181,8 @@ row.text=txt;box.textContent=txt;box.hidden=false;b.textContent='Hide';});});});
 $('lib-grid').querySelectorAll('[data-openb]').forEach(function(a){a.addEventListener('click',function(e){
 var id=a.getAttribute('data-openb');var row=rows.filter(function(r){return r.id===id})[0];
 if(!row)return;e.preventDefault();a.textContent='Opening…';
-flLibText(row).then(function(txt){if(txt)flLibHandoff(txt);location.href=a.getAttribute('href');});});});
+/* the review's id goes too, so the builder shows its fixes beside the words */
+flLibText(row).then(function(txt){if(txt){flLibHandoff(txt);flLibHandoffRef(row.id);}location.href=a.getAttribute('href');});});});
 /* Reopening needs the words in hand before the browser follows the
  * link, so a remote document is fetched first and then navigated. */
 $('lib-grid').querySelectorAll('[data-open]').forEach(function(a){a.addEventListener('click',function(e){

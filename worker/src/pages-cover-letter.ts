@@ -48,7 +48,10 @@ export function renderCoverLetterPage(): string {
     "<h2 class='page'>Cover Letter Studio</h2>" +
     "<p class='sub'>A cover letter that sounds like you - because it only says what you've genuinely done. " +
     "Fledge drafts it from the advert and your real CV, marks everything you should personalise in " +
-    "<span class='ph' style='padding:1px 6px'>brackets</span>, and hands you the pen. Nothing is stored.</p>" +
+    /* It used to end "Nothing is stored", which stopped being true when
+     * each draft began to be kept in My work. */
+    "<span class='ph' style='padding:1px 6px'>brackets</span>, and hands you the pen. Your draft is kept in My work " +
+    "so you can come back to it.</p>" +
 
     /* inputs - a guided three-step flow, one focus per screen */
     "<div id='s-in'>" +

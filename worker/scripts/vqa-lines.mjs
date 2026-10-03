@@ -47,6 +47,20 @@ if (!only || only === "review") {
     r.improvements.forEach((i, n) => { show(`fix ${n + 1}`, i.title); show("example", i.example === null ? "(withheld or none)" : i.example); count(i.example); });
     if (r.rewrite) { show("rewrite before", r.rewrite.before); show("rewrite after", r.rewrite.after); count(r.rewrite.after); }
     else show("rewrite", "(withheld or none)");
+    /* career paths: each one has to stand on a line the learner wrote */
+    if (r.direction) {
+      show("reads as", `${r.direction.reads_as}  (on target: ${r.direction.on_target})`);
+      show("evidence", r.direction.evidence ?? "(none shown)");
+      show("fit", r.direction.fit);
+      count(r.direction.fit);
+    } else show("direction", "(none)");
+    (r.paths || []).forEach((p, n) => {
+      show(`path ${n + 1}`, `${p.role}  <${p.id}>`);
+      show("why you", p.because);
+      show("bridge", p.bridge ?? "(none)");
+      count(p.because + (p.bridge || ""));
+    });
+    if (!(r.paths || []).length) show("paths", "(none)");
   }
 }
 
