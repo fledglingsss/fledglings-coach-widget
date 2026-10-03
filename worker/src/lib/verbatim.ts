@@ -195,9 +195,12 @@ export const MISSING_PIECE_RULE =
   "are the ones they gave you. A number, result, outcome, reason, level, grade, date or feeling they " +
   "did not write is not yours to supply, however likely it sounds: 'reducing customer wait times', " +
   "'with no errors reported', 'which taught me to stay calm under pressure' and 'Level 3' are all " +
-  "inventions unless their own text says so. Where the line needs one, put a [square-bracket " +
-  "placeholder] that names what to add - [what this led to], [how many], [which level] - and leave " +
-  "the truth to them. They will be asked about every word of it in an interview.";
+  "inventions unless their own text says so. So are words that grade the work - 'accurately', " +
+  "'confidently', 'efficiently', 'under pressure' - and 'ensuring', 'maintaining' or 'keeping' " +
+  "clauses that describe an outcome they never reported. Where the line needs one, put a " +
+  "[square-bracket placeholder] that names what to add - [what this led to], [how many], [which " +
+  "level] - and leave the truth to them. A fact they DID give stays exactly as they gave it, never " +
+  "turned into a bracket. They will be asked about every word of it in an interview.";
 
 /* Anything in [square brackets] is a placeholder for the learner to
  * fill in, not a claim. "1. " or "2) " at the start of a line is a list

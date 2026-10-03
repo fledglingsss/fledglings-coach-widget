@@ -90,19 +90,26 @@ export interface KeywordSplit {
  * what it judged missing. The document's wording decides the first
  * group either way: a term the model called missing whose words are
  * there is still there. Duplicates (ignoring case) are kept once.
+ *
+ * The terms are meant to be the ADVERT's: a live review listed "tills"
+ * for an advert that never says it (the CV does). With `advertText`,
+ * a term the advert does not word is left out altogether.
  */
 export function splitKeywords(
   evidenced: readonly string[],
   unevidenced: readonly string[],
   documentText: string,
+  advertText = "",
 ): KeywordSplit {
   const stems = stemsIn(documentText);
+  const advertStems = advertText ? stemsIn(advertText) : null;
   const seen = new Set<string>();
   const split: KeywordSplit = { matched: [], reword: [], missing: [] };
   const place = (term: string, evidencedByModel: boolean) => {
     const key = term.trim().toLowerCase();
     if (!key || seen.has(key)) return;
     seen.add(key);
+    if (advertStems && !termIsWorded(term, advertStems)) return;
     if (termIsWorded(term, stems)) split.matched.push(term);
     else if (evidencedByModel) split.reword.push(term);
     else split.missing.push(term);

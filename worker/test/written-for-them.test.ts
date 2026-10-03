@@ -406,6 +406,11 @@ describe("splitKeywords", () => {
     const split = splitKeywords(["Tills", "tills"], ["tills", "admin"], CV);
     expect(split).toEqual({ matched: ["Tills"], reword: [], missing: ["admin"] });
   });
+  it("leaves out a term the advert never words - the terms are the advert's", () => {
+    /* the live review listed "tills": it is in the CV, not in the advert */
+    const split = splitKeywords(["tills", "customer service"], ["team support", "stakeholder management"], CV, ADVERT);
+    expect(split).toEqual({ matched: ["customer service"], reword: [], missing: ["team support"] });
+  });
 });
 
 describe("the Job match tab", () => {
