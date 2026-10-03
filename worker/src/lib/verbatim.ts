@@ -79,7 +79,15 @@ export function isGrounded(praise: string, ...sources: string[]): boolean {
   if (quotes.length === 0) return false;
   const haystack = sources.map(normalise).join("\n");
   if (haystack.length === 0) return false;
-  return quotes.some((q) => haystack.includes(q));
+  /* Character for character first. Failing that, word for word: the
+   * same words in the same order, whatever the punctuation between
+   * them. A learner's skills sit on three lines of a LinkedIn export
+   * and the model quotes them as "Customer Service, Cash Handling,
+   * Teamwork" - their words, with commas that were line breaks. The
+   * production log showed about a quarter of all praise being dropped
+   * on every review, and praise is the part a learner most needs to
+   * hear. A paraphrase still fails: the words have to be theirs. */
+  return quotes.some((q) => haystack.includes(q) || learnerWords(q, sources) !== null);
 }
 
 /**

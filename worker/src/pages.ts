@@ -1299,7 +1299,9 @@ export function renderToolsPage(): string {
     "var nP=all.filter(function(c){return c.status==='pass'}).length," +
     "nW=all.filter(function(c){return c.status==='warn'}).length,nF=all.length-nP-nW;" +
     "var seg='';[['#1A7649',nP,'passed'],['#ED9249',nW,'to tighten'],['#B93A22',nF,'to fix']].forEach(function(s){" +
-    "if(s[1]>0)seg+=\"<div class='ck-seg-i' style='flex:\"+s[1]+\";background:\"+s[0]+\"'>\"+s[1]+' '+s[2]+'</div>';});" +
+    /* each segment is at least as wide as its own label, then shares
+     * what is left in proportion - at 320px "2 to tighten" was cut */
+    "if(s[1]>0)seg+=\"<div class='ck-seg-i' style='flex:\"+s[1]+\" 0 auto;background:\"+s[0]+\"'>\"+s[1]+' '+s[2]+'</div>';});" +
     "$('r-ckseg').innerHTML=seg;" +
     "$('r-ckpass').innerHTML=all.filter(function(c){return c.status==='pass'})" +
     ".map(function(c){return \"<span class='chip ok' title='\"+esc(c.detail)+\"'>✓ \"+esc(c.label)+'</span>'}).join('');" +

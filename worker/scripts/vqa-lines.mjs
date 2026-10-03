@@ -43,6 +43,9 @@ if (!only || only === "review") {
   if (out.report) {
     const r = out.report;
     console.log(`  overall=${r.overall}  ${r.verdict}`);
+    /* praise that fails the word-for-word check is dropped before it
+     * gets here; the model is asked for 3-4, so 2 means some was lost */
+    console.log(`  strengths shown: ${r.strengths.length}`);
     console.log(`  keywords: matched=${JSON.stringify(r.keywords.matched)} reword=${JSON.stringify(r.keywords.reword)} missing=${JSON.stringify(r.keywords.missing)}`);
     r.improvements.forEach((i, n) => { show(`fix ${n + 1}`, i.title); show("example", i.example === null ? "(withheld or none)" : i.example); count(i.example); });
     if (r.rewrite) { show("rewrite before", r.rewrite.before); show("rewrite after", r.rewrite.after); count(r.rewrite.after); }
@@ -81,6 +84,16 @@ if (!only || only === "rewrite") {
     show("about", out.rewrite.about);
     show("experience", out.rewrite.experience_tip);
     count(JSON.stringify(out.rewrite));
+  }
+}
+
+/* only when asked for by name: how much of the LinkedIn review's praise
+ * survives the word-for-word check */
+if (only === "linkedin") {
+  const out = await call("/api/linkedin", { text: LINKEDIN_LINES.join("\n"), target: "Customer service apprenticeship" });
+  if (out.report) {
+    console.log(`  overall=${out.report.overall}  ${out.report.verdict}`);
+    out.report.sections.forEach((s) => show(`${s.id} ${s.score}/${s.weight}`, `${s.right.length} right, ${s.improve.length} to improve`));
   }
 }
 

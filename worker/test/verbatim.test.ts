@@ -89,3 +89,29 @@ describe("keepGrounded", () => {
     expect(dropped).toBe(2);
   });
 });
+
+/* The production log showed about a quarter of all praise being dropped
+ * on every review. The words were the learner's; the punctuation
+ * between them was the model's. */
+describe("praise that quotes the learner's words with different punctuation", () => {
+  const PROFILE = ["Top Skills", "Customer Service", "Cash Handling", "Teamwork", "Leeds City College", "BTEC Business"].join("\n");
+
+  it("is grounded when line breaks came back as commas", () => {
+    expect(isGrounded("Listing 'Customer Service, Cash Handling, Teamwork' matches the role.", PROFILE)).toBe(true);
+  });
+
+  it("is grounded when a dash or a full stop was added or lost", () => {
+    expect(isGrounded('"BTEC Business - Leeds City College" would be wrong order, but "Leeds City College, BTEC Business" is theirs.', PROFILE)).toBe(true);
+    expect(isGrounded('You wrote "Served around 60 customers, each lunchtime, on the till".', CV)).toBe(true);
+  });
+
+  it("is still ungrounded when the words are not theirs", () => {
+    expect(isGrounded("'Customer Service, Stock Control, Teamwork' is a strong set.", PROFILE)).toBe(false);
+    expect(isGrounded('"Served around 80 customers each lunchtime" is impressive.', CV)).toBe(false);
+  });
+
+  it("is still ungrounded when their words are put in another order", () => {
+    expect(isGrounded('"BTEC Business at Leeds City College" is clear.', PROFILE)).toBe(false);
+    expect(isGrounded("'Teamwork, Customer Service' leads the list.", PROFILE)).toBe(false);
+  });
+});
