@@ -165,10 +165,10 @@ export const CAREER_JSON_FIELDS = `
     "reads_as": "<the kind of work this CV points to right now, 2-5 plain words - what a recruiter skimming it would assume they want, e.g. 'Retail and customer service'>",
     "evidence": "<the ONE line of theirs that most says so, copied exactly>",
     "on_target": <true if they gave a target and the CV as written points at it; false if they gave a target and it points somewhere else; null if no target was given>,
-    "fit": "<ONE plain sentence. With a target: how far the CV as written points at it, and the single biggest gap. Without one: what kind of role it reads as aimed at, and why>"
+    "fit": "<ONE plain sentence, 35 words at most. With a target: how far the CV as written points at it, and the single biggest gap. Without one: what kind of role it reads as aimed at, and why>"
   },
   "paths": [
-    {"role_id": "<an id from the CAREER LIST, copied exactly>", "because": "<ONE sentence that QUOTES a line of theirs in quotation marks and says why that counts in this job>", "bridge": "<the one thing to add or reword so the CV points this way, with [brackets] for anything only they know - advice, never a claim to paste in>"}
+    {"role_id": "<an id from the CAREER LIST, copied exactly>", "because": "<ONE sentence, 30 words at most, that QUOTES a line of theirs in quotation marks and says why that counts in this job>", "bridge": "<ONE sentence, 30 words at most: the one thing to add or reword so the CV points this way, with [brackets] for anything only they know - advice, never a claim to paste in>"}
     , ...up to ${CAREER_PATHS_SHOWN}, each a different kind of work from the others
   ],`;
 
