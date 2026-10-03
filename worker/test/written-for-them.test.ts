@@ -28,7 +28,7 @@ import { generate } from "../src/lib/anthropic";
 import { coverLetterSystemPrompt } from "../src/lib/cover-letter";
 import { interviewSystemPrompt, questionSet } from "../src/lib/interview";
 import { splitKeywords, termIsWorded, stemsIn, wordStem } from "../src/lib/keyword-match";
-import { linkedinSystemPrompt } from "../src/lib/linkedin";
+import { bulletsWithoutCommentary, linkedinSystemPrompt } from "../src/lib/linkedin";
 import { reviewSystemPrompt } from "../src/lib/review";
 import { MISSING_PIECE_RULE, inventedNumbers } from "../src/lib/verbatim";
 import { renderToolsPage } from "../src/pages";
@@ -273,6 +273,38 @@ describe("LinkedIn rewrite", () => {
     expect(out.kind).toBe("linkedin-rewrite");
     expect(out.rewrite.headline).toContain("BTEC Business");
     expect(generateMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("the rewrite's paste-ready entry", () => {
+  const bullets = "• Served 200+ customers per shift on the tills.\n• Trained two new starters, [what this led to].";
+
+  it("loses a sentence written about the bullets, as two live reads carried", () => {
+    const withTalk = "Your Garden Centre entry is already strong. Tighten it into bullets like these:\n" + bullets;
+    expect(bulletsWithoutCommentary(withTalk)).toBe(bullets);
+  });
+
+  it("keeps a heading that is part of the entry", () => {
+    const withHeading = "Weekend Team Member, Garden Centre, Leeds - September 2024 to present\n" + bullets.replace(/•/g, "-");
+    expect(bulletsWithoutCommentary(withHeading)).toBe(withHeading);
+  });
+
+  it("leaves an entry alone when it starts with a bullet or has none", () => {
+    expect(bulletsWithoutCommentary(bullets)).toBe(bullets);
+    expect(bulletsWithoutCommentary("Served customers on the tills every weekend.")).toBe("Served customers on the tills every weekend.");
+  });
+
+  it("is applied to what the route returns", async () => {
+    generateMock.mockResolvedValue(
+      JSON.stringify({
+        headline: "Customer service candidate | Tills | BTEC Business, Leeds",
+        about: "Every weekend I serve 200+ customers on the tills at a garden centre in Leeds.",
+        experience_tip: "Here it is tightened into bullets ready to paste:\n- Served 200+ customers a shift\n- Trained two new starters, [what this led to]",
+        next: "Paste the headline first.",
+      }),
+    );
+    const out = await post("/api/linkedin-rewrite", { text: CV, target: "" });
+    expect(out.rewrite.experience_tip).toBe("- Served 200+ customers a shift\n- Trained two new starters, [what this led to]");
   });
 });
 

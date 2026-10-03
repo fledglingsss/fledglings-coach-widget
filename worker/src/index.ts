@@ -204,6 +204,7 @@ import { renderInterviewPage } from "./pages-interview";
 import { renderLinkedInPage } from "./pages-linkedin";
 import {
   analyseLinkedInFacts,
+  bulletsWithoutCommentary,
   LINKEDIN_CAPS,
   linkedinSystemPrompt,
   linkedinUserMessage,
@@ -1624,7 +1625,7 @@ Output exactly:
         const drafted = {
           headline: field(parsed.headline, 260),
           about: field(parsed.about, 2200),
-          experience_tip: field(parsed.experience_tip, 900),
+          experience_tip: bulletsWithoutCommentary(field(parsed.experience_tip, 900)),
           next: field(parsed.next, 300),
         };
         if (!drafted.headline || !drafted.about) return null;

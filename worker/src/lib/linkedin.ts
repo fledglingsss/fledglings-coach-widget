@@ -528,3 +528,30 @@ export function parseLinkedInReport(
     sections,
   };
 }
+
+/* ---------------- the rewrite's paste-ready entry ---------------- */
+
+const BULLET_LINE = /^\s*[-*•]\s/;
+const SPEAKS_TO_LEARNER = /\b(you|your|here)\b/i;
+const ENDS_IN_COLON = /:\s*$/;
+
+/**
+ * The paste-ready bullets, without any sentence written ABOUT them.
+ *
+ * The rewrite's experience entry is pasted straight into a profile. The
+ * prompt says to send only the text, and in two live reads out of three
+ * the model still opened with "Your garden centre entry is already
+ * strong. Tighten it into bullets like these:" - which a learner then
+ * pastes into LinkedIn with the rest. A line before the first bullet
+ * that speaks to the learner, or ends in a colon, is commentary and
+ * goes; a heading such as "Weekend Team Member, Garden Centre" stays.
+ */
+export function bulletsWithoutCommentary(entry: string): string {
+  const lines = entry.split("\n");
+  const firstBullet = lines.findIndex((line) => BULLET_LINE.test(line));
+  if (firstBullet <= 0) return entry;
+  const heading = lines
+    .slice(0, firstBullet)
+    .filter((line) => line.trim() && !SPEAKS_TO_LEARNER.test(line) && !ENDS_IN_COLON.test(line));
+  return [...heading, ...lines.slice(firstBullet)].join("\n").trim();
+}
