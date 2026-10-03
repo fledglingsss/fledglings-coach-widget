@@ -12,12 +12,17 @@ export function makeKvMock() {
     async delete(key: string): Promise<void> {
       store.delete(key);
     },
-    async list(options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }> {
+    /* Everything comes back in one page, and says so - as the real
+     * store does when there is nothing more to fetch. */
+    async list(options?: {
+      prefix?: string;
+    }): Promise<{ keys: Array<{ name: string }>; list_complete: true }> {
       const prefix = options?.prefix ?? "";
       return {
         keys: [...store.keys()]
           .filter((name) => name.startsWith(prefix))
           .map((name) => ({ name })),
+        list_complete: true,
       };
     },
   } as unknown as KVNamespace & { store: Map<string, string> };

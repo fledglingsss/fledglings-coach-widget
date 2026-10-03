@@ -102,6 +102,40 @@ wanted; learners only pass them once.
   anyone who prefers it — it is first-claim, not proof, and a
   school-verified sign-in always beats it.
 
+### First log-in: "not found" at the school's own sign-in
+
+A tester (October 2026) was told "not found" when logging in to the
+school and only got through with a password reset. Nothing on the hub
+says "not found"; the school's sign-in page is the platform's own.
+
+The cause to rule out first: **an account created through the ops
+page's "Onboard a cohort" without the welcome email has no password.**
+`POST /users` creates it with `send_registration_email` false (the
+default on that page), so the learner has never been asked to set one,
+and the school's sign-in has nothing to accept. "Forgot your password?"
+on that page emails them a link to set one, which is what the tester
+did.
+
+What changed:
+
+- The hub's sign-in box now says so, beside the steps: the account is
+  already there, do not sign up again, use **Forgot your password?**.
+  `/ai-privacy` carries the same line.
+- The ops page warns before anything is created that no welcome email
+  means no password, and the confirmation says it again. The default is
+  still unticked; ticking it is the fix at source.
+- The hub's "is this address a learner?" lookup remembers a miss for
+  ten minutes instead of six hours, so a brand-new account is not
+  refused for the rest of the day.
+
+What cannot be done on this plan: the platform cannot act as an
+identity provider for the hub (its SSO logs a user *into* the school
+from another site, and needs the Learning Center plan), and a password
+must never be typed into the hub. The log-in that needs no code and no
+second step is the **embedded hub**: opened from inside the school, the
+learner's address arrives through Liquid and the hub signs them in by
+itself (`hub-embed.html`, see `EMBED-INSTRUCTIONS.md`).
+
 ## Learner-visible guarantees
 
 - A stolen or shoulder-surfed code is useless on another device: the

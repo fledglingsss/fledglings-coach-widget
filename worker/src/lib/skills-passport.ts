@@ -69,6 +69,20 @@ export function displayName(input: {
   return "Fledglings Learner";
 }
 
+/** Up to two initials from a display name: "Sam Avery" -> "SA". The
+ * learner's avatar everywhere - the platform holds no profile picture
+ * for anyone, so their own initials are what stands in for one. */
+export function initialsOf(fullName: string): string {
+  return fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    /* the first LETTER of each word: a name read off an address such as
+     * "99sam.avery@" is "SA", not "9A" */
+    .map((w) => (w.match(/\p{L}/u)?.[0] ?? w[0]!).toUpperCase())
+    .join("");
+}
+
 function titleCase(text: string): string {
   return text
     .split(/\s+/)
@@ -193,6 +207,46 @@ export function upsertLeaderboard(
 export function rankOf(board: Leaderboard, hash: string): number | null {
   const i = board.entries.findIndex((e) => e.h === hash);
   return i === -1 ? null : i + 1;
+}
+
+export interface BoardRow {
+  rank: number;
+  name: string;
+  completed: number;
+  isMe: boolean;
+}
+
+/** How many of a cohort's board a learner is shown. */
+const BOARD_TOP = 5;
+
+/** What one learner sees of their cohort's board: the top five, plus
+ * their own row if they sit below it. The Skills Passport and the hub's
+ * Leaderboard both use this, so a cohort sees one board, not two. */
+export function boardView(board: Leaderboard | null | undefined, myHash?: string): BoardRow[] {
+  const entries = board?.entries ?? [];
+  const rows = entries.slice(0, BOARD_TOP).map((e, i) => ({
+    rank: i + 1,
+    name: e.n,
+    completed: e.completed,
+    isMe: e.h === myHash,
+  }));
+  if (myHash && !rows.some((row) => row.isMe)) {
+    const index = entries.findIndex((e) => e.h === myHash);
+    if (index >= BOARD_TOP) {
+      rows.push({
+        rank: index + 1,
+        name: entries[index]!.n,
+        completed: entries[index]!.completed,
+        isMe: true,
+      });
+    }
+  }
+  return rows;
+}
+
+/** The storage name for a cohort tag: "Swift Learners" -> "swift-learners". */
+export function cohortSlug(tag: string): string {
+  return tag.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
 
 /* ---------------- cohort tag ---------------- */
@@ -329,12 +383,7 @@ export function computeSkillsPassport(input: {
       : { code: "AR", name: "All Rounder", tier: "gold", state: "locked", toGo: 4 - breadth },
   );
 
-  const initials = input.fullName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("") || "FL";
+  const initials = initialsOf(input.fullName) || "FL";
 
   const academicYear = (() => {
     const y = input.now.getUTCFullYear();
@@ -343,24 +392,7 @@ export function computeSkillsPassport(input: {
   })();
 
   /* Cohort top-5 (plus the learner if outside the top 5). */
-  const boardEntries = input.board?.entries ?? [];
-  const board = boardEntries.slice(0, 5).map((e, i) => ({
-    rank: i + 1,
-    name: e.n,
-    completed: e.completed,
-    isMe: e.h === input.myHash,
-  }));
-  if (input.myHash && !board.some((b) => b.isMe)) {
-    const idx = boardEntries.findIndex((e) => e.h === input.myHash);
-    if (idx >= 5) {
-      board.push({
-        rank: idx + 1,
-        name: boardEntries[idx].n,
-        completed: boardEntries[idx].completed,
-        isMe: true,
-      });
-    }
-  }
+  const board = boardView(input.board, input.myHash);
 
   const nearlyThere = modules
     .filter((m) => m.status !== "completed" && m.progressRate > 0)

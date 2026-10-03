@@ -12,6 +12,8 @@ import { renderCoverLetterPage } from "../src/pages-cover-letter";
 import { renderBuilderPage } from "../src/pages-builder";
 import { renderLibraryPage } from "../src/pages-library";
 import { renderOutreachPage } from "../src/pages-outreach";
+import { renderCareerQuizPage } from "../src/pages-careers";
+import { renderLeaderboardPage } from "../src/pages-leaderboard";
 import { renderAiPrivacyPage, renderToolsPage } from "../src/pages";
 import { renderDashboardPage } from "../src/pages-dashboard";
 import { renderInspectBuilding, renderInspectExpired, renderInspectPage } from "../src/pages-inspect";
@@ -39,6 +41,8 @@ const PAGES: Array<[string, () => string]> = [
   ["ai-privacy", renderAiPrivacyPage],
   ["library", renderLibraryPage],
   ["templates", renderOutreachPage],
+  ["careers", renderCareerQuizPage],
+  ["leaderboard", renderLeaderboardPage],
 ];
 
 /* Script-free pages: covered by the white-label guard below, exempt

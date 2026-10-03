@@ -87,9 +87,9 @@ can see. Scores update live from module completions.
 
 Every employability tool also works as a normal website at
 `https://fledglings-coach.fledglings.workers.dev/hub` — the suite has
-its own sidebar navigation (Home, Resume Builder, CV Review, Cover
-Letter, LinkedIn Review, Interview Practice, Templates & Scripts, My
-Work, AI & Privacy). Learners
+its own sidebar navigation (Home, Career Quiz, Resume Builder, CV
+Review, Cover Letter, LinkedIn Review, Interview Practice, Templates &
+Scripts, My Work, Leaderboard, AI & Privacy). Learners
 who arrive outside LearnWorlds save their email once on the Home page
 and their scores follow them; inside LearnWorlds the Liquid email does
 it automatically. Every tool shows a "Saving progress as … · Not you?"
@@ -125,6 +125,35 @@ Employability Hub" link.
 `allow="clipboard-write; camera; microphone"` keeps copy buttons and
 the Interview Studio's camera/mic working when tools open inside the
 same iframe tab — do not remove it.
+
+**This embed is the linked log-in.** Opened from inside the school, the
+hub is signed in by itself from the Liquid email: no code, no second
+log-in, nothing for the learner to type. A learner who opens the hub's
+own address instead has to sign in there (school code, or their email),
+which is where a tester met a "not found" from the school's sign-in
+page in October 2026 (see `docs/SSO.md`, "First log-in"). Give learners
+the school page, not the bare address.
+
+**What the learner sees first (October 2026):** their own avatar beside
+the logo on every page. The platform holds a name for each account and
+no picture, so it is their initials, inside a ring that fills with
+their Career Readiness. The same initials sit beside what they say to
+Fledge in the chat widget (the snippet already passes `learnerName` and
+`learnerEmail`; no change to paste).
+
+Two pages reached from the hub's menu need no embed of their own:
+
+- **Career Quiz** (`/careers`): 24 quick "would you enjoy this?"
+  questions, then the learner's strongest interests, eight real jobs
+  linked to their official National Careers Service profiles, and every
+  route in (apprenticeship, T Level, college, university, a job,
+  volunteering, supported internship) linked to its official page.
+  **No API and no AI**: it is scored in the browser and the answers are
+  never sent anywhere.
+- **Leaderboard** (`/leaderboard`): this month's cohort race (the
+  Learner Games below) and the learner's own cohort's top five, by
+  modules completed. A cohort's board is shown only to learners carrying
+  that cohort's tag. Tool scores are never ranked.
 
 ## LinkedIn Optimizer — `linkedin-embed.html`
 

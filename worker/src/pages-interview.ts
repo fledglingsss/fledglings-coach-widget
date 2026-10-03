@@ -894,7 +894,10 @@ if(presence.poseFrames>=3){pr.poseFrames=presence.poseFrames;pr.upright=presence
 payload.presence=pr;}
 fetch('/api/interview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
 .then(function(r){return r.json()}).then(function(d){
-if(d&&d.report){saveSession('done',d.report);repShowScoring(false);renderReport(d.report);return;}
+if(d&&d.report){saveSession('done',d.report);repShowScoring(false);renderReport(d.report);
+/* a new score: let the ring round the avatar catch up */
+try{setTimeout(flProfileRefresh,1500)}catch(e){}
+return;}
 saveSession('unscored',null);repShowScoring(false);deliveryUnavailable();
 $('r-verdict').textContent='Recording saved - scoring unavailable';
 $('r-meta').textContent=(d&&d.reply)||'Fledge could not score this one - your recording is safe in My recordings.';})

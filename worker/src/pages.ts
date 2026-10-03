@@ -184,7 +184,7 @@ return r;});}
  * shared Chromebook would otherwise show the next learner the last
  * one's CVs, letters and interview recordings. */
 function flClearEmail(){flLsDel('fl_hub_token_v1');flLsDel('fl_hub_email_v1');
-['fl_builder_cvs_v1','fl_letters_v1','fl_iv_learn_v1'].forEach(flLsDel);
+['fl_builder_cvs_v1','fl_letters_v1','fl_iv_learn_v1','fl_profile_v1','fl_career_quiz_v1'].forEach(flLsDel);
 /* the details typed into Templates and scripts live in this tab */
 try{sessionStorage.removeItem('fl_outreach_v1')}catch(e){}
 try{if(window.indexedDB&&indexedDB.deleteDatabase)indexedDB.deleteDatabase('fl_interview_v1');}catch(e){}}
@@ -226,6 +226,73 @@ not.onclick=flSignOutHere;
 chip.appendChild(who);chip.appendChild(not);
 var hh=document.querySelector('h2.page');
 if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibling.nextElementSibling||null);}
+
+/* ---------------- who is signed in: the learner's avatar ----------
+ *
+ * A tester asked for the learner's own avatar beside the logo, as the
+ * first thing they see. The platform holds a name for every account
+ * and no picture, so the avatar is their initials, on a colour that is
+ * always the same for them, inside a ring that fills with their Career
+ * Readiness.
+ *
+ * The name and the readiness come from /api/hub and are kept on this
+ * device beside the token they belong to (and cleared with it). Until
+ * they arrive, the initials are read off the signed-in address. */
+var FL_AV_COLOURS=['#05253C','#13507F','#B93A22','#1A7649','#8A2F6B','#7A4A1E'];
+function flAvatarColour(key){key=String(key||'').toLowerCase();var h=0;
+for(var i=0;i<key.length;i++){h=(h*31+key.charCodeAt(i))%2147483647;}
+return FL_AV_COLOURS[h%FL_AV_COLOURS.length];}
+function flInitialsOf(name){return String(name||'').split(' ').filter(function(w){return w})
+.slice(0,2).map(function(w){return w.charAt(0).toUpperCase()}).join('');}
+function flEmailInitials(em){var local=String(em||'').split('@')[0]||'';
+return local.split(/[._+-]+/).map(function(p){var m=p.match(/[a-z]/i);return m?m[0].toUpperCase():''})
+.filter(function(c){return c}).slice(0,2).join('');}
+/* What the platform said about the learner signed in on this device,
+ * or null. Never another learner's: it is checked against the token.
+ * FL_PROFILE_NOW is this page's own copy, for a browser that will not
+ * keep anything (an embedded page with storage blocked). */
+var FL_PROFILE_NOW=null;
+function flProfile(){var em=flResolveEmail();if(!em)return null;
+var p=null;try{p=JSON.parse(flLs('fl_profile_v1')||'null')}catch(e){}
+if(!p)p=FL_PROFILE_NOW;
+return p&&p.e===em?p:null;}
+/* n: first name, i: initials, c: cohort, r: Career Readiness (0-100).
+ * A field left out of the update keeps its last value. */
+function flProfileSave(update){var em=flResolveEmail();if(!em||flViewOnly())return;
+var p=flProfile()||{e:em};
+['n','i','c','r'].forEach(function(k){if(update&&update[k]!==undefined&&update[k]!==null)p[k]=update[k]});
+p.at=Math.floor(Date.now()/1000);
+FL_PROFILE_NOW=p;flLsSet('fl_profile_v1',JSON.stringify(p));flAvatarPaint();}
+/* Can this browser keep anything between pages? Where it cannot, the
+ * answer could never be reused, so asking again on every page would
+ * only spend the learner's daily allowance. */
+function flCanKeep(){try{localStorage.setItem('fl_keep_probe','1');localStorage.removeItem('fl_keep_probe');return true}catch(e){return false}}
+/* Ask the hub again - after a new score, or when this device has
+ * nothing kept yet. Decoration only: a failure changes nothing. */
+function flProfileRefresh(){var tok=flToken();if(!tok||flViewOnly()||!flCanKeep())return;
+fetch('/api/hub',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({learner_id:flStoredId(localStorage,'fl_coach_learner_v1'),token:tok})})
+.then(function(r){return r.json()}).then(function(d){if(d&&d.ok)flProfileFromHub(d);}).catch(function(){});}
+function flProfileFromHub(d){var pr=d.profile||{},s=d.summary||{};
+flProfileSave({n:pr.name,i:pr.initials,c:pr.cohort,r:typeof s.careerReadiness==='number'?s.careerReadiness:undefined});}
+function flAvatarPaint(){var me=document.getElementById('snav-me');if(!me)return;
+var hi=document.getElementById('snav-hi');
+/* A provider reading a learner's hub is not that learner: no avatar. */
+if(flViewOnly()){me.hidden=true;if(hi)hi.hidden=true;return;}
+var em=flResolveEmail();
+/* Signed out: the markup's own "Sign in" stands. */
+if(!em)return;
+var p=flProfile()||{};
+var av=document.getElementById('snav-av');
+var ini=p.i||flEmailInitials(em);
+if(ini)av.textContent=ini;
+av.style.background=flAvatarColour(em);
+me.className='snav-me known';
+var ready=typeof p.r==='number'?Math.max(0,Math.min(100,Math.round(p.r))):null;
+if(ready!==null)me.style.background='conic-gradient('+(ready>=70?'#1A7649':'#D9452B')+' '+(ready*3.6)+'deg,#E7EAF0 0deg)';
+var label='Signed in as '+(p.n||em)+(ready===null?'':'. Career Readiness '+ready+'%')+'. Open your account.';
+me.setAttribute('aria-label',label);me.title=label;
+if(hi)hi.textContent=p.n?'Hi, '+p.n:'Signed in';}
 
 /* ---------------- My work: the on-device document library ----------
  *
@@ -271,6 +338,9 @@ kind:kind,title:String(title||'').slice(0,120),text:String(text||'').slice(0,200
 report:report||null,score:(typeof score==='number'?score:null),at:Math.floor(Date.now()/1000)};
 /* Device first - it must not depend on the network - then the
  * server copy so the same work is there on their phone. */
+/* A saved piece of work is a new score: let the ring round the avatar
+ * catch up (a moment later, once the score has landed). */
+try{setTimeout(flProfileRefresh,1500)}catch(e){}
 return flLibTx('readwrite',function(st){st.put(entry)})
 .then(function(){return flLibPrune()})
 .then(function(){return flLibPush(entry)})
@@ -424,10 +494,13 @@ export const NAV_ICONS: Record<string, string> = {
   library: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5.5A1.5 1.5 0 0 1 5.5 4H9v16H5.5A1.5 1.5 0 0 1 4 18.5z'/><path d='M9 4h4.5A1.5 1.5 0 0 1 15 5.5v13A1.5 1.5 0 0 1 13.5 20H9z'/><path d='m17 5.5 2.6.7a1.5 1.5 0 0 1 1 1.9l-3.2 11.6'/></svg>",
   templates: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21.5 2.5 11 13'/><path d='M21.5 2.5 15 21.5l-4-8.5-8.5-4z'/></svg>",
   account: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8.5' r='3.5'/><path d='M4.5 20a7.5 7.5 0 0 1 15 0'/></svg>",
+  careers: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='m15.5 8.5-2 5-5 2 2-5z'/></svg>",
+  leaderboard: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9.5 20V5h5v15'/><path d='M4 20v-9h5.5'/><path d='M14.5 14H20v6'/><path d='M3 20h18'/></svg>",
 };
 
 export const APP_NAV: Array<{ id: string; icon: string; label: string; href: string }> = [
   { id: "home", icon: "home", label: "Home", href: "/hub" },
+  { id: "careers", icon: "careers", label: "Career Quiz", href: "/careers" },
   { id: "builder", icon: "builder", label: "Resume Builder", href: "/builder" },
   { id: "cv", icon: "cv", label: "CV Review", href: "/tools" },
   { id: "cover", icon: "cover", label: "Cover Letter", href: "/cover-letter" },
@@ -435,6 +508,7 @@ export const APP_NAV: Array<{ id: string; icon: string; label: string; href: str
   { id: "interview", icon: "interview", label: "Interview Practice", href: "/interview" },
   { id: "templates", icon: "templates", label: "Templates & Scripts", href: "/templates" },
   { id: "library", icon: "library", label: "My Work", href: "/library" },
+  { id: "leaderboard", icon: "leaderboard", label: "Leaderboard", href: "/leaderboard" },
 ];
 
 const APP_CSS = `
@@ -446,15 +520,33 @@ const APP_CSS = `
 [hidden]{display:none!important;}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Outfit',Arial,sans-serif;}
 body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
+/* overflow-y: ten tools and the account links are taller than a small
+ * laptop's window; the sidebar scrolls rather than losing its last links. */
 .snav{width:236px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;
-  padding:22px 14px;position:sticky;top:0;height:100vh;}
-.snav-logo{padding:2px 10px 6px;}
-.snav-logo svg{height:30px;width:auto;display:block;}
+  padding:22px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+/* The learner's avatar beside the logo: the first thing on the page. */
+.snav-top{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center;padding:0 2px 16px;}
+.snav-me{grid-row:1 / span 2;width:46px;height:46px;border-radius:50%;padding:3px;background:#E7EAF0;display:block;
+  text-decoration:none;transition:transform .15s ease;}
+.snav-me:hover{transform:scale(1.06);}
+/* the shared keyboard ring squares off whatever it lands on; this one is round */
+a.snav-me:focus-visible{border-radius:50%;}
+.snav-av{width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:#fff;color:var(--mut);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;letter-spacing:.02em;}
+.snav-av svg{width:19px;height:19px;}
+.snav-me.known .snav-av{color:#fff;}
+.snav-brand{min-width:0;}
+.snav-logo svg{height:28px;width:auto;display:block;}
+.snav-hi{grid-column:2;font-size:12.5px;font-weight:700;color:var(--blue);text-decoration:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-top:4px;}
+.snav-hi:hover{text-decoration:underline;}
+@media (min-width:881px) and (max-height:780px){.sn-link{padding:8px 12px;}.snav{padding-top:16px;}
+  .snav-top{padding-bottom:10px;}}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
 .sn-skip{position:absolute;left:-9999px;top:0;z-index:200;background:#05253C;color:#fff;padding:10px 16px;border-radius:0 0 10px 0;font-weight:600;text-decoration:none;}
 .sn-skip:focus{left:0;}
 .smain:focus{outline:none;}
-.snav-slogan{font-size:10.5px;color:#B93A22;font-weight:600;letter-spacing:.05em;padding:0 10px 18px;}
+.snav-slogan{font-size:10.5px;color:#B93A22;font-weight:600;letter-spacing:.04em;padding-top:3px;white-space:nowrap;}
 .snav nav{display:flex;flex-direction:column;gap:4px;flex:1;}
 .sn-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;text-decoration:none;
   color:var(--ink);font-size:14.5px;font-weight:500;transition:background .12s;}
@@ -548,8 +640,11 @@ h3[tabindex='-1']:focus-visible{outline:none;}
 @media (max-width:880px){
   body{flex-direction:column;}
   .snav{width:100%;height:auto;position:static;flex-direction:column;padding:12px 14px;border-right:none;
-    border-bottom:1px solid var(--line);}
-  .snav-logo{padding:2px 4px 10px;}
+    border-bottom:1px solid var(--line);overflow-y:visible;}
+  /* one row on a phone: avatar, logo, and the greeting at the far end */
+  .snav-top{grid-template-columns:auto 1fr auto;padding:0 0 10px;}
+  .snav-me{grid-row:auto;width:44px;height:44px;}
+  .snav-hi{grid-column:3;padding-top:0;min-height:44px;display:flex;align-items:center;max-width:36vw;}
   .snav-logo svg{height:24px;}
   .snav nav{flex-direction:row;overflow-x:auto;gap:6px;-webkit-overflow-scrolling:touch;}
   .sn-link{white-space:nowrap;padding:9px 12px;font-size:13.5px;}
@@ -673,8 +768,15 @@ export function appShell(opts: {
     `<style>${APP_CSS}${opts.extraCss ?? ""}${APP_OVERRIDES}</style></head><body>` +
     "<a class='sn-skip' href='#smain-content'>Skip to content</a>" +
     "<aside class='snav'>" +
-    `<div class='snav-logo'>${WORDMARK_LIGHT}</div>` +
-    "<div class='snav-slogan'>Where Growth Takes Flight</div>" +
+    /* Signed out, this is a way to sign in; flAvatarPaint() turns it
+     * into the learner's own initials the moment the page knows them. */
+    "<div class='snav-top'>" +
+    "<a class='snav-me' id='snav-me' data-nav href='/hub#account' aria-label='Sign in to save your progress' " +
+    `title='Sign in to save your progress'><span class='snav-av' id='snav-av'>${NAV_ICONS.account}</span></a>` +
+    `<div class='snav-brand'><div class='snav-logo'>${WORDMARK_LIGHT}</div>` +
+    "<div class='snav-slogan'>Where Growth Takes Flight</div></div>" +
+    "<a class='snav-hi' id='snav-hi' data-nav href='/hub#account'>Sign in</a>" +
+    "</div>" +
     `<nav aria-label='Employability tools'>${nav}` +
     "<span class='snav-foot'>" +
     `<a class='sn-link' data-nav href='/ai-privacy'>${NAV_ICONS.privacy}<span>AI &amp; Privacy</span></a>` +
@@ -682,10 +784,19 @@ export function appShell(opts: {
     "</span></nav></aside>" +
     "<div class='smain' id='smain-content' tabindex='-1'>" +
     `<h1 class='sr-only'>${esc(opts.title)}</h1>` +
-    `<script>${IDENTITY_JS}</script>` +
+    /* the avatar is painted here, before the page below it is drawn,
+     * so a signed-in learner never sees the signed-out one flash past */
+    `<script>${IDENTITY_JS}\nflAvatarPaint();</script>` +
     opts.bodyHtml +
     "<div class='footer'>Fledglings · fledglings.co · life skills for 16–24s</div>" +
     "</div>" +
+    /* The hub's home page asks /api/hub itself and keeps the answer.
+     * Anywhere else, ask once when this device has nothing kept for the
+     * learner yet, or what it has is more than six hours old. */
+    (opts.active === "home"
+      ? ""
+      : "<script>(function(){if(!flResolveEmail()||flViewOnly())return;var p=flProfile();" +
+        "if(!p||Date.now()/1000-(p.at||0)>21600)flProfileRefresh();})();</script>") +
     "<script>(function(){var ev=flToken();if(ev){var evq=encodeURIComponent(ev);" +
     "document.querySelectorAll('a[data-nav]').forEach(function(a){" +
     "var href=a.getAttribute('href');if(href.indexOf('http')===0)return;" +
@@ -784,6 +895,7 @@ export function renderToolsPage(): string {
     "<p class='kw-note' style='margin-bottom:4px'><b>Paste the actual job advert</b> if you have one - that is what " +
     "unlocks the keyword match against the employer's own wording. A job title alone still helps with tailoring, " +
     "but nobody can tell you which keywords a specific employer wants from two words. You can also skip this.</p>" +
+    "<p class='r-saved' id='aim-from' style='margin:6px 0 10px' hidden>From your career quiz. Change it, or paste a real advert if you have one.</p>" +
     "<textarea id='target' rows='3' aria-label='Paste the job advert, or name the role you are aiming at' maxlength='2500' placeholder='Paste the advert here - or just name the role, e.g. Customer service apprenticeship at a bank'></textarea>" +
     "<div class='btnrow' style='margin-top:14px'>" +
     "<button type='button' class='btn' id='cv-n1'>Next: your CV →</button>" +
@@ -1016,6 +1128,14 @@ export function renderToolsPage(): string {
     "function linkedinUrl(){var ev=flToken();return '/linkedin'+(ev?'?t='+encodeURIComponent(ev):'');}" +
     "tabCv.onclick=function(){setKind('cv')};tabLi.onclick=function(){location.href=linkedinUrl()};" +
     "if(qs.get('tab')==='li'){location.replace(linkedinUrl());}" +
+    /* Arriving from the career quiz with a job in mind: start with it
+     * as the aim. It goes into the text box as plain text, where the
+     * learner can change it or clear it, and comes out of the address
+     * bar so a refresh does not put it back. */
+    "(function(){var aim=(qs.get('aim')||'').trim().slice(0,80);if(!aim)return;" +
+    "$('target').value=aim;$('aim-from').hidden=false;" +
+    "$('target').addEventListener('input',function(){$('aim-from').hidden=true},{once:true});" +
+    "try{var u=new URL(location.href);u.searchParams.delete('aim');history.replaceState(null,'',u.pathname+u.search)}catch(e){}})();" +
     /* Handoff from the Resume Builder: the built CV's text arrives via
      * sessionStorage - offer to review it without a PDF. */
     /* Reopened from My work. This tool reads PDFs, so there is no box
@@ -1661,7 +1781,18 @@ export function renderAiPrivacyPage(): string {
      * that says what is stored has to say so. */
     "<p><b>Templates and scripts:</b> the details you type into an email, call script or networking message " +
     "stay in that browser tab. They are never sent to us, and they are gone when you close the tab. No AI is " +
-    "involved on that page.</p></div></div>" +
+    "involved on that page.</p>" +
+    /* Three things added in October 2026, each said plainly here. */
+    "<p><b>Career quiz:</b> your answers are worked out in your own browser and kept there, so your result is " +
+    "still on this device next time. They are never sent to us, and no AI is involved: the same answers always " +
+    "give the same result.</p>" +
+    "<p><b>Your avatar:</b> the initials beside the logo come from the name your school account holds for you. " +
+    "There is no photo. Your first name and your Career Readiness are kept in this browser beside your pass, so " +
+    "the avatar can show on every page, and they are removed when you tap <b>Not you?</b>.</p>" +
+    "<p><b>Leaderboards:</b> the cohort race shows cohort names and totals only. Your own cohort's board shows " +
+    "the name your school knows you by and how many modules you have completed, to people in your cohort and " +
+    "nobody else. Your CV, interview and cover letter scores are never ranked and never appear on a " +
+    "leaderboard.</p></div></div>" +
     "<div class='card'><h3>How your progress stays yours</h3><div class='result'>" +
     "<p>The proper front door is <b>Sign in with your school account</b> on the Hub: you get a short code, " +
     "type it on a page that sits behind your school's own login, and this browser is given a signed pass - " +
@@ -1670,6 +1801,9 @@ export function renderAiPrivacyPage(): string {
     "always wins. The pass is tied to this browser, runs out after 30 days, and is checked every time your " +
     "work or scores are saved or shown. Typing someone else's email gets nobody anywhere: without a pass " +
     "issued by us, there's no way in.</p>" +
+    "<p>First time logging in to your school, and it does not accept a password? Your account is already " +
+    "there, so there is no need to sign up again. Choose <b>Forgot your password?</b> on the school's sign-in " +
+    "page and it emails you a link to set one.</p>" +
     "<p>Linking a second device? On the one that already works, open the Hub and tap <b>Link another device</b> - " +
     "it shows a six-character code that you type on the new device. Codes last ten minutes and work once. " +
     "That's why nobody can take your progress just by typing your email: they'd need the code from your device.</p>" +

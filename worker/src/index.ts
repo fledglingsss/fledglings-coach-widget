@@ -112,12 +112,16 @@ import {
 } from "./lib/reflection-insights";
 import {
   advanceStreak,
+  boardView,
+  cohortSlug,
   cohortTag,
   computeSkillsPassport,
   displayName,
+  initialsOf,
   isModuleTitle,
   rankOf,
   upsertLeaderboard,
+  type BoardRow,
   type CourseRecord,
   type Leaderboard,
   type StreakState,
@@ -191,6 +195,8 @@ import {
 } from "./lib/library";
 import { renderLibraryPage } from "./pages-library";
 import { renderOutreachPage } from "./pages-outreach";
+import { renderCareerQuizPage } from "./pages-careers";
+import { renderLeaderboardPage } from "./pages-leaderboard";
 import { textToSeed } from "./lib/cv-import";
 import { renderCoverLetterPage } from "./pages-cover-letter";
 import { renderBuilderPage } from "./pages-builder";
@@ -963,8 +969,7 @@ app.get("/skills-passport", async (c) => {
     let cohortSize: number | null = null;
     let board: Leaderboard | null = null;
     if (tag) {
-      const tagSlug = tag.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const lbKey = `sp:lb:${tagSlug}`;
+      const lbKey = `sp:lb:${cohortSlug(tag)}`;
       const prev = JSON.parse(
         (await c.env.RATE_LIMITS.get(lbKey)) || "null",
       ) as Leaderboard | null;
@@ -1882,6 +1887,12 @@ app.get("/library", (c) => c.html(renderLibraryPage(), 200, FRAME_HEADERS));
  * is deliberately no API behind it, so nothing a learner types here
  * ever reaches the worker. */
 app.get("/templates", (c) => c.html(renderOutreachPage(), 200, FRAME_HEADERS));
+
+/* Career quiz: 24 quick questions that point a learner at kinds of work
+ * and the routes into them. Like Templates, a page only - the answers
+ * are scored in the learner's browser and never reach the worker, and
+ * no AI is involved. */
+app.get("/careers", (c) => c.html(renderCareerQuizPage(), 200, FRAME_HEADERS));
 
 app.get("/cover-letter", (c) => c.html(renderCoverLetterPage(), 200, FRAME_HEADERS));
 
@@ -3440,7 +3451,7 @@ app.post("/hooks/learnworlds", async (c) => {
   if (ev.type === "courseCompleted" && cohort) {
     try {
       const month = now.toISOString().slice(0, 7);
-      const slug = cohort.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const slug = cohortSlug(cohort);
       const learnerHash = (await hashLearnerId(ev.email)).slice(0, 12);
       const key = `chl:${month}:${slug}:${learnerHash}:${ev.courseId ?? "x"}`;
       await c.env.RATE_LIMITS.put(key, cohort, { expirationTtl: 90 * 24 * 3600 });
@@ -3538,29 +3549,41 @@ app.post("/api/next-step", async (c) => {
   try {
     /* Rate limit BEFORE the cache read AND the user lookup - a cached
      * hit that skipped the limiter was a free enumeration window (QA
-     * 2026-07-30). Device cap is rotatable by a scraper, so an IP cap
-     * backs it up. */
+     * 2026-07-30).
+     *
+     * Per device only. There was a per-address cap here too, from when
+     * the learner's address came in the request body and a scraper
+     * could rotate device ids. Nothing reaches this line now without a
+     * token signed for this one device, so that cap only ever counted
+     * a school's own learners against each other: forty of them
+     * opening the hub three times used up the day's 120 for everyone
+     * on the same network. */
     const deviceHash = await hashLearnerId(learnerId);
     const day = new Date().toISOString().slice(0, 10);
     const rlKey = `ns:rl:${deviceHash}:${day}`;
     const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
     if (used >= 30) return c.json({ ok: false });
     await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
-    const ip = c.req.header("CF-Connecting-IP") || "";
-    if (ip) {
-      const ipKey = `ns:ip:${(await hashLearnerId(ip)).slice(0, 16)}:${day}`;
-      const ipUsed = parseInt((await c.env.RATE_LIMITS.get(ipKey)) || "0", 10) || 0;
-      if (ipUsed >= 120) return c.json({ ok: false });
-      await c.env.RATE_LIMITS.put(ipKey, String(ipUsed + 1), { expirationTtl: 86_400 });
-    }
+
+    /* Who they are, for their avatar in the chat: the same initials the
+     * hub shows beside the logo. Kept six hours, so this is one KV read;
+     * the lookup is shared with the one below when it is needed at all. */
+    let lookedUp: Awaited<ReturnType<typeof getUserByEmail>> | undefined;
+    const lookupUser = async () => {
+      if (lookedUp === undefined) lookedUp = await getUserByEmail(c.env, email);
+      return lookedUp;
+    };
+    const me = await learnerProfile(c.env, email, lookupUser).catch(() => NO_PROFILE);
+    const withMe = <T extends object>(payload: T) =>
+      me.initials ? { ...payload, me: { initials: me.initials } } : payload;
 
     const emailHash = await hashLearnerId(email);
     const cacheKey = `ns:${emailHash}`;
     const cached = await c.env.RATE_LIMITS.get(cacheKey);
-    if (cached) return c.json(JSON.parse(cached));
+    if (cached) return c.json(withMe(JSON.parse(cached) as Record<string, unknown>));
 
-    const user = await getUserByEmail(c.env, email);
-    if (!user) return c.json({ ok: false });
+    const user = await lookupUser();
+    if (!user) return c.json(withMe({ ok: false }));
     const [enrolments, progress] = await Promise.all([
       getEnrolments(c.env, user.id),
       getUserProgressAll(c.env, user.id),
@@ -3578,7 +3601,7 @@ app.post("/api/next-step", async (c) => {
       modules
         .map((e) => ({ e, p: byCourse.get(e.courseId) }))
         .find((x) => !x.p || x.p.status === "not_started");
-    if (!pick) return c.json({ ok: false });
+    if (!pick) return c.json(withMe({ ok: false }));
     const payload = {
       ok: true,
       title: pick.e.title,
@@ -3588,7 +3611,7 @@ app.post("/api/next-step", async (c) => {
     await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(payload), {
       expirationTtl: 600,
     });
-    return c.json(payload);
+    return c.json(withMe(payload));
   } catch (err) {
     console.error("[coach] next-step error:", String(err));
     return c.json({ ok: false });
@@ -3760,7 +3783,15 @@ app.post("/api/identity", async (c) => {
       if (known === null) {
         const user = await getUserByEmail(c.env, email).catch(() => null);
         known = user ? "1" : "0";
-        await c.env.RATE_LIMITS.put(knownKey, known, { expirationTtl: 6 * 3600 });
+        /* A hit is remembered for six hours. A miss for ten minutes: a
+         * learner whose account was only just created (or whose address
+         * was mistyped once) was otherwise told "cannot link" for the
+         * rest of the school day, with nothing they could do about it.
+         * The caps above are what stop sweeping, not this cache, and the
+         * refusal reads the same either way. */
+        await c.env.RATE_LIMITS.put(knownKey, known, {
+          expirationTtl: user ? 6 * 3600 : 600,
+        });
       }
       if (known !== "1") {
         /* Deliberately the SAME refusal the binding path gives: a
@@ -4107,7 +4138,15 @@ app.post("/api/hub", async (c) => {
     if (used >= 60) return c.json({ error: "rate_limited" }, 429);
     await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
     const ip = c.req.header("CF-Connecting-IP") || "";
-    if (ip) {
+    /* The per-address cap is for callers nobody has vouched for. A
+     * device holding a signed token can read only its own learner, and
+     * is already capped above; and a whole school sits behind one
+     * address, so its signed-in learners were being counted against
+     * each other - three classes in a day emptied the hub for everyone
+     * there. (The cap dates from when an address in the request body
+     * was enough to read a learner; a token has been required since.) */
+    const vouched = !viewing && EMAIL_PATTERN.test(email);
+    if (ip && !vouched) {
       const ipKey = `hub:ip:${(await hashLearnerId(ip)).slice(0, 16)}:${day}`;
       const ipUsed = parseInt((await c.env.RATE_LIMITS.get(ipKey)) || "0", 10) || 0;
       if (ipUsed >= 240) return c.json({ error: "rate_limited" }, 429);
@@ -4143,30 +4182,15 @@ app.post("/api/hub", async (c) => {
       if (lookedUp === undefined) lookedUp = await getUserByEmail(c.env, email);
       return lookedUp;
     };
-    let name = "";
+    let profile: LearnerProfile | null = null;
     if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
       try {
-        const nameKey = `hub:name:v2:${(await hashLearnerId(email)).slice(0, 16)}`;
-        const cachedName = await c.env.RATE_LIMITS.get(nameKey);
-        if (cachedName !== null) {
-          name = cachedName;
-        } else {
-          const user = await lookupUser();
-          name = user
-            ? displayName({
-                email: user.email,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                username: user.username,
-              }).split(" ")[0] ?? ""
-            : "";
-          if (name === "Fledglings") name = "";
-          await c.env.RATE_LIMITS.put(nameKey, name, { expirationTtl: 6 * 3600 });
-        }
+        profile = await learnerProfile(c.env, email, lookupUser);
       } catch {
-        /* greeting is decoration - the summary still ships */
+        /* greeting and avatar are decoration - the summary still ships */
       }
     }
+    const name = profile?.name ?? "";
     /* The learner's own module progress - the learning half of the
      * picture, cached 10 min per email. Decoration-only failure mode:
      * the career summary still ships if the platform is down. */
@@ -4219,6 +4243,11 @@ app.post("/api/hub", async (c) => {
       ok: true,
       summary: summariseHub(merged),
       ...(name ? { name } : {}),
+      /* who is signed in, for the avatar beside the logo: initials and
+       * cohort from the platform's own record of the account */
+      ...(profile && profile.initials
+        ? { profile: { name: profile.name, initials: profile.initials, cohort: profile.cohort } }
+        : {}),
       ...(learning ? { learning } : {}),
     });
   } catch (err) {
@@ -4226,6 +4255,65 @@ app.post("/api/hub", async (c) => {
     return c.json({ ok: false });
   }
 });
+
+/* ---------------- who is signed in ----------------
+ *
+ * A tester asked for the learner's own avatar beside the logo, "from
+ * the API". The platform's user record carries a name and tags but no
+ * profile picture (checked against its API reference, 2026-10-03), so
+ * the avatar is the learner's initials - the same stand-in the Skills
+ * Passport has always used - and the cohort is their cohort tag.
+ *
+ * Read for any device holding a token for the address, like the score
+ * history itself. Cached six hours per learner, misses included, so a
+ * visit costs no platform call and an unknown address costs one. */
+interface LearnerProfile {
+  /** First name, for the greeting. "" when the account has none. */
+  name: string;
+  /** The display name the Skills Passport and the cohort board use. */
+  full: string;
+  initials: string;
+  cohort: string | null;
+}
+
+const NO_PROFILE: LearnerProfile = { name: "", full: "", initials: "", cohort: null };
+
+async function learnerProfile(
+  env: Env,
+  email: string,
+  lookup: () => Promise<Awaited<ReturnType<typeof getUserByEmail>>>,
+): Promise<LearnerProfile> {
+  const key = `hub:profile:v1:${(await hashLearnerId(email)).slice(0, 16)}`;
+  const cached = await env.RATE_LIMITS.get(key);
+  if (cached !== null) {
+    try {
+      return { ...NO_PROFILE, ...(JSON.parse(cached) as Partial<LearnerProfile>) };
+    } catch {
+      /* an unreadable entry is rebuilt below */
+    }
+  }
+  const user = await lookup();
+  let profile = NO_PROFILE;
+  if (user) {
+    const full = displayName({
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      username: user.username,
+    });
+    /* "Fledglings Learner" is displayName's answer when the account has
+     * no usable name at all: nothing to greet by, nothing to initial. */
+    const named = full !== "Fledglings Learner";
+    profile = {
+      name: named ? (full.split(" ")[0] ?? "") : "",
+      full: named ? full : "",
+      initials: named ? initialsOf(full) : "",
+      cohort: cohortTag(user.tags),
+    };
+  }
+  await env.RATE_LIMITS.put(key, JSON.stringify(profile), { expirationTtl: 6 * 3600 });
+  return profile;
+}
 
 /* ==================================================================
  * Provider Dashboard data - tag-scoped backend overview joining the
@@ -4833,7 +4921,10 @@ app.get("/dashboard/export.csv", async (c) => {
 
 /* The Learner Games - monthly cohort completions race (aggregate-only,
  * embeddable). Scored live by the completion webhooks. */
-app.get("/challenge", async (c) => {
+/** This month's cohort-versus-cohort race: cohort names and completion
+ * counts, never learners. Shared by the standalone Learner Games page
+ * and the hub's Leaderboard, so the two can never disagree. */
+async function challengeBoard(env: Env): Promise<{ monthLabel: string; rows: ChallengeRow[] }> {
   const month = new Date().toISOString().slice(0, 7); // UTC - matches the key
   const [y, m] = month.split("-").map(Number);
   const monthLabel = new Date(Date.UTC(y!, m! - 1, 1)).toLocaleDateString("en-GB", {
@@ -4846,14 +4937,14 @@ app.get("/challenge", async (c) => {
   const cacheKey = `chl:board:${month}`;
   let rows: ChallengeRow[] = [];
   try {
-    const cached = await c.env.RATE_LIMITS.get(cacheKey);
+    const cached = await env.RATE_LIMITS.get(cacheKey);
     if (cached) {
       rows = JSON.parse(cached) as ChallengeRow[];
     } else {
       const bySlug = new Map<string, { cohort: string; count: number }>();
       let cursor: string | undefined;
       for (let page = 0; page < 5; page++) {
-        const list = await c.env.RATE_LIMITS.list({
+        const list = await env.RATE_LIMITS.list({
           prefix: `chl:${month}:`,
           cursor,
         });
@@ -4867,7 +4958,7 @@ app.get("/challenge", async (c) => {
         if (page === 0) {
           for (const key of list.keys.slice(0, 40)) {
             const slug = key.name.split(":")[2] ?? "";
-            const name = await c.env.RATE_LIMITS.get(key.name);
+            const name = await env.RATE_LIMITS.get(key.name);
             const entry = bySlug.get(slug);
             if (entry && name) entry.cohort = name;
           }
@@ -4879,15 +4970,144 @@ app.get("/challenge", async (c) => {
         .map((v) => ({ cohort: v.cohort, count: v.count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 12);
-      await c.env.RATE_LIMITS.put(cacheKey, JSON.stringify(rows), {
+      await env.RATE_LIMITS.put(cacheKey, JSON.stringify(rows), {
         expirationTtl: 60,
       });
     }
   } catch {
     /* empty board is fine */
   }
+  return { monthLabel, rows };
+}
+
+app.get("/challenge", async (c) => {
+  const { monthLabel, rows } = await challengeBoard(c.env);
   return c.html(renderChallengePage(monthLabel, rows), 200, FRAME_HEADERS);
 });
+
+/* ==================================================================
+ * Leaderboard - the cohort boards, inside the hub.
+ *
+ * A tester suggested leaderboards by cohort, read from the platform's
+ * tags. Both already existed - the cohort race above, and each cohort's
+ * own board on the Skills Passport - but nothing in the hub led to
+ * either. This page shows the two together for the signed-in learner.
+ *
+ * It adds no new ranking and shows nobody anything new: the race is
+ * cohort names and counts (already public), and a cohort's board is the
+ * same board, with the same names, the Skills Passport has shown that
+ * cohort since July. A cohort's board is only ever returned to a device
+ * holding a token for a learner IN that cohort; everyone else gets the
+ * race alone.
+ * ================================================================== */
+
+app.get("/leaderboard", (c) => c.html(renderLeaderboardPage(), 200, FRAME_HEADERS));
+
+app.post("/api/leaderboard", async (c) => {
+  const body = await readJsonCapped(c, 4_000);
+  if (body === null) return c.json({ error: "invalid_json" }, 400);
+  const learnerId = typeof body.learner_id === "string" ? body.learner_id : "";
+  if (!ID_PATTERN.test(learnerId)) return c.json({ error: "invalid_request" }, 400);
+  const email = (await emailFromToken(c.env, body.token, learnerId)) || "";
+  try {
+    const deviceHash = await hashLearnerId(learnerId);
+    const rlKey = `lb:rl:${deviceHash}:${new Date().toISOString().slice(0, 10)}`;
+    const used = parseInt((await c.env.RATE_LIMITS.get(rlKey)) || "0", 10) || 0;
+    if (used >= 60) return c.json({ error: "rate_limited" }, 429);
+    await c.env.RATE_LIMITS.put(rlKey, String(used + 1), { expirationTtl: 86_400 });
+
+    const race = await challengeBoard(c.env);
+    let cohort: string | null = null;
+    let board: BoardRow[] = [];
+    let onBoard = 0;
+    if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
+      const profile = await learnerProfile(c.env, email, () => getUserByEmail(c.env, email));
+      cohort = profile.cohort;
+      if (cohort) {
+        const lbKey = `sp:lb:${cohortSlug(cohort)}`;
+        let stored = JSON.parse((await c.env.RATE_LIMITS.get(lbKey)) || "null") as Leaderboard | null;
+        const myHash = (await hashLearnerId(email)).slice(0, 12);
+        /* Put this learner on their cohort's board, as a visit to the
+         * Skills Passport does - from module counts already held, so
+         * opening the page costs the platform nothing. */
+        const mine = profile.full ? await learnerModuleCounts(c.env, email) : null;
+        const held = stored?.entries.find((entry) => entry.h === myHash);
+        const moved =
+          mine !== null &&
+          (!held ||
+            held.n !== profile.full ||
+            held.completed !== mine.completed ||
+            held.score !== mine.score);
+        /* written only when their place could have changed: looking at
+         * the board is not a reason to store it again */
+        if (mine && moved) {
+          stored = upsertLeaderboard(
+            stored,
+            { h: myHash, n: profile.full, completed: mine.completed, score: mine.score },
+            new Date().toISOString(),
+          );
+          await c.env.RATE_LIMITS.put(lbKey, JSON.stringify(stored));
+        }
+        if (stored) {
+          board = boardView(stored, myHash);
+          onBoard = stored.entries.length;
+        }
+      }
+    }
+    return c.json({
+      ok: true,
+      signedIn: EMAIL_PATTERN.test(email),
+      month: race.monthLabel,
+      race: race.rows.map((row) => ({
+        cohort: row.cohort,
+        count: row.count,
+        mine: cohort !== null && cohortSlug(row.cohort) === cohortSlug(cohort),
+      })),
+      cohort,
+      board,
+      onBoard,
+    });
+  } catch (err) {
+    console.error("[coach] leaderboard error:", String(err));
+    return c.json({ ok: false });
+  }
+});
+
+/** The learner's module counts for their cohort board, from what the
+ * worker already holds: the rolling roster (no platform call, at most
+ * an hour old), else the hub's ten-minute cache. Null when neither has
+ * them yet - the board is still shown, the learner just is not added
+ * to it on this visit. */
+async function learnerModuleCounts(
+  env: Env,
+  email: string,
+): Promise<{ completed: number; score: number } | null> {
+  const roster = parseRoster(await env.RATE_LIMITS.get(ROSTER_KV_KEY));
+  const entry = roster?.entries.find((e) => (e.user.email ?? "").toLowerCase() === email);
+  if (entry && entry.fetchedAt > 0) {
+    const modules = entry.courses.filter((m) => isModuleTitle(m.title));
+    const total = modules.reduce((sum, m) => sum + (m.completed ? 100 : (m.progressRate ?? 0)), 0);
+    return {
+      completed: modules.filter((m) => m.completed).length,
+      score: modules.length > 0 ? Math.round(total / modules.length) : 0,
+    };
+  }
+  const cached = await env.RATE_LIMITS.get(
+    `hub:learn:v1:${(await hashLearnerId(email)).slice(0, 16)}`,
+  );
+  if (!cached) return null;
+  try {
+    const learn = JSON.parse(cached) as { enrolled?: number; completed?: number } | null;
+    if (!learn || typeof learn.completed !== "number") return null;
+    const enrolled = typeof learn.enrolled === "number" ? learn.enrolled : 0;
+    return {
+      completed: learn.completed,
+      score: enrolled > 0 ? Math.round((learn.completed * 100) / enrolled) : 0,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /* #8 - personalised instant demo (outreach landing page). Public,
  * marketing-only: no learner data is reachable from it. */
@@ -5509,6 +5729,9 @@ app.post("/ops/action", async (c) => {
         "portal:reflect:",
         "portal:mh:",
         "chl:board:",
+        /* names and cohorts behind the avatar and the leaderboard, so a
+         * cohort re-tagged on the platform shows without a six-hour wait */
+        "hub:profile:",
       ];
       let deleted = 0;
       for (const prefix of prefixes) {

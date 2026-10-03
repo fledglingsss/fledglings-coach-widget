@@ -621,6 +621,194 @@ await section("library", async () => {
 });
 
 /* ---------------------------------------------- the pages around the hub */
+/* ------------------------------------------- avatar, quiz, leaderboard */
+await section("explore", async () => {
+  /* ---- the header, signed out: a way to sign in beside the logo ---- */
+  await go("/careers");
+  const signedOut = await page.evaluate(() => ({
+    hi: document.getElementById("snav-hi").textContent,
+    known: document.getElementById("snav-me").classList.contains("known"),
+    nav: [...document.querySelectorAll(".snav nav > .sn-link span")].map((s) => s.textContent),
+  }));
+  console.log("  header signed out:", JSON.stringify(signedOut));
+  if (signedOut.hi !== "Sign in" || signedOut.known) note("avatar", "signed-out header is not the sign-in state");
+  await overflowCheck(".snav", "sidebar signed out");
+  await elShot(".snav", "70-sidebar-signed-out");
+
+  /* ---- the career quiz, start to results ---- */
+  await stageChecks("careers start");
+  await shot("71-careers-start");
+  await clickSel("#cq-go");
+  await stageChecks("careers question");
+  await shot("72-careers-question");
+  /* answer two, step back one, and check the answer was kept. With a
+   * keyboard the first answer is given by its number key. */
+  if (S.mobile) await clickText(".cq-opt", /^Yes/);
+  else { await page.keyboard.press("3"); await sleep(400); }
+  await clickText(".cq-opt", /^Maybe/);
+  await clickSel("#cq-back");
+  const kept = await page.evaluate(() => ({
+    count: document.getElementById("cq-count").textContent,
+    pressed: [...document.querySelectorAll(".cq-opt")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent),
+  }));
+  console.log("  after Back:", JSON.stringify(kept));
+  if (kept.count !== "Question 2 of 24" || kept.pressed.join() !== "Maybe") note("quiz", `Back lost the answer: ${JSON.stringify(kept)}`);
+  await shot("73-careers-back");
+  /* finish it the way a learner would: one tap per question */
+  const pattern = [2, 2, 0, 1, 2, 0, 1, 2, 0, 0, 2, 1, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 0];
+  for (const value of pattern) {
+    await page.evaluate((v) => document.querySelector(`.cq-opt[data-v='${v}']`).click(), value);
+    await sleep(60);
+  }
+  await visible("cq-result");
+  const result = await page.evaluate(() => ({
+    areas: [...document.querySelectorAll(".cq-area b")].map((b) => b.textContent),
+    roles: [...document.querySelectorAll(".cq-role h4")].map((h) => h.textContent),
+    links: [...document.querySelectorAll(".cq-role .cq-link:not(.alt)")].map((a) => a.href),
+    routes: [...document.querySelectorAll(".cq-route b")].map((b) => b.textContent),
+    saved: JSON.parse(localStorage.getItem("fl_career_quiz_v1") || "null"),
+    requests: performance.getEntriesByType("resource").filter((r) => /\/api\//.test(r.name)).map((r) => new URL(r.name).pathname),
+  }));
+  console.log("  quiz result:", JSON.stringify({ areas: result.areas, roles: result.roles, routes: result.routes.length, savedTop: result.saved && result.saved.top, owner: result.saved && result.saved.o }));
+  if (result.areas.length !== 3 || result.roles.length !== 8 || result.routes.length !== 7) note("quiz", "results are not three interests, eight jobs, seven routes");
+  if (result.links.some((href) => !href.startsWith("https://nationalcareers.service.gov.uk/job-profiles/"))) note("quiz", "a job link is not an official profile");
+  if (result.requests.length) note("quiz", `the quiz page called the server: ${result.requests.join(", ")}`);
+  await stageChecks("careers results");
+  await shot("74-careers-results");
+  /* the long results page, a piece at a time, at the size it is read */
+  await elShot("#cq-some > .card:nth-child(1)", "74a-careers-interests");
+  await elShot(".cq-role", "74b-careers-job");
+  await elShot("#cq-some > .card:nth-child(3)", "74c-careers-ways-in");
+  /* straight to the CV review, aimed at the first job */
+  const aimHref = await page.evaluate(() => document.querySelector(".cq-link.alt").getAttribute("href"));
+  await go(aimHref);
+  const aim = await page.evaluate(() => ({ value: document.getElementById("target").value, note: !document.getElementById("aim-from").hidden, url: location.search }));
+  console.log("  aim hand-off:", JSON.stringify(aim));
+  if (aim.value !== result.roles[0] || !aim.note || /aim=/.test(aim.url)) note("quiz", `aim hand-off: ${JSON.stringify(aim)}`);
+  await elShot("#cvst-1", "75-tools-aimed");
+  /* back on the quiz: the last result is offered, and opens */
+  await go("/careers");
+  const resume = await page.evaluate(() => ({ shown: !document.getElementById("cq-resume").hidden, label: document.getElementById("cq-resume").textContent, go: document.getElementById("cq-go").textContent }));
+  console.log("  returning:", JSON.stringify(resume));
+  if (!resume.shown) note("quiz", "the last result is not offered on return");
+  await shot("76-careers-returning");
+  /* nothing appealed: say so, kindly, rather than an empty list */
+  await page.evaluate(() => window.__flQuizShow(new Array(24).fill(0)));
+  await visible("cq-none");
+  await stageChecks("careers nothing");
+  await shot("77-careers-nothing");
+  await page.evaluate(() => window.__flQuizShow([2, 2, 0, 1, 2, 0, 1, 2, 0, 0, 2, 1, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 0, 1]));
+
+  /* ---- the hub's two new cards, before and after the quiz ---- */
+  await go("/hub");
+  console.log("  hub quiz card:", JSON.stringify(await page.evaluate(() => ({ title: document.getElementById("quiz-title").textContent, cta: document.getElementById("quiz-cta").textContent, href: document.getElementById("quiz-card").getAttribute("href") }))));
+  await elShot(".discover", "78-hub-discover-taken");
+  await page.evaluate(() => localStorage.removeItem("fl_career_quiz_v1"));
+  await go("/hub");
+  await elShot(".discover", "79-hub-discover-new");
+  /* first-time help sits with the school sign-in steps */
+  await clickSel("#sso-go");
+  await sleep(1200);
+  await stageChecks("hub sign-in help");
+  await elShot("#account", "80-hub-sign-in-help");
+
+  /* ---- the leaderboard: signed out, then each state it can be in ---- */
+  await go("/leaderboard");
+  await stageChecks("leaderboard signed out");
+  await shot("81-leaderboard-signed-out");
+  const race = [
+    { cohort: "Swift Learners", count: 41, mine: true },
+    { cohort: "Northgate College Level 2", count: 33, mine: false },
+    { cohort: "Harbour Training Apprentices 2026", count: 18, mine: false },
+    { cohort: "Other College", count: 4, mine: false },
+  ];
+  const board = [
+    { rank: 1, name: "Priya Shah", completed: 14, isMe: false },
+    { rank: 2, name: "Tom Okoro", completed: 12, isMe: false },
+    { rank: 3, name: "Erin Doyle", completed: 11, isMe: false },
+    { rank: 4, name: "Jamie Lee", completed: 9, isMe: false },
+    { rank: 5, name: "Oluwaseun Adebayo-Williams", completed: 9, isMe: false },
+    { rank: 12, name: "Sam Avery", completed: 3, isMe: true },
+  ];
+  /* the learner's next module, so the "climb the board" card can be seen */
+  await page.setRequestInterception(true);
+  const nextStep = (req) => {
+    if (req.url().endsWith("/api/next-step")) req.respond({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, title: "Budgeting That Actually Works", percent: 40, url: "https://www.fledglings.co/" }) });
+    else req.continue();
+  };
+  page.on("request", nextStep);
+  await page.evaluate((d) => window.__flBoardShow(d), { ok: true, signedIn: true, month: "October 2026", race, cohort: "Swift Learners", board, onBoard: 23 });
+  await visible("lbd-climb");
+  await stageChecks("leaderboard full");
+  await shot("82-leaderboard-cohort");
+  await elShot(".lbd-race", "82a-leaderboard-race");
+  await elShot("#lbd-board", "82b-leaderboard-board");
+  page.off("request", nextStep);
+  await page.setRequestInterception(false);
+  await page.evaluate((d) => window.__flBoardShow(d), { ok: true, signedIn: true, month: "October 2026", race: race.map((r) => ({ ...r, mine: false })), cohort: null, board: [], onBoard: 0 });
+  await sleep(300);
+  await stageChecks("leaderboard no cohort");
+  await shot("83-leaderboard-no-cohort");
+  await page.evaluate((d) => window.__flBoardShow(d), { ok: true, signedIn: true, month: "October 2026", race: race.slice(1).map((r) => ({ ...r, mine: false })), cohort: "Swift Learners", board: [{ rank: 1, name: "Sam Avery", completed: 0, isMe: true }], onBoard: 1 });
+  await sleep(300);
+  await stageChecks("leaderboard first one here");
+  await shot("84-leaderboard-first");
+
+  /* ---- signed in: the avatar beside the logo, on every page ----
+   * A made-up learner. The token is unsigned, so the server gives it
+   * nothing; it is enough for the page to draw who it thinks is here.
+   * First with only the address to go on, then with what the hub's own
+   * answer would add (name, cohort, readiness). */
+  const claims = Buffer.from(JSON.stringify({ e: "sam.avery@swift.test", exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  await page.evaluate((tok) => { localStorage.setItem("fl_hub_token_v1", tok); localStorage.removeItem("fl_profile_v1"); }, `${claims}.unsigned`);
+  await go("/leaderboard");
+  const fromAddress = await page.evaluate(() => ({ av: document.getElementById("snav-av").textContent, hi: document.getElementById("snav-hi").textContent, label: document.getElementById("snav-me").getAttribute("aria-label") }));
+  console.log("  avatar from the address:", JSON.stringify(fromAddress));
+  if (fromAddress.av !== "SA") note("avatar", `initials from the address: ${fromAddress.av}`);
+  await elShot(".snav-top", "85-avatar-from-address");
+  /* the hub's own answer, with a name and some progress in it */
+  let hubJson = null;
+  const grab = async (r) => { if (r.url().endsWith("/api/hub") && !hubJson) { try { hubJson = await r.json(); } catch {} } };
+  page.on("response", grab);
+  await go("/hub");
+  page.off("response", grab);
+  if (!hubJson || !hubJson.summary) { note("avatar", "no hub answer to build the signed-in state from"); return; }
+  hubJson.name = "Sam";
+  hubJson.profile = { name: "Sam", initials: "SA", cohort: "Swift Learners" };
+  hubJson.summary.careerReadiness = 43;
+  hubJson.summary.tasksDone = 3;
+  await page.setRequestInterception(true);
+  const asSam = (req) => {
+    if (req.url().endsWith("/api/hub")) req.respond({ status: 200, contentType: "application/json", body: JSON.stringify(hubJson) });
+    else req.continue();
+  };
+  page.on("request", asSam);
+  for (const [route, name] of [["/hub", "86-avatar-hub"], ["/tools", "87-avatar-tools"], ["/builder", "88-avatar-builder"]]) {
+    await go(route);
+    await sleep(500);
+    const seen = await page.evaluate(() => {
+      const me = document.getElementById("snav-me"), top = document.querySelector(".snav-top").getBoundingClientRect(), logo = document.querySelector(".snav-logo svg").getBoundingClientRect(), a = me.getBoundingClientRect();
+      const slogan = document.querySelector(".snav-slogan").getBoundingClientRect(), nav = document.querySelector(".snav").getBoundingClientRect();
+      return { av: document.getElementById("snav-av").textContent, hi: document.getElementById("snav-hi").textContent, ring: me.style.background.slice(0, 40), label: me.getAttribute("aria-label"), size: Math.round(a.width) + "x" + Math.round(a.height), avatarLeftOfLogo: a.right <= logo.left, sloganInside: slogan.right <= nav.right - 4, topH: Math.round(top.height) };
+    });
+    console.log(`  ${route} avatar:`, JSON.stringify(seen));
+    if (seen.av !== "SA" || seen.hi !== "Hi, Sam" || !seen.avatarLeftOfLogo || !seen.sloganInside) note("avatar", `${route}: ${JSON.stringify(seen)}`);
+    await overflowCheck(".snav", `sidebar ${route}`);
+    if (S.mobile) await tapCheck(".snav-top", `avatar row ${route}`);
+    if (route === "/hub") await shot(name);
+    else await elShot(".snav-top", name);
+  }
+  await elShot(".snav", "89-sidebar-signed-in");
+  page.off("request", asSam);
+  await page.setRequestInterception(false);
+  /* "Not you?" hands the device back: the avatar and the quiz go too */
+  await go("/careers");
+  await page.evaluate(() => { localStorage.setItem("fl_career_quiz_v1", JSON.stringify({ o: "sam.avery@swift.test", a: new Array(24).fill(1), at: 1, top: ["Hands-on"] })); flClearEmail(); });
+  const cleared = await page.evaluate(() => ({ token: localStorage.getItem("fl_hub_token_v1"), profile: localStorage.getItem("fl_profile_v1"), quiz: localStorage.getItem("fl_career_quiz_v1") }));
+  console.log("  after sign-out:", JSON.stringify(cleared));
+  if (cleared.token || cleared.profile || cleared.quiz) note("avatar", "sign-out left something behind");
+});
+
 await section("other", async () => {
   await go("/ai-privacy");
   await stageChecks("ai-privacy");

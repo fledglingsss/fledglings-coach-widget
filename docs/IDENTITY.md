@@ -34,8 +34,13 @@ Layered, in order:
 1. **Origin allowlist** (global on `/api/*`) plus hard daily caps —
    10 mints per device, 40 per IP. The route cannot be swept.
 2. **The address must belong to a real learner** — a LearnWorlds
-   lookup, cached for 6 hours including misses so it cannot become an
-   email-existence oracle worth harvesting.
+   lookup, cached so it cannot become an email-existence oracle worth
+   harvesting: a hit for 6 hours, a miss for 10 minutes. (Misses were
+   also kept for 6 hours until October 2026. A learner whose account
+   had only just been created, or who mistyped once, was then refused
+   for the rest of the school day with nothing they could do about it.
+   The caps in step 1 are what stop sweeping, and the refusal reads the
+   same either way.)
 3. **First-claim binding.** Each email records the devices bound to it
    (max 6, 180 days):
    - a device already bound → allowed;
@@ -139,3 +144,64 @@ Providers view a learner's journey read-only. That path does not use a
 learner token: `/api/hub` accepts `view_email` only with a valid portal
 session **and** only when the learner is inside that session's tag
 scope, never merges the viewer's own device history, and mints nothing.
+The learner's avatar is not drawn in that view and nothing about them
+is kept in the provider's browser.
+
+## What a token unlocks besides scores (October 2026)
+
+Testers asked for the learner's avatar beside the logo and for cohort
+leaderboards "from the API". Both read the platform's own record of the
+account, and both are unlocked by the same token as everything else.
+
+| Read | Where | What comes back |
+|---|---|---|
+| Profile | `/api/hub` → `profile`, `/api/next-step` → `me` | first name, initials, cohort tag |
+| Cohort board | `/api/leaderboard` | this month's cohort race (names and totals, already public on `/challenge`), and the learner's **own** cohort's top five plus their own row |
+
+- **There is no picture.** The platform's user record has a name and
+  tags and no avatar field (checked against its API reference,
+  2026-10-03), so the avatar is the learner's initials. The colour is
+  worked out from the address in the browser; nothing is stored for it.
+- **Kept server side:** `hub:profile:v1:<emailHash16>` for six hours
+  (name, initials, cohort; misses too), so a page view costs the
+  platform nothing.
+- **Kept in the browser:** `fl_profile_v1` (first name, initials,
+  cohort, Career Readiness), beside the token and checked against it on
+  every read. "Not you?" removes it with the token. The chat widget
+  keeps the initials for the tab only (`fl_coach_me_v1`, with whose
+  they are).
+- **A cohort's board never leaves the cohort.** `/api/leaderboard`
+  returns a board only to a token whose learner carries that cohort's
+  tag. It is the same board the Skills Passport has shown since July
+  (`sp:lb:<cohortSlug>`), ranks modules completed, and is written only
+  when the learner's own entry has changed. No score from the CV,
+  interview or cover letter tools is read for it.
+
+**The first-claim residual applies here too**, and is written down
+rather than implied: someone who claimed an unclaimed address would be
+shown that learner's first name and cohort, and that cohort's top five
+names. The Skills Passport has exposed the same board behind a weaker
+gate (an allowlisted `Referer`) since July, so this adds no new reach;
+school-account sign-in evicts a squatter as before.
+
+## School networks: which caps count per address
+
+A whole school usually reaches the internet from one address.
+
+- **Signed-in reads are capped per device only.** `/api/hub` skips its
+  per-address cap (240 a day) for a caller holding a valid token, and
+  `/api/next-step` (which nothing reaches without a token) no longer
+  has one. Those caps dated from when an address in the request body
+  was enough to read a learner; with tokens they only counted a
+  school's own learners against each other, and three classes in a day
+  would have emptied the hub for everyone on that network. A caller
+  with no token is still capped per address.
+- **Sign-in is still capped per address, on purpose:** 40 token mints
+  and 24 school sign-in starts a day. These are the anti-sweeping
+  control and were left alone. They are also a ceiling on how many
+  *new* devices one school network can sign in on one day (a token then
+  lasts 30 days), and a browser that blocks embedded storage (Safari on
+  an iPad) mints on every visit. If a rollout to more than about 40
+  learners a day on one network is planned, raise
+  `IDENTITY_MINTS_PER_IP_PER_DAY` deliberately rather than discover it
+  in a classroom.

@@ -65,6 +65,13 @@ try {
   });
   console.log("  panel:", JSON.stringify(panel));
   if (panel.left < 0 || panel.right > panel.vw || panel.top < 0 || panel.bottom > panel.vh) note("panel off screen", JSON.stringify(panel));
+  /* the learner's own avatar: the stand-in page signs in "Preview Tester" */
+  const me = await page.evaluate(() => {
+    const badge = document.getElementById("fl-coach-me");
+    return { badge: badge.textContent, shown: badge.getBoundingClientRect().width > 0, title: badge.title };
+  });
+  console.log("  chatting as:", JSON.stringify(me));
+  if (me.badge !== "PT" || !me.shown) note("avatar", `chat header: ${JSON.stringify(me)}`);
   await shot("w02-widget-open");
 
   /* pathway quick start: three taps to a recommendation */
@@ -103,6 +110,18 @@ try {
   console.log("  crisis:", crisis.slice(0, 160));
   if (!/Childline|Samaritans/.test(crisis)) note("crisis not signposted", crisis.slice(0, 120));
   await shot("w07-widget-crisis");
+  /* their initials sit beside what they said, inside the message list */
+  const mine = await page.evaluate(() => {
+    const bubble = [...document.querySelectorAll("#fl-coach-msgs .fl-msg-user")].pop();
+    if (!bubble) return null;
+    const after = getComputedStyle(bubble, "::after");
+    const list = document.getElementById("fl-coach-msgs").getBoundingClientRect();
+    return { initials: bubble.getAttribute("data-me"), drawn: after.content, size: `${after.width} x ${after.height}`, avatarRight: Math.round(bubble.getBoundingClientRect().right + 42), listRight: Math.round(list.right) };
+  });
+  console.log("  my message:", JSON.stringify(mine));
+  if (!mine || mine.initials !== "PT" || mine.avatarRight > mine.listRight) note("avatar", `beside the learner's message: ${JSON.stringify(mine)}`);
+  await page.evaluate(() => { const m = document.getElementById("fl-coach-msgs"); m.scrollTop = m.scrollHeight; });
+  await shot("w08-widget-my-avatar");
 
   const all = await page.evaluate(() => document.getElementById("fl-coach-panel").textContent);
   const dashes = all.split(EM).length - 1;

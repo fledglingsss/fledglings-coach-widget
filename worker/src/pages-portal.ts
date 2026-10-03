@@ -468,6 +468,11 @@ export function renderOpsPage(label: string): string {
     "</div>" +
     "<label style='display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;margin:12px 0'>" +
     "<input type='checkbox' id='ob-email' style='width:17px;height:17px'> Send each learner the platform welcome email with their sign-in link</label>" +
+    /* A tester's first log-in failed ("not found") until they reset
+     * their password. An account created here without the welcome email
+     * has no password at all, and nothing told the person onboarding
+     * the cohort that - so it is said here, before anything is created. */
+    "<div id='ob-warn' role='status' style='font-size:13px;line-height:1.55;border-radius:10px;padding:10px 13px;margin:0 0 12px'></div>" +
     "<div class='actions'>" +
     "<button class='abtn sec' id='ob-dry' type='button'>Dry run (no changes)</button>" +
     "<button class='abtn' id='ob-go' type='button' disabled>Create cohort</button>" +
@@ -550,8 +555,16 @@ export function renderOpsPage(label: string): string {
     "else if(good===0){$('ob-prog').textContent='Nothing new to create.';}" +
     "else{$('ob-prog').textContent=good+' account'+(good===1?'':'s')+' ready - review, then press Create cohort.';}});};" +
     "$('ob-go').onclick=function(){var n=obRows().length;" +
-    "if(!confirm('Create '+n+' learner account'+(n===1?'':'s')+' on the platform now?'+($('ob-email').checked?' Welcome emails WILL be sent.':' No emails will be sent.')))return;" +
+    "if(!confirm('Create '+n+' learner account'+(n===1?'':'s')+' on the platform now?'+($('ob-email').checked?' Welcome emails WILL be sent.':" +
+    "' No emails will be sent, so these learners will have NO PASSWORD: their first log-in only works through \"Forgot your password?\" on the school sign-in page.')))return;" +
     "obRun(false);};" +
+    "function obWarn(){var w=$('ob-warn');if($('ob-email').checked){" +
+    "w.style.background='#EAF6EF';w.style.color='#14532D';" +
+    "w.textContent='Each learner is emailed a link to set their own password, so their first log-in works.';}" +
+    "else{w.style.background='#FFF4E5';w.style.color='#7A3E06';" +
+    "w.innerHTML='<b>No welcome email = no password.</b> These accounts are created without one, so a learner\\'s first log-in to the school fails until they choose " +
+    "<b>Forgot your password?</b> on its sign-in page (it emails them a link to set one). Tick the box, or tell the cohort to do that.';}}" +
+    "$('ob-email').onchange=obWarn;obWarn();" +
     "$('bust-btn').onclick=function(){act('bust_caches',null,function(){flash();load();});};" +
     "$('feed-btn').onclick=function(){act('clear_feed',null,function(){flash();});};" +
     "load();" +

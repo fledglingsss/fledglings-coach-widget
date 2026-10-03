@@ -8,6 +8,7 @@
  * standalone; only integer scores are ever stored. */
 
 import { appShell, esc, NAV_ICONS } from "./pages";
+import { QUIZ_ITEMS } from "./lib/career-quiz";
 import { OUTREACH_TEMPLATES } from "./lib/outreach";
 
 interface HubCardDef {
@@ -89,6 +90,25 @@ export function renderHubPage(): string {
     "<div class='card nextstep' id='next-card' hidden><div class='ns-label'>DO THIS NEXT</div>" +
     "<div id='next-reason'></div>" +
     "<div class='btnrow' style='margin-top:14px'><a class='btn' id='next-btn' href='/tools'>Open</a></div></div>" +
+    /* Two ways to look up from the documents: where could I go, and how
+     * are we doing. Testers asked for both. Neither is a scored step, so
+     * the seven tasks and the readiness maths are untouched. */
+    "<div class='discover'>" +
+    "<a class='card dcard' data-tool='careers' id='quiz-card' href='/careers'>" +
+    `<span class='tb-ico'>${NAV_ICONS.careers}</span>` +
+    "<span class='tb-body'><span class='tb-label'>CAREER QUIZ</span>" +
+    "<b id='quiz-title'>Not sure what you want to do?</b>" +
+    `<span class='tb-sub' id='quiz-sub'>${QUIZ_ITEMS.length} quick questions about what you enjoy. See jobs that might suit you ` +
+    "and every way in, from apprenticeships to university.</span>" +
+    "<span class='dc-cta' id='quiz-cta'>Take the quiz</span></span></a>" +
+    "<a class='card dcard' data-tool='leaderboard' href='/leaderboard'>" +
+    `<span class='tb-ico'>${NAV_ICONS.leaderboard}</span>` +
+    "<span class='tb-body'><span class='tb-label'>LEADERBOARD</span>" +
+    "<b>See how your cohort is doing</b>" +
+    "<span class='tb-sub'>Every module you finish scores for your cohort. See this month's race, " +
+    "and where you sit among the people you learn with.</span>" +
+    "<span class='dc-cta'>Open the leaderboard</span></span></a>" +
+    "</div>" +
     /* The words that go with the documents. Not a scored step, so it
      * sits beside the journey as a band rather than a fifth card: the
      * seven tasks and the readiness maths are untouched. */
@@ -133,6 +153,13 @@ export function renderHubPage(): string {
     "<b>2.</b> Type this code into the box on that page and submit it. " +
     "<b>3.</b> Come back here - this page signs you in by itself. " +
     "The code works once and expires in <span id='sso-left'>10:00</span>.</span>" +
+    /* A tester was told "not found" at the school's own sign-in and
+     * only got through with a password reset. An account made for a
+     * learner by their provider has no password until they set one, and
+     * nothing on that page says so - so this page does. */
+    "<span class='id-tip'><b>First time logging in to your school?</b> Your account is already there, so there is " +
+    "no need to sign up. If it does not accept a password, choose <b>Forgot your password?</b> on its sign-in page: " +
+    "it emails you a link to set one. Then carry on from step 2.</span>" +
     "<div class='idrow'><a class='btn' id='sso-open' href='#' target='_blank' rel='noopener'>Open my school</a>" +
     "<button type='button' class='idlink' id='sso-cancel'>Cancel</button></div>" +
     "<div class='id-sub' id='sso-status' aria-live='polite' hidden>Waiting for your code to arrive…</div>" +
@@ -179,6 +206,14 @@ function toolHref(base){if(viewOnly)return base;
 var ev=flToken();
 return base+(base.indexOf('?')>-1?'&':'?')+(ev?'t='+encodeURIComponent(ev)+'&':'')+'hub=1';}
 document.querySelectorAll('a[data-tool]').forEach(function(a){a.href=toolHref(a.getAttribute('href'));});
+/* Career quiz already done on this device, by this learner? Then the
+ * card says what it found. The result never left this browser. */
+(function(){try{var q=JSON.parse(localStorage.getItem('fl_career_quiz_v1')||'null');
+if(viewOnly||!q||!q.top||!q.top.length||q.o!==(flResolveEmail()||'device'))return;
+$('quiz-title').textContent='You seem to enjoy: '+q.top.join(', ');
+$('quiz-sub').textContent='See the jobs that match and the ways into them. You can take the quiz again whenever you like.';
+$('quiz-cta').textContent='See my matches';
+$('quiz-card').href=toolHref('/careers')+'#results';}catch(e){}})();
 /* identity card */
 function renderIdentity(){if(viewOnly){
 /* Hide, never destroy - later code binds handlers to these nodes. */
@@ -199,7 +234,7 @@ if(!viewOnly&&!email){try{flAdoptEmbedEmail(lid);}catch(e){}}
  * learner) and the learner gets told plainly what to do instead. */
 var ID_REFUSALS={
 claimed_elsewhere:"That email is already linked to another device - that's your protection working. Sign in with your school account above to prove it's yours, or type a code from your other device below.",
-cannot_link:"We couldn't link that email - check it's the address you use with Fledglings, or sign in with your school account above. You can also carry on without linking; your scores still save on this device.",
+cannot_link:"We couldn't link that email - check it's the address your school uses for you, or sign in with your school account above. If your account was only just created, give it ten minutes and try again. You can also carry on without linking; your scores still save on this device.",
 too_many_devices:"That email is already linked to as many devices as we allow. Ask Fledglings to reset it, or carry on without linking - your scores still save on this device.",
 unknown_email:"We can't find that email on Fledglings. Use the address you signed up with, or carry on without linking - your scores still save on this device.",
 bad_email:"That doesn't look like an email - check it and try again.",
@@ -347,6 +382,9 @@ body:JSON.stringify(hubReq)})
 .then(function(r){return r.json()}).then(function(d){
 if(!d||!d.ok||!d.summary)return;var s=d.summary;
 if(d.name)$('hub-hi').textContent="Let's kickstart your career journey, "+d.name;
+/* who they are and how ready they are, for the avatar beside the logo
+ * on this page and every other one (never kept in a provider's view) */
+try{flProfileFromHub(d)}catch(e){}
 /* learning ring + continue-learning band (only when the account is known) */
 if(d.learning&&d.learning.enrolled>0){var L=d.learning;
 var lp=Math.round(L.completed*100/L.enrolled);
@@ -494,6 +532,22 @@ const HUB_CSS = `
 .tplband:hover .tb-cta{border-color:#B93A22;color:#B93A22;}
 @media(max-width:640px){.tplband{flex-direction:column;align-items:flex-start;gap:12px;}
   .tb-cta{width:100%;text-align:center;}}
+/* the career quiz and the leaderboard: a pair of ways out of the documents */
+.discover{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.dcard{margin-bottom:0;display:flex;align-items:flex-start;gap:14px;text-decoration:none;color:var(--navy);
+  border-top:4px solid var(--mango);transition:transform .15s,box-shadow .15s;}
+.dcard:hover{transform:translateY(-2px);box-shadow:0 12px 26px -14px rgba(14,36,56,.28);}
+.dcard:focus-visible{border-radius:16px;}
+.dcard b{font-size:15.5px;line-height:1.35;overflow-wrap:anywhere;}
+.dcard + .dcard{border-top-color:#13507F;}
+.dcard + .dcard .tb-ico{background:#EAF2F8;color:#13507F;}
+.dcard + .dcard .tb-label{color:#13507F;}
+.dc-cta{margin-top:8px;font-size:13.5px;font-weight:800;color:#B93A22;}
+.dc-cta::after{content:' →';white-space:pre;}
+.dcard + .dcard .dc-cta{color:#13507F;}
+@media(max-width:760px){.discover{grid-template-columns:1fr;}}
+.id-tip{display:block;font-size:12.5px;line-height:1.55;color:#4E5B66;background:#fff;border-left:3px solid var(--mango);
+  border-radius:0 8px 8px 0;padding:8px 11px;margin-top:10px;}
 .tasklist{list-style:none;columns:2;column-gap:28px;}
 @media(max-width:640px){.tasklist{columns:1;}}
 .tasklist li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:13.5px;color:var(--mut);break-inside:avoid;}
@@ -532,6 +586,7 @@ const HUB_CSS = `
   cursor:pointer;text-decoration:underline;padding:5px 0;margin-top:6px;
   min-height:44px;display:inline-flex;align-items:center;}
 .idrow{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.idrow a.btn{text-decoration:none;display:inline-flex;align-items:center;}
 .idrow input{flex:1;min-width:220px;}
 .id-err{color:#B93A22;font-weight:600;font-size:12.5px;margin-top:8px;}
 .idbtns{display:flex;gap:18px;flex-wrap:wrap;}

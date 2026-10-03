@@ -82,6 +82,41 @@
   var learnerEmail = typeof cfg.learnerEmail === "string" ? cfg.learnerEmail.trim() : "";
   if (learnerEmail.indexOf("{{") !== -1 || learnerEmail.indexOf("@") === -1) learnerEmail = "";
 
+  /* ---- the learner's own avatar ----
+   * A tester asked to see their avatar while chatting with Fledge. The
+   * platform holds no picture for anyone, so it is their initials, on
+   * the same colour the Employability Hub gives them (the palette and
+   * the hash below match the hub's; a test holds the two together).
+   * Read first off the name and address the school page passes in; the
+   * worker's own answer replaces it when it arrives, so the chat and
+   * the hub always show the same two letters. */
+  var AV_COLOURS = ["#05253C", "#13507F", "#B93A22", "#1A7649", "#8A2F6B", "#7A4A1E"];
+  function avatarColour(key) {
+    key = String(key || "").toLowerCase();
+    var h = 0;
+    for (var i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 2147483647;
+    return AV_COLOURS[h % AV_COLOURS.length];
+  }
+  function initialsFrom(name, email) {
+    var words = String(name || "").split(" ").filter(function (w) { return w; });
+    if (words.length >= 2) return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+    var parts = String(email || "").split("@")[0].split(/[._+-]+/)
+      .map(function (p) { var m = p.match(/[a-z]/i); return m ? m[0].toUpperCase() : ""; })
+      .filter(function (c) { return c; });
+    if (parts.length >= 2) return parts[0] + parts[1];
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return parts[0] || "";
+  }
+  var STORAGE_ME = "fl_coach_me_v1";
+  var meKey = (learnerEmail || learnerName).toLowerCase();
+  var meInitials = initialsFrom(learnerName, learnerEmail);
+  /* What the worker said last time in this tab - kept with whose it
+   * was, so it is never worn by the next person to log in here. */
+  try {
+    var keptMe = String(window.sessionStorage.getItem(STORAGE_ME) || "").split("|");
+    if (meKey && keptMe.length === 2 && keptMe[0] === meKey && keptMe[1]) meInitials = keptMe[1];
+  } catch (e) { /* private mode: the local initials stand */ }
+
   /* ---- history (browser only) ---- */
   function loadHistory() {
     try {
@@ -137,6 +172,21 @@
       "width:36px;height:36px;border-radius:10px;flex:none;line-height:1;transition:background .15s ease;}" +
     "#fl-coach-close:hover{background:rgba(255,255,255,.25);}" +
     "#fl-coach-close:focus-visible{outline:2px solid var(--fl-mango);}" +
+    /* who is chatting: the learner's initials, in the header and beside
+     * each thing they say (drawn by CSS, so the message list itself is
+     * unchanged; the empty alt keeps the letters out of a screen reader) */
+    "#fl-coach-me{width:34px;height:34px;border-radius:50%;flex:none;display:none;align-items:center;" +
+      "justify-content:center;background:var(--fl-me,#13507F);color:#fff;font-size:12.5px;font-weight:700;" +
+      "letter-spacing:.02em;box-shadow:0 0 0 2px rgba(255,255,255,.9);}" +
+    "#fl-coach-root.fl-has-me #fl-coach-me{display:flex;}" +
+    /* on the narrowest phones the header keeps its one line; the
+     * avatar still sits beside every message */
+    "@media (max-width:359px){#fl-coach-root.fl-has-me #fl-coach-me{display:none;}}" +
+    "#fl-coach-root .fl-msg-user[data-me]{position:relative;margin-right:42px;max-width:calc(88% - 42px);}" +
+    "#fl-coach-root .fl-msg-user[data-me]::after{content:attr(data-me);content:attr(data-me) / '';" +
+      "position:absolute;right:-42px;bottom:0;width:32px;height:32px;border-radius:50%;" +
+      "background:var(--fl-me,#13507F);color:#fff;font-size:12px;font-weight:700;letter-spacing:.02em;" +
+      "display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff;}" +
 
     /* messages */
     "#fl-coach-msgs{flex:1;overflow-y:auto;padding:18px 16px;background:var(--fl-off);display:flex;" +
@@ -221,6 +271,7 @@
         '<div id="fl-coach-avatar">' + FEATHER + "</div>" +
         '<div id="fl-coach-title"><h2>Fledge</h2>' +
           '<p><span class="fl-dot" aria-hidden="true"></span>Your Fledglings coach</p></div>' +
+        '<span id="fl-coach-me" aria-hidden="true"></span>' +
         '<button id="fl-coach-close" type="button" aria-label="Close coach chat">&times;</button></div>' +
       '<div id="fl-coach-msgs" aria-live="polite"></div>' +
       '<form id="fl-coach-form">' +
@@ -239,6 +290,27 @@
   var form = document.getElementById("fl-coach-form");
   var input = document.getElementById("fl-coach-input");
   var send = document.getElementById("fl-coach-send");
+
+  /* Show (or update) the learner's avatar everywhere it appears. */
+  function paintMe() {
+    if (!meInitials) return;
+    root.className = "fl-has-me";
+    root.style.setProperty("--fl-me", avatarColour(meKey));
+    var badge = document.getElementById("fl-coach-me");
+    badge.textContent = meInitials;
+    badge.title = "Chatting as " + (learnerName || learnerEmail);
+    var mine = msgs.querySelectorAll(".fl-msg-user");
+    for (var i = 0; i < mine.length; i++) mine[i].setAttribute("data-me", meInitials);
+  }
+  /* The worker's answer: the same initials the hub shows this learner. */
+  function setMe(initials) {
+    initials = String(initials || "").slice(0, 2).toUpperCase();
+    if (!initials || !meKey) return;
+    meInitials = initials;
+    try { window.sessionStorage.setItem(STORAGE_ME, meKey + "|" + initials); } catch (e) { /* private mode */ }
+    paintMe();
+  }
+  paintMe();
 
   var SUPPORT_TEXT =
     "If you need someone to talk to right now: your tutor, or a trusted adult, is a great first step.\n" +
@@ -337,6 +409,7 @@
   function addMsg(role, text, crisis) {
     var div = document.createElement("div");
     div.className = "fl-msg " + (role === "user" ? "fl-msg-user" : "fl-msg-coach") + (crisis ? " fl-msg-crisis" : "");
+    if (role === "user" && meInitials) div.setAttribute("data-me", meInitials);
     renderInto(div, text);
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
@@ -674,6 +747,7 @@
       })
         .then(function (r) { return r.json(); })
         .then(function (d) {
+          if (d && d.me && d.me.initials) setMe(d.me.initials);
           if (!d || !d.ok || !d.title) return;
           var lead = d.percent > 0
             ? "Pick up where you left off - you're " + d.percent + "% through **" + d.title + "**:"
