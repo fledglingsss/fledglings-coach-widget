@@ -136,10 +136,18 @@ the school page, not the bare address.
 
 **What the learner sees first (October 2026):** their own avatar beside
 the logo on every page. The platform holds a name for each account and
-no picture, so it is their initials, inside a ring that fills with
-their Career Readiness. The same initials sit beside what they say to
-Fledge in the chat widget (the snippet already passes `learnerName` and
-`learnerEmail`; no change to paste).
+no picture, so it is their initials on the same warm tile the Skills
+Passport draws them on, with a card under it that says hello and shows
+their Career Readiness as a bar. The same tile sits beside what they
+say to Fledge in the chat widget (the snippet already passes
+`learnerName` and `learnerEmail`; no change to paste).
+
+These screens are drawn the Fledglings way: the Skills Passport's
+vocabulary (navy hero and bird mark, tinted figure tiles, hexagon
+medals, warm bars, the slogan band) as shared pieces in
+`worker/src/pages-kit.ts`. A new page of this kind starts from that
+file, and `test/fledglings-look.test.ts` fails on a colour outside the
+brand's two families.
 
 Two pages reached from the hub's menu need no embed of their own:
 
@@ -195,6 +203,10 @@ copy buttons working inside the iframe.
 **Where:** a page or embed activity for logged-in learners. CVs are
 stored only in the learner's browser (localStorage) with autosave; the
 worker only sees the sections when the learner runs the instant
-recruiter check (deterministic, no AI) and forgets them. Live preview
-in two print-ready designs; one tap sends the finished CV into the full
-AI review.
+recruiter check (deterministic, no AI) and forgets them. Twelve
+designs chosen from a gallery of real miniatures (Classic, Executive,
+Modern, Monogram, Sidebar, Ledger, and from October 2026 Minimal, Bold,
+Timeline, Panels, Bands and Elegant); every one prints as a single flow
+a screening system can read, which `scripts/vqa-cv-pdf.mjs` checks by
+printing each design and reading the PDF back. One tap sends the
+finished CV into the full AI review.

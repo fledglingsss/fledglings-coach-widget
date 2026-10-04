@@ -10,54 +10,83 @@
  *
  * Both boards count modules completed. Nothing from the CV, interview
  * or cover letter tools is ranked, here or anywhere.
+ *
+ * How it looks: the Learner Games page's navy opening, the Skills
+ * Passport's tinted figures and its medal rows (pages-kit.ts), so the
+ * board a learner meets here is recognisably the one on their passport.
  */
 
 import { appShell } from "./pages";
+import { BIRD_MARK } from "./brand";
+import { KIT_CSS, heroBird, sloganBand } from "./pages-kit";
+
+const TILE_OPEN =
+  "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>";
+const ICON_COHORT =
+  TILE_OPEN + "<path d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/>" +
+  "<path d='M23 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>";
+const ICON_TROPHY = TILE_OPEN + "<path d='M6 4h12v4a6 6 0 0 1-12 0z'/><path d='M9 15h6M8 20h8M12 15v5'/></svg>";
+const ICON_PLACE = TILE_OPEN + "<path d='M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z'/><path d='M4 22v-7'/></svg>";
+const ICON_BOOK = TILE_OPEN + "<path d='M4 5h16v13H4z'/><path d='M4 9h16M9 5v13'/></svg>";
 
 export function renderLeaderboardPage(): string {
   const body =
-    "<main class='wrap' style='max-width:940px'>" +
-    "<h2 class='page'>Leaderboard</h2>" +
-    "<p class='sub'>Every module you finish scores for your cohort. See how this month's race is going, " +
-    "and where you sit among the people you learn with.</p>" +
+    "<main class='wrap fk'>" +
+    "<section class='fk-hero'>" + heroBird() +
+    "<div class='lbd-heroin'><div class='fk-hero-b'>" +
+    "<span class='fk-kicker'>The Learner Games</span>" +
+    "<h2 class='fk-h'>Cohort against <em>cohort</em></h2>" +
+    "<p>One month. Every module you finish scores a point for your cohort. " +
+    "Bragging rights only, but the bragging is excellent.</p></div>" +
+    "<div class='lbd-cal' id='lbd-cal' hidden><span>This month</span><b id='lbd-month'></b></div>" +
+    "</div></section>" +
+
+    /* ---------- where the learner stands ---------- */
+    "<div class='fk-tiles' id='lbd-tiles' hidden>" +
+    `<div class='fk-tile t1'><div class='th'>${ICON_COHORT}<span>Your cohort</span></div>` +
+    "<div class='tv words' id='lbd-t-cohort'></div><div class='ts' id='lbd-t-cohort-s'></div></div>" +
+    `<div class='fk-tile t2'><div class='th'>${ICON_TROPHY}<span>Cohort position</span></div>` +
+    "<div class='tv' id='lbd-t-pos'></div><div class='ts' id='lbd-t-pos-s'></div></div>" +
+    `<div class='fk-tile t3'><div class='th'>${ICON_PLACE}<span>Your place</span></div>` +
+    "<div class='tv' id='lbd-t-place'></div><div class='ts' id='lbd-t-place-s'></div></div>" +
+    `<div class='fk-tile t4'><div class='th'>${ICON_BOOK}<span>Your modules</span></div>` +
+    "<div class='tv' id='lbd-t-mods'></div><div class='ts'>completed so far</div></div>" +
+    "</div>" +
 
     /* ---------- the cohort race ---------- */
-    "<section class='card lbd-race' aria-labelledby='lbd-race-h'>" +
-    "<div class='lbd-hero'><div><span class='lbd-kicker'>THE LEARNER GAMES</span>" +
-    "<h3 id='lbd-race-h'>Cohort against cohort</h3>" +
-    "<p>One month, every completed module scores a point. Bragging rights only.</p></div>" +
-    "<span class='lbd-month' id='lbd-month'></span></div>" +
-    "<div class='lbd-rows' id='lbd-race'><p class='lbd-wait'>Loading the race…</p></div>" +
+    "<section class='fk-panel' aria-labelledby='lbd-race-h'>" +
+    "<div class='fk-sect'><h3 id='lbd-race-h'>This month's race</h3><span class='fk-note' id='lbd-race-n'></span></div>" +
+    "<div id='lbd-race'><p class='fk-wait'>Loading the race…</p></div>" +
     "<p class='lbd-note' id='lbd-race-note' hidden></p>" +
     "</section>" +
 
     /* ---------- the learner's own cohort ---------- */
-    "<section class='card' aria-labelledby='lbd-board-h'>" +
-    "<div class='lbd-bhead'><h3 id='lbd-board-h'>Your cohort</h3>" +
-    "<span class='lbd-cohort' id='lbd-cohort' hidden></span></div>" +
-    "<div id='lbd-board'><p class='lbd-wait'>Loading your cohort…</p></div>" +
+    "<section class='fk-panel' aria-labelledby='lbd-board-h'>" +
+    "<div class='fk-sect'><h3 id='lbd-board-h'>Your cohort</h3><span class='fk-note' id='lbd-cohort' hidden></span></div>" +
+    "<div id='lbd-board'><p class='fk-wait'>Loading your cohort…</p></div>" +
     "<p class='lbd-note' id='lbd-board-note' hidden></p>" +
     "</section>" +
 
     /* ---------- the way up ---------- */
-    "<div class='card lbd-climb' id='lbd-climb' hidden>" +
-    "<div class='lbd-climb-b'><span class='lbd-kicker'>CLIMB THE BOARD</span>" +
-    "<b id='lbd-next-title'></b>" +
-    "<span id='lbd-next-sub'></span></div>" +
+    "<div class='fk-cta' id='lbd-climb' hidden>" +
+    "<div class='fk-cta-b'><span class='fk-cta-k'>CLIMB THE BOARD</span>" +
+    "<b id='lbd-next-title'></b><span id='lbd-next-sub'></span></div>" +
     "<a class='btn' id='lbd-next-btn' href='#' target='_top'>Continue →</a></div>" +
 
-    "<p class='sub' style='font-size:12.5px;margin-top:8px'>How this works: the race counts modules completed by each cohort " +
+    sloganBand("The Learner Games · scored by modules completed") +
+    "<p class='fk-small'>How this works: the race counts modules completed by each cohort " +
     "this calendar month and shows cohort names and totals only. Your cohort's board counts every module each person has " +
     "completed and is shown only to people in that cohort, with the name your school already knows you by. " +
     "Your CV, interview and cover letter scores are never ranked or shown to anyone here.</p>" +
     "</main>" +
+    "<script>var FL_BIRD=" + JSON.stringify(BIRD_MARK).split("<").join("\\x3c") + ";</script>" +
     "<script>" + LEADERBOARD_JS + "</script>";
 
   return appShell({
     title: "Fledglings - Leaderboard",
     active: "leaderboard",
     bodyHtml: body,
-    extraCss: LEADERBOARD_CSS,
+    extraCss: KIT_CSS + LEADERBOARD_CSS,
   });
 }
 
@@ -68,53 +97,68 @@ function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 var lid=flStoredId(localStorage,'fl_coach_learner_v1');
 try{flAdoptEmbedEmail(lid);}catch(e){}
 function people(n){return n===1?'1 person':n+' people'}
+function mods(n){return n===1?'module':'modules'}
 function hubHref(hash){var t=flToken();return '/hub'+(t?'?t='+encodeURIComponent(t):'')+(hash||'');}
+function fig(main,of){return "<span class='fig'>"+main+(of?" <small>/ "+of+"</small>":'')+"</span>";}
 
 function raceHtml(rows){var max=1;rows.forEach(function(r){if(r.count>max)max=r.count});
-return rows.map(function(r,i){
-return "<div class='lbd-row"+(r.mine?' mine':'')+"'><span class='lbd-pos'>"+(i+1)+"</span>"+
-"<span class='lbd-mid'><span class='lbd-name'>"+esc(r.cohort)+(r.mine?" <i class='lbd-you'>Your cohort</i>":'')+"</span>"+
-"<span class='lbd-track' aria-hidden='true'><i style='width:"+Math.max(4,Math.round(r.count*100/max))+"%'></i></span></span>"+
-"<span class='lbd-count'>"+r.count+"<small>"+(r.count===1?'module':'modules')+"</small></span></div>"}).join('');}
+return "<div class='lbd-race'>"+rows.map(function(r,i){
+return "<div class='lbd-rrow"+(r.mine?' me':'')+"'><span class='fk-pos"+(i<3?' p'+(i+1):'')+"'>"+(i+1)+"</span>"+
+"<span class='lbd-rn'><b>"+esc(r.cohort)+(r.mine?"<i class='fk-tag'>Your cohort</i>":'')+"</b>"+
+"<span class='fk-track' aria-hidden='true'><i style='width:"+Math.max(4,Math.round(r.count*100/max))+"%;animation-delay:"+(i*0.08).toFixed(2)+"s'></i></span></span>"+
+"<span class='lbd-ct'>"+r.count+"<small>"+mods(r.count)+"</small></span></div>"}).join('')+"</div>";}
 
-function boardHtml(rows,myColour){
-return rows.map(function(r,i){
+function boardHtml(rows){
+return "<div class='fk-rows'>"+rows.map(function(r,i){
 /* the learner's own row sits apart from the top five when they are
- * further down: the gap says "and then, lower, you" */
-var gap=r.isMe&&i>0&&r.rank>rows[i-1].rank+1?"<div class='lbd-gap' aria-hidden='true'>⋮</div>":'';
-var colour=r.isMe&&myColour?myColour:flAvatarColour(r.name);
-return gap+"<div class='lbd-row person"+(r.isMe?' mine':'')+"'><span class='lbd-pos'>"+r.rank+"</span>"+
-"<span class='lbd-av' aria-hidden='true' style='background:"+colour+"'>"+esc(flInitialsOf(r.name))+"</span>"+
-"<span class='lbd-mid'><span class='lbd-name'>"+esc(r.name)+(r.isMe?" <i class='lbd-you'>You</i>":'')+"</span></span>"+
-"<span class='lbd-count'>"+r.completed+"<small>"+(r.completed===1?'module':'modules')+"</small></span></div>"}).join('');}
+ * further down: the dots say "and then, lower, you" */
+var gap=r.isMe&&i>0&&r.rank>rows[i-1].rank+1?"<div class='lbd-gap' aria-hidden='true'><i></i><i></i><i></i></div>":'';
+return gap+"<div class='fk-row"+(r.isMe?' me':'')+"' style='animation-delay:"+(i*0.05).toFixed(2)+"s'>"+
+"<span class='fk-pos"+(r.rank<=3?' p'+r.rank:'')+"'>"+r.rank+"</span>"+
+(r.isMe?"<span class='fk-av' aria-hidden='true'>"+esc(flInitialsOf(r.name))+"</span>":'')+
+"<span class='rn'>"+esc(r.name)+(r.isMe?"<i class='fk-tag'>You</i>":'')+"</span>"+
+"<span class='rd'>"+r.completed+' '+mods(r.completed)+"</span></div>"}).join('')+"</div>";}
 
-function emptyBoard(title,text,cta){
-return "<div class='lbd-empty'><b>"+esc(title)+"</b><p>"+esc(text)+"</p>"+(cta||'')+"</div>";}
+function empty(title,text,cta){
+return "<div class='fk-empty'><span class='eb' aria-hidden='true'>"+FL_BIRD+"</span><div><b>"+esc(title)+"</b><p>"+esc(text)+"</p></div>"+(cta||'')+"</div>";}
 
 function render(d){
-$('lbd-month').textContent=d.month||'';
-var race=d.race||[];
+if(d.month){$('lbd-cal').hidden=false;$('lbd-month').textContent=d.month;}
+var race=d.race||[],board=d.board||[];
+$('lbd-race-n').textContent=race.length?(race.length===1?'1 cohort':race.length+' cohorts')+' on the board':'';
 $('lbd-race').innerHTML=race.length?raceHtml(race):
-"<p class='lbd-wait'>The starting gun has fired. The first module completed this month puts a cohort on the board.</p>";
-var raced=race.some(function(r){return r.mine});
-if(d.cohort&&race.length&&!raced){$('lbd-race-note').hidden=false;
-$('lbd-race-note').textContent=d.cohort+' has not scored yet this month. The next module one of you finishes puts it on the board.';}
+empty('The starting gun has fired','The first module completed this month puts a cohort on the board. It could be yours.','');
+var minePos=-1;race.forEach(function(r,i){if(r.mine)minePos=i});
+var note=$('lbd-race-note');note.hidden=true;
+if(d.cohort&&race.length&&minePos===-1){note.hidden=false;
+note.textContent=d.cohort+' has not scored yet this month. The next module one of you finishes puts it on the board.';}
 
-var board=d.board||[];
+var tiles=$('lbd-tiles');tiles.hidden=true;
+$('lbd-cohort').hidden=true;$('lbd-board-note').hidden=true;$('lbd-climb').hidden=true;
 if(!d.signedIn){
-$('lbd-board').innerHTML=emptyBoard('Sign in to see your cohort',
-'Your cohort comes from your school account, so the board appears once this device knows who you are.',
+$('lbd-board').innerHTML=empty('Sign in to see where you sit',
+'Your cohort comes from your school account, so its board appears once this device knows who you are.',
 "<a class='btn' href='"+esc(hubHref('#account'))+"'>Sign in</a>");return;}
 if(!d.cohort){
-$('lbd-board').innerHTML=emptyBoard('You are not in a cohort yet',
+$('lbd-board').innerHTML=empty('You are not in a cohort yet',
 'Cohorts are set up by your school or training provider. Once you are added to one, its board appears here. The race above is open to everyone.','');return;}
 $('lbd-cohort').hidden=false;$('lbd-cohort').textContent=d.cohort;
+/* where the learner stands, as four figures */
+var me=board.filter(function(r){return r.isMe})[0]||null;
+tiles.hidden=false;
+$('lbd-t-cohort').textContent=d.cohort;
+$('lbd-t-cohort-s').textContent=d.onBoard?people(d.onBoard)+' on its board':'nobody on its board yet';
+$('lbd-t-pos').innerHTML=minePos>-1?fig('#'+(minePos+1),race.length):fig('–','');
+$('lbd-t-pos-s').textContent=minePos>-1?'in this month\'s race':'not scored yet this month';
+$('lbd-t-place').innerHTML=me?fig('#'+me.rank,d.onBoard):fig('–','');
+$('lbd-t-place-s').textContent=me?'in your cohort':'still being counted';
+$('lbd-t-mods').innerHTML=me?fig(String(me.completed),''):fig('–','');
 if(!board.length){
-$('lbd-board').innerHTML=emptyBoard('Nobody is on this board yet',
+$('lbd-board').innerHTML=empty('Nobody is on this board yet',
 'It fills up as people in '+d.cohort+' open it. Your own modules are still being counted, so look again in a little while.','');return;}
-$('lbd-board').innerHTML="<div class='lbd-rows'>"+boardHtml(board,flAvatarColour(flResolveEmail()))+"</div>";
-var note=$('lbd-board-note');note.hidden=false;
-note.textContent=d.onBoard>5?'Showing the top five of '+people(d.onBoard)+' on the board, and your own place.'
+$('lbd-board').innerHTML=boardHtml(board);
+var bn=$('lbd-board-note');bn.hidden=false;
+bn.textContent=d.onBoard>5?'Showing the top five of '+people(d.onBoard)+' on the board, and your own place.'
 :d.onBoard===1?'You are the first one here. The board fills up as the rest of your cohort open it.'
 :people(d.onBoard)+' on the board so far. It fills up as the rest of your cohort open it.';
 /* the one thing that moves someone up the board */
@@ -128,7 +172,7 @@ $('lbd-next-sub').textContent=ns.percent>0?'You are '+ns.percent+'% through. Fin
 $('lbd-next-btn').href=ns.url;}).catch(function(){});}
 
 function unavailable(){
-$('lbd-race').innerHTML="<p class='lbd-wait'>The leaderboard could not load just now. Try again in a minute.</p>";
+$('lbd-race').innerHTML=empty('The leaderboard could not load just now','Give it a minute and try again.','');
 $('lbd-board').innerHTML='';}
 
 fetch('/api/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -139,61 +183,34 @@ body:JSON.stringify({learner_id:lid,token:flToken()})})
 window.__flBoardShow=render;
 })();`;
 
-const LEADERBOARD_CSS = `
-.lbd-race{padding:0;overflow:hidden;}
-.lbd-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;
-  background:linear-gradient(150deg,#05253C 0%,#0A3452 58%,#13507F 135%);color:#fff;padding:24px 26px;}
-.lbd-kicker{display:block;font-size:11px;font-weight:800;letter-spacing:.14em;color:#ED9249;margin-bottom:6px;}
-.lbd-hero h3{font-size:24px;font-weight:800;margin:0 0 4px;color:#fff;}
-.lbd-hero p{font-size:14px;color:#C9D9E6;line-height:1.5;max-width:34em;}
-.lbd-month{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#FFD9B5;
-  border:1px solid rgba(237,146,73,.5);background:rgba(237,146,73,.16);border-radius:999px;padding:7px 16px;white-space:nowrap;}
-.lbd-month:empty{display:none;}
-.lbd-race .lbd-rows{padding:10px 26px 14px;}
-.lbd-race .lbd-note{padding:0 26px 20px;margin:0;}
-.lbd-wait{color:var(--mut);font-size:14.5px;line-height:1.6;padding:14px 0;}
-.lbd-row{display:grid;grid-template-columns:40px 1fr auto;gap:14px;align-items:center;padding:12px 10px;border-radius:14px;}
-.lbd-row.person{grid-template-columns:40px 40px 1fr auto;gap:12px;}
-.lbd-row.mine{background:#FFF6F0;box-shadow:inset 0 0 0 1.5px #F3C9A6;}
-.lbd-pos{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-weight:800;font-size:14.5px;color:#fff;background:#05253C;}
-/* gold, silver, bronze for the first three places, as on the Games page */
-.lbd-rows .lbd-row:nth-child(1) .lbd-pos{background:radial-gradient(circle at 35% 28%,#FFE3AE,#ED9249 55%,#D9452B);color:#3A1A08;}
-.lbd-rows .lbd-row:nth-child(2) .lbd-pos{background:radial-gradient(circle at 35% 28%,#F4F8FB,#C3CDD8 55%,#97A6B5);color:#05253C;}
-.lbd-rows .lbd-row:nth-child(3) .lbd-pos{background:radial-gradient(circle at 35% 28%,#F0CBA3,#C77B44 55%,#9A5A2C);color:#2E1606;}
-.lbd-av{width:40px;height:40px;border-radius:50%;color:#fff;font-weight:700;font-size:14px;letter-spacing:.02em;
-  display:flex;align-items:center;justify-content:center;}
-.lbd-mid{min-width:0;display:flex;flex-direction:column;gap:7px;}
-.lbd-name{font-size:15.5px;font-weight:700;color:var(--navy);overflow-wrap:anywhere;}
-.lbd-you{font-style:normal;font-size:11px;font-weight:800;color:#8C2B18;background:#FBE1D6;border-radius:999px;
-  padding:3px 9px;margin-left:6px;white-space:nowrap;vertical-align:2px;}
-.lbd-track{display:block;height:14px;border-radius:999px;background:var(--off);overflow:hidden;}
-.lbd-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ED9249,#D9452B);
-  transition:width .7s cubic-bezier(.2,.7,.3,1);}
-.lbd-count{font-size:22px;font-weight:800;color:var(--navy);text-align:right;font-variant-numeric:tabular-nums;line-height:1.05;}
-.lbd-count small{display:block;font-size:11.5px;font-weight:600;color:var(--mut);}
-.lbd-gap{text-align:left;padding:0 0 0 22px;color:var(--mut);font-size:16px;line-height:1;}
-.lbd-bhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
-.lbd-bhead h3{margin:0;font-size:18px;}
-.lbd-cohort{font-size:12.5px;font-weight:700;color:#13507F;background:#EAF2F8;border-radius:999px;padding:5px 12px;}
-.lbd-note{font-size:13px;color:var(--mut);line-height:1.55;margin-top:10px;}
-.lbd-empty{padding:8px 0 4px;}
-.lbd-empty b{display:block;font-size:16px;color:var(--navy);margin-bottom:4px;}
-.lbd-empty p{font-size:14px;color:#4E5B66;line-height:1.6;max-width:46em;margin-bottom:12px;}
-.lbd-empty .btn{display:inline-block;text-decoration:none;}
-.lbd-climb{display:flex;align-items:center;gap:18px;border-left:4px solid var(--mango);}
-.lbd-climb-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
-.lbd-climb .lbd-kicker{color:var(--amber);margin-bottom:0;}
-.lbd-climb b{font-size:16px;color:var(--navy);overflow-wrap:anywhere;}
-.lbd-climb span{font-size:13.5px;color:#4E5B66;line-height:1.5;}
-.lbd-climb .btn{flex:none;text-decoration:none;}
-@media(max-width:560px){
-  .lbd-hero{padding:20px 18px;}.lbd-hero h3{font-size:21px;}
-  .lbd-race .lbd-rows{padding:8px 12px 12px;}.lbd-race .lbd-note{padding:0 18px 18px;}
-  .lbd-row{grid-template-columns:34px 1fr auto;gap:10px;padding:11px 8px;}
-  .lbd-row.person{grid-template-columns:34px 36px 1fr auto;gap:9px;}
-  .lbd-pos{width:32px;height:32px;font-size:13px;}.lbd-av{width:36px;height:36px;font-size:13px;}
-  .lbd-count{font-size:19px;}
-  .lbd-climb{flex-direction:column;align-items:stretch;}.lbd-climb .btn{text-align:center;}
+export const LEADERBOARD_CSS = `
+.lbd-heroin{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+/* this month, as a page from a calendar */
+.lbd-cal{flex:none;text-align:center;border-radius:18px;overflow:hidden;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);min-width:148px;}
+.lbd-cal span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  color:#05253C;background:#ED9249;padding:6px 14px;}
+.lbd-cal b{display:block;font-size:19px;font-weight:700;color:#fff;padding:12px 16px 14px;}
+.fk-tile .fig{white-space:nowrap;}
+/* ---- the race ---- */
+.lbd-race{display:flex;flex-direction:column;gap:4px;}
+.lbd-rrow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:16px;align-items:center;padding:12px 12px;border-radius:16px;
+  animation:fk-rise .45s both;}
+.lbd-rrow.me{background:linear-gradient(180deg,#fff,#FFF7EE);box-shadow:inset 0 0 0 2px #ED9249;}
+.lbd-rn{display:flex;flex-direction:column;gap:8px;min-width:0;}
+.lbd-rn b{font-size:16px;font-weight:700;color:#05253C;overflow-wrap:anywhere;}
+.lbd-rrow .fk-track{height:18px;}
+.lbd-ct{font-size:27px;font-weight:800;color:#05253C;text-align:right;line-height:1;font-variant-numeric:tabular-nums;}
+.lbd-ct small{display:block;font-size:11.5px;font-weight:600;color:#5C6A76;margin-top:4px;}
+.lbd-note{font-size:13px;color:#5C6A76;line-height:1.55;margin-top:12px;}
+.lbd-gap{display:flex;justify-content:center;gap:5px;padding:2px 0;}
+.lbd-gap i{width:5px;height:5px;border-radius:50%;background:#C9BFB9;}
+@media(max-width:640px){
+  .lbd-cal{min-width:0;display:flex;align-items:stretch;}
+  .lbd-cal span{display:flex;align-items:center;padding:8px 12px;}.lbd-cal b{font-size:15px;padding:8px 14px;}
+  .lbd-rrow{grid-template-columns:32px minmax(0,1fr) auto;gap:11px;padding:11px 8px;}
+  .lbd-rrow .fk-pos,.fk-row .fk-pos{width:32px;height:32px;font-size:13px;}
+  .lbd-rrow .fk-track{height:14px;}.lbd-ct{font-size:22px;}
+  .fk-row .rd{font-size:12.5px;}
 }
 `;

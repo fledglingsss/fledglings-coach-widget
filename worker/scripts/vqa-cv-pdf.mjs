@@ -3,7 +3,7 @@
  *   BASE=http://127.0.0.1:8799 node scripts/vqa-cv-pdf.mjs
  *
  * The builder calls every design "ATS-safe". This is the check that the
- * claim is true: for each of the six designs it opens a real CV, prints
+ * claim is true: for each of the twelve designs it opens a real CV, prints
  * it with Chrome exactly as "Download PDF" does, reads the PDF back with
  * the same pdf.js + line assembler the CV review uses, and asserts on
  * the TEXT a parser would get:
@@ -23,7 +23,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { QA_DIR, SHOTS, openSession, sleep } from "./vqa-lib.mjs";
 
-const DESIGNS = ["classic", "executive", "modern", "accent", "sidebar", "compact"];
+const ALL_DESIGNS = [
+  "classic", "executive", "modern", "accent", "sidebar", "compact",
+  "minimal", "bold", "timeline", "blocks", "bands", "elegant",
+];
+/* --only=bold,timeline checks a few; with none named, every design. */
+const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").slice(7).split(",").filter(Boolean);
+const DESIGNS = ONLY.length ? ALL_DESIGNS.filter((d) => ONLY.includes(d)) : ALL_DESIGNS;
 
 const FULL = {
   name: "Imogen Hart", phone: "07700 900123", email: "imogen@example.com", town: "Leeds", linkedin: "linkedin.com/in/imogen-hart",

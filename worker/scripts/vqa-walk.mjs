@@ -649,7 +649,7 @@ await section("explore", async () => {
   await clickSel("#cq-back");
   const kept = await page.evaluate(() => ({
     count: document.getElementById("cq-count").textContent,
-    pressed: [...document.querySelectorAll(".cq-opt")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent),
+    pressed: [...document.querySelectorAll(".cq-opt")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.querySelector(".cq-ol").textContent),
   }));
   console.log("  after Back:", JSON.stringify(kept));
   if (kept.count !== "Question 2 of 24" || kept.pressed.join() !== "Maybe") note("quiz", `Back lost the answer: ${JSON.stringify(kept)}`);
@@ -658,14 +658,14 @@ await section("explore", async () => {
   const pattern = [2, 2, 0, 1, 2, 0, 1, 2, 0, 0, 2, 1, 2, 1, 0, 2, 1, 0, 0, 1, 2, 2, 0];
   for (const value of pattern) {
     await page.evaluate((v) => document.querySelector(`.cq-opt[data-v='${v}']`).click(), value);
-    await sleep(60);
+    await sleep(240); /* an answer shows as pressed for a moment before the next question */
   }
   await visible("cq-result");
   const result = await page.evaluate(() => ({
-    areas: [...document.querySelectorAll(".cq-area b")].map((b) => b.textContent),
-    roles: [...document.querySelectorAll(".cq-role h4")].map((h) => h.textContent),
-    links: [...document.querySelectorAll(".cq-role .cq-link:not(.alt)")].map((a) => a.href),
-    routes: [...document.querySelectorAll(".cq-route b")].map((b) => b.textContent),
+    areas: [...document.querySelectorAll(".cq-pod b")].map((b) => b.textContent),
+    roles: [...document.querySelectorAll(".cq-job h4")].map((h) => h.textContent),
+    links: [...document.querySelectorAll(".cq-job .cq-more")].map((a) => a.href),
+    routes: [...document.querySelectorAll(".cq-route .tv")].map((b) => b.textContent),
     saved: JSON.parse(localStorage.getItem("fl_career_quiz_v1") || "null"),
     requests: performance.getEntriesByType("resource").filter((r) => /\/api\//.test(r.name)).map((r) => new URL(r.name).pathname),
   }));
@@ -673,14 +673,15 @@ await section("explore", async () => {
   if (result.areas.length !== 3 || result.roles.length !== 8 || result.routes.length !== 7) note("quiz", "results are not three interests, eight jobs, seven routes");
   if (result.links.some((href) => !href.startsWith("https://nationalcareers.service.gov.uk/job-profiles/"))) note("quiz", "a job link is not an official profile");
   if (result.requests.length) note("quiz", `the quiz page called the server: ${result.requests.join(", ")}`);
+  await sleep(1300); /* the medals and job cards scale in; measure them once they have landed */
   await stageChecks("careers results");
   await shot("74-careers-results");
   /* the long results page, a piece at a time, at the size it is read */
-  await elShot("#cq-some > .card:nth-child(1)", "74a-careers-interests");
-  await elShot(".cq-role", "74b-careers-job");
-  await elShot("#cq-some > .card:nth-child(3)", "74c-careers-ways-in");
+  await elShot(".cq-rhero", "74a-careers-interests");
+  await elShot(".cq-jobs", "74b-careers-jobs");
+  await elShot(".cq-routes", "74c-careers-ways-in");
   /* straight to the CV review, aimed at the first job */
-  const aimHref = await page.evaluate(() => document.querySelector(".cq-link.alt").getAttribute("href"));
+  const aimHref = await page.evaluate(() => document.querySelector(".cq-aim").getAttribute("href"));
   await go(aimHref);
   const aim = await page.evaluate(() => ({ value: document.getElementById("target").value, note: !document.getElementById("aim-from").hidden, url: location.search }));
   console.log("  aim hand-off:", JSON.stringify(aim));
@@ -741,7 +742,8 @@ await section("explore", async () => {
   await visible("lbd-climb");
   await stageChecks("leaderboard full");
   await shot("82-leaderboard-cohort");
-  await elShot(".lbd-race", "82a-leaderboard-race");
+  await elShot("#lbd-tiles", "82a-leaderboard-tiles");
+  await elShot("#lbd-race", "82c-leaderboard-race");
   await elShot("#lbd-board", "82b-leaderboard-board");
   page.off("request", nextStep);
   await page.setRequestInterception(false);
@@ -765,7 +767,7 @@ await section("explore", async () => {
   const fromAddress = await page.evaluate(() => ({ av: document.getElementById("snav-av").textContent, hi: document.getElementById("snav-hi").textContent, label: document.getElementById("snav-me").getAttribute("aria-label") }));
   console.log("  avatar from the address:", JSON.stringify(fromAddress));
   if (fromAddress.av !== "SA") note("avatar", `initials from the address: ${fromAddress.av}`);
-  await elShot(".snav-top", "85-avatar-from-address");
+  await elShot(".snav-head", "85-avatar-from-address");
   /* the hub's own answer, with a name and some progress in it */
   let hubJson = null;
   const grab = async (r) => { if (r.url().endsWith("/api/hub") && !hubJson) { try { hubJson = await r.json(); } catch {} } };
@@ -789,14 +791,14 @@ await section("explore", async () => {
     const seen = await page.evaluate(() => {
       const me = document.getElementById("snav-me"), top = document.querySelector(".snav-top").getBoundingClientRect(), logo = document.querySelector(".snav-logo svg").getBoundingClientRect(), a = me.getBoundingClientRect();
       const slogan = document.querySelector(".snav-slogan").getBoundingClientRect(), nav = document.querySelector(".snav").getBoundingClientRect();
-      return { av: document.getElementById("snav-av").textContent, hi: document.getElementById("snav-hi").textContent, ring: me.style.background.slice(0, 40), label: me.getAttribute("aria-label"), size: Math.round(a.width) + "x" + Math.round(a.height), avatarLeftOfLogo: a.right <= logo.left, sloganInside: slogan.right <= nav.right - 4, topH: Math.round(top.height) };
+      return { av: document.getElementById("snav-av").textContent, hi: document.getElementById("snav-hi").textContent, bar: document.getElementById("snav-bar-i").style.width, pct: document.getElementById("snav-pct").textContent, label: me.getAttribute("aria-label"), size: Math.round(a.width) + "x" + Math.round(a.height), avatarLeftOfLogo: a.right <= logo.left, sloganInside: slogan.right <= nav.right - 4, topH: Math.round(top.height) };
     });
     console.log(`  ${route} avatar:`, JSON.stringify(seen));
-    if (seen.av !== "SA" || seen.hi !== "Hi, Sam" || !seen.avatarLeftOfLogo || !seen.sloganInside) note("avatar", `${route}: ${JSON.stringify(seen)}`);
+    if (seen.av !== "SA" || seen.hi !== "Hi, Sam" || seen.bar !== "43%" || !seen.avatarLeftOfLogo || !seen.sloganInside) note("avatar", `${route}: ${JSON.stringify(seen)}`);
     await overflowCheck(".snav", `sidebar ${route}`);
-    if (S.mobile) await tapCheck(".snav-top", `avatar row ${route}`);
+    if (S.mobile) await tapCheck(".snav-head", `avatar row ${route}`);
     if (route === "/hub") await shot(name);
-    else await elShot(".snav-top", name);
+    else await elShot(".snav-head", name);
   }
   await elShot(".snav", "89-sidebar-signed-in");
   page.off("request", asSam);

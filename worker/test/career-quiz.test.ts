@@ -274,7 +274,9 @@ describe("the quiz page", () => {
 
   it("says, on the page, that no AI is involved and nothing is sent", () => {
     expect(html).toContain("with no AI");
-    expect(html).toContain("your answers never leave this browser");
+    /* said before the first question, where the decision to answer is made */
+    const opening = html.slice(html.indexOf("id='cq-start'"), html.indexOf("id='cq-quiz'"));
+    expect(opening).toContain("Your answers never leave this browser, and no AI is involved.");
   });
 
   it("takes a job from the results to the CV review as the thing to aim at", () => {

@@ -8,6 +8,8 @@
  * standalone; only integer scores are ever stored. */
 
 import { appShell, esc, NAV_ICONS } from "./pages";
+import { AREA_ART, interestMedal } from "./pages-careers";
+import { KIT_CSS } from "./pages-kit";
 import { QUIZ_ITEMS } from "./lib/career-quiz";
 import { OUTREACH_TEMPLATES } from "./lib/outreach";
 
@@ -93,21 +95,27 @@ export function renderHubPage(): string {
     /* Two ways to look up from the documents: where could I go, and how
      * are we doing. Testers asked for both. Neither is a scored step, so
      * the seven tasks and the readiness maths are untouched. */
+    /* Drawn the Fledglings way (pages-kit.ts): navy for the quiz with
+     * three of its interest medals, the passport's warm tile for the
+     * leaderboard with its gold, silver and bronze. */
     "<div class='discover'>" +
-    "<a class='card dcard' data-tool='careers' id='quiz-card' href='/careers'>" +
-    `<span class='tb-ico'>${NAV_ICONS.careers}</span>` +
-    "<span class='tb-body'><span class='tb-label'>CAREER QUIZ</span>" +
+    "<a class='dtile dt-quiz' data-tool='careers' id='quiz-card' href='/careers'>" +
+    "<span class='dt-art dt-comb' id='quiz-art' aria-hidden='true'>" +
+    `<span class='dt-comb-r'>${interestMedal("creator", 58)}${interestMedal("solver", 58)}</span>` +
+    `<span class='dt-comb-r r2'>${interestMedal("helper", 58)}</span></span>` +
+    "<span class='dt-b'><span class='dt-k'>Career quiz</span>" +
     "<b id='quiz-title'>Not sure what you want to do?</b>" +
-    `<span class='tb-sub' id='quiz-sub'>${QUIZ_ITEMS.length} quick questions about what you enjoy. See jobs that might suit you ` +
+    `<span class='dt-s' id='quiz-sub'>${QUIZ_ITEMS.length} quick questions about what you enjoy. See jobs that might suit you ` +
     "and every way in, from apprenticeships to university.</span>" +
-    "<span class='dc-cta' id='quiz-cta'>Take the quiz</span></span></a>" +
-    "<a class='card dcard' data-tool='leaderboard' href='/leaderboard'>" +
-    `<span class='tb-ico'>${NAV_ICONS.leaderboard}</span>` +
-    "<span class='tb-body'><span class='tb-label'>LEADERBOARD</span>" +
+    "<span class='dt-cta' id='quiz-cta'>Take the quiz</span></span></a>" +
+    "<a class='dtile dt-board' data-tool='leaderboard' href='/leaderboard'>" +
+    "<span class='dt-art dt-podium' aria-hidden='true'><i class='dt-sp'>✦</i><i class='dt-sp'>✦</i>" +
+    "<span class='fk-pos p2'>2</span><span class='fk-pos p1'>1</span><span class='fk-pos p3'>3</span></span>" +
+    "<span class='dt-b'><span class='dt-k'>Leaderboard</span>" +
     "<b>See how your cohort is doing</b>" +
-    "<span class='tb-sub'>Every module you finish scores for your cohort. See this month's race, " +
+    "<span class='dt-s'>Every module you finish scores for your cohort. See this month's race, " +
     "and where you sit among the people you learn with.</span>" +
-    "<span class='dc-cta'>Open the leaderboard</span></span></a>" +
+    "<span class='dt-cta'>Open the leaderboard</span></span></a>" +
     "</div>" +
     /* The words that go with the documents. Not a scored step, so it
      * sits beside the journey as a band rather than a fifth card: the
@@ -181,13 +189,15 @@ export function renderHubPage(): string {
     "Daily limits: 5 reviews, 3 mock interviews, 3 cover letters. If anything you write or say worries Fledge about your " +
     "wellbeing, it points you to real support instead of scoring.</p>" +
     "</main>" +
+    /* the interest medals, for the quiz tile to wear the learner's own */
+    "<script>var FL_QUIZ_ART=" + JSON.stringify(AREA_ART).split("<").join("\\x3c") + ";</script>" +
     "<script>" + HUB_JS + "</script>";
 
   return appShell({
     title: "Fledglings - Employability Hub",
     active: "home",
     bodyHtml: body,
-    extraCss: HUB_CSS,
+    extraCss: KIT_CSS + HUB_CSS,
   });
 }
 
@@ -213,7 +223,13 @@ if(viewOnly||!q||!q.top||!q.top.length||q.o!==(flResolveEmail()||'device'))retur
 $('quiz-title').textContent='You seem to enjoy: '+q.top.join(', ');
 $('quiz-sub').textContent='See the jobs that match and the ways into them. You can take the quiz again whenever you like.';
 $('quiz-cta').textContent='See my matches';
-$('quiz-card').href=toolHref('/careers')+'#results';}catch(e){}})();
+$('quiz-card').href=toolHref('/careers')+'#results';
+/* and the tile wears their own medals instead of the sample three */
+var ids=(q.ids||[]).filter(function(id){return FL_QUIZ_ART[id]}).slice(0,3);
+if(ids.length){var md=function(id){var A=FL_QUIZ_ART[id];
+return "<span class='fk-medwrap' style='--m:58px'><span class='fk-med' style='background:"+A.medal+";color:"+A.ink+"'>"+A.icon+"</span></span>";};
+$('quiz-art').innerHTML="<span class='dt-comb-r'>"+ids.slice(0,2).map(md).join('')+"</span>"+
+(ids[2]?"<span class='dt-comb-r r2'>"+md(ids[2])+"</span>":'');}}catch(e){}})();
 /* identity card */
 function renderIdentity(){if(viewOnly){
 /* Hide, never destroy - later code binds handlers to these nodes. */
@@ -532,20 +548,43 @@ const HUB_CSS = `
 .tplband:hover .tb-cta{border-color:#B93A22;color:#B93A22;}
 @media(max-width:640px){.tplband{flex-direction:column;align-items:flex-start;gap:12px;}
   .tb-cta{width:100%;text-align:center;}}
-/* the career quiz and the leaderboard: a pair of ways out of the documents */
+/* the career quiz and the leaderboard: a pair of ways out of the
+ * documents, as two brand tiles - navy and the passport's warm gradient */
 .discover{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
-.dcard{margin-bottom:0;display:flex;align-items:flex-start;gap:14px;text-decoration:none;color:var(--navy);
-  border-top:4px solid var(--mango);transition:transform .15s,box-shadow .15s;}
-.dcard:hover{transform:translateY(-2px);box-shadow:0 12px 26px -14px rgba(14,36,56,.28);}
-.dcard:focus-visible{border-radius:16px;}
-.dcard b{font-size:15.5px;line-height:1.35;overflow-wrap:anywhere;}
-.dcard + .dcard{border-top-color:#13507F;}
-.dcard + .dcard .tb-ico{background:#EAF2F8;color:#13507F;}
-.dcard + .dcard .tb-label{color:#13507F;}
-.dc-cta{margin-top:8px;font-size:13.5px;font-weight:800;color:#B93A22;}
-.dc-cta::after{content:' →';white-space:pre;}
-.dcard + .dcard .dc-cta{color:#13507F;}
-@media(max-width:760px){.discover{grid-template-columns:1fr;}}
+.dtile{position:relative;overflow:hidden;display:flex;align-items:center;gap:20px;border-radius:22px;padding:24px;
+  text-decoration:none;color:#fff;min-height:172px;transition:transform .18s ease,box-shadow .18s ease;}
+.dtile:hover{transform:translateY(-4px);box-shadow:0 24px 40px -24px rgba(5,37,60,.75);}
+a.dtile:focus-visible{border-radius:22px;outline-color:#ED9249;}
+.dt-quiz{background:linear-gradient(150deg,#05253C 0%,#0A3452 58%,#13507F 135%);}
+.dt-board{background:linear-gradient(135deg,#A66633,#B93A22);}
+.dt-art{flex:none;position:relative;}
+.dt-comb{line-height:0;filter:drop-shadow(0 10px 12px rgba(3,23,38,.45));}
+.dt-comb-r{display:flex;gap:2px;justify-content:center;}
+.dt-comb-r.r2{margin-top:-14px;}
+.dt-podium{display:flex;align-items:flex-end;gap:6px;padding:14px 4px 0;}
+.dt-podium .fk-pos{box-shadow:0 10px 16px -8px rgba(60,20,8,.7);}
+.dt-podium .p1{width:62px;height:62px;font-size:24px;margin-bottom:16px;}
+.dt-podium .p2{width:46px;height:46px;font-size:17px;}
+.dt-podium .p3{width:42px;height:42px;font-size:16px;}
+.dt-sp{position:absolute;font-style:normal;font-size:13px;color:#FFE3AE;animation:fk-tw 2.2s ease-in-out infinite;}
+.dt-sp:nth-child(1){top:0;left:6px;}
+.dt-sp:nth-child(2){top:22px;right:0;animation-delay:1.1s;}
+.dt-b{position:relative;display:flex;flex-direction:column;gap:5px;min-width:0;}
+.dt-k{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#ED9249;}
+.dt-board .dt-k{color:#FFD9B5;}
+.dtile b{font-size:19px;font-weight:700;line-height:1.25;overflow-wrap:anywhere;}
+.dt-s{font-size:13.5px;line-height:1.5;color:#B9CFE0;}
+.dt-board .dt-s{color:#FBE6DA;}
+.dt-cta{align-self:flex-start;margin-top:10px;font-size:13.5px;font-weight:700;border-radius:999px;padding:9px 17px;
+  background:var(--pri-btn);color:#fff;transition:transform .15s ease;}
+.dt-cta::after{content:' →';white-space:pre;}
+.dt-board .dt-cta{background:#fff;color:#8C2B18;}
+.dtile:hover .dt-cta{transform:translateX(3px);}
+@media(max-width:1180px){.dtile{gap:16px;padding:22px 20px;}.dt-comb .fk-medwrap{--m:48px!important;}
+  .dt-podium .p1{width:52px;height:52px;font-size:20px;}.dt-podium .p2{width:40px;height:40px;font-size:15px;}
+  .dt-podium .p3{width:36px;height:36px;font-size:14px;}}
+@media(max-width:760px){.discover{grid-template-columns:1fr;}.dtile{min-height:0;}}
+@media(max-width:400px){.dtile{flex-direction:column;align-items:flex-start;gap:14px;}}
 .id-tip{display:block;font-size:12.5px;line-height:1.55;color:#4E5B66;background:#fff;border-left:3px solid var(--mango);
   border-radius:0 8px 8px 0;padding:8px 11px;margin-top:10px;}
 .tasklist{list-style:none;columns:2;column-gap:28px;}

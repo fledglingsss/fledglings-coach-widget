@@ -105,12 +105,47 @@ describe("Resume Builder: what the label 'ATS-safe' depends on", () => {
     expect(print).toMatch(/\.cvpaper\.sidebar\{padding:8mm 6mm!important/);
     expect(print).toMatch(/\.cvpaper\.sidebar \.cp-cols\{display:block!important/);
     expect(print).toMatch(/\.cvpaper\.compact \.cp-sec:not\(\.is-empty\)\{display:block!important/);
+    expect(print).toMatch(/\.cvpaper\.bands \.cp-side\{display:block!important/);
   });
 
   it("tells the learner which designs re-flow when downloaded, and no longer claims they all print as shown", () => {
     expect(html).not.toMatch(/shown exactly as they print/);
-    const notes = [...html.matchAll(/\{id:'(\w+)',label:'[^']+',ats:true,blurb:'[^']*',\s*note:'/g)].map((m) => m[1]);
-    expect(notes.sort()).toEqual(["compact", "modern", "sidebar"]);
+    const notes = [
+      ...html.matchAll(/\{id:'(\w+)',label:'[^']+',ats:true,(?:isNew:true,)?blurb:'[^']*',\s*note:'/g),
+    ].map((m) => m[1]);
+    expect(notes.sort()).toEqual(["bands", "compact", "modern", "sidebar"]);
+  });
+
+  it("offers twelve designs, and every one has a look of its own", () => {
+    const ids = [...html.matchAll(/\{id:'(\w+)',label:'([^']+)',ats:true/g)].map((m) => m[1]!);
+    expect(ids).toEqual([
+      "classic", "executive", "modern", "accent", "sidebar", "compact",
+      "minimal", "bold", "timeline", "blocks", "bands", "elegant",
+    ]);
+    const labels = [...html.matchAll(/\{id:'\w+',label:'([^']+)',ats:true/g)].map((m) => m[1]!);
+    expect(new Set(labels).size).toBe(ids.length);
+    for (const id of ids) {
+      const own = rules.filter(([sel]) => sel.includes(`.cvpaper.${id}`));
+      expect(own.length, `${id} has no styles of its own`).toBeGreaterThanOrEqual(3);
+    }
+    expect(html).toContain("Twelve genuinely different layouts, all ATS-safe.");
+  });
+
+  it("draws the Timeline's line and dots as backgrounds on the entry, in reading order", () => {
+    const entry = rules.find(([sel]) => sel.includes(".cvpaper.timeline .sec-work .cp-entry"));
+    /* a drawn dot: a gradient fading to transparent printed as a pink smudge */
+    expect(entry?.[1]).toMatch(/background:url\("data:image\/svg\+xml,/);
+    expect(entry?.[1]).not.toMatch(/transparent/);
+    expect(entry?.[1]).toMatch(/linear-gradient\(/);
+    /* the dates sit under the title as an ordinary block: the same order
+     * on paper as in the document */
+    const row = rules.find(([sel]) => sel === ".cvpaper.timeline .cp-row");
+    expect(row?.[1]).toBe("display:block;");
+  });
+
+  it("applies the Elegant serif to the name and the headings themselves", () => {
+    const elegant = rules.find(([sel]) => sel.includes(".cvpaper.elegant .cp-name") && sel.includes(".cvpaper.elegant .cp-sec h4"));
+    expect(elegant?.[1]).toMatch(/Georgia/);
   });
 
   it("draws the Monogram's initials as a picture on paper, so the first line a parser reads is the name", () => {

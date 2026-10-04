@@ -160,8 +160,10 @@ account, and both are unlocked by the same token as everything else.
 
 - **There is no picture.** The platform's user record has a name and
   tags and no avatar field (checked against its API reference,
-  2026-10-03), so the avatar is the learner's initials. The colour is
-  worked out from the address in the browser; nothing is stored for it.
+  2026-10-03), so the avatar is the learner's initials, on the same
+  warm tile for everyone (the Skills Passport's). Nobody has a colour
+  of their own, so nothing about the tile is worked out from, or says
+  anything about, who they are.
 - **Kept server side:** `hub:profile:v1:<emailHash16>` for six hours
   (name, initials, cohort; misses too), so a page view costs the
   platform nothing.

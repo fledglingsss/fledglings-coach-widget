@@ -2,9 +2,10 @@
  * straight onto the styled CV (contenteditable fields on the rendered
  * document - Enter adds a bullet, Backspace on an empty one removes
  * it, every line carries a live quality marker), with the Resume
- * Review sidebar alongside. Six structurally distinct designs -
- * five single-column ATS-safe, one two-column labelled in-person -
- * designs chosen from a gallery of real rendered miniatures.
+ * Review sidebar alongside. Twelve structurally distinct designs,
+ * every one a single flow on paper (the three that are not a single
+ * flow on screen re-flow when downloaded, and the gallery says so),
+ * chosen from a gallery of real rendered miniatures.
  * Everything lives in the learner's browser (localStorage, autosave);
  * the worker only sees the sections when a check runs, and forgets
  * them. One tap sends the finished CV into the full AI review. */
@@ -48,7 +49,7 @@ export function renderBuilderPage(): string {
     "<p class='atsexplain'>Every design here is <b>ATS-safe</b> - that means it reads correctly in the software " +
     "most employers use to scan applications before a person sees them. Software like that gets confused by " +
     "columns, tables and text boxes, so all of these keep to a single flow. Pick whichever you like the look of.</p>" +
-    "<p class='fieldtip' style='margin:0'>Six genuinely different layouts, all ATS-safe. " +
+    "<p class='fieldtip' style='margin:0'>Twelve genuinely different layouts, all ATS-safe. " +
     "Change any time - your content never changes with the design.</p></div>" +
     "<button type='button' class='btn ghost' id='designback'>← Back</button></div>" +
     "<div class='designgrid' id='designgrid'></div></div></div>" +
@@ -177,7 +178,17 @@ note:'Skills show as tags while you edit, and as a comma-separated line when you
 {id:'sidebar',label:'Sidebar',ats:true,blurb:'A coloured panel down one side holds your contact details and skills, with your history beside it.',
 note:'Two columns on screen, one column when you download it - so a parser still reads your CV in the right order.'},
 {id:'compact',label:'Ledger',ats:true,blurb:'Compact. Headings sit in a left-hand column so more fits on one page.',
-note:'Headings sit beside each section on screen and above it when you download - so a parser reads every heading on its own line.'}];
+note:'Headings sit beside each section on screen and above it when you download - so a parser reads every heading on its own line.'},
+/* Six more, added in October 2026 when a founder asked for a wider
+ * choice. Each is a different idea, not a recolour, and each obeys the
+ * two rules further down that the ATS-safe label depends on. */
+{id:'minimal',label:'Minimal',ats:true,isNew:true,blurb:'Calm and uncluttered. Thin lines, quiet headings and plenty of space, so your words do the talking.'},
+{id:'bold',label:'Bold',ats:true,isNew:true,blurb:'A big, confident name under a bar of colour, with strong headings. Hard to miss in a pile.'},
+{id:'timeline',label:'Timeline',ats:true,isNew:true,blurb:'Your jobs and courses run down a line, a dot for each, with the dates under every title. Easy to follow.'},
+{id:'blocks',label:'Panels',ats:true,isNew:true,blurb:'Each section sits in its own soft panel with a stripe of colour. Tidy, and quick to scan.'},
+{id:'bands',label:'Bands',ats:true,isNew:true,blurb:'Every heading sits on a band of soft blue, so each section is easy to find. Skills and achievements share a row.',
+note:'Skills and achievements sit side by side on screen and one above the other when you download - so a parser reads each as its own section.'},
+{id:'elegant',label:'Elegant',ats:true,isNew:true,blurb:'Graceful serif headings in a warm colour over clean modern text. Smart without being stiff.'}];
 var DESIGN_SAMPLE={name:'Alex Morgan',phone:'07000 000000',email:'alex@example.com',town:'Leeds',linkedin:'',
 summary:'College student aiming for a first role, bringing a year of weekend volunteering and a habit of turning up early.',
 experience:[{role:'Volunteer',org:'Community Shop',location:'Leeds',from:'Jun 2025',to:'Present',
@@ -190,7 +201,8 @@ function renderDesignGallery(){var h='';
 DESIGNS.forEach(function(d){
 h+="<div class='dcard'><div class='dthumb' aria-hidden='true'><div class='dscale'>"+
 "<div class='cvpaper "+d.id+"'>"+docHtml(DESIGN_SAMPLE,false)+"</div></div></div>"+
-"<b>"+esc2(d.label)+" <span class='atsbadge ok' title='Reads correctly in the software employers use to scan applications'>ATS-safe</span>"+"</b><p>"+esc2(d.blurb)+
+"<b>"+esc2(d.label)+" <span class='atsbadge ok' title='Reads correctly in the software employers use to scan applications'>ATS-safe</span>"+
+(d.isNew?" <span class='atsbadge new'>New</span>":'')+"</b><p>"+esc2(d.blurb)+
 (d.note?" <span class='atsnote'>"+esc2(d.note)+"</span>":'')+"</p>"+
 "<button type='button' class='btn dselect' data-design='"+d.id+"'>Select this design</button></div>";});
 $('designgrid').innerHTML=h;
@@ -665,6 +677,7 @@ const BUILDER_CSS = `
 .atsbadge{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;
   padding:3px 8px;background:#FCEBD9;color:#9A5812;vertical-align:2px;}
 .atsbadge.ok{background:#E8F2EC;color:#1A7649;}
+.atsbadge.new{background:#FBE1D6;color:#8C2B18;}
 .atsnote{display:block;margin-top:5px;font-size:11.5px;color:#9A5812;line-height:1.5;}
 /* ---- builder layout: review rail + document ---- */
 .docgrid{display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start;}
@@ -738,7 +751,7 @@ const BUILDER_CSS = `
 .ck-d{font-size:13px;color:#4a5b66;line-height:1.5;margin-top:2px;}
 .ck-e{font-size:12.5px;color:#616A71;font-style:italic;margin-top:4px;border-left:3px solid var(--off);padding-left:10px;}
 /* ==================================================================
- * THE DOCUMENT - editable, and six structurally distinct designs
+ * THE DOCUMENT - editable, and twelve structurally distinct designs
  * ================================================================== */
 .cvpaper{background:#fff;border-radius:6px;box-shadow:0 6px 28px -10px rgba(5,37,60,.25);
   padding:38px 42px;line-height:1.55;color:#1c2b36;min-height:520px;font-size:13px;}
@@ -771,7 +784,7 @@ const BUILDER_CSS = `
  *    out first and the jobs under them last. The decorations below are
  *    ordinary in-flow boxes for that reason.
  *
- * scripts/vqa-cv-pdf.mjs prints all six designs and reads them back. */
+ * scripts/vqa-cv-pdf.mjs prints every design and reads it back. */
 .cp-sec h4{font-size:12px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1.5px solid #1c2b36;
   padding-bottom:3px;margin-bottom:8px;}
 .cp-entry{margin-bottom:10px;}
@@ -865,6 +878,60 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
 .cvpaper.compact .cp-sec>*:not(h4){grid-column:2;}
 @media(max-width:560px){.cvpaper.compact .cp-sec{grid-template-columns:1fr;}
 .cvpaper.compact .cp-sec>*:not(h4){grid-column:1;}}
+/* ---- 7 · MINIMAL - air, hairlines, quiet headings ---- */
+.cvpaper.minimal .cp-head{margin-bottom:22px;}
+.cvpaper.minimal .cp-name{font-size:30px;font-weight:600;letter-spacing:-.01em;}
+.cvpaper.minimal .cp-contact{font-size:11.5px;margin-top:6px;color:#616A71;}
+.cvpaper.minimal .cp-sec{border-top:1px solid #E3DDDA;padding-top:13px;margin-bottom:17px;}
+.cvpaper.minimal .cp-sec h4{border-bottom:none;padding-bottom:0;font-size:10.5px;font-weight:600;color:#616A71;margin-bottom:9px;}
+/* ---- 8 · BOLD - a bar of colour, a name you cannot miss ---- */
+.cvpaper.bold{border-top:12px solid #D9452B;}
+.cvpaper.bold .cp-head{margin-bottom:20px;}
+.cvpaper.bold .cp-name{font-size:37px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:#05253C;}
+.cvpaper.bold .cp-contact{font-size:12px;font-weight:600;color:#05253C;margin-top:9px;}
+.cvpaper.bold .cp-contact b{color:#D9452B;font-weight:700;}
+.cvpaper.bold .cp-sec h4{border-bottom:3px solid #05253C;padding-bottom:4px;font-size:13.5px;font-weight:800;
+  letter-spacing:.02em;color:#05253C;}
+/* ---- 9 · TIMELINE - a line down the page, a dot for every entry ----
+ * The line and the dots are backgrounds on the entry itself: ordinary
+ * in-flow boxes, nothing positioned (rule 2 above). The dates sit under
+ * each title, in document order, so a parser reads them in order too.
+ * The dot is a small drawn circle, not a gradient fading to nothing: a
+ * fade to transparent came out of the PDF as a pink smudge. */
+.cvpaper.timeline .cp-head{border-bottom:2px solid #13507F;padding-bottom:12px;}
+.cvpaper.timeline .cp-name{font-size:27px;color:#13507F;}
+.cvpaper.timeline .cp-sec h4{border-bottom:none;padding-bottom:0;color:#13507F;}
+.cvpaper.timeline .sec-work .cp-entry,.cvpaper.timeline .sec-edu .cp-entry{margin-bottom:0;padding:0 0 11px 22px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Ccircle cx='5' cy='5' r='4.4' fill='%23D9452B'/%3E%3C/svg%3E") 0 4px/10px 10px no-repeat,
+    linear-gradient(#D9D2CE,#D9D2CE) 4px 0/2px 100% no-repeat;}
+.cvpaper.timeline .cp-row{display:block;}
+.cvpaper.timeline .cp-row>span{display:block;white-space:normal;color:#B93A22;font-weight:600;margin-top:1px;}
+/* ---- 10 · PANELS - every section in its own soft panel ---- */
+.cvpaper.blocks .cp-head{background:#F4F1EF;border-left:6px solid #05253C;border-radius:0 10px 10px 0;padding:16px 18px;}
+.cvpaper.blocks .cp-name{font-size:25px;color:#05253C;}
+.cvpaper.blocks .cp-sec{background:#F8F6F4;border-left:4px solid #ED9249;border-radius:0 10px 10px 0;
+  padding:12px 16px;margin-bottom:12px;}
+.cvpaper.blocks .cp-sec h4{border-bottom:none;padding-bottom:0;margin-bottom:6px;color:#05253C;}
+.cvpaper.blocks .cp-sec.refs-off{background:none;border-left:none;padding:0;}
+/* ---- 11 · BANDS - headings on bands of soft blue, a two-up foot ---- */
+.cvpaper.bands .cp-head{border-bottom:3px solid #13507F;padding-bottom:12px;}
+.cvpaper.bands .cp-name{font-size:28px;color:#05253C;}
+.cvpaper.bands .cp-contact{margin-top:5px;}
+.cvpaper.bands .cp-sec h4{border-bottom:none;background:#E8F1F8;color:#05253C;border-radius:4px;padding:6px 10px;
+  font-size:11.5px;margin-bottom:9px;}
+.cvpaper.bands .cp-side{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;align-items:start;}
+.cvpaper.bands .cp-side .sec-refs{grid-column:1 / -1;}
+@media(max-width:560px){.cvpaper.bands .cp-side{display:block;}}
+/* ---- 12 · ELEGANT - serif headings in a warm colour, modern text ----
+ * The serif is named on the name and the headings themselves: the app
+ * shell sets its typeface on every element, which beats anything handed
+ * down from the paper. */
+.cvpaper.elegant .cp-head{border-bottom:1px solid #C9BFB9;padding-bottom:14px;margin-bottom:18px;}
+.cvpaper.elegant .cp-name,.cvpaper.elegant .cp-sec h4{font-family:Georgia,'Times New Roman',serif;}
+.cvpaper.elegant .cp-name{font-size:31px;font-weight:400;color:#05253C;}
+.cvpaper.elegant .cp-contact{font-size:11.5px;margin-top:6px;}
+.cvpaper.elegant .cp-sec h4{border-bottom:none;padding-bottom:0;text-transform:none;letter-spacing:0;
+  font-size:15.5px;font-weight:700;font-style:italic;color:#B93A22;margin-bottom:6px;}
 @media print{
   body{background:#fff!important;}
   /* Keep the design's colour in the PDF. Without this the browser
@@ -925,6 +992,10 @@ li:hover .ilb,li:focus-within .ilb{opacity:1;}
    * above section, the same way the Sidebar does. */
   .cvpaper.compact .cp-sec:not(.is-empty){display:block!important;}
   .cvpaper.compact .cp-sec h4{margin-bottom:5px!important;}
+  /* Bands sets skills beside achievements on screen. Two things on one
+   * line are one thing to a parser, so on paper they are one above the
+   * other, like every other design. */
+  .cvpaper.bands .cp-side{display:block!important;}
 }
 /* On a phone the CV comes first. The review rail used to sit above it,
  * so "type straight onto your CV" opened on a screen and a half of

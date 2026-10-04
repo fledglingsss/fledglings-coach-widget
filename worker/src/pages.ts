@@ -231,17 +231,13 @@ if(hh&&hh.nextElementSibling)hh.parentNode.insertBefore(chip,hh.nextElementSibli
  *
  * A tester asked for the learner's own avatar beside the logo, as the
  * first thing they see. The platform holds a name for every account
- * and no picture, so the avatar is their initials, on a colour that is
- * always the same for them, inside a ring that fills with their Career
- * Readiness.
+ * and no picture, so the avatar is their initials on the same warm tile
+ * the Skills Passport draws them on, with their Career Readiness as a
+ * bar on the card beneath it.
  *
  * The name and the readiness come from /api/hub and are kept on this
  * device beside the token they belong to (and cleared with it). Until
  * they arrive, the initials are read off the signed-in address. */
-var FL_AV_COLOURS=['#05253C','#13507F','#B93A22','#1A7649','#8A2F6B','#7A4A1E'];
-function flAvatarColour(key){key=String(key||'').toLowerCase();var h=0;
-for(var i=0;i<key.length;i++){h=(h*31+key.charCodeAt(i))%2147483647;}
-return FL_AV_COLOURS[h%FL_AV_COLOURS.length];}
 function flInitialsOf(name){return String(name||'').split(' ').filter(function(w){return w})
 .slice(0,2).map(function(w){return w.charAt(0).toUpperCase()}).join('');}
 function flEmailInitials(em){var local=String(em||'').split('@')[0]||'';
@@ -276,23 +272,26 @@ body:JSON.stringify({learner_id:flStoredId(localStorage,'fl_coach_learner_v1'),t
 function flProfileFromHub(d){var pr=d.profile||{},s=d.summary||{};
 flProfileSave({n:pr.name,i:pr.initials,c:pr.cohort,r:typeof s.careerReadiness==='number'?s.careerReadiness:undefined});}
 function flAvatarPaint(){var me=document.getElementById('snav-me');if(!me)return;
-var hi=document.getElementById('snav-hi');
+var card=document.getElementById('snav-card');
 /* A provider reading a learner's hub is not that learner: no avatar. */
-if(flViewOnly()){me.hidden=true;if(hi)hi.hidden=true;return;}
+if(flViewOnly()){me.hidden=true;if(card)card.hidden=true;return;}
 var em=flResolveEmail();
 /* Signed out: the markup's own "Sign in" stands. */
 if(!em)return;
 var p=flProfile()||{};
-var av=document.getElementById('snav-av');
 var ini=p.i||flEmailInitials(em);
-if(ini)av.textContent=ini;
-av.style.background=flAvatarColour(em);
+if(ini)document.getElementById('snav-av').textContent=ini;
 me.className='snav-me known';
 var ready=typeof p.r==='number'?Math.max(0,Math.min(100,Math.round(p.r))):null;
-if(ready!==null)me.style.background='conic-gradient('+(ready>=70?'#1A7649':'#D9452B')+' '+(ready*3.6)+'deg,#E7EAF0 0deg)';
 var label='Signed in as '+(p.n||em)+(ready===null?'':'. Career Readiness '+ready+'%')+'. Open your account.';
 me.setAttribute('aria-label',label);me.title=label;
-if(hi)hi.textContent=p.n?'Hi, '+p.n:'Signed in';}
+if(!card)return;
+card.className='snav-card known';card.title=label;
+document.getElementById('snav-hi').textContent=p.n?'Hi, '+p.n:'Signed in';
+/* readiness: the figure, and the same warm bar the passport uses */
+document.getElementById('snav-pct').innerHTML=ready===null?'':ready+"%<span class='sc-w'> ready</span>";
+document.getElementById('snav-bar').hidden=ready===null;
+if(ready!==null)document.getElementById('snav-bar-i').style.width=ready+'%';}
 
 /* ---------------- My work: the on-device document library ----------
  *
@@ -524,24 +523,39 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
  * laptop's window; the sidebar scrolls rather than losing its last links. */
 .snav{width:236px;flex:none;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;
   padding:22px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;}
-/* The learner's avatar beside the logo: the first thing on the page. */
-.snav-top{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center;padding:0 2px 16px;}
-.snav-me{grid-row:1 / span 2;width:46px;height:46px;border-radius:50%;padding:3px;background:#E7EAF0;display:block;
-  text-decoration:none;transition:transform .15s ease;}
-.snav-me:hover{transform:scale(1.06);}
-/* the shared keyboard ring squares off whatever it lands on; this one is round */
-a.snav-me:focus-visible{border-radius:50%;}
-.snav-av{width:100%;height:100%;border-radius:50%;border:2px solid #fff;background:#fff;color:var(--mut);
-  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;letter-spacing:.02em;}
-.snav-av svg{width:19px;height:19px;}
-.snav-me.known .snav-av{color:#fff;}
+/* The learner's avatar beside the logo: the first thing on the page.
+ * Their initials on the Skills Passport's own warm tile, so they look
+ * the same here, on their passport and in the chat; and under it a card
+ * that says hello and carries their Career Readiness as a bar. */
+.snav-head{padding:0 2px 14px;}
+.snav-top{display:flex;align-items:center;gap:11px;}
+.snav-me{width:46px;height:46px;flex:none;display:block;border-radius:15px;text-decoration:none;
+  transition:transform .18s cubic-bezier(.2,.7,.3,1);}
+.snav-me:hover{transform:translateY(-2px) rotate(-4deg);}
+/* the shared keyboard ring squares off whatever it lands on; this keeps the tile's own corners */
+a.snav-me:focus-visible{border-radius:15px;}
+.snav-av{width:100%;height:100%;border-radius:15px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;letter-spacing:.02em;background:#F4F1EF;color:var(--mut);
+  box-shadow:inset 0 0 0 1.5px #D9D2CE;}
+.snav-av svg{width:20px;height:20px;}
+.snav-me.known .snav-av{background:linear-gradient(135deg,#A66633,#B93A22);color:#fff;
+  box-shadow:0 9px 16px -9px rgba(185,58,34,.85);}
 .snav-brand{min-width:0;}
 .snav-logo svg{height:28px;width:auto;display:block;}
-.snav-hi{grid-column:2;font-size:12.5px;font-weight:700;color:var(--blue);text-decoration:none;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-top:4px;}
-.snav-hi:hover{text-decoration:underline;}
+.snav-card{display:block;margin-top:12px;border-radius:14px;padding:10px 12px;text-decoration:none;color:var(--navy);
+  background:#E8F1F8;transition:transform .15s ease,box-shadow .15s ease;}
+.snav-card:hover{transform:translateY(-1px);box-shadow:0 10px 18px -12px rgba(5,37,60,.5);}
+a.snav-card:focus-visible{border-radius:14px;}
+.snav-card.known{background:#FBF0E2;}
+.sc-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+.sc-row b{font-size:13.5px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-pct{flex:none;font-size:12px;font-weight:600;color:#13507F;white-space:nowrap;}
+.snav-card.known .sc-pct{color:#B93A22;font-weight:800;}
+.sc-bar{display:block;height:6px;border-radius:999px;background:#EBD9C3;overflow:hidden;margin-top:8px;}
+.sc-bar i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#ED9249,#D9452B);
+  transition:width .7s cubic-bezier(.2,.7,.3,1);}
 @media (min-width:881px) and (max-height:780px){.sn-link{padding:8px 12px;}.snav{padding-top:16px;}
-  .snav-top{padding-bottom:10px;}}
+  .snav-head{padding-bottom:10px;}.snav-card{margin-top:9px;padding:8px 12px;}}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
 .sn-skip{position:absolute;left:-9999px;top:0;z-index:200;background:#05253C;color:#fff;padding:10px 16px;border-radius:0 0 10px 0;font-weight:600;text-decoration:none;}
 .sn-skip:focus{left:0;}
@@ -641,10 +655,14 @@ h3[tabindex='-1']:focus-visible{outline:none;}
   body{flex-direction:column;}
   .snav{width:100%;height:auto;position:static;flex-direction:column;padding:12px 14px;border-right:none;
     border-bottom:1px solid var(--line);overflow-y:visible;}
-  /* one row on a phone: avatar, logo, and the greeting at the far end */
-  .snav-top{grid-template-columns:auto 1fr auto;padding:0 0 10px;}
-  .snav-me{grid-row:auto;width:44px;height:44px;}
-  .snav-hi{grid-column:3;padding-top:0;min-height:44px;display:flex;align-items:center;max-width:36vw;}
+  /* one row on a phone: avatar, logo, and the greeting card at the far end */
+  .snav-head{display:flex;align-items:center;gap:10px;padding:0 0 10px;}
+  .snav-top{flex:1 1 auto;min-width:0;}
+  .snav-me{width:44px;height:44px;}
+  .snav-card{flex:0 1 auto;min-width:0;max-width:42vw;margin-top:0;padding:8px 12px;min-height:44px;
+    display:flex;flex-direction:column;justify-content:center;}
+  .snav-card:not(.known) .sc-pct,.sc-w{display:none;}
+  .sc-bar{margin-top:5px;height:4px;}
   .snav-logo svg{height:24px;}
   .snav nav{flex-direction:row;overflow-x:auto;gap:6px;-webkit-overflow-scrolling:touch;}
   .sn-link{white-space:nowrap;padding:9px 12px;font-size:13.5px;}
@@ -656,6 +674,9 @@ h3[tabindex='-1']:focus-visible{outline:none;}
     border-left:1px solid var(--line);padding-left:6px;}
   .wrap{padding:22px 16px 60px;}
 }
+/* On the narrowest phones the name matters more than the figure: the
+ * bar still shows how far along they are. */
+@media (max-width:400px){.snav-card.known .sc-pct{display:none;}.snav-card{padding:8px 10px;}}
 @media print{.snav,.btn,.tabs,.footer,.no-print{display:none!important;}
   body{background:#fff;}.card{box-shadow:none;border:1px solid #ddd;}
   /* Browsers drop background colours when printing, to save ink. On a
@@ -770,12 +791,14 @@ export function appShell(opts: {
     "<aside class='snav'>" +
     /* Signed out, this is a way to sign in; flAvatarPaint() turns it
      * into the learner's own initials the moment the page knows them. */
-    "<div class='snav-top'>" +
+    "<div class='snav-head'><div class='snav-top'>" +
     "<a class='snav-me' id='snav-me' data-nav href='/hub#account' aria-label='Sign in to save your progress' " +
     `title='Sign in to save your progress'><span class='snav-av' id='snav-av'>${NAV_ICONS.account}</span></a>` +
     `<div class='snav-brand'><div class='snav-logo'>${WORDMARK_LIGHT}</div>` +
-    "<div class='snav-slogan'>Where Growth Takes Flight</div></div>" +
-    "<a class='snav-hi' id='snav-hi' data-nav href='/hub#account'>Sign in</a>" +
+    "<div class='snav-slogan'>Where Growth Takes Flight</div></div></div>" +
+    "<a class='snav-card' id='snav-card' data-nav href='/hub#account'>" +
+    "<span class='sc-row'><b id='snav-hi'>Sign in</b><span class='sc-pct' id='snav-pct'>to save your progress</span></span>" +
+    "<span class='sc-bar' id='snav-bar' hidden><i id='snav-bar-i'></i></span></a>" +
     "</div>" +
     `<nav aria-label='Employability tools'>${nav}` +
     "<span class='snav-foot'>" +
@@ -1625,35 +1648,46 @@ export function renderToolsPage(): string {
   font-size:13px;line-height:1.55;}
 .fix-ex b{color:#1A7649;margin-right:4px;}
 .fix-own{font-size:12px;color:#5C6A76;margin-top:6px;line-height:1.5;}
-/* career paths */
-.crp-dir{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:2px 0 12px;}
-.crp-dir-l{flex:1 1 100%;font-size:12.5px;font-weight:700;color:#5C6A76;}
-.crp-reads{font-size:24px;font-weight:800;color:var(--navy,#05253C);line-height:1.2;}
-.crp-pill{font-size:12px;font-weight:800;border-radius:999px;padding:5px 12px;}
-.crp-pill.on{background:#E7F3EC;color:#1A7649;}
-.crp-pill.off{background:#FBF3E8;color:#8A4A0C;}
-.crp-ev{border-left:3px solid var(--mango,#ED9249);padding:2px 0 2px 12px;margin:0 0 12px;font-size:14px;
-  font-style:italic;color:var(--ink,#25394B);line-height:1.55;}
-.crp-ev span{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.06em;
+/* career paths - drawn the way the Skills Passport draws things: a
+ * tinted tile for where the CV points, the learner's own line on an
+ * off-white row, and each door as a warm tile with a gold, silver or
+ * bronze place and its two reasons as labelled pills. */
+.crp-dir{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:2px 0 12px;background:#E8F1F8;
+  border-radius:18px;padding:18px 20px;}
+.crp-dir-l{flex:1 1 100%;font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#13507F;}
+.crp-reads{font-size:27px;font-weight:800;color:var(--navy,#05253C);line-height:1.15;}
+.crp-pill{font-size:12px;font-weight:800;border-radius:999px;padding:5px 12px;background:#fff;}
+.crp-pill.on{color:#1A7649;}
+.crp-pill.off{color:#8A4A0C;}
+.crp-ev{background:#F6F2F0;border-left:4px solid var(--mango,#ED9249);border-radius:0 14px 14px 0;padding:11px 16px;
+  margin:0 0 12px;font-size:14.5px;font-style:italic;color:var(--ink,#25394B);line-height:1.55;}
+.crp-ev span{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.1em;
   text-transform:uppercase;color:#8A4A0C;margin-bottom:3px;}
 .crp-fit{font-size:14.5px;line-height:1.6;color:var(--ink,#25394B);margin:0;}
-.crp-paths{display:grid;gap:12px;margin-top:4px;}
-.crp-path{display:flex;gap:14px;border:1.5px solid var(--line,#E3DDDA);border-radius:14px;padding:16px;background:#FCFBFA;}
-.crp-n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--navy,#05253C);color:#fff;font-weight:800;
-  font-size:14px;display:flex;align-items:center;justify-content:center;}
+.crp-paths{display:grid;gap:14px;margin-top:4px;}
+.crp-path{display:flex;gap:16px;border:1px solid rgba(5,37,60,.09);border-radius:18px;padding:18px 20px;
+  background:linear-gradient(180deg,#fff,#FBF7F4);transition:transform .15s ease,box-shadow .15s ease;}
+.crp-path:hover{transform:translateY(-3px);box-shadow:0 16px 28px -18px rgba(5,37,60,.5);}
+.crp-n{flex:none;width:38px;height:38px;border-radius:50%;background:var(--navy,#05253C);color:#fff;font-weight:800;
+  font-size:15px;display:flex;align-items:center;justify-content:center;}
+.crp-path:nth-child(1) .crp-n{background:radial-gradient(circle at 35% 28%,#FFE3AE,#ED9249 55%,#D9452B);color:#4A1D08;}
+.crp-path:nth-child(2) .crp-n{background:radial-gradient(circle at 35% 28%,#F4F8FB,#C3CDD8 55%,#97A6B5);color:#05253C;}
+.crp-path:nth-child(3) .crp-n{background:radial-gradient(circle at 35% 28%,#F0CBA3,#C77B44 55%,#9A5A2C);}
 .crp-b{flex:1;min-width:0;}
-.crp-b h4{margin:3px 0 2px;font-size:17px;color:var(--navy,#05253C);}
-.crp-about{margin:0 0 10px;font-size:13.5px;color:#4E5B66;line-height:1.5;}
-.crp-row{display:grid;grid-template-columns:190px 1fr;gap:4px 12px;padding:9px 0;
-  border-top:1px dashed var(--line,#E3DDDA);font-size:13.5px;line-height:1.55;color:var(--ink,#25394B);}
-.crp-row b{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#13507F;padding-top:3px;}
+.crp-b h4{margin:5px 0 2px;font-size:18.5px;font-weight:700;color:var(--navy,#05253C);}
+.crp-about{margin:0 0 12px;font-size:13.5px;color:#4E5B66;line-height:1.5;}
+.crp-row{display:grid;grid-template-columns:200px 1fr;gap:6px 14px;padding:11px 0;align-items:start;
+  border-top:1px dashed rgba(5,37,60,.16);font-size:14px;line-height:1.55;color:var(--ink,#25394B);}
+.crp-row b{justify-self:start;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#13507F;
+  background:#E8F1F8;border-radius:999px;padding:5px 11px;line-height:1.3;}
+.crp-row + .crp-row b{color:#9A5812;background:#FBF0E2;}
 .crp-link{display:inline-flex;align-items:center;gap:6px;margin-top:8px;min-height:44px;font-weight:800;
   font-size:13.5px;color:#B93A22;text-decoration:none;}
 .crp-link:hover{text-decoration:underline;}
 .crp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 .crp-src{font-size:12.5px;color:#5C6A76;line-height:1.55;margin:14px 0 0;}
 @media(max-width:560px){.crp-row{grid-template-columns:1fr;}.crp-path{padding:14px;gap:10px;}
-  .crp-reads{font-size:21px;}}
+  .crp-reads{font-size:22px;}.crp-dir{padding:15px 16px;}.crp-n{width:32px;height:32px;font-size:13.5px;}}
 .journeynext{display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--navy);
   border-left:4px solid var(--orange);transition:box-shadow .2s;}
 .journeynext:hover{box-shadow:0 4px 14px rgba(5,37,60,.12);}

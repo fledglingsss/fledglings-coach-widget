@@ -39,17 +39,17 @@ export interface QuizArea {
   name: string;
   /** One line that says what the area means, to the learner. */
   blurb: string;
-  /** Solid fill for the area's bar and chip; all clear 4.5:1 with white. */
-  colour: string;
 }
 
+/* What each interest looks like (its medal) is the page's business:
+ * see AREA_ART in pages-careers.ts. */
 export const QUIZ_AREAS: readonly QuizArea[] = [
-  { id: "maker", name: "Hands-on", blurb: "You like making, fixing and working with real things.", colour: "#7A4A1E" },
-  { id: "solver", name: "Problem solver", blurb: "You like working out how and why things happen.", colour: "#13507F" },
-  { id: "creator", name: "Creative", blurb: "You like making things that look, sound or read well.", colour: "#8A2F6B" },
-  { id: "helper", name: "People person", blurb: "You like helping, teaching and looking after people.", colour: "#1A7649" },
-  { id: "leader", name: "Go-getter", blurb: "You like persuading people and making things happen.", colour: "#B93A22" },
-  { id: "organiser", name: "Organiser", blurb: "You like order, detail and getting things right.", colour: "#05253C" },
+  { id: "maker", name: "Hands-on", blurb: "You like making, fixing and working with real things." },
+  { id: "solver", name: "Problem solver", blurb: "You like working out how and why things happen." },
+  { id: "creator", name: "Creative", blurb: "You like making things that look, sound or read well." },
+  { id: "helper", name: "People person", blurb: "You like helping, teaching and looking after people." },
+  { id: "leader", name: "Go-getter", blurb: "You like persuading people and making things happen." },
+  { id: "organiser", name: "Organiser", blurb: "You like order, detail and getting things right." },
 ];
 
 export interface QuizItem {

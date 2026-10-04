@@ -71,7 +71,9 @@ try {
     return { badge: badge.textContent, shown: badge.getBoundingClientRect().width > 0, title: badge.title };
   });
   console.log("  chatting as:", JSON.stringify(me));
-  if (me.badge !== "PT" || !me.shown) note("avatar", `chat header: ${JSON.stringify(me)}`);
+  /* under 360px wide the header keeps to one line and the badge steps aside;
+   * the avatar still sits beside every message, which is checked further down */
+  if (me.badge !== "PT" || me.shown !== (width >= 360)) note("avatar", `chat header: ${JSON.stringify(me)}`);
   await shot("w02-widget-open");
 
   /* pathway quick start: three taps to a recommendation */

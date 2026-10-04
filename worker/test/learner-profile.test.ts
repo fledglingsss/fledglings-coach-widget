@@ -2,6 +2,7 @@
  * beside the logo and in the chat, the cohort leaderboard, and the
  * first-time sign-in help. The platform is mocked; identity tokens,
  * cohort scoping and the boards run for real. */
+import fs from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { makeKvMock } from "./helpers/kv-mock";
@@ -25,6 +26,7 @@ import { hashLearnerId } from "../src/lib/rate-limit";
 import { cohortSlug, displayName, initialsOf, type Leaderboard } from "../src/lib/skills-passport";
 import { APP_NAV, IDENTITY_JS, renderAiPrivacyPage, renderToolsPage } from "../src/pages";
 import { renderHubPage } from "../src/pages-hub";
+import { AVATAR_GRADIENT } from "../src/pages-kit";
 import { renderLeaderboardPage } from "../src/pages-leaderboard";
 import { renderOpsPage } from "../src/pages-portal";
 import widgetSource from "../src/widget/coach-widget.js.txt";
@@ -400,19 +402,17 @@ describe("one avatar everywhere", () => {
   const hub = new Function(
     `var window={},document={},localStorage={getItem:function(){return null},setItem:function(){},removeItem:function(){}},` +
       `location={search:"",href:"http://x/"},navigator={};${IDENTITY_JS};` +
-      "return {colour:flAvatarColour,initials:flInitialsOf,emailInitials:flEmailInitials};",
+      "return {initials:flInitialsOf,emailInitials:flEmailInitials};",
   )() as {
-    colour: (key: string) => string;
     initials: (name: string) => string;
     emailInitials: (email: string) => string;
   };
-  /* The chat's own copies, lifted out of the widget file. */
+  /* The chat's own copy, lifted out of the widget file. */
   const chatSource = widgetSource.slice(
-    widgetSource.indexOf("var AV_COLOURS"),
+    widgetSource.indexOf("function initialsFrom"),
     widgetSource.indexOf("var STORAGE_ME"),
   );
-  const chat = new Function(`${chatSource};return {colour:avatarColour,initials:initialsFrom};`)() as {
-    colour: (key: string) => string;
+  const chat = new Function(`${chatSource};return {initials:initialsFrom};`)() as {
     initials: (name: string, email: string) => string;
   };
 
@@ -425,13 +425,22 @@ describe("one avatar everywhere", () => {
     { name: "Priya Shah", email: "07priya.shah@swift.test" },
   ];
 
-  it("colours a learner the same in the chat as in the hub", () => {
+  it("draws a learner's initials on the same warm tile on the passport, in the hub and in the chat", () => {
     expect(chatSource.length).toBeGreaterThan(200);
-    for (const person of PEOPLE) {
-      expect(chat.colour(person.email), person.email).toBe(hub.colour(person.email));
-    }
-    /* and not everybody is the same colour */
-    expect(new Set(PEOPLE.map((person) => hub.colour(person.email))).size).toBeGreaterThan(1);
+    expect(AVATAR_GRADIENT).toBe("linear-gradient(135deg,#A66633,#B93A22)");
+    /* the Skills Passport, where the tile comes from */
+    const passport = fs.readFileSync(new URL("../src/pages-skills.ts", import.meta.url), "utf8");
+    expect(passport).toContain(`.avatar{width:84px;height:84px;border-radius:24px;background:${AVATAR_GRADIENT}`);
+    /* the hub's header, once it knows who is signed in */
+    expect(renderHubPage()).toContain(`.snav-me.known .snav-av{background:${AVATAR_GRADIENT}`);
+    /* the chat: in its header, and beside each thing the learner says */
+    const inChat = widgetSource.split(AVATAR_GRADIENT).length - 1;
+    expect(inChat).toBe(2);
+  });
+
+  it("gives no learner a colour of their own: the avatar is the brand's, for everyone", () => {
+    expect(IDENTITY_JS).not.toMatch(/flAvatarColour|FL_AV_COLOURS/);
+    expect(widgetSource).not.toMatch(/avatarColour|AV_COLOURS|--fl-me/);
   });
 
   it("gives a learner the same initials on the server, in the hub and in the chat", () => {
@@ -455,7 +464,7 @@ describe("one avatar everywhere", () => {
       expect(top).toContain("id='snav-me'");
       expect(top).toContain("class='snav-logo'");
       expect(top.indexOf("id='snav-me'")).toBeLessThan(top.indexOf("class='snav-logo'"));
-      expect(top).toContain(">Sign in</a>");
+      expect(top).toContain("<b id='snav-hi'>Sign in</b>");
       expect(html).toContain("flAvatarPaint();</script>");
     }
   });
