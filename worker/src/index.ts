@@ -3515,9 +3515,9 @@ app.post("/hooks/learnworlds", async (c) => {
           (await c.env.RATE_LIMITS.get(REFLECT_TAGS_PATCH_KEY)) || "{}",
         ) as Record<string, string[]>;
         patch[ev.email] = freshTags;
-        await c.env.RATE_LIMITS.put(REFLECT_TAGS_PATCH_KEY, JSON.stringify(patch), {
-          expirationTtl: 24 * 3600,
-        });
+        /* NO TTL - same rule as the roster's write: the patch is live
+         * scoping state, never a cache (2026-10-12). */
+        await c.env.RATE_LIMITS.put(REFLECT_TAGS_PATCH_KEY, JSON.stringify(patch));
       }
     } catch {
       /* best-effort */
@@ -6150,9 +6150,14 @@ async function rosterTick(env: Env, withGroups = true): Promise<void> {
        * with the overlay immediately, ahead of any sweep rebuild. */
       patch[u.email!.toLowerCase()] = u.tags;
     }
-    await env.RATE_LIMITS.put(REFLECT_TAGS_PATCH_KEY, JSON.stringify(patch), {
-      expirationTtl: 24 * 3600,
-    });
+    /* NO TTL: this map IS a scoped provider's reflection scoping, and
+     * under the weekly refresh cadence nothing rewrites it for six
+     * days - a 24h expiry here silently zeroed Swift's entire
+     * Self-Reflections page and CSV every Tuesday until someone
+     * pressed Refresh (found live, 2026-10-12). Every full roster
+     * slice rewrites it wholesale, so it can never grow stale by more
+     * than one refresh. */
+    await env.RATE_LIMITS.put(REFLECT_TAGS_PATCH_KEY, JSON.stringify(patch));
   } catch (err) {
     console.error("[coach] group overlay failed:", String(err));
   }
@@ -6327,7 +6332,9 @@ async function scheduled(
    * data, the reflections snapshot, the early-warning tiers, then
    * the safeguarding deep read over the fresh answers. Between
    * Mondays, only the provider's own Refresh button moves data. */
-  if (event.cron !== "0 6 * * 1") return;
+  /* The schedule has exactly one trigger, so no string gate: matching
+   * the literal cron here silently dropped every firing when the
+   * trigger's spelling changed ("* * 1" vs "* * MON"). */
   ctx.waitUntil(
     dispatchJob(env, "weekly").catch((err) =>
       console.error("[coach] weekly dispatch failed:", String(err)),

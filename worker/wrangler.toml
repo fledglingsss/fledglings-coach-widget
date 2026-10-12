@@ -20,7 +20,9 @@ compatibility_flags = ["nodejs_compat"]
 # reflections snapshot, then runs the safeguarding deep read over the
 # fresh answers. Between Mondays, only the provider's own Refresh
 # button moves data (founder, 2026-09-27, cost control).
-crons = ["0 6 * * 1"]
+# Named day: the numeric form "* * 1" fired on SUNDAYS here (observed
+# live 2026-10-11 06:08 UTC), so the day is spelt out.
+crons = ["0 6 * * MON"]
 
 # Self service binding: lets the cron fan each heavyweight data pull
 # out into its own invocation (a worker cannot fetch its own public
