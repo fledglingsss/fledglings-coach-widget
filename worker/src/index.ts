@@ -2699,6 +2699,35 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
       console.error(
         `[coach] reflections sweep giving up on "${courseTitle}" after ${tries} attempts: ${String(err).slice(0, 120)}`,
       );
+      /* Give up on reading it FRESH, never on the data: carry the
+       * course forward from the last complete snapshot, so a flaky
+       * endpoint costs a module one week of new answers, not the
+       * module itself. Three consecutive rebuilds each dropped a
+       * different course without this (found live, 2026-10-13). */
+      if (main && main.responses !== undefined) {
+        const carried = main.responses.filter((r) => r.courseTitle === courseTitle);
+        for (const row of carried) {
+          if (state.responses.length >= RAW_ROWS_MAX) break;
+          state.responses.push(row);
+          const bucket =
+            row.kind === "pre"
+              ? state.preRespondents
+              : row.kind === "post"
+                ? state.postRespondents
+                : null;
+          if (bucket && row.email && !bucket.includes(row.email)) bucket.push(row.email);
+        }
+        state.flags.push(...main.flags.filter((f) => f.courseTitle === courseTitle));
+        const oldShift = main.shifts.find((s) => s.courseId === courseId);
+        if (oldShift) state.shifts.push(oldShift);
+        const oldCoverage = main.coverage.find((cv) => cv.courseId === courseId);
+        if (oldCoverage) state.coverage.push(oldCoverage);
+        if (carried.length > 0) {
+          console.error(
+            `[coach] carried ${carried.length} answers for "${courseTitle}" from the previous snapshot`,
+          );
+        }
+      }
       state.cursor++;
       continue;
     }
@@ -2774,7 +2803,9 @@ app.get("/portal/reflections", async (c) => {
     }));
     let preCount = state.preRespondents.length;
     let postCount = state.postRespondents.length;
-    let recent = state.responses;
+    /* Blank-answer rows exist for the CSV only - on the page they
+     * would read as noise in the samples and inflate the counters. */
+    let recent = state.responses.filter((r) => r.answer !== "");
     if (access.tag) {
       const tag = access.tag;
       flags = flags.filter((f) => inScope(tagsOf(f.email), tag));
@@ -4723,7 +4754,7 @@ app.get("/dashboard/learner-reflections", async (c) => {
     const tags = tagPatch[email] ?? state.userTags[email] ?? [];
     if (!inScope(tags, access.tag)) return c.json({ error: "out_of_scope" }, 403);
     const rows = state.responses
-      .filter((r) => r.email.toLowerCase() === email)
+      .filter((r) => r.email.toLowerCase() === email && r.answer !== "")
       .sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
     const flags = state.flags.filter((f) => f.email.toLowerCase() === email);
     return c.json({ ok: true, count: rows.length, rows: rows.slice(0, 60), flags });
@@ -4751,7 +4782,7 @@ app.get("/dashboard/learner-insight", async (c) => {
     const tags = tagPatch[email] ?? state.userTags[email] ?? [];
     if (!inScope(tags, access.tag)) return c.json({ error: "out_of_scope" }, 403);
     const rows = state.responses
-      .filter((r) => r.email.toLowerCase() === email)
+      .filter((r) => r.email.toLowerCase() === email && r.answer !== "")
       .sort((a, b) => (a.submittedAt ?? 0) - (b.submittedAt ?? 0));
     if (rows.length < 3) {
       return c.json({ ok: true, status: "too_few", count: rows.length });
@@ -4859,7 +4890,9 @@ app.get("/dashboard/reflections.csv", async (c) => {
           csvField(r.kind === "pre" ? "Before module" : r.kind === "post" ? "After module" : "Other"),
           csvField(r.submittedAt ? new Date(r.submittedAt * 1000).toISOString().slice(0, 10) : ""),
           csvField(r.question),
-          csvField(r.answer),
+          /* A kept-but-empty answer is the learner's own skip - say so
+           * rather than leaving a cell that reads like lost data. */
+          csvField(r.answer === "" ? "(left blank)" : r.answer),
         ].join(","),
       ),
     ];
@@ -5551,7 +5584,7 @@ app.get("/ops/verify.json", async (c) => {
       },
       reflections: {
         status: reflect.status,
-        answersOnRecord: reflect.responses.length,
+        answersOnRecord: reflect.responses.filter((r) => r.answer !== "").length,
         builtHoursAgo: Math.round((now - new Date(reflect.builtAt).getTime()) / 3_600_000),
         learnerFilterActive: reflect.learnerEmails !== undefined,
         coveredCourses: reflect.coverage.length,
@@ -5941,9 +5974,10 @@ app.get("/inspect", async (c) => {
     ) as Record<string, string[]>;
     const tagsOf = (email: string): string[] =>
       tagPatch[email.toLowerCase()] ?? reflect.userTags[email.toLowerCase()] ?? [];
-    const scopedAnswers = tag
+    const scopedAnswers = (tag
       ? reflect.responses.filter((r) => inScope(tagsOf(r.email), tag))
-      : reflect.responses;
+      : reflect.responses
+    ).filter((r) => r.answer !== "");
     const narrative = plainDashes(
       (await c.env.RATE_LIMITS.get(`portal:narrative:v2:${scopeKey}`)) ??
         "The provider can generate the written narrative from their dashboard; the figures above are live from the platform.",

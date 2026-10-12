@@ -198,7 +198,7 @@ describe("buildCoverage", () => {
 });
 
 describe("rawRows", () => {
-  it("flattens a response into one verbatim row per answered question", () => {
+  it("flattens a response into one verbatim row per question, keeping the learner's skips", () => {
     const response: ReflectionResponse = {
       userId: "u9",
       email: "amy@swift.test",
@@ -210,7 +210,10 @@ describe("rawRows", () => {
       ],
     };
     const rows = rawRows(UNIT, response);
-    expect(rows).toHaveLength(2);
+    /* A question the learner left blank stays on record with an empty
+     * answer - absent rows read as lost data in the provider export
+     * (Swift, 2026-10-13). The CSV renders these "(left blank)". */
+    expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({
       email: "amy@swift.test",
       courseTitle: UNIT.courseTitle,
@@ -219,6 +222,7 @@ describe("rawRows", () => {
       answer: "3",
     });
     expect(rows[1]!.answer).toBe("Running out before payday.");
+    expect(rows[2]).toMatchObject({ question: "Skipped", answer: "" });
   });
 
   it("caps runaway answers at the storage bound, and says that it did", () => {

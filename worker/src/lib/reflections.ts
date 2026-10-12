@@ -326,8 +326,13 @@ export function rawRows(
   unit: AssessmentUnit,
   response: ReflectionResponse,
 ): RawReflectionRow[] {
+  /* Questions the learner left blank are KEPT as rows with an empty
+   * answer: tutors reading the export took absent rows for lost data
+   * (Swift, 2026-10-13), and a learner skipping every open question
+   * is itself worth seeing. The CSV renders them "(left blank)";
+   * every other surface filters them out. */
   return response.answers
-    .filter((a) => a.answer !== "")
+    .filter((a) => a.question !== "" || a.answer !== "")
     .map((a) => ({
       email: response.email,
       courseTitle: unit.courseTitle,
