@@ -4,6 +4,7 @@ import {
   crisisHeuristic,
   guardReply,
   neutraliseAngles,
+  reflectionDisclosureHeuristic,
   sanitiseLine,
   sanitiseText,
 } from "../src/lib/safety";
@@ -148,5 +149,46 @@ describe("neutraliseAngles", () => {
     expect(msg.match(/<\/learner_cv>/g)).toHaveLength(1);
     expect(msg).not.toContain("<automated_facts>");
     expect(msg).toContain("‹/learner_cv›");
+  });
+});
+
+describe("reflectionDisclosureHeuristic - personal disclosures, never topic talk", () => {
+  it("still catches first-person disclosures", () => {
+    for (const s of [
+      "my stepdad hits me when he's drunk",
+      "I've started drinking most nights just to get to sleep",
+      "I can't concentrate because we might be evicted next month",
+      "someone at work keeps touching me and I'm scared to say anything",
+      "I keep skipping meals because there's no money left after rent",
+      "my boyfriend checks my phone and won't let me see my friends",
+    ]) {
+      expect(reflectionDisclosureHeuristic(s), s).toBe(true);
+    }
+  });
+
+  it("never flags topic vocabulary from the live false positives", () => {
+    for (const s of [
+      /* every one of these fired on the real dashboard, 2026-10-26 */
+      "Bullying, harassment, grooming",
+      "Hacking grooming phishing pharming",
+      "stranger danger, catfishing, grooming, cyber bullying",
+      "more information about what to do if you're being bullied online",
+      "Safeguarding means protecting children from harm, including physical, emotional, sexual abuse, and neglect.",
+      "Being well groomed in appearance and showing up on time means I am professional",
+      "give more resources for over 18s talk more over the online sexual abuse and people pushing you into sexual content",
+      "I learned about grooming and how to report abuse in this module",
+    ]) {
+      expect(reflectionDisclosureHeuristic(s), s).toBe(false);
+    }
+  });
+});
+
+describe("reflectionDisclosureHeuristic - exemplification framing", () => {
+  it("clears module suggestions naming risks as examples", () => {
+    expect(
+      reflectionDisclosureHeuristic(
+        "Real-world case studies based on modern digital risks like online grooming or social media exploitation would help me learn",
+      ),
+    ).toBe(false);
   });
 });

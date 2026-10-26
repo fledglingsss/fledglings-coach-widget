@@ -119,6 +119,49 @@ export function safeguardingHeuristic(message: string): boolean {
   return crisisHeuristic(message) || SAFEGUARDING_EXTRA_PATTERNS.some((re) => re.test(message));
 }
 
+/* Reflection answers are written ABOUT safeguarding topics - a
+ * pre-module question like "what comes to mind when you think about
+ * online safety?" is answered with lists of the very words the crisis
+ * patterns look for ("bullying, harassment, grooming"), definitions
+ * ("safeguarding means protecting children from abuse") and
+ * hypotheticals ("what to do if you're being bullied"). Nine of nine
+ * live flags were topic vocabulary, including "being well groomed"
+ * meaning hygiene (founder, 2026-10-26). A reflection flag therefore
+ * demands a PERSONAL disclosure: first-person voice somewhere in the
+ * answer, and the matched phrase not sitting in definitional,
+ * hypothetical or third-person framing. The coach's crisisHeuristic
+ * is untouched - chat messages are already personal speech. */
+const FIRST_PERSON = /\b(?:i|i'm|im|i've|ive|i'd|me|my|myself|mine)\b/i;
+const IMPERSONAL_FRAMING =
+  /(?:\bif\b|\bwhen\b|\bwhat to do\b|\bmeans\b|\bis when\b|\bincludes?\b|\bsuch as\b|\blike\b|\brisks?\b|\bcase stud(?:y|ies)\b|\btopics?\b|\bfor example\b|\bpeople who\b|\bsomeone\b|\bsomebody\b|\ba child\b|\bchildren\b|\byoung people\b|\bothers\b|\btalk(?:s|ing)? (?:more )?(?:about|over)\b|\bresources? for\b|\bmodule\b|\blearn(?:ed|t)? about\b|\barticles?\b)[^.!?]*$/i;
+
+export function reflectionDisclosureHeuristic(message: string): boolean {
+  if (!FIRST_PERSON.test(message)) return false;
+  /* "Well groomed" is personal hygiene, never the crisis sense - test
+   * the grooming patterns against the message with that phrase gone. */
+  const degroomed = message.replace(/\bwell[- ]groomed\b/gi, "presentable");
+  for (const re of [...CRISIS_PATTERNS, ...SAFEGUARDING_EXTRA_PATTERNS]) {
+    const m = re.exec(degroomed);
+    if (!m) continue;
+    /* A pattern that itself names the learner ("touching ME", "checks
+     * MY phone") is personal whatever precedes it - "someone at work
+     * keeps touching me" must flag even though "someone" leads. The
+     * framing gate is for topic-word patterns (grooming, abuse,
+     * bullied), which fire inside definitions and hypotheticals. */
+    const selfAnchored = /\bm[ey]\b|myself|\bi\b|\bus\b/i.test(re.source);
+    if (!selfAnchored) {
+      const before = degroomed.slice(Math.max(0, m.index - 48), m.index);
+      if (IMPERSONAL_FRAMING.test(before)) continue;
+      /* A comma chain right before the match is a list of terms
+       * ("bullying, harassment, grooming...") - naming topics, not
+       * living them. */
+      if (/(?:[\w'’ -]+,\s*){2,}$/.test(before)) continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 /* Output gate — a model reply must never leak the prompt scaffolding
  * or run away in length. Returns the cleaned reply, or null when the
  * reply is unsafe to show (caller serves the authored fallback).

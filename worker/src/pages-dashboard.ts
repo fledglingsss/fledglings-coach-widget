@@ -343,8 +343,22 @@ out+="<div class='hb'><span class='hb-l' title='"+esc2(r.l)+"'>"+esc2(r.l)+"</sp
 "<div class='hb-t' role='img' aria-label='"+esc2(r.l)+": "+esc2(r.r!==undefined?r.r:r.v)+"'><i style='width:"+pct+"%;background:"+(r.c||'#13507F')+"'></i></div>"+
 "<span class='hb-v' aria-hidden='true'>"+esc2(r.r!==undefined?r.r:r.v)+"</span></div>";});
 return out+"</div>";}
+/* A label must FIT its bar slot - two long cohort names side by side
+ * drew on top of each other and read as soup (founder screenshot,
+ * 2026-10-26). Too-long labels abbreviate their leading words to
+ * initials, keeping the distinguishing tail ("Swift Learners (09/26)"
+ * becomes "SL (09/26)"); the full name stays as the hover title. */
+function fitLabel(label,maxChars){
+if(!label||label.length<=maxChars)return label||'';
+var words=String(label).split(' ').filter(function(w){return /[a-z0-9]/i.test(w)});
+if(words.length>1){
+var abbrev=words.slice(0,-1).map(function(w){return (w[0]||'').toUpperCase()}).join('')+' '+words[words.length-1];
+if(abbrev.length<=maxChars)return abbrev;
+label=abbrev;}
+return label.slice(0,Math.max(2,maxChars-1))+'…';}
 function colChart(vals,labels,color){var n=vals.length;if(!n)return '';
 var W=Math.max(300,n*34),H=140,base=112,maxH=92;var max=Math.max.apply(null,vals.concat([1]));
+var slotChars=Math.max(5,Math.floor((W/n)/5.4));
 var desc=labels.map(function(l,i){return l+': '+vals[i]}).join(', ');
 var s="<svg viewBox='0 0 "+W+" "+H+"' class='colchart' role='img' aria-label='"+esc2(desc)+"'>";
 s+="<line x1='0' y1='"+base+"' x2='"+W+"' y2='"+base+"' stroke='#E3DDDA' stroke-width='2'/>";
@@ -355,7 +369,8 @@ if(v>0){var h=Math.max(3,(v/max)*maxH);var y=base-h;
 s+="<rect x='"+x+"' y='"+y+"' width='"+bw+"' height='"+h+"' rx='4' fill='"+c+"'/>";
 s+="<text x='"+(x+bw/2)+"' y='"+(y-5)+"' text-anchor='middle' font-size='10' font-weight='700' fill='#68788A'>"+v+"</text>";}
 else{s+="<text x='"+(x+bw/2)+"' y='"+(base-6)+"' text-anchor='middle' font-size='10' fill='#7C7573'>0</text>";}
-s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#6D777F'>"+esc2(labels[i]||'')+"</text>";});
+s+="<text x='"+(x+bw/2)+"' y='"+(base+16)+"' text-anchor='middle' font-size='9' fill='#6D777F'>"+
+"<title>"+esc2(labels[i]||'')+"</title>"+esc2(fitLabel(labels[i]||'',slotChars))+"</text>";});
 return s+"</svg>";}
 /* ---------- renders ---------- */
 function scoped(withSearch){var rows=DATA.learners;

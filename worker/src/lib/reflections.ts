@@ -10,7 +10,7 @@
  * answers surface ONLY as safeguarding flags (minimum necessary to act)
  * behind the provider access code, tag-scoped. */
 
-import { safeguardingHeuristic } from "./safety";
+import { reflectionDisclosureHeuristic } from "./safety";
 
 /* ---------------- shapes ---------------- */
 
@@ -122,7 +122,7 @@ export function scanForSafeguarding(
   for (const a of response.answers) {
     if (a.answer.length < 12) continue; // ratings/choices, not prose
     if (/^[\d\s./-]+$/.test(a.answer)) continue;
-    if (safeguardingHeuristic(a.answer)) {
+    if (reflectionDisclosureHeuristic(a.answer)) {
       flags.push({
         email: response.email,
         courseTitle: unit.courseTitle,
@@ -318,7 +318,9 @@ export interface RawReflectionRow {
   answer: string;
 }
 
-export const SAFEGUARD_SCAN_VERSION = 2;
+/* 3: flags demand a first-person disclosure - topic vocabulary in
+ * answers ABOUT safeguarding modules no longer fires (2026-10-26). */
+export const SAFEGUARD_SCAN_VERSION = 3;
 export const RAW_ANSWER_MAX_CHARS = 600;
 export const RAW_ROWS_MAX = 20000;
 

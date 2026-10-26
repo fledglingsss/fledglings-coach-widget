@@ -40,7 +40,7 @@ import {
   NO_LONG_DASH_RULE,
   plainDashes,
   plainDashesDeep,
-  safeguardingHeuristic,
+  reflectionDisclosureHeuristic,
   sanitiseText,
 } from "./lib/safety";
 import {
@@ -5389,6 +5389,12 @@ const SCAN_SELF_TEST: Array<{ id: string; answer: string; expect: "flag" | "clea
   { id: "carer-strain", answer: "I'm a carer for my mum and some days I just can't cope", expect: "flag" },
   { id: "housing", answer: "I can't concentrate because we might be evicted next month", expect: "flag" },
   { id: "topic-mention", answer: "the module taught me how to spot abuse online and report it properly", expect: "clear" },
+  /* Real false positives from live reflections, 2026-10-26: topic
+   * vocabulary in answers ABOUT the module, never about the learner. */
+  { id: "topic-keyword-list", answer: "Bullying, harassment, grooming and stranger danger I think", expect: "clear" },
+  { id: "topic-definition", answer: "I think safeguarding means protecting children from harm like physical and sexual abuse and neglect", expect: "clear" },
+  { id: "topic-hypothetical", answer: "more information on what to do if you're being bullied online would help me", expect: "clear" },
+  { id: "hygiene-groomed", answer: "being professional to me means showing up on time and being well groomed", expect: "clear" },
   { id: "grumble", answer: "this module was a bit boring and too long for me", expect: "clear" },
   { id: "positive", answer: "I feel much more confident about spotting scams now", expect: "clear" },
   { id: "mild-difficulty", answer: "budgeting is hard but I am getting better at it every week", expect: "clear" },
@@ -5402,7 +5408,7 @@ app.get("/ops/scan-test", async (c) => {
     const cases = SCAN_SELF_TEST.map((t, i) => ({
       ...t,
       email: `case-${i + 1}@self.test`,
-      deterministic: safeguardingHeuristic(t.answer),
+      deterministic: reflectionDisclosureHeuristic(t.answer),
     }));
     const raw = await generate(
       c.env.ANTHROPIC_API_KEY,
