@@ -5388,6 +5388,11 @@ const SCAN_SELF_TEST: Array<{ id: string; answer: string; expect: "flag" | "clea
   { id: "exploitation", answer: "a man online offered me money for pictures of myself", expect: "flag" },
   { id: "carer-strain", answer: "I'm a carer for my mum and some days I just can't cope", expect: "flag" },
   { id: "housing", answer: "I can't concentrate because we might be evicted next month", expect: "flag" },
+  /* Recall boundary cases, 2026-10-27: stated experiences must flag
+   * even when past tense or about a specific person the learner
+   * knows - the first strict rubric dropped both of these shapes. */
+  { id: "past-bullying", answer: "people from school when I went there kept posting about me and I was getting bullied", expect: "flag" },
+  { id: "friend-harmed", answer: "my best friend had her private pictures shared around by an ex last year and it still upsets me", expect: "flag" },
   { id: "topic-mention", answer: "the module taught me how to spot abuse online and report it properly", expect: "clear" },
   /* Real false positives from live reflections, 2026-10-26: topic
    * vocabulary in answers ABOUT the module, never about the learner. */
