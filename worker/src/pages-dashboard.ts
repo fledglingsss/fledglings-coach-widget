@@ -103,7 +103,8 @@ export function renderDashboardPage(): string {
      * decision, so there is no breakpoint logic in JS and rotating the
      * handset needs no re-render. */
     "<div class='scards' id='s-cards'></div>" +
-    "<div class='dempty' id='s-empty' hidden>No learners match.</div></div></div>" +
+    "<div class='dempty' id='s-empty' hidden>No learners match.</div>" +
+    "<div class='dmore' id='s-more'></div></div></div>" +
     "</section>" +
 
     /* ---------- learner profile: the central record for one learner ---------- */
@@ -165,6 +166,7 @@ export function renderDashboardPage(): string {
     "<thead><tr><th scope='col'>Learner</th><th scope='col'>Knowledge check</th><th scope='col'>Score</th><th scope='col'>Attempts</th><th scope='col'>Last tried</th><th scope='col'></th></tr></thead>" +
     "<tbody id='rf-scores'></tbody></table></div>" +
     "<div class='dempty' id='rf-scores-empty' hidden></div>" +
+    "<div class='dmore' id='rf-scores-more'></div>" +
     "<h2 style='margin-top:22px'>Average by check <span class='dmut' style='font-weight:500'>latest attempt per learner - hardest first</span></h2>" +
     "<div id='rf-score-units'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
@@ -467,6 +469,17 @@ if(isInactive(r))return "<span class='dtag warn'>Inactive</span>";
 return tierChipFor(r.engagement);}
 function lastInFor(en){if(!en||en.daysSinceLogin===null)return 'Never logged in';
 return en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';}
+/* Long lists open on their top slice with a Show-more control - a
+ * register, not a wall (founder, 2026-10-28). Each list keeps its own
+ * shown-count, reset whenever its filters change so a new filter
+ * always starts from the top. */
+function renderMore(id,total,shown,step,bump){var el=$(id);if(!el)return;
+if(total<=shown){el.innerHTML=total>step?"<span class='dmut'>Showing all "+total+"</span>":'';return;}
+el.innerHTML="<button type='button' class='dbtn ghost sm' data-m='step'>Show "+Math.min(step,total-shown)+" more</button>"+
+"<button type='button' class='dbtn ghost sm' data-m='all'>Show all "+total+"</button>"+
+"<span class='dmut'>showing "+shown+" of "+total+"</span>";
+el.querySelectorAll('button').forEach(function(b){b.onclick=function(){bump(b.dataset.m==='all')}});}
+
 /* Status filter over the student list: engaged / watch / inactive.
  * Each chip mirrors the Status column exactly - a filtered list must
  * never show a status that contradicts the chip (watch covers every
@@ -474,6 +487,7 @@ return en.daysSinceLogin===0?'Today':en.daysSinceLogin+'d ago';}
  * appear under All only). The stat strip stays whole-scope so the
  * counts remain the truth about everyone. */
 var stuFilter='all';
+var stuShown=25,stuSig='';
 function stuRows(rows){
 if(stuFilter==='engaged')return rows.filter(function(r){return r.engagement.tier==='ok'&&!isInactive(r)});
 if(stuFilter==='watch')return rows.filter(function(r){
@@ -495,6 +509,12 @@ $('s-empty').hidden=rows.length>0;
 document.querySelectorAll('#s-chips .chip').forEach(function(ch){
 ch.classList.toggle('on',ch.dataset.stu===stuFilter);
 ch.setAttribute('aria-pressed',ch.dataset.stu===stuFilter?'true':'false');});
+var stuSigNow=stuFilter+'|'+search+'|'+(cohortFilter||'');
+if(stuSigNow!==stuSig){stuSig=stuSigNow;stuShown=25;}
+var stuTotal=rows.length;
+var visible=rows.slice(0,stuShown);
+renderMore('s-more',stuTotal,visible.length,25,function(all){stuShown=all?stuTotal:stuShown+25;renderStudents();});
+rows=visible;
 $('s-body').innerHTML=rows.map(function(r){var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
 return "<tr data-drill='"+esc2(r.email)+"' class='rowlink'><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"</span></td>"+
@@ -726,6 +746,7 @@ else{$('rf-loading').innerHTML="<div class='dempty'>Could not load reflections -
 .catch(function(){refLoading=false;
 $('rf-loading').innerHTML="<div class='dempty'>Could not reach the reflections service.</div>";});}
 var scoreUnitFilter=null;
+var scoreShown=12,scoreSig='';
 var rfDeckIdx=null;
 function renderReflections(){var d=REF;if(!d)return;
 $('rf-loading').hidden=true;
@@ -839,6 +860,11 @@ document.querySelectorAll('#rf-score-chips .chip').forEach(function(ch){
 ch.setAttribute('aria-pressed',ch.classList.contains('on')?'true':'false');
 ch.onclick=function(){scoreUnitFilter=ch.dataset.su||null;renderReflections();};});
 var azShown=scoreUnitFilter?azAll.filter(function(r){return r.unitTitle===scoreUnitFilter}):azAll;
+var scoreSigNow=(scoreUnitFilter||'')+'|'+(cohortFilter||'');
+if(scoreSigNow!==scoreSig){scoreSig=scoreSigNow;scoreShown=12;}
+var azTotal=azShown.length;
+renderMore('rf-scores-more',azTotal,Math.min(scoreShown,azTotal),12,function(all){scoreShown=all?azTotal:scoreShown+12;renderReflections();});
+azShown=azShown.slice(0,scoreShown);
 $('rf-scores').innerHTML=azShown.map(function(r){
 var inRows=DATA&&DATA.learners.some(function(x){return x.email===r.email});
 var col=r.pct<40?'#B93A22':'#9A5812';
@@ -1309,6 +1335,7 @@ body{background:var(--canvas);color:var(--navy);min-height:100vh;display:flex;}
 .dtag.warn{background:#FBEAE6;color:var(--orange-deep);white-space:nowrap;}
 .dlink{border:none;background:none;color:var(--blue);font-family:inherit;font-size:12.5px;font-weight:700;
   cursor:pointer;text-decoration:underline;padding:5px 2px;min-height:24px;}
+.dmore{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:14px;font-size:12.5px;}
 .dempty{color:var(--mut);font-size:13.5px;padding:16px 4px;overflow-wrap:anywhere;}
 .cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
 .modscroll{max-height:330px;overflow-y:auto;padding-right:6px;}
