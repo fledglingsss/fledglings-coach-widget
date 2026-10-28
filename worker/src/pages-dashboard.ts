@@ -726,6 +726,7 @@ else{$('rf-loading').innerHTML="<div class='dempty'>Could not load reflections -
 .catch(function(){refLoading=false;
 $('rf-loading').innerHTML="<div class='dempty'>Could not reach the reflections service.</div>";});}
 var scoreUnitFilter=null;
+var rfDeckIdx=null;
 function renderReflections(){var d=REF;if(!d)return;
 $('rf-loading').hidden=true;
 var gated=d.responsesEnabled===false;
@@ -866,14 +867,16 @@ return "<tr><td class='dmut'>"+esc2(r.email)+"</td><td>"+esc2(r.courseTitle)+"</
 /* flickable sections - wellbeing is always first and always opens
  * first, flags or no flags */
 var rfSecs=Array.prototype.slice.call(document.querySelectorAll('.rf-sec'));
-function rfShow(i){rfSecs.forEach(function(c,j){c.hidden=j!==i});
+function rfShow(i){rfDeckIdx=i;rfSecs.forEach(function(c,j){c.hidden=j!==i});
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,j){ch.classList.toggle('on',j===i);
 ch.setAttribute('aria-pressed',j===i?'true':'false');});}
 $('rf-deck-chips').innerHTML=rfSecs.map(function(s){
 var lbl=s.dataset.rfl;if(s.id==='rf-flags-card'&&flags.length)lbl+=' ('+flags.length+')';
 return "<button type='button' class='chip' aria-pressed='false'>"+esc2(lbl)+"</button>"}).join('');
 document.querySelectorAll('#rf-deck-chips .chip').forEach(function(ch,i){ch.onclick=function(){rfShow(i)}});
-rfShow(rfSecs.indexOf($('rf-flags-card')));
+/* Re-renders (a filter chip, an ack) keep the section the tutor is
+ * in - only a fresh visit opens on Wellbeing. */
+rfShow(rfDeckIdx===null?rfSecs.indexOf($('rf-flags-card')):rfDeckIdx);
 loadScan();}
 /* ---------- richer instruments: radar, donut, recency area ---------- */
 var RADAR_PALETTE=['#13507F','#D9452B','#1B7A4B','#ED9249','#7C5CBF'];
