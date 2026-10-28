@@ -160,7 +160,11 @@ export function renderDashboardPage(): string {
     "<div class='dcard rf-sec' data-rfl='📝 Test scores' id='rf-scores-card' hidden>" +
     "<h2>📝 Knowledge-check scores <span class='dtag' id='rf-scores-count'></span></h2>" +
     "<p class='dmut' id='rf-scores-note' style='font-size:12.5px'></p>" +
-    "<div id='rf-scores'></div>" +
+    "<div class='chips' id='rf-score-chips' style='margin:10px 0'></div>" +
+    "<div class='dtablewrap'><table class='dtable' aria-label='Learners scoring low on knowledge checks'>" +
+    "<thead><tr><th scope='col'>Learner</th><th scope='col'>Knowledge check</th><th scope='col'>Score</th><th scope='col'>Attempts</th><th scope='col'>Last tried</th><th scope='col'></th></tr></thead>" +
+    "<tbody id='rf-scores'></tbody></table></div>" +
+    "<div class='dempty' id='rf-scores-empty' hidden></div>" +
     "<h2 style='margin-top:22px'>Average by check <span class='dmut' style='font-weight:500'>latest attempt per learner - hardest first</span></h2>" +
     "<div id='rf-score-units'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
@@ -721,6 +725,7 @@ if(d.status==='building'&&d.responsesEnabled!==false){setTimeout(function(){REF=
 else{$('rf-loading').innerHTML="<div class='dempty'>Could not load reflections - refresh to retry.</div>";}})
 .catch(function(){refLoading=false;
 $('rf-loading').innerHTML="<div class='dempty'>Could not reach the reflections service.</div>";});}
+var scoreUnitFilter=null;
 function renderReflections(){var d=REF;if(!d)return;
 $('rf-loading').hidden=true;
 var gated=d.responsesEnabled===false;
@@ -812,24 +817,39 @@ return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
 "<span class='dmut'>"+s.preCount+" before · "+s.postCount+" after</span></div>";}).join('')
 :"<div class='dempty'>No scored reflections read yet.</div>";
-/* ---------- knowledge-check scores ---------- */
+/* ---------- knowledge-check scores: chips + one dense table, not a
+ * wall of cards (founder, 2026-10-28) ---------- */
 var az=d.assessments||{flagged:[],units:[],thresholdPct:60};
 var azAll=(az.flagged||[]).filter(function(r){return inCohortEmail(r.email)});
 $('rf-scores-card').hidden=false;
 $('rf-scores-count').className='dtag'+(azAll.length?' warn':'');
 $('rf-scores-count').textContent=azAll.length?azAll.length+' under '+az.thresholdPct+'%':'all clear';
 $('rf-scores-note').textContent=(az.units&&az.units.length)
-?'Every knowledge-check attempt is marked out of its own total; a learner is listed when their latest attempt scores under '+az.thresholdPct+'%. Resits replace earlier scores.'
+?'A learner is listed when their latest attempt scores under '+az.thresholdPct+'% - resits replace earlier scores. Pick a check to narrow the list.'
 :'Scores appear here once learners take the knowledge checks inside the modules.';
-$('rf-scores').innerHTML=azAll.length?azAll.map(function(r){
+var azByUnit={};azAll.forEach(function(r){azByUnit[r.unitTitle]=(azByUnit[r.unitTitle]||0)+1});
+var azUnits=Object.keys(azByUnit).sort(function(a,b){return azByUnit[b]-azByUnit[a]});
+if(scoreUnitFilter&&!azByUnit[scoreUnitFilter])scoreUnitFilter=null;
+$('rf-score-chips').innerHTML=azUnits.length<2?'':[
+"<button type='button' class='chip"+(scoreUnitFilter?'':' on')+"' data-su=''>All ("+azAll.length+")</button>"
+].concat(azUnits.map(function(u){
+return "<button type='button' class='chip"+(scoreUnitFilter===u?' on':'')+"' data-su='"+esc2(u)+"'>"+esc2(u)+" ("+azByUnit[u]+")</button>";})).join('');
+document.querySelectorAll('#rf-score-chips .chip').forEach(function(ch){
+ch.setAttribute('aria-pressed',ch.classList.contains('on')?'true':'false');
+ch.onclick=function(){scoreUnitFilter=ch.dataset.su||null;renderReflections();};});
+var azShown=scoreUnitFilter?azAll.filter(function(r){return r.unitTitle===scoreUnitFilter}):azAll;
+$('rf-scores').innerHTML=azShown.map(function(r){
 var inRows=DATA&&DATA.learners.some(function(x){return x.email===r.email});
 var col=r.pct<40?'#B93A22':'#9A5812';
-return "<div class='rf-flag'><b>"+esc2(r.email)+"</b> · "+esc2(r.courseTitle)+" · "+esc2(r.unitTitle)+
-"<div class='rf-acts'><span class='dtag warn' style='background:"+col+";color:#fff'>"+r.pct+"% ("+r.got+"/"+r.max+")</span>"+
-"<span class='dmut'>"+(r.attempts>1?r.attempts+' attempts':'1 attempt')+(r.submittedAt?" · "+new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span>"+
-(inRows?"<button type='button' class='dlink' data-drill='"+esc2(r.email)+"'>View student →</button>":'')+
-"</div></div>";}).join('')
-:((az.units&&az.units.length)?"<div class='dempty'>✅ Nobody's latest attempt is under "+az.thresholdPct+"% - nothing to flag.</div>":"<div class='dempty'>No knowledge-check attempts on record yet.</div>");
+return "<tr"+(inRows?" data-drill='"+esc2(r.email)+"' class='rowlink'":'')+">"+
+"<td><b>"+esc2(r.email)+"</b></td>"+
+"<td><span class='dmut'>"+esc2(r.courseTitle)+"</span><br>"+esc2(r.unitTitle)+"</td>"+
+"<td><span class='ms' style='color:"+col+";font-weight:800'>"+r.pct+"%</span> <span class='dmut'>"+r.got+"/"+r.max+"</span></td>"+
+"<td>"+r.attempts+"</td>"+
+"<td class='dmut'>"+(r.submittedAt?new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):' - ')+"</td>"+
+"<td>"+(inRows?"<button type='button' class='dlink' data-drill='"+esc2(r.email)+"'>View →</button>":'')+"</td></tr>";}).join('');
+$('rf-scores-empty').hidden=azShown.length>0;
+$('rf-scores-empty').textContent=(az.units&&az.units.length)?"✅ Nobody's latest attempt is under "+az.thresholdPct+"% - nothing to flag.":"No knowledge-check attempts on record yet.";
 $('rf-score-units').innerHTML=(az.units&&az.units.length)?hbar(az.units.slice(0,12).map(function(u){
 return {l:u.courseTitle+' - '+u.unitTitle,v:u.avgPct,r:u.avgPct+'% ('+u.learners+')',c:u.avgPct<60?'#B93A22':u.avgPct<75?'#ED9249':'#1A7649'};}),100)
 :"<div class='dempty'>Averages appear with the first attempts.</div>";
