@@ -10,6 +10,9 @@ import {
   rawRows,
   scanForSafeguarding,
   scanWeekStamp,
+  scoreOf,
+  lowScoreRows,
+  unitScoreAverages,
   type AssessmentUnit,
   type ReflectionResponse,
 } from "../src/lib/reflections";
@@ -260,5 +263,52 @@ describe("scanWeekStamp - the Monday-morning deep-read cadence", () => {
   it("rolls over exactly at Monday 06:00 UTC, when the warm cron fires", () => {
     expect(scanWeekStamp(new Date("2026-09-28T05:59:59Z"))).toBe("2026-09-21");
     expect(scanWeekStamp(new Date("2026-09-28T06:00:01Z"))).toBe("2026-09-28");
+  });
+});
+
+describe("knowledge-check scores", () => {
+  it("sums marked answers and ignores unmarked forms", () => {
+    const marked: ReflectionResponse = {
+      userId: "u1", email: "amy@swift.test", submittedAt: 100,
+      answers: [
+        { question: "Q1", answer: "A", points: 2, maxPoints: 2 },
+        { question: "Q2", answer: "B", points: 0, maxPoints: 3 },
+        { question: "open text", answer: "thoughts", points: null, maxPoints: null },
+      ],
+    };
+    expect(scoreOf(marked)).toEqual({ got: 2, max: 5 });
+    const form: ReflectionResponse = {
+      userId: "u1", email: "amy@swift.test", submittedAt: 100,
+      answers: [{ question: "feedback", answer: "great", points: null, maxPoints: null }],
+    };
+    expect(scoreOf(form)).toBeNull();
+  });
+
+  it("flags the LATEST attempt under the threshold, weakest first, counting resits", () => {
+    const scores = [
+      { email: "a@t", courseTitle: "C", unitTitle: "Check", submittedAt: 100, got: 2, max: 10 },
+      { email: "a@t", courseTitle: "C", unitTitle: "Check", submittedAt: 200, got: 5, max: 10 },
+      { email: "b@t", courseTitle: "C", unitTitle: "Check", submittedAt: 150, got: 3, max: 10 },
+      { email: "c@t", courseTitle: "C", unitTitle: "Check", submittedAt: 150, got: 9, max: 10 },
+    ];
+    const rows = lowScoreRows(scores, 60);
+    /* a@t resat and improved to 50 - still under, shown with 2
+     * attempts; c@t passed and never appears. */
+    expect(rows.map((r) => [r.email, r.pct, r.attempts])).toEqual([
+      ["b@t", 30, 1],
+      ["a@t", 50, 2],
+    ]);
+  });
+
+  it("averages each check over latest attempts, hardest first", () => {
+    const scores = [
+      { email: "a@t", courseTitle: "C", unitTitle: "Easy", submittedAt: 1, got: 9, max: 10 },
+      { email: "b@t", courseTitle: "C", unitTitle: "Easy", submittedAt: 1, got: 7, max: 10 },
+      { email: "a@t", courseTitle: "C", unitTitle: "Hard", submittedAt: 1, got: 2, max: 10 },
+    ];
+    expect(unitScoreAverages(scores)).toEqual([
+      { courseTitle: "C", unitTitle: "Hard", avgPct: 20, learners: 1 },
+      { courseTitle: "C", unitTitle: "Easy", avgPct: 80, learners: 2 },
+    ]);
   });
 });

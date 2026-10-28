@@ -98,7 +98,12 @@ import {
   scanForSafeguarding,
   answerScore,
   scanWeekStamp,
+  scoreOf,
+  SCORES_MAX,
+  lowScoreRows,
+  unitScoreAverages,
   shiftsFromRows,
+  type AssessmentScore,
   type RawReflectionRow,
   type ReflectionResponse,
   type ReflectionsState,
@@ -2542,6 +2547,7 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
      * catalogue discovery - serve them, but rebuild promptly. */
     main.learnerEmails !== undefined &&
     main.courseList !== undefined &&
+    main.assessmentScores !== undefined &&
     main.patternsVersion === SAFEGUARD_SCAN_VERSION &&
     now.getTime() - new Date(main.builtAt).getTime() <= REFLECT_MAX_AGE_MS;
   if (mainFresh) return main!;
@@ -2627,11 +2633,41 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
        * its failed attempt already pushed into the shared state. */
       const courseRows: RawReflectionRow[] = [];
       const courseFlags: SafeguardingFlag[] = [];
+      const courseScores: AssessmentScore[] = [];
       for (const u of units) {
         if (state.responsesEnabled === false) break;
         if (u.type !== "assessmentV2") continue;
         const kind = classifyUnit(u.title);
-        if (kind === "other") continue;
+        if (kind === "other") {
+          /* Knowledge checks and quizzes: capture SCORES only - their
+           * answers are test content, never reflections, so they stay
+           * out of the verbatim rows, the flags and the CSV. */
+          let sPage = 1;
+          for (;;) {
+            calls++;
+            const res = await getAssessmentResponses(env, u.id, sPage);
+            if (res === null) break; // plan gating is handled on the reflection units
+            for (const raw of res.rows) {
+              const parsed = parseResponse(raw);
+              if (!parsed) continue;
+              if (learnerSet.size > 0 && (!parsed.email || !learnerSet.has(parsed.email))) continue;
+              const score = scoreOf(parsed);
+              if (score) {
+                courseScores.push({
+                  email: parsed.email,
+                  courseTitle,
+                  unitTitle: u.title,
+                  submittedAt: parsed.submittedAt,
+                  got: score.got,
+                  max: score.max,
+                });
+              }
+            }
+            if (sPage >= res.totalPages || sPage >= 15) break;
+            sPage++;
+          }
+          continue;
+        }
         const assessmentUnit = {
           courseId,
           courseTitle,
@@ -2680,6 +2716,11 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
         state.responses.push(row);
       }
       state.flags.push(...courseFlags);
+      state.assessmentScores = state.assessmentScores ?? [];
+      for (const sc of courseScores) {
+        if (state.assessmentScores.length >= SCORES_MAX) break;
+        state.assessmentScores.push(sc);
+      }
       /* Coverage is recorded ONLY once the whole course, responses
        * included, has been read - recording it before the responses
        * loop let a transient responses failure mark a course covered
@@ -2718,6 +2759,10 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
           if (bucket && row.email && !bucket.includes(row.email)) bucket.push(row.email);
         }
         state.flags.push(...main.flags.filter((f) => f.courseTitle === courseTitle));
+        state.assessmentScores = state.assessmentScores ?? [];
+        state.assessmentScores.push(
+          ...(main.assessmentScores ?? []).filter((s) => s.courseTitle === courseTitle),
+        );
         const oldShift = main.shifts.find((s) => s.courseId === courseId);
         if (oldShift) state.shifts.push(oldShift);
         const oldCoverage = main.coverage.find((cv) => cv.courseId === courseId);
@@ -2840,6 +2885,19 @@ app.get("/portal/reflections", async (c) => {
         requests: improvementRequests(recent),
         requestsTotal: countImprovementRequests(recent),
       },
+      /* Knowledge-check standings, scoped like everything else. The
+       * threshold lives server-side so every surface agrees on what
+       * "low" means. */
+      assessments: (() => {
+        const scores = access.tag
+          ? (state.assessmentScores ?? []).filter((s) => inScope(tagsOf(s.email), access.tag))
+          : (state.assessmentScores ?? []);
+        return {
+          thresholdPct: 60,
+          flagged: lowScoreRows(scores, 60).slice(0, 60),
+          units: unitScoreAverages(scores),
+        };
+      })(),
       scoped: access.tag,
       builtAt: state.builtAt,
     });

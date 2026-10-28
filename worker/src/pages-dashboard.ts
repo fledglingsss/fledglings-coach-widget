@@ -156,6 +156,13 @@ export function renderDashboardPage(): string {
     "<div id='rf-scan'><div class='dempty'>Reading the written answers…</div></div></div>" +
     "<div class='dcard rf-sec' data-rfl='📊 Confidence shifts' id='rf-shifts-card'><h2>Confidence shift by module <span class='dmut' style='font-weight:500'>bar = after · ▏marker = before · grey only = awaiting after-module answers</span></h2>" +
     "<div id='rf-shifts'></div></div>" +
+    /* ---------- knowledge-check scores ---------- */
+    "<div class='dcard rf-sec' data-rfl='📝 Test scores' id='rf-scores-card' hidden>" +
+    "<h2>📝 Knowledge-check scores <span class='dtag' id='rf-scores-count'></span></h2>" +
+    "<p class='dmut' id='rf-scores-note' style='font-size:12.5px'></p>" +
+    "<div id='rf-scores'></div>" +
+    "<h2 style='margin-top:22px'>Average by check <span class='dmut' style='font-weight:500'>latest attempt per learner - hardest first</span></h2>" +
+    "<div id='rf-score-units'></div></div>" +
     "<div class='dcard rf-sec' data-rfl='🗣 In their words' id='rf-voice-card' hidden>" +
     "<h2>How learners describe the modules <span class='dmut' style='font-weight:500'>their own words, counted - spellings of one word grouped together</span></h2>" +
     "<div id='rf-words'></div>" +
@@ -805,6 +812,28 @@ return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
 "<span class='dmut'>"+s.preCount+" before · "+s.postCount+" after</span></div>";}).join('')
 :"<div class='dempty'>No scored reflections read yet.</div>";
+/* ---------- knowledge-check scores ---------- */
+var az=d.assessments||{flagged:[],units:[],thresholdPct:60};
+var azAll=(az.flagged||[]).filter(function(r){return inCohortEmail(r.email)});
+$('rf-scores-card').hidden=false;
+$('rf-scores-count').className='dtag'+(azAll.length?' warn':'');
+$('rf-scores-count').textContent=azAll.length?azAll.length+' under '+az.thresholdPct+'%':'all clear';
+$('rf-scores-note').textContent=(az.units&&az.units.length)
+?'Every knowledge-check attempt is marked out of its own total; a learner is listed when their latest attempt scores under '+az.thresholdPct+'%. Resits replace earlier scores.'
+:'Scores appear here once learners take the knowledge checks inside the modules.';
+$('rf-scores').innerHTML=azAll.length?azAll.map(function(r){
+var inRows=DATA&&DATA.learners.some(function(x){return x.email===r.email});
+var col=r.pct<40?'#B93A22':'#9A5812';
+return "<div class='rf-flag'><b>"+esc2(r.email)+"</b> · "+esc2(r.courseTitle)+" · "+esc2(r.unitTitle)+
+"<div class='rf-acts'><span class='dtag warn' style='background:"+col+";color:#fff'>"+r.pct+"% ("+r.got+"/"+r.max+")</span>"+
+"<span class='dmut'>"+(r.attempts>1?r.attempts+' attempts':'1 attempt')+(r.submittedAt?" · "+new Date(r.submittedAt*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'')+"</span>"+
+(inRows?"<button type='button' class='dlink' data-drill='"+esc2(r.email)+"'>View student →</button>":'')+
+"</div></div>";}).join('')
+:((az.units&&az.units.length)?"<div class='dempty'>✅ Nobody's latest attempt is under "+az.thresholdPct+"% - nothing to flag.</div>":"<div class='dempty'>No knowledge-check attempts on record yet.</div>");
+$('rf-score-units').innerHTML=(az.units&&az.units.length)?hbar(az.units.slice(0,12).map(function(u){
+return {l:u.courseTitle+' - '+u.unitTitle,v:u.avgPct,r:u.avgPct+'% ('+u.learners+')',c:u.avgPct<60?'#B93A22':u.avgPct<75?'#ED9249':'#1A7649'};}),100)
+:"<div class='dempty'>Averages appear with the first attempts.</div>";
+wireDrills();
 /* A sample only - the full record is the Excel download, per the
  * founder: browse a taste here, download everything. */
 var recent=(d.recent||[]).filter(function(rr){return inCohortEmail(rr.email)}).slice(0,10);

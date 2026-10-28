@@ -375,6 +375,9 @@ export interface ReflectionsState {
   /** Every question/answer pair, verbatim, capped at RAW_ROWS_MAX —
    * the raw-data layer under the aggregate charts. */
   responses: RawReflectionRow[];
+  /** Scored knowledge-check attempts (the "other" assessment units).
+   * Absent on older snapshots, which marks them due for a rebuild. */
+  assessmentScores?: AssessmentScore[];
   /** email (lowercased) -> LearnWorlds tags, captured in the same
    * sweep so cohort scoping never depends on another cache. */
   userTags: Record<string, string[]>;
@@ -409,6 +412,7 @@ export function emptyState(totalCourses: number, now: Date): ReflectionsState {
     shifts: [],
     flags: [],
     responses: [],
+    assessmentScores: [],
     userTags: {},
     learnerEmails: [],
     attempts: {},
@@ -417,4 +421,101 @@ export function emptyState(totalCourses: number, now: Date): ReflectionsState {
     postRespondents: [],
     builtAt: now.toISOString(),
   };
+}
+
+/* ---------------- knowledge-check scores ---------------- */
+
+/** One scored attempt at a knowledge-check unit (the "other"
+ * assessments - tests and quizzes, never the self-reflections). */
+export interface AssessmentScore {
+  email: string;
+  courseTitle: string;
+  unitTitle: string;
+  submittedAt: number | null;
+  got: number;
+  max: number;
+}
+
+export const SCORES_MAX = 30000;
+
+/** Sum a response's marked answers into one score; null when the
+ * unit carries no marks (a feedback form, not a test). */
+export function scoreOf(response: ReflectionResponse): { got: number; max: number } | null {
+  let got = 0;
+  let max = 0;
+  for (const a of response.answers) {
+    if (typeof a.maxPoints === "number" && a.maxPoints > 0) {
+      max += a.maxPoints;
+      got += typeof a.points === "number" ? a.points : 0;
+    }
+  }
+  return max > 0 ? { got, max } : null;
+}
+
+export interface LowScoreRow {
+  email: string;
+  courseTitle: string;
+  unitTitle: string;
+  pct: number;
+  got: number;
+  max: number;
+  attempts: number;
+  submittedAt: number | null;
+}
+
+/** A learner's standing on each test: their LATEST attempt (what they
+ * know now), with the attempt count so a tutor sees persistence.
+ * Returns rows under the threshold, weakest first. */
+export function lowScoreRows(scores: AssessmentScore[], thresholdPct: number): LowScoreRow[] {
+  const latest = new Map<string, LowScoreRow>();
+  for (const s of scores) {
+    if (!s.email || s.max <= 0) continue;
+    const key = s.email + "|" + s.courseTitle + "|" + s.unitTitle;
+    const prev = latest.get(key);
+    const pct = Math.round((s.got * 100) / s.max);
+    if (!prev) {
+      latest.set(key, { email: s.email, courseTitle: s.courseTitle, unitTitle: s.unitTitle, pct, got: s.got, max: s.max, attempts: 1, submittedAt: s.submittedAt });
+    } else {
+      prev.attempts++;
+      if ((s.submittedAt ?? 0) >= (prev.submittedAt ?? 0)) {
+        prev.pct = pct;
+        prev.got = s.got;
+        prev.max = s.max;
+        prev.submittedAt = s.submittedAt;
+      }
+    }
+  }
+  return [...latest.values()]
+    .filter((r) => r.pct < thresholdPct)
+    .sort((a, b) => a.pct - b.pct);
+}
+
+/** Average latest-attempt score per test, weakest first - the
+ * "which checks is the cohort finding hard" view. */
+export function unitScoreAverages(
+  scores: AssessmentScore[],
+): Array<{ courseTitle: string; unitTitle: string; avgPct: number; learners: number }> {
+  const latest = new Map<string, { pct: number; at: number }>();
+  for (const s of scores) {
+    if (!s.email || s.max <= 0) continue;
+    const key = s.email + "|" + s.courseTitle + "|" + s.unitTitle;
+    const prev = latest.get(key);
+    const at = s.submittedAt ?? 0;
+    if (!prev || at >= prev.at) latest.set(key, { pct: Math.round((s.got * 100) / s.max), at });
+  }
+  const perUnit = new Map<string, { courseTitle: string; unitTitle: string; sum: number; n: number }>();
+  for (const [key, v] of latest) {
+    const [, courseTitle, unitTitle] = key.split("|");
+    const uk = courseTitle + "|" + unitTitle;
+    let u = perUnit.get(uk);
+    if (!u) {
+      u = { courseTitle: courseTitle!, unitTitle: unitTitle!, sum: 0, n: 0 };
+      perUnit.set(uk, u);
+    }
+    u.sum += v.pct;
+    u.n++;
+  }
+  return [...perUnit.values()]
+    .map((u) => ({ courseTitle: u.courseTitle, unitTitle: u.unitTitle, avgPct: Math.round(u.sum / u.n), learners: u.n }))
+    .sort((a, b) => a.avgPct - b.avgPct);
 }
