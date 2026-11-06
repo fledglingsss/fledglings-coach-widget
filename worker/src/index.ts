@@ -2520,7 +2520,9 @@ const REFLECT_KV_KEY = "portal:reflect:v4"; // v4: raw responses retained
 const REFLECT_TAGS_PATCH_KEY = "portal:reflect:tags-patch";
 /* 26h: rebuilt by the nightly cron and advanced by roster ticks -
  * visits only read. */
-const REFLECT_MAX_AGE_MS = 26 * 3600 * 1000;
+/* Under 24h so the 06:00 daily cron rebuilds a snapshot built at
+ * 06:00 yesterday - at 26h it skipped every other morning. */
+const REFLECT_MAX_AGE_MS = 20 * 3600 * 1000;
 const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
 const LW_SUPPORT_ASK =
   "Hi LearnWorlds - we're on a plan with API access, but GET /v2/assessments/{id}/responses " +
@@ -6355,8 +6357,9 @@ app.post("/internal/job", async (c) => {
     } else if (job === "reflect") await advanceReflections(c.env);
     else if (job === "risk") await getRiskReport(c.env, true);
     else if (job === "weekly") {
-      /* The Monday-morning sequence, strictly ordered: the deep read
-       * at the end must cover the week's NEW answers, so the
+      /* The MORNING sequence (daily since 2026-11-06; the job keeps
+       * its wire name), strictly ordered: the deep read at the end
+       * must cover the NEW answers, so the
        * reflections snapshot is driven to a fresh build first (each
        * step is a child invocation with its own budget; a full
        * rebuild takes several). */
@@ -6430,17 +6433,19 @@ async function scheduled(
   ctx: ExecutionContext,
 ): Promise<void> {
   if (!lwConfigured(env)) return;
-  /* ONE automatic update a week (founder, 2026-09-27): Monday
-   * morning refreshes everything in order - course and engagement
-   * data, the reflections snapshot, the early-warning tiers, then
-   * the safeguarding deep read over the fresh answers. Between
-   * Mondays, only the provider's own Refresh button moves data. */
+  /* ONE automatic update a DAY (founder, 2026-11-06, upgraded from
+   * weekly): every morning refreshes course and engagement data, the
+   * reflections snapshot and the early-warning tiers, in order, then
+   * warms the safeguarding deep read. The deep read's cache is keyed
+   * to the Monday-anchored week, so it costs a model run only on the
+   * first morning after Monday 06:00; the other six mornings serve
+   * the cached read. The Refresh button still works any time. */
   /* The schedule has exactly one trigger, so no string gate: matching
    * the literal cron here silently dropped every firing when the
    * trigger's spelling changed ("* * 1" vs "* * MON"). */
   ctx.waitUntil(
     dispatchJob(env, "weekly").catch((err) =>
-      console.error("[coach] weekly dispatch failed:", String(err)),
+      console.error("[coach] daily dispatch failed:", String(err)),
     ),
   );
 }

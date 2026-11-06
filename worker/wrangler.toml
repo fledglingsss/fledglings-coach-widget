@@ -15,14 +15,13 @@ compatibility_flags = ["nodejs_compat"]
 # reason to sit anywhere near the provider's rate limit for data that
 # changes a few times a day.
 [triggers]
-# ONE automatic update a week: Monday 06:00 UTC (7am UK in summer,
-# 6am in winter) refreshes course/engagement data, rebuilds the
-# reflections snapshot, then runs the safeguarding deep read over the
-# fresh answers. Between Mondays, only the provider's own Refresh
-# button moves data (founder, 2026-09-27, cost control).
-# Named day: the numeric form "* * 1" fired on SUNDAYS here (observed
-# live 2026-10-11 06:08 UTC), so the day is spelt out.
-crons = ["0 6 * * MON"]
+# ONE automatic update a DAY at 06:00 UTC (founder, 2026-11-06):
+# course and engagement data, the reflections snapshot and the
+# early-warning tiers refresh every morning. The AI safeguarding deep
+# read stays WEEKLY: its cache is keyed to the Monday-anchored week,
+# so the daily warm-up serves the cached read except on the first run
+# after Monday morning, which is the one that pays for a fresh read.
+crons = ["0 6 * * *"]
 
 # Self service binding: lets the cron fan each heavyweight data pull
 # out into its own invocation (a worker cannot fetch its own public
