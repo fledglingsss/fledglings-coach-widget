@@ -1214,6 +1214,29 @@ describe("POST /dashboard/refresh — the provider's own refresh button", () => 
     /* The scope's dashboard cache is gone, so the next read recomputes. */
     expect(env.RATE_LIMITS.store.has("dash:v13:swift-learners")).toBe(false);
   });
+
+  it("caps a scope at 24 walks a day (spend guardrail)", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const cookie = await cookieFor("swift-code-1");
+    const press = async () =>
+      (await (
+        await app.request(
+          new Request("http://coach.test/dashboard/refresh", {
+            method: "POST",
+            headers: { Cookie: cookie },
+          }),
+          undefined, env,
+        )
+      ).json()) as { cooling: boolean; capped?: boolean };
+    for (let i = 0; i < 24; i++) {
+      const r = await press();
+      expect(r.capped).toBeUndefined();
+      /* Release the ten-minute lock so each press counts as a walk. */
+      await env.RATE_LIMITS.delete("refresh:lock:swift-learners");
+    }
+    expect(await press()).toMatchObject({ cooling: true, capped: true });
+  });
 });
 
 describe("POST /dashboard/refresh/step — the browser-driven walk", () => {
@@ -1298,22 +1321,45 @@ describe("POST /dashboard/refresh/step — the browser-driven walk", () => {
     expect(jobs).toEqual(["roster"]);
   });
 
-  it("finishes the walk: tiers + reflections rebuild, cache cleared", async () => {
+  async function seedReflectionsBuiltAt(env: TestEnv, when: Date) {
+    await env.RATE_LIMITS.put(
+      "portal:reflect:v4",
+      JSON.stringify({ builtAt: when.toISOString(), status: "ready" }),
+    );
+  }
+
+  it("finishes the walk: tiers rebuilt, cache cleared", async () => {
     const env = makeEnv();
     const jobs = withSelf(env);
     await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
     const cookie = await cookieFor("swift-code-1");
     await startRefresh(env, cookie);
     await seedRoster(env, [1, 2]);
+    await seedReflectionsBuiltAt(env, new Date());
     /* A client refetch may have re-filled the cache mid-walk. */
     await env.RATE_LIMITS.put("dash:v13:swift-learners", "{}");
     const res = await app.request(stepReq(cookie, 0), undefined, env);
     const s = (await res.json()) as { done: boolean; fresh: number; total: number };
     expect(s).toMatchObject({ done: true, fresh: 2, total: 2 });
-    /* Nothing was stale, so no pointless course pulls - straight to
-     * the finishing jobs. */
-    expect(jobs).toEqual(["risk", "reflect"]);
+    /* Nothing was stale and reflections are current, so no pointless
+     * pulls - straight to the finishing job. */
+    expect(jobs).toEqual(["risk"]);
     expect(env.RATE_LIMITS.store.has("dash:v13:swift-learners")).toBe(false);
+  });
+
+  it("rebuilds a stale reflections snapshot before calling it done", async () => {
+    const env = makeEnv();
+    const jobs = withSelf(env);
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const cookie = await cookieFor("swift-code-1");
+    await startRefresh(env, cookie);
+    await seedRoster(env, [1, 2]);
+    /* Built this morning - today's answers are missing. */
+    await seedReflectionsBuiltAt(env, new Date(Date.now() - 12 * 3_600_000));
+    const res = await app.request(stepReq(cookie, 0), undefined, env);
+    const s = (await res.json()) as { done: boolean; phase?: string };
+    expect(s).toMatchObject({ done: false, phase: "reflections" });
+    expect(jobs).toEqual(["reflect"]);
   });
 
   it("reports a tripped slice as retryable, never fatal", async () => {
@@ -1331,16 +1377,21 @@ describe("POST /dashboard/refresh/step — the browser-driven walk", () => {
     expect(s).toMatchObject({ ok: false, retryable: true, fresh: 1, total: 3 });
   });
 
-  it("caps the walk so a stuck roster can never loop forever", async () => {
+  it("caps the walk so a stuck build can never loop forever", async () => {
     const env = makeEnv();
     withSelf(env);
     await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
     const cookie = await cookieFor("swift-code-1");
     await startRefresh(env, cookie);
     await seedRoster(env, [120, 120]);
-    const last = await app.request(stepReq(cookie, 11), undefined, env);
+    /* Step 11 ends the roster phase but reflections have never built,
+     * so the walk moves into the reflections phase... */
+    const eleven = await app.request(stepReq(cookie, 11), undefined, env);
+    expect((await eleven.json()) as object).toMatchObject({ done: false, phase: "reflections" });
+    /* ...and the hard cap finishes regardless, stuck or not. */
+    const last = await app.request(stepReq(cookie, 27), undefined, env);
     expect(((await last.json()) as { done: boolean }).done).toBe(true);
-    const over = await app.request(stepReq(cookie, 12), undefined, env);
+    const over = await app.request(stepReq(cookie, 28), undefined, env);
     expect(over.status).toBe(400);
   });
 });

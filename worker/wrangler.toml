@@ -7,6 +7,13 @@ main = "src/index.ts"
 compatibility_date = "2026-07-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Guardrail (Workers Paid, 2026-11-07): no single request may burn
+# more than 5s of CPU. The heaviest measured request is ~0.2s, so
+# this is 25x headroom while guaranteeing even a pathological loop
+# can never eat into the plan's included 30M CPU-ms a month.
+[limits]
+cpu_ms = 5000
+
 # Nightly early-warning refresh (03:10 UTC) — keeps the portal instant
 # and the engagement trend history accruing. The hourly tick is the
 # rolling roster: a slice of learners refreshed per tick, so the

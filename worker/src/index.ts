@@ -2523,6 +2523,9 @@ const REFLECT_TAGS_PATCH_KEY = "portal:reflect:tags-patch";
 /* Under 24h so the 06:00 daily cron rebuilds a snapshot built at
  * 06:00 yesterday - at 26h it skipped every other morning. */
 const REFLECT_MAX_AGE_MS = 20 * 3600 * 1000;
+/* A forced rebuild (morning job, provider Refresh press) only skips
+ * the sweep when the snapshot is genuinely current. */
+const REFLECT_FORCE_AGE_MS = 2 * 3600 * 1000;
 const REFLECT_CALL_BUDGET = 28; // LW subrequests per build step
 const LW_SUPPORT_ASK =
   "Hi LearnWorlds - we're on a plan with API access, but GET /v2/assessments/{id}/responses " +
@@ -2536,7 +2539,14 @@ const REFLECT_BUILD_KEY = `${REFLECT_KV_KEY}:building`;
  * (served to every reader), rebuilds accumulate in the side key and
  * swap in atomically when ready - a provider mid-rebuild always sees
  * the last complete data, never a half-filled sweep. */
-async function advanceReflections(env: Env): Promise<ReflectionsState> {
+/* `maxAgeMs` is how old the main snapshot may be before this call
+ * rebuilds: passive advances accept REFLECT_MAX_AGE_MS; the morning
+ * job and a provider's Refresh press pass REFLECT_FORCE_AGE_MS so
+ * "refresh" genuinely means today's answers, not yesterday's. */
+async function advanceReflections(
+  env: Env,
+  maxAgeMs: number = REFLECT_MAX_AGE_MS,
+): Promise<ReflectionsState> {
   const now = new Date();
   const main: ReflectionsState | null = JSON.parse(
     (await env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
@@ -2551,7 +2561,7 @@ async function advanceReflections(env: Env): Promise<ReflectionsState> {
     main.courseList !== undefined &&
     main.assessmentScores !== undefined &&
     main.patternsVersion === SAFEGUARD_SCAN_VERSION &&
-    now.getTime() - new Date(main.builtAt).getTime() <= REFLECT_MAX_AGE_MS;
+    now.getTime() - new Date(main.builtAt).getTime() <= maxAgeMs;
   if (mainFresh) return main!;
 
   let state: ReflectionsState | null = JSON.parse(
@@ -4552,6 +4562,16 @@ app.post("/dashboard/refresh", async (c) => {
   if (await c.env.RATE_LIMITS.get(lockKey)) {
     return c.json({ ok: true, cooling: true });
   }
+  /* Spend guardrail: at most 24 walks per scope per day. The morning
+   * cron covers everyone anyway; this is an absolute ceiling on what
+   * a held-down Refresh button can cost in platform calls and CPU. */
+  const dayKey = `refresh:day:${scopeKey}:${new Date().toISOString().slice(0, 10)}`;
+  const walksToday = Number((await c.env.RATE_LIMITS.get(dayKey)) || "0");
+  if (walksToday >= 24) {
+    console.log(`[coach] kind=refresh scope=${scopeKey} capped`);
+    return c.json({ ok: true, cooling: true, capped: true });
+  }
+  await c.env.RATE_LIMITS.put(dayKey, String(walksToday + 1), { expirationTtl: 172_800 });
   await c.env.RATE_LIMITS.put(lockKey, "1", { expirationTtl: 600 });
   await c.env.RATE_LIMITS.delete(`dash:v13:${scopeKey}`);
   const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
@@ -4574,20 +4594,22 @@ app.post("/dashboard/refresh/step", async (c) => {
   }
   const body = (await c.req.json().catch(() => ({}))) as { step?: number };
   const step = typeof body.step === "number" && Number.isFinite(body.step) ? Math.floor(body.step) : 0;
-  if (step < 0 || step > 11) return c.json({ error: "step_out_of_range" }, 400);
+  if (step < 0 || step > 27) return c.json({ error: "step_out_of_range" }, 400);
   await c.env.RATE_LIMITS.put(lockKey, "1", { expirationTtl: 600 });
   const staleCount = async () => {
     const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
     const entries = roster?.entries ?? [];
     return {
       total: entries.length,
-      stale: entries.filter((e) => Date.now() - e.fetchedAt > 30 * 60_000).length,
+      /* 45 minutes, not the cron's 30: a long reflections phase must
+       * not re-stale the roster mid-press and ping-pong the walk. */
+      stale: entries.filter((e) => Date.now() - e.fetchedAt > 45 * 60_000).length,
     };
   };
   /* Nothing stale (a resumed or repeated press after a finished
-   * walk): skip straight to the finishing jobs - no pointless pulls. */
+   * walk): skip straight on - no pointless pulls. */
   let { total, stale } = await staleCount();
-  if (stale > 0) {
+  if (stale > 0 && step < 12) {
     if (!(await dispatchJob(c.env, "roster", { depth: step }))) {
       /* A slice can fail transiently (the platform rate-limits at
        * ~30 req/10s and back-to-back slices ride that ceiling). The
@@ -4597,18 +4619,34 @@ app.post("/dashboard/refresh/step", async (c) => {
     }
     ({ total, stale } = await staleCount());
   }
-  const done = stale === 0 || step >= 11;
-  if (done) {
+  if (stale === 0 || step >= 11) {
+    /* Course records are in - now the reflections snapshot, so
+     * "refresh" means today's answers too. Each press-step advances
+     * the forced rebuild one budgeted sweep; readers keep the last
+     * complete snapshot until the new one swaps in whole. */
+    const reflectAge = async () => {
+      const main = JSON.parse(
+        (await c.env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
+      ) as ReflectionsState | null;
+      return main ? Date.now() - new Date(main.builtAt).getTime() : Infinity;
+    };
+    if ((await reflectAge()) > REFLECT_FORCE_AGE_MS && step < 27) {
+      if (!(await dispatchJob(c.env, "reflect", { force: true }))) {
+        return c.json({ ok: false, retryable: true, phase: "reflections", fresh: total - stale, total });
+      }
+      if ((await reflectAge()) > REFLECT_FORCE_AGE_MS) {
+        return c.json({ ok: true, done: false, phase: "reflections", fresh: total - stale, total });
+      }
+    }
     /* Engagement tiers rebuild with the data, so a cohort added since
      * this morning stops reading "Inactive" the moment anyone
-     * refreshes; the reflections sweep advances one step on the same
-     * press. The dash cache goes last so the next read is built from
-     * the new tiers. */
+     * refreshes. The dash cache goes last so the next read is built
+     * from the new tiers. */
     await dispatchJob(c.env, "risk");
-    await dispatchJob(c.env, "reflect");
     await c.env.RATE_LIMITS.delete(`dash:v13:${scopeKey}`);
+    return c.json({ ok: true, done: true, fresh: total - stale, total });
   }
-  return c.json({ ok: true, done, fresh: total - stale, total });
+  return c.json({ ok: true, done: false, fresh: total - stale, total });
 });
 
 app.get("/dashboard/data", async (c) => {
@@ -5862,8 +5900,8 @@ app.post("/ops/action", async (c) => {
     }
     if (op === "reflect_step") {
       /* One budgeted sweep step on demand - lets the founder walk a
-       * rebuild through without waiting for the weekly cron. */
-      const ok = await dispatchJob(c.env, "reflect");
+       * rebuild through without waiting for the morning cron. */
+      const ok = await dispatchJob(c.env, "reflect", { force: true });
       console.log("[coach] kind=ops op=reflect_step");
       return c.json({ ok });
     }
@@ -6372,7 +6410,11 @@ app.post("/internal/job", async (c) => {
     Boolean(c.env.LEARNWORLDS_CLIENT_SECRET) &&
     (await verifyPayload(c.env.LEARNWORLDS_CLIENT_SECRET!, INTERNAL_JOB_PAYLOAD, sig));
   if (!authorised) return c.json({ error: "unauthorised" }, 401);
-  const body = (await c.req.json().catch(() => ({}))) as { job?: string; depth?: number };
+  const body = (await c.req.json().catch(() => ({}))) as {
+    job?: string;
+    depth?: number;
+    force?: boolean;
+  };
   const job = typeof body.job === "string" ? body.job : "";
   try {
     if (job === "roster") {
@@ -6396,7 +6438,8 @@ app.post("/internal/job", async (c) => {
         if (staleLeft === 0) break;
       }
       console.log(`[coach] kind=roster-cycle slices=${slices + 1}`);
-    } else if (job === "reflect") await advanceReflections(c.env);
+    } else if (job === "reflect")
+      await advanceReflections(c.env, body.force ? REFLECT_FORCE_AGE_MS : undefined);
     else if (job === "risk") await getRiskReport(c.env, true);
     else if (job === "weekly") {
       /* The MORNING sequence (daily since 2026-11-06; the job keeps
@@ -6407,7 +6450,7 @@ app.post("/internal/job", async (c) => {
        * rebuild takes several). */
       await dispatchJob(c.env, "roster_cycle");
       for (let steps = 0; steps < 14; steps++) {
-        if (!(await dispatchJob(c.env, "reflect"))) break;
+        if (!(await dispatchJob(c.env, "reflect", { force: true }))) break;
         const main = JSON.parse(
           (await c.env.RATE_LIMITS.get(REFLECT_KV_KEY)) || "null",
         ) as ReflectionsState | null;

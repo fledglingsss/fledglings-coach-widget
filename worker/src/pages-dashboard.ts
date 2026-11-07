@@ -1271,21 +1271,26 @@ function refreshStep(i,tries){
 fetch('/dashboard/refresh/step',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({step:i})})
 .then(function(r){return r.json()}).then(function(s){
 if(!s||s.error){refreshPaused();return;}
-if(s.fresh!==undefined)refreshSay('Refreshing - '+s.fresh+' of '+s.total+' learner records up to date…');
+if(s.phase==='reflections')refreshSay('Refreshing - records done, reading the latest reflections… ('+(i+1)+')');
+else if(s.fresh!==undefined)refreshSay('Refreshing - '+s.fresh+' of '+s.total+' learner records up to date…');
 if(s.ok===false){
 /* A slice tripped the platform's rate ceiling - breathe, retry the
  * same step; the stale learners kept their place in line. */
 if((tries||0)>=2){refreshPaused();return;}
 setTimeout(function(){refreshStep(i,(tries||0)+1)},8000);return;}
-refetchFresh(false);
-if(s.done){refetchFresh(true);}
-else setTimeout(function(){refreshStep(i+1,0)},2000);})
+/* repaint per roster slice; reflection sweeps swap in whole at the
+ * end, so mid-phase refetches would just repeat the same numbers */
+if(s.phase!=='reflections')refetchFresh(!!s.done);
+else if(s.done)refetchFresh(true);
+if(!s.done)setTimeout(function(){refreshStep(i+1,0)},2000);})
 .catch(function(){if((tries||0)>=2){refreshPaused();return;}
 setTimeout(function(){refreshStep(i,(tries||0)+1)},8000);});}
 $('dh-refresh').addEventListener('click',function(){
 var b=$('dh-refresh');if(b.disabled)return;
 b.disabled=true;b.textContent='Refreshing - reaching the platform…';
 fetch('/dashboard/refresh',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
+if(d&&d.capped){refreshSay('Daily refresh limit reached - the morning update covers the rest.');
+setTimeout(function(){refreshDone(false)},6000);return;}
 /* cooling = a walk started in the last few minutes (maybe a paused
  * one) - stepping resumes it; a finished walk short-circuits. */
 refreshStep(0,0);})
