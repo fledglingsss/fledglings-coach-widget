@@ -105,7 +105,7 @@ export function renderDashboardPage(): string {
      * decision, so there is no breakpoint logic in JS and rotating the
      * handset needs no re-render. */
     "<div class='scards' id='s-cards'></div>" +
-    "<div class='dempty' id='s-empty' hidden>No learners match.</div>" +
+    "<div class='dempty' id='s-empty' hidden>No learners match - clear the search or pick a different filter.</div>" +
     "<div class='dmore' id='s-more'></div></div></div>" +
     "</section>" +
 
@@ -186,7 +186,7 @@ export function renderDashboardPage(): string {
     "<div class='dbar'><a class='dbtn' href='/dashboard/reflections.csv'>⬇ Download every answer (Excel)</a></div>" +
     "<div class='dtablewrap'><table class='dtable' aria-label='Latest reflection answers'><thead><tr><th scope='col'>Student</th><th scope='col'>Module</th><th scope='col'>When</th><th scope='col'>Question</th><th scope='col'>Answer</th></tr></thead>" +
     "<tbody id='rf-recent'></tbody></table>" +
-    "<div class='dempty' id='rf-recent-empty' hidden>No answers read yet.</div></div></div>" +
+    "<div class='dempty' id='rf-recent-empty' hidden>No answers on record yet - they appear as learners finish their first reflections.</div></div></div>" +
     "</div></section>" +
 
     /* ---------- analytics ---------- */
@@ -616,7 +616,7 @@ return "<div class='dr-mod'><span class='dr-mt"+(m.done?' done':'')+"' title='"+
 (m.done?'✓ ':'')+esc2(m.t)+"</span>"+
 "<i class='msb'><b style='width:"+m.p+"%;background:"+(m.done?'#1A7649':m.p>0?'#13507F':'#D8D2CE')+"'></b></i>"+
 "<span class='dr-mp'>"+(m.mins?m.mins+'m':m.p+'%')+"</span></div>";}).join('')+"</div>"
-:"<div class='dempty'>No module data yet.</div>")+"</div>"+
+:"<div class='dempty'>No module data yet - it lands with the morning refresh, or press Refresh data now.</div>")+"</div>"+
 "<div class='dcard'><h2>What their reflections say <span class='dtag' id='prof-rf-count'></span></h2>"+
 "<div id='prof-insight' aria-live='polite'><span class='dmut'>Reading their answers…</span></div></div>"+
 "<div class='dr-acts'>"+
@@ -800,10 +800,10 @@ if(words.length){var topN=words[0].count;
 $('rf-words').innerHTML=hbar(words.map(function(w){
 return {l:w.word,v:w.count,r:w.count+(w.forms.length>1?' · '+w.forms.slice(1).join(', '):''),
 c:'#13507F'};}),topN);}
-else{$('rf-words').innerHTML="<div class='dempty'>No word answers yet.</div>";}
+else{$('rf-words').innerHTML="<div class='dempty'>No written answers yet - this fills as learners reflect in their own words.</div>";}
 if(exper.length){$('rf-experience').innerHTML=hbar(exper.map(function(e){
 return {l:e.label,v:e.pct,r:e.pct+'% · '+e.responses+' rating'+(e.responses===1?'':'s'),c:band(e.pct)};}),100);}
-else{$('rf-experience').innerHTML="<div class='dempty'>No experience ratings yet.</div>";}
+else{$('rf-experience').innerHTML="<div class='dempty'>No experience ratings yet - they appear with the first post-module reflections.</div>";}
 $('rf-asks-card').hidden=asks.length===0;
 var asksTotal=ins.requestsTotal||asks.length;
 $('rf-asks-count').textContent=asks.length?(asksTotal>asks.length?'showing '+asks.length+' of '+asksTotal:asks.length+' asks'):'';
@@ -856,7 +856,7 @@ return "<div class='sh-row'><span class='sh-l' title='"+esc2(s.courseTitle)+"'>"
 "<span class='sh-v'>"+(s.preAvgPct===null?' - ':s.preAvgPct+'%')+" → "+(s.postAvgPct===null?' - ':s.postAvgPct+'%')+
 (s.shift===null?'':" <b class='"+(up?'up':'down')+"'>"+(up?'+':'')+s.shift+"</b>")+"</span>"+
 "<span class='dmut'>"+s.preCount+" before · "+s.postCount+" after</span></div>";}).join('')
-:"<div class='dempty'>No scored reflections read yet.</div>";
+:"<div class='dempty'>No before-and-after ratings yet - the chart appears once learners rate themselves in a module.</div>";
 /* ---------- knowledge-check scores: chips + one dense table, not a
  * wall of cards (founder, 2026-10-28) ---------- */
 var az=d.assessments||{flagged:[],units:[],thresholdPct:60};
@@ -1009,7 +1009,7 @@ return out+"</tbody></table>";}
 /* Effort-vs-outcome scatter: one dot per learner, coloured by cohort
  * - the off-crowd dots are the conversation starters. */
 function scatterChart(rows,series){
-if(!rows.length)return "<div class='dempty'>No learners in this filter.</div>";
+if(!rows.length)return "<div class='dempty'>No learners in this filter right now - that is usually good news.</div>";
 var colour={};(series||[]).forEach(function(sr){colour[sr.tag]=sr.c});
 var maxX=Math.max.apply(null,rows.map(function(r){return r.learning.minutes}).concat([10]));
 /* A floor on the y-range keeps early data proportionate, and a
@@ -1045,7 +1045,7 @@ var e=byMod[m.t]=byMod[m.t]||{done:0,going:0,idle:0};
 if(m.done)e.done++;else if(m.p>0)e.going++;else e.idle++;});});
 var keys=Object.keys(byMod).sort(function(a,b){
 var A=byMod[a],B=byMod[b];return (B.done+B.going+B.idle)-(A.done+A.going+A.idle)});
-if(!keys.length)return "<div class='dempty'>No module enrolments in this group.</div>";
+if(!keys.length)return "<div class='dempty'>No module enrolments in this group yet - they appear once the cohort is enrolled.</div>";
 return keys.map(function(t){var e=byMod[t];
 var total=Math.max(1,e.done+e.going+e.idle);
 var p=function(v){return (v*100/total).toFixed(1)};
@@ -1082,7 +1082,7 @@ if(laggard.m.started<50)s+=laggard.tag+' needs a push - only '+laggard.m.started
 else s+='Every cohort has most of its learners started - a solid spread.';
 return s;}
 function interpEngage(rows){var n=rows.length;
-if(!n)return 'No learners in this filter.';
+if(!n)return 'No learners in this filter right now - that is usually good news.';
 var active=rows.filter(function(r){return r.engagement.daysSinceLogin!==null&&r.engagement.daysSinceLogin<=7}).length;
 var never=rows.filter(function(r){return r.engagement.daysSinceLogin===null}).length;
 var s=active+' of '+n+' learners ('+Math.round(active*100/n)+'%) visited in the last 7 days. ';
@@ -1152,7 +1152,7 @@ $('ch-scatter').innerHTML=scatterChart(rows,series);
 /* Study-time histogram: learners bucketed by total time invested. */
 var HB=[['None',function(m){return m===0}],['<15m',function(m){return m>0&&m<15}],['15–30m',function(m){return m>=15&&m<30}],['30–45m',function(m){return m>=30&&m<45}],['45–60m',function(m){return m>=45&&m<60}],['1h+',function(m){return m>=60}]];
 $('ch-hist').innerHTML=rows.length?colChart(HB.map(function(b){return rows.filter(function(r){return b[1](r.learning.minutes)}).length}),HB.map(function(b){return b[0]}),'#13507F')
-:"<div class='dempty'>No learners in this filter.</div>";
+:"<div class='dempty'>No learners in this filter right now - that is usually good news.</div>";
 $('ai-cohorts').textContent=interpCohorts(series);
 $('ai-engage').textContent=interpEngage(rows);
 $('ai-learn').textContent=interpLearn(rows);
@@ -1162,15 +1162,15 @@ return {l:t[1],v:rows.filter(function(r){return r.engagement.tier===t[0]}).lengt
 .filter(function(x){return x.v>0});
 var untiered=rows.filter(function(r){return !r.engagement.tier}).length;
 if(untiered)tiers.push({l:'Not assessed',v:untiered,c:'#7C7573'});
-$('ch-tiers').innerHTML=tiers.length?donut(tiers,rows.length,'learners'):"<div class='dempty'>No learners in this filter.</div>";
-$('ch-recency').innerHTML=rows.length?recencyArea(rows):"<div class='dempty'>No learners in this filter.</div>";
+$('ch-tiers').innerHTML=tiers.length?donut(tiers,rows.length,'learners'):"<div class='dempty'>No learners in this filter right now - that is usually good news.</div>";
+$('ch-recency').innerHTML=rows.length?recencyArea(rows):"<div class='dempty'>No learners in this filter right now - that is usually good news.</div>";
 /* Learning charts come from the server rollup over the whole scope - * flag that honestly when a cohort chip narrows the other charts. */
 $('lc-note').hidden=!cohortFilter;$('cu-note').hidden=!cohortFilter;
 renderModComposition();
 var cur=(DATA.analytics&&DATA.analytics.curriculum)||[];
 $('ch-curriculum').innerHTML=cur.length?hbar(cur.map(function(a){
 return {l:a.area,v:a.pct,r:a.pct+'%',c:'#13507F'};}),100)
-:"<div class='dempty'>No curriculum data yet.</div>";
+:"<div class='dempty'>No curriculum data yet - the areas fill in as learners complete their first modules.</div>";
 /* Whole-school stall analysis stays HQ-only. */
 $('stalls-card').hidden=!!DATA.scopedTag;
 }
@@ -1196,7 +1196,7 @@ if(stallsLoaded||(DATA&&DATA.scopedTag))return;stallsLoaded=true;
 fetch('/portal/module-health').then(function(r){return r.json()}).then(function(d){
 var el=$('ch-stalls');if(!el)return;
 var reps=(d&&d.reports)||[];
-if(!reps.length){el.innerHTML="<div class='dempty'>"+(d&&d.status==='building'?'Still measuring - check back shortly.':'No stall data yet.')+"</div>";return;}
+if(!reps.length){el.innerHTML="<div class='dempty'>"+(d&&d.status==='building'?'Still measuring - check back shortly.':'No stall data yet - it appears after the next morning refresh.')+"</div>";return;}
 el.innerHTML=hbar(reps.slice(0,8).map(function(rep){
 return {l:rep.title,v:rep.retention,r:rep.retention+'% finish'+(rep.stallUnit?' · stalls at “'+rep.stallUnit+'”':''),c:rep.retention>=60?'#1A7649':rep.retention>=35?'#ED9249':'#B93A22'};}),100);})
 .catch(function(){var el=$('ch-stalls');if(el)el.innerHTML='';});}
