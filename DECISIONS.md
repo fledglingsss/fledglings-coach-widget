@@ -13,6 +13,8 @@ decision beats re-deriving it from git archaeology.
 | 2026-11-07 | Tickets 05 and 06 PASSED AS AUDIT: mobile nav is conventional and every target measured 44px at 390px width | UI.md laws 1 and 4 were already met; audits logged so nobody re-litigates them |
 | 2026-11-07 | Ticket 07 PASSED AS AUDIT: every triggered action shows visible completion (verified live, both scopes) | UI.md law 5; evidence copy buttons show their tick chips |
 | 2026-11-07 | Provider Refresh walks the roster via browser-driven steps (/dashboard/refresh/step), never a background chain | waitUntil work is cancelled ~30s after the response: a press refreshed 23 of 369 learners and quietly stopped, leaving module charts half-fresh |
+| 2026-11-07 | Adopted Tesler's law as UI.md law 6, from rory4154154/ux-laws-skill | The one law in rory.ridgers' published skill our laws had not named; the other four were already laws 1-5 |
+| 2026-11-07 | mikehasa/golive-skill and morluto/rea noted, not adopted | golive automates first-time hosting/domain/payments setup (ours is live and settled); rea is a reverse-engineering toolkit, no Fledglings use |
 | 2026-11-06 | Automatic refresh daily at 06:00 UTC; AI deep read stays weekly | Founder wanted daily data; the weekly scan cache keeps model cost flat |
 | 2026-10-28 | Long lists open on a top slice with Show more | 385-row walls read as unprofessional; weakest-first sorting makes the top slice the useful one |
 | 2026-10-27 | Safeguarding rubric: "say-so flags, guesswork never does" | Topic vocabulary from safeguarding modules flooded the flags; stated first-person experience is the test, past tense and named friends count as monitor |

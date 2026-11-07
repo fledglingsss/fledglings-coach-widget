@@ -31,7 +31,20 @@ touching any `pages-*.ts`.
    the control, not a small link inside them.
 5. **Instant feedback.** Every press answers within the same second:
    pressed state, progress wording, then a visible confirmation.
-   Nothing a user triggers may complete silently.
+   Nothing a user triggers may complete silently. Progress wording is
+   REAL (records counted, steps named), never a guessed clock.
+6. **Tesler's law** (added 2026-11-07 from rory4154154/ux-laws-skill,
+   the one law his published skill carries that we had not named).
+   Complexity that cannot be removed is absorbed by the system, never
+   the user: smart defaults over configuration, accept input the way
+   people type it (trim pasted codes, tolerate spacing), infer what
+   the data already knows instead of asking, plain-language errors
+   that say how to fix it, and never lose a user's work or place.
+
+When the laws pull against each other: cutting choices (law 2) must
+never dump work on the user (law 6) - remove a choice with a smart
+default, not a manual workaround; fewer big targets beat many small
+ones; convention wins unless breaking it clearly removes user work.
 
 ## Standing patterns
 
