@@ -44,7 +44,9 @@ export function renderDashboardPage(): string {
     "<header class='dhead'><div><h1 id='dh-title'>Home</h1>" +
     "<p id='dh-sub'>Outcomes, progress and attention - at a glance</p></div>" +
     "<div class='dheadr'><span class='dperiod' id='dperiod'>Recent sample</span>" +
-    "<button type='button' class='dbtn ghost' id='dh-refresh' title='Pull the latest numbers from the platform'>↻ Refresh data</button></div></header>" +
+    /* UI.md law 3: the one dominant action on every dashboard view
+     * is pulling fresh numbers - it alone wears the solid orange. */
+    "<button type='button' class='dbtn' id='dh-refresh' title='Pull the latest numbers from the platform'>↻ Refresh data</button></div></header>" +
 
     /* One cohort filter for the whole dashboard - pick a cohort once
      * and every view follows, so splitting by tag is a single tap. */
@@ -449,14 +451,30 @@ return "<tr><td><b>"+esc2(r.name)+"</b><br><span class='dmut'>"+esc2(r.email)+"<
 "<td class='dmut'>"+esc2(lastIn)+"</td>"+
 "<td><button type='button' class='dlink' data-drill='"+esc2(r.email)+"'>View →</button></td></tr>";}).join('');
 wireDrills();}
+/* UI.md law 2, Hick's: a wall of fourteen cohort chips is fourteen
+ * simultaneous choices. The bar shows the biggest cohorts and folds
+ * the rest behind "+N more" (expanded sticks until the next page
+ * load; a hidden chip that is the ACTIVE filter always shows). */
+var chipsExpanded=false;var CHIPS_SHOWN=7;
 function chips(el,onPick){
 /* The scope's own tag is every learner - "All in scope" already says
  * that, so it never appears as a cohort chip. */
 var tags=(DATA.tags||[]).filter(function(t){return t.tag!==DATA.scopedTag});
+var shown=tags,folded=0;
+if(!chipsExpanded&&tags.length>CHIPS_SHOWN+1){
+shown=tags.slice(0,CHIPS_SHOWN);
+if(cohortFilter&&!shown.some(function(t){return t.tag===cohortFilter})){
+var active=tags.filter(function(t){return t.tag===cohortFilter});
+shown=shown.concat(active);}
+folded=tags.length-shown.length;}
 el.innerHTML="<button type='button' class='chip"+(cohortFilter?'':' on')+"' aria-pressed='"+(cohortFilter?'false':'true')+"' data-chip=''>All in scope</button>"+
-tags.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' aria-pressed='"+(cohortFilter===t.tag?'true':'false')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('');
+shown.map(function(t){return "<button type='button' class='chip"+(cohortFilter===t.tag?' on':'')+"' aria-pressed='"+(cohortFilter===t.tag?'true':'false')+"' data-chip='"+esc2(t.tag)+"'>"+esc2(t.tag)+" <i>"+t.count+"</i></button>"}).join('')+
+(folded>0?"<button type='button' class='chip' data-chipmore='1'>+"+folded+" more</button>":'')+
+(chipsExpanded&&tags.length>CHIPS_SHOWN+1?"<button type='button' class='chip' data-chipmore='0'>Show fewer</button>":'');
 el.querySelectorAll('[data-chip]').forEach(function(b){b.onclick=function(){
-cohortFilter=b.dataset.chip||null;onPick();};});}
+cohortFilter=b.dataset.chip||null;onPick();};});
+el.querySelectorAll('[data-chipmore]').forEach(function(b){b.onclick=function(){
+chipsExpanded=b.dataset.chipmore==='1';onPick();};});}
 function tierChipFor(en){if(!en||!en.tier)return "<span class='dmut'> - </span>";
 var lbl={high:'Needs a nudge',medium:'Cooling off',watch:'Watch',ok:'Engaged',new:'New starter'}[en.tier]||en.tier;
 return "<span class='dtag"+(en.tier==='high'?' warn':'')+"'>"+esc2(lbl)+"</span>";}
@@ -1234,22 +1252,32 @@ applyData(d);
 loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
 .catch(function(){$('dh-sub').textContent='Could not reach the dashboard service - refresh to retry.';});
 /* ---------- the provider's own Refresh button ---------- */
-var refreshTimers=[];
+/* UI.md law 5, instant feedback: the press answers at once, the wait
+ * talks (a live countdown, not a frozen label), and the finish is a
+ * visible tick before the button returns to normal. */
+var refreshTimers=[];var refreshStarted=0;
+function refreshTick(){var b=$('dh-refresh');if(!b.disabled)return;
+var left=Math.max(0,150-Math.round((Date.now()-refreshStarted)/1000));
+b.textContent=left>105?'Refreshing - reaching the platform…':'Refreshing - new numbers land in ~'+(left>60?Math.ceil(left/60)+' min':left+'s')+'…';}
+function refreshDone(ok){var b=$('dh-refresh');b.disabled=false;
+refreshTimers.forEach(clearTimeout);refreshTimers=[];
+b.textContent=ok?'✓ Updated just now':'↻ Refresh data';
+if(ok)setTimeout(function(){if(!b.disabled)b.textContent='↻ Refresh data';},6000);}
 function refetchFresh(final){fetch('/dashboard/data?fresh=1').then(function(r){return r.json()}).then(function(d){
 if(d&&!d.error)applyData(d);
-if(final){var b=$('dh-refresh');b.disabled=false;b.textContent='↻ Refresh data';}})
-.catch(function(){if(final){var b=$('dh-refresh');b.disabled=false;b.textContent='↻ Refresh data';}});}
+if(final)refreshDone(true);})
+.catch(function(){if(final)refreshDone(false);});}
 $('dh-refresh').addEventListener('click',function(){
 var b=$('dh-refresh');if(b.disabled)return;
-b.disabled=true;b.textContent='Refreshing…';
-fetch('/dashboard/refresh',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
-if(d&&d.cooling){b.textContent='Fresh numbers already on their way…';}
+b.disabled=true;refreshStarted=Date.now();refreshTick();
+fetch('/dashboard/refresh',{method:'POST'}).then(function(r){return r.json()}).then(function(){
 refreshTimers.forEach(clearTimeout);
 /* Numbers land over a couple of minutes as the cycle walks the
  * learners - pull twice so the page catches up without a reload. */
-refreshTimers=[setTimeout(function(){refetchFresh(false)},45000),
+refreshTimers=[setInterval(refreshTick,5000),
+setTimeout(function(){refetchFresh(false)},45000),
 setTimeout(function(){refetchFresh(true)},150000)];})
-.catch(function(){b.disabled=false;b.textContent='↻ Refresh data';});});
+.catch(function(){refreshDone(false);});});
 })();`;
 
 const DASH_CSS = `
