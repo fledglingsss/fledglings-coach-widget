@@ -4288,10 +4288,11 @@ app.post("/api/hub", async (c) => {
     let learning: { enrolled: number; completed: number; inProgress: number } | null = null;
     if (EMAIL_PATTERN.test(email) && lwConfigured(c.env)) {
       try {
-        /* The rolling roster already holds every learner's modules -
-         * zero API calls, at most an hour old, and activity webhooks
-         * fast-track refreshes. Live fetch only for accounts the
-         * roster has not covered yet. */
+        /* The roster snapshot already holds every learner's modules -
+         * zero API calls, refreshed every morning and by any
+         * provider's Refresh press, and activity webhooks fast-track
+         * refreshes. Live fetch only for accounts the roster has not
+         * covered yet. */
         const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
         const entry = roster?.entries.find(
           (e) => (e.user.email ?? "").toLowerCase() === email,
@@ -4535,10 +4536,14 @@ async function dashboardRows(env: Env, tag: string | null): Promise<{
   return { totalUsers, rows, sample };
 }
 
-/* Provider-pressed refresh: kicks off the same chained roster cycle
- * the cron runs, plus a reflections step, and clears this scope's
- * dashboard cache. One press per scope per ten minutes - the lock
- * also lets ?fresh=1 reads bypass the cache while numbers land. */
+/* Provider-pressed refresh: opens a refresh window (lock + cache
+ * clear) and hands the walk to the BROWSER, which drives it slice by
+ * slice through /dashboard/refresh/step. The old server-side chain
+ * ran in waitUntil, which the runtime cancels ~30 seconds after the
+ * response - a press refreshed 23 of 369 learners and quietly
+ * stopped, leaving module charts half-updated (found live
+ * 2026-11-07). One press per scope per ten minutes; the lock also
+ * lets ?fresh=1 reads bypass the cache while numbers land. */
 app.post("/dashboard/refresh", async (c) => {
   const access = await portalSession(c);
   if (!access) return c.json({ error: "unauthorised" }, 401);
@@ -4549,24 +4554,61 @@ app.post("/dashboard/refresh", async (c) => {
   }
   await c.env.RATE_LIMITS.put(lockKey, "1", { expirationTtl: 600 });
   await c.env.RATE_LIMITS.delete(`dash:v13:${scopeKey}`);
-  const work = (async () => {
-    await dispatchJob(c.env, "roster_cycle");
+  const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
+  console.log(`[coach] kind=refresh scope=${scopeKey}`);
+  return c.json({ ok: true, cooling: false, total: roster?.entries.length ?? 0 });
+});
+
+/* One slice of a provider-driven refresh. The step request stays
+ * open while its slice pulls course records, so the work gets a full
+ * invocation lifetime instead of a background grace period. Only
+ * valid inside a refresh window (409 otherwise), and each step
+ * re-arms the lock so a long walk never loses its window. */
+app.post("/dashboard/refresh/step", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  const scopeKey = access.tag ? access.tag.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all";
+  const lockKey = `refresh:lock:${scopeKey}`;
+  if (!(await c.env.RATE_LIMITS.get(lockKey))) {
+    return c.json({ error: "no_refresh_in_progress" }, 409);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as { step?: number };
+  const step = typeof body.step === "number" && Number.isFinite(body.step) ? Math.floor(body.step) : 0;
+  if (step < 0 || step > 11) return c.json({ error: "step_out_of_range" }, 400);
+  await c.env.RATE_LIMITS.put(lockKey, "1", { expirationTtl: 600 });
+  const staleCount = async () => {
+    const roster = parseRoster(await c.env.RATE_LIMITS.get(ROSTER_KV_KEY));
+    const entries = roster?.entries ?? [];
+    return {
+      total: entries.length,
+      stale: entries.filter((e) => Date.now() - e.fetchedAt > 30 * 60_000).length,
+    };
+  };
+  /* Nothing stale (a resumed or repeated press after a finished
+   * walk): skip straight to the finishing jobs - no pointless pulls. */
+  let { total, stale } = await staleCount();
+  if (stale > 0) {
+    if (!(await dispatchJob(c.env, "roster", { depth: step }))) {
+      /* A slice can fail transiently (the platform rate-limits at
+       * ~30 req/10s and back-to-back slices ride that ceiling). The
+       * stale learners keep their place in line, so the browser just
+       * retries after a breather - 500 would read as fatal. */
+      return c.json({ ok: false, retryable: true, fresh: total - stale, total });
+    }
+    ({ total, stale } = await staleCount());
+  }
+  const done = stale === 0 || step >= 11;
+  if (done) {
     /* Engagement tiers rebuild with the data, so a cohort added since
-     * Monday stops reading "Inactive" the moment anyone refreshes. */
+     * this morning stops reading "Inactive" the moment anyone
+     * refreshes; the reflections sweep advances one step on the same
+     * press. The dash cache goes last so the next read is built from
+     * the new tiers. */
     await dispatchJob(c.env, "risk");
     await dispatchJob(c.env, "reflect");
-    /* The dash cache was already cleared, but a client refetch may
-     * have re-filled it with pre-rebuild tiers - clear it again now
-     * the tiers are fresh. */
     await c.env.RATE_LIMITS.delete(`dash:v13:${scopeKey}`);
-  })().catch((err) => console.error("[coach] refresh dispatch failed:", String(err)));
-  try {
-    c.executionCtx.waitUntil(work);
-  } catch {
-    work.catch(() => {});
   }
-  console.log(`[coach] kind=refresh scope=${scopeKey}`);
-  return c.json({ ok: true, cooling: false });
+  return c.json({ ok: true, done, fresh: total - stale, total });
 });
 
 app.get("/dashboard/data", async (c) => {

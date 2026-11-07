@@ -1253,30 +1253,42 @@ loadFeed();if(!feedTimer)feedTimer=setInterval(loadFeed,30000);})
 .catch(function(){$('dh-sub').textContent='Could not reach the dashboard service - refresh to retry.';});
 /* ---------- the provider's own Refresh button ---------- */
 /* UI.md law 5, instant feedback: the press answers at once, the wait
- * talks (a live countdown, not a frozen label), and the finish is a
- * visible tick before the button returns to normal. */
-var refreshTimers=[];var refreshStarted=0;
-function refreshTick(){var b=$('dh-refresh');if(!b.disabled)return;
-var left=Math.max(0,150-Math.round((Date.now()-refreshStarted)/1000));
-b.textContent=left>105?'Refreshing - reaching the platform…':'Refreshing - new numbers land in ~'+(left>60?Math.ceil(left/60)+' min':left+'s')+'…';}
+ * reports REAL progress (records up to date, not a guessed clock),
+ * and the finish is a visible tick. The browser drives the walk one
+ * slice per request - charts repaint after every slice, so the page
+ * visibly fills in module by module instead of jumping at the end. */
+function refreshSay(t){var b=$('dh-refresh');if(b.disabled)b.textContent=t;}
 function refreshDone(ok){var b=$('dh-refresh');b.disabled=false;
-refreshTimers.forEach(clearTimeout);refreshTimers=[];
 b.textContent=ok?'✓ Updated just now':'↻ Refresh data';
 if(ok)setTimeout(function(){if(!b.disabled)b.textContent='↻ Refresh data';},6000);}
 function refetchFresh(final){fetch('/dashboard/data?fresh=1').then(function(r){return r.json()}).then(function(d){
 if(d&&!d.error)applyData(d);
 if(final)refreshDone(true);})
 .catch(function(){if(final)refreshDone(false);});}
+function refreshPaused(){var b=$('dh-refresh');b.disabled=false;
+b.textContent='⚠ Paused partway - press to continue';}
+function refreshStep(i,tries){
+fetch('/dashboard/refresh/step',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({step:i})})
+.then(function(r){return r.json()}).then(function(s){
+if(!s||s.error){refreshPaused();return;}
+if(s.fresh!==undefined)refreshSay('Refreshing - '+s.fresh+' of '+s.total+' learner records up to date…');
+if(s.ok===false){
+/* A slice tripped the platform's rate ceiling - breathe, retry the
+ * same step; the stale learners kept their place in line. */
+if((tries||0)>=2){refreshPaused();return;}
+setTimeout(function(){refreshStep(i,(tries||0)+1)},8000);return;}
+refetchFresh(false);
+if(s.done){refetchFresh(true);}
+else setTimeout(function(){refreshStep(i+1,0)},2000);})
+.catch(function(){if((tries||0)>=2){refreshPaused();return;}
+setTimeout(function(){refreshStep(i,(tries||0)+1)},8000);});}
 $('dh-refresh').addEventListener('click',function(){
 var b=$('dh-refresh');if(b.disabled)return;
-b.disabled=true;refreshStarted=Date.now();refreshTick();
-fetch('/dashboard/refresh',{method:'POST'}).then(function(r){return r.json()}).then(function(){
-refreshTimers.forEach(clearTimeout);
-/* Numbers land over a couple of minutes as the cycle walks the
- * learners - pull twice so the page catches up without a reload. */
-refreshTimers=[setInterval(refreshTick,5000),
-setTimeout(function(){refetchFresh(false)},45000),
-setTimeout(function(){refetchFresh(true)},150000)];})
+b.disabled=true;b.textContent='Refreshing - reaching the platform…';
+fetch('/dashboard/refresh',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
+/* cooling = a walk started in the last few minutes (maybe a paused
+ * one) - stepping resumes it; a finished walk short-circuits. */
+refreshStep(0,0);})
 .catch(function(){refreshDone(false);});});
 })();`;
 

@@ -1216,6 +1216,135 @@ describe("POST /dashboard/refresh — the provider's own refresh button", () => 
   });
 });
 
+describe("POST /dashboard/refresh/step — the browser-driven walk", () => {
+  /* The walk runs one slice per request so each slice gets a full
+   * invocation lifetime; a background chain was cancelled ~30s after
+   * the response and left the roster part-fresh (live, 2026-11-07). */
+  type TestEnv = ReturnType<typeof makeEnv>;
+
+  function withSelf(env: TestEnv): string[] {
+    const jobs: string[] = [];
+    (env as { SELF?: unknown }).SELF = {
+      fetch: async (_url: string, init?: { body?: unknown }) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { job?: string };
+        jobs.push(body.job ?? "?");
+        return new Response("{}", { status: 200 });
+      },
+    };
+    return jobs;
+  }
+
+  async function seedRoster(env: TestEnv, agesMinutes: number[]) {
+    const now = Date.now();
+    await env.RATE_LIMITS.put(
+      "roster:v1",
+      JSON.stringify({
+        listSyncedAt: now,
+        entries: agesMinutes.map((age, i) => ({
+          user: { id: `r${i}`, email: `r${i}@swift.test`, tags: ["Swift Learners"] },
+          courses: [],
+          fetchedAt: now - age * 60_000,
+        })),
+      }),
+    );
+  }
+
+  async function startRefresh(env: TestEnv, cookie: string) {
+    await app.request(
+      new Request("http://coach.test/dashboard/refresh", {
+        method: "POST",
+        headers: { Cookie: cookie },
+      }),
+      undefined, env,
+    );
+  }
+
+  function stepReq(cookie: string, step: number) {
+    return new Request("http://coach.test/dashboard/refresh/step", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ step }),
+    });
+  }
+
+  it("rejects without a session", async () => {
+    const res = await app.request(
+      new Request("http://coach.test/dashboard/refresh/step", { method: "POST" }),
+      undefined, makeEnv(),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("refuses a step outside a refresh window", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const res = await app.request(stepReq(await cookieFor("swift-code-1"), 0), undefined, env);
+    expect(res.status).toBe(409);
+  });
+
+  it("keeps walking while records are stale, finishing only at the end", async () => {
+    const env = makeEnv();
+    const jobs = withSelf(env);
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const cookie = await cookieFor("swift-code-1");
+    await startRefresh(env, cookie);
+    /* One fresh record, two still on this morning's pull. */
+    await seedRoster(env, [1, 120, 120]);
+    const res = await app.request(stepReq(cookie, 0), undefined, env);
+    const s = (await res.json()) as { done: boolean; fresh: number; total: number };
+    expect(s).toMatchObject({ done: false, fresh: 1, total: 3 });
+    /* Mid-walk: only the roster slice ran — no tier or reflections
+     * rebuild until the course data is actually in. */
+    expect(jobs).toEqual(["roster"]);
+  });
+
+  it("finishes the walk: tiers + reflections rebuild, cache cleared", async () => {
+    const env = makeEnv();
+    const jobs = withSelf(env);
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const cookie = await cookieFor("swift-code-1");
+    await startRefresh(env, cookie);
+    await seedRoster(env, [1, 2]);
+    /* A client refetch may have re-filled the cache mid-walk. */
+    await env.RATE_LIMITS.put("dash:v13:swift-learners", "{}");
+    const res = await app.request(stepReq(cookie, 0), undefined, env);
+    const s = (await res.json()) as { done: boolean; fresh: number; total: number };
+    expect(s).toMatchObject({ done: true, fresh: 2, total: 2 });
+    /* Nothing was stale, so no pointless course pulls - straight to
+     * the finishing jobs. */
+    expect(jobs).toEqual(["risk", "reflect"]);
+    expect(env.RATE_LIMITS.store.has("dash:v13:swift-learners")).toBe(false);
+  });
+
+  it("reports a tripped slice as retryable, never fatal", async () => {
+    const env = makeEnv();
+    (env as { SELF?: unknown }).SELF = {
+      fetch: async () => new Response("{}", { status: 500 }),
+    };
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const cookie = await cookieFor("swift-code-1");
+    await startRefresh(env, cookie);
+    await seedRoster(env, [120, 120, 1]);
+    const res = await app.request(stepReq(cookie, 0), undefined, env);
+    expect(res.status).toBe(200);
+    const s = (await res.json()) as { ok: boolean; retryable: boolean; fresh: number };
+    expect(s).toMatchObject({ ok: false, retryable: true, fresh: 1, total: 3 });
+  });
+
+  it("caps the walk so a stuck roster can never loop forever", async () => {
+    const env = makeEnv();
+    withSelf(env);
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    const cookie = await cookieFor("swift-code-1");
+    await startRefresh(env, cookie);
+    await seedRoster(env, [120, 120]);
+    const last = await app.request(stepReq(cookie, 11), undefined, env);
+    expect(((await last.json()) as { done: boolean }).done).toBe(true);
+    const over = await app.request(stepReq(cookie, 12), undefined, env);
+    expect(over.status).toBe(400);
+  });
+});
+
 describe("provider-surface security (UK education data handling)", () => {
   function loginReq(body: Record<string, string>, ip: string) {
     return new Request("http://coach.test/portal/login", {
