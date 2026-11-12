@@ -9,8 +9,9 @@ providers, schools, colleges and employers. This repository holds the
 Cloudflare Worker that serves everything around the school platform:
 
 - **The provider dashboard** (`/dashboard`): tag-scoped views for each
-  provider (learners, cohorts, reflections, test scores, analytics,
-  evidence). Access by per-provider code; sessions last 8 hours.
+  provider (learners, module insights, cohorts, reflections, test
+  scores, analytics, evidence). Access by per-provider code; sessions
+  last 8 hours.
 - **The learner hub and career tools** (`/hub`, `/builder`, `/interview`,
   `/cover-letter`, `/linkedin`): CV, interview and letter tools.
 - **Fledge, the coach** (`/widget.js`, `/api/coach`): the in-course chat

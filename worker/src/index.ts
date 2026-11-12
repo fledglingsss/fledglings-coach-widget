@@ -160,6 +160,11 @@ import { renderVerifyPage } from "./pages-verify";
 import { demoProviderName, renderDemoPage } from "./pages-demo";
 import { renderDashboardPage } from "./pages-dashboard";
 import {
+  buildModuleInsights,
+  outstandingRows,
+  type ModuleInsights,
+} from "./lib/module-insights";
+import {
   markStale,
   parseRoster,
   perTickFor,
@@ -4803,6 +4808,74 @@ app.get("/dashboard/data", async (c) => {
   } catch (err) {
     console.error("[coach] dashboard data error:", String(err));
     return c.json({ error: "dashboard_failed" }, 500);
+  }
+});
+
+/* Module insights - the full learner-by-module picture for the
+ * provider's scope, read straight from the roster snapshot (a pure
+ * read: no platform calls, no per-learner lookups). Scoping matches
+ * dashboardRows exactly, so the two views can never disagree about
+ * who is in a provider's cohort. */
+async function moduleInsightsFor(env: Env, tag: string | null): Promise<ModuleInsights> {
+  const roster = parseRoster(await env.RATE_LIMITS.get(ROSTER_KV_KEY));
+  const people = (roster?.entries ?? [])
+    .filter((entry) => entry.user.email && inScope(entry.user.tags ?? [], tag))
+    .map((entry) => ({
+      name: displayName({
+        email: entry.user.email!,
+        firstName: entry.user.first_name,
+        lastName: entry.user.last_name,
+        username: entry.user.username,
+      }),
+      email: entry.user.email!,
+      tags: entry.user.tags ?? [],
+      courses: entry.courses,
+    }));
+  return buildModuleInsights(people);
+}
+
+app.get("/dashboard/module-insights", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  try {
+    return c.json(await moduleInsightsFor(c.env, access.tag));
+  } catch (err) {
+    console.error("[coach] module insights error:", String(err));
+    return c.json({ error: "module_insights_failed" }, 500);
+  }
+});
+
+/* The chase list: every enrolled-but-unfinished module, one row per
+ * learner per module, for the provider's scope. */
+app.get("/dashboard/outstanding.csv", async (c) => {
+  const access = await portalSession(c);
+  if (!access) return c.json({ error: "unauthorised" }, 401);
+  auditInBackground(c, "export", "outstanding.csv " + access.label);
+  try {
+    const rows = outstandingRows(await moduleInsightsFor(c.env, access.tag));
+    const lines = [
+      "Name,Email,Cohort,Module,Status,Progress %,Minutes on module",
+      ...rows.map((row) =>
+        [
+          csvField(row.name),
+          csvField(row.email),
+          csvField(row.tags.join("; ")),
+          csvField(row.module),
+          row.status,
+          row.pct,
+          row.minutes,
+        ].join(","),
+      ),
+    ];
+    return new Response(lines.join("\r\n"), {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="fledglings-unfinished-modules-${access.tag ?? "all"}.csv"`,
+      },
+    });
+  } catch (err) {
+    console.error("[coach] outstanding export error:", String(err));
+    return c.json({ error: "export_failed" }, 500);
   }
 });
 

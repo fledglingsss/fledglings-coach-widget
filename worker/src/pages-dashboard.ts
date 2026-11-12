@@ -17,7 +17,19 @@ const ICONS: Record<string, string> = {
   csv: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12m0 0 4-4m-4 4-4-4'/><path d='M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/></svg>",
   reflect: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.5-2.7A8 8 0 1 1 21 12z'/><path d='M9 10h6M9 13.5h4'/></svg>",
   shield: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z'/><path d='m9 12 2 2 4-4.5'/></svg>",
+  modules: "<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='3.5' width='16' height='17' rx='2.5'/><path d='m8 9 1.6 1.6L12.5 7.6M15 9h1.5M8 15h.01M11.5 15h5'/></svg>",
 };
+
+/* The engagement tiers, defined once and shown beside the chart that
+ * counts them - a provider should never have to ask what "Cooling
+ * off" means. The wording mirrors lib/risk.ts; change them together. */
+const TIER_KEY: Array<[string, string, string]> = [
+  ["#1A7649", "Engaged", "signed in within the last 7 days"],
+  ["#13507F", "New starters", "joined in the last 7 days"],
+  ["#ED9249", "Watch list", "8 to 9 days since last sign-in"],
+  ["#9A5812", "Cooling off", "10 to 20 days"],
+  ["#B93A22", "Needs contact", "21+ days"],
+];
 
 export function renderDashboardPage(): string {
   const nav = (id: string, icon: string, label: string) =>
@@ -30,6 +42,7 @@ export function renderDashboardPage(): string {
     "<div class='dsec'>Workbench</div>" +
     nav("home", "home", "Home") +
     nav("students", "students", "Students") +
+    nav("modules", "modules", "Module insights") +
     nav("cohorts", "cohorts", "Cohorts") +
     nav("reflections", "reflect", "Reflections") +
     nav("analytics", "analytics", "Analytics") +
@@ -113,6 +126,24 @@ export function renderDashboardPage(): string {
     "<section class='dview' id='v-profile' hidden>" +
     "<button type='button' class='dlink' id='prof-back' style='margin-bottom:12px'>← Back to students</button>" +
     "<div id='prof-body'></div>" +
+    "</section>" +
+
+    /* ---------- module insights: who has finished what ---------- */
+    "<section class='dview' id='v-modules' hidden>" +
+    "<p class='interp' id='mi-read'>Loading module records…</p>" +
+    "<div class='dbar'>" +
+    "<label class='sr-only' for='mi-module'>Show one module</label>" +
+    "<select id='mi-module' class='dselect'><option value=''>All modules</option></select>" +
+    "<a class='dbtn ghost' href='/dashboard/outstanding.csv'>⬇ Unfinished modules CSV</a></div>" +
+    "<div class='chips' id='mi-chips' style='margin-bottom:10px'>" +
+    "<button type='button' class='chip on' data-mi='all' aria-pressed='true'>All learners</button>" +
+    "<button type='button' class='chip' data-mi='out' aria-pressed='false'>Not finished</button>" +
+    "<button type='button' class='chip' data-mi='done' aria-pressed='false'>Finished</button>" +
+    "</div>" +
+    "<div class='dcard'><div class='dtablewrap'><table class='dtable mi-table' aria-label='Module completion by learner'>" +
+    "<thead id='mi-head'></thead><tbody id='mi-body'></tbody></table>" +
+    "<div class='dempty' id='mi-empty' hidden></div>" +
+    "<div class='dmore' id='mi-more'></div></div></div>" +
     "</section>" +
 
     /* ---------- cohorts ---------- */
@@ -216,7 +247,13 @@ export function renderDashboardPage(): string {
     "<div class='dcard'><h2>Effort against outcome <span class='dmut' style='font-weight:500'>every learner - time put in across, modules finished up</span></h2>" +
     "<div id='ch-scatter'></div></div>" +
     "<div>" +
-    "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div></div>" +
+    "<div class='dcard'><h2>Engagement mix</h2><div id='ch-tiers'></div>" +
+    "<div class='tierkey'><div class='tk-h'>How each group is defined</div>" +
+    TIER_KEY.map(
+      ([colour, label, rule]) =>
+        `<div class='tk'><i style='background:${colour}'></i><b>${esc(label)}</b><span>${esc(rule)}</span></div>`,
+    ).join("") +
+    "<div class='tk-n'>Never signed in: Watch list after 7 days, Needs contact after 14.</div></div></div>" +
     "<div class='dcard'><h2>When learners were last active</h2><div id='ch-recency'></div></div>" +
     "</div>" +
     "</div></div>" +
@@ -311,6 +348,7 @@ var DATA=null,view='home',cohortFilter=null,search='';
 /* ---------- navigation ---------- */
 var TITLES={home:['Home','Outcomes, progress and attention - at a glance'],
 students:['Students','Every learner in your scope with their learning record'],
+modules:['Module insights','Who has finished what - and which enrolled modules are still to finish'],
 cohorts:['Cohorts','Groups by cohort tag'],
 reflections:['Self-Reflections','What learners say before and after each module - in their own words'],
 analytics:['Analytics','Learning, engagement and where to help - visual first'],
@@ -320,11 +358,12 @@ var userActed=false;
 ['pointerdown','keydown'].forEach(function(t){addEventListener(t,function(){userActed=true},true)});
 /* The cohort bar follows the tutor across every data view - one pick,
  * whole dashboard. It hides where a cohort split has no meaning. */
-var GBAR_VIEWS={home:1,students:1,reflections:1,analytics:1};
+var GBAR_VIEWS={home:1,students:1,modules:1,reflections:1,analytics:1};
 function renderGlobalChips(){if(!DATA)return;chips($('g-chips'),refresh);}
 function refresh(){renderGlobalChips();
 if(view==='home')renderHome();
 if(view==='students')renderStudents();
+if(view==='modules')loadModuleInsights();
 if(view==='reflections')loadReflections();
 if(view==='analytics')renderAnalytics();}
 function go(v){view=v;
@@ -339,6 +378,7 @@ $('g-bar').hidden=!GBAR_VIEWS[v]||!DATA;
 if(!$('g-bar').hidden)renderGlobalChips();
 if(v==='home')renderHome();
 if(v==='students')renderStudents();
+if(v==='modules')loadModuleInsights();
 if(v==='cohorts')renderCohorts();
 if(v==='reflections')loadReflections();
 if(v==='analytics'){renderAnalytics();loadStalls();}
@@ -350,7 +390,8 @@ if(userActed)setTimeout(function(){var t=$('dh-title');if(!t)return;
 if(t.getAttribute('tabindex')===null)t.setAttribute('tabindex','-1');
 try{t.focus()}catch(e){}},0);}
 document.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){go(b.dataset.view)})});
-$('prof-back').addEventListener('click',function(){go('students')});
+var profFrom='students';
+$('prof-back').addEventListener('click',function(){go(profFrom)});
 /* ---------- charts (inline SVG) ---------- */
 function hbar(rows,max){var out="<div class='hbars'>";
 rows.forEach(function(r){var pct=max?Math.round(r.v*100/max):0;
@@ -567,9 +608,123 @@ function wireDrills(){document.querySelectorAll('[data-drill]').forEach(function
 el.onclick=function(){var r=DATA.learners.find(function(x){return x.email===el.dataset.drill});
 if(!r)return;showProfile(r);};});}
 function fmtMins(m){return m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m';}
+/* ---------- module insights ---------- */
+/* Who has finished what, learner by learner. The main payload carries
+ * at most twelve modules a learner, so this view reads its own full
+ * record. Enrolled-but-unfinished modules are the flag; weakest first
+ * so the opening slice is the chase list. */
+var MI=null,miStale=true,miLoading=false,miFilter='all',miModule='',miShown=25,miSig='',miOpen={},miFocus=null;
+function miStats(l){var done=0,going=0,todo=0;
+l.m.forEach(function(c){if(c[1]>=100)done++;else if(c[1]>0)going++;else todo++;});
+return {done:done,going:going,todo:todo,enrolled:l.m.length,out:going+todo};}
+function miCell(l,idx){for(var i=0;i<l.m.length;i++){if(l.m[i][0]===idx)return l.m[i];}return null;}
+/* under way first (closest to done leading), then untouched, then finished */
+function miRank(p){return p>=100?2:p>0?0:1;}
+function loadModuleInsights(){
+if(MI)renderModuleInsights();
+if(!miStale||miLoading)return;
+miLoading=true;
+fetch('/dashboard/module-insights').then(function(r){return r.json()}).then(function(d){
+miLoading=false;
+if(!d||d.error||!d.learners){
+if(!MI)$('mi-read').textContent='Could not load the module records - press Refresh data, or reload the page.';return;}
+MI=d;miStale=false;if(view==='modules')renderModuleInsights();})
+.catch(function(){miLoading=false;
+if(!MI)$('mi-read').textContent='Could not reach the module records - check your connection and reload the page.';});}
+function miDetail(l){
+var cells=l.m.slice().sort(function(a,b){return miRank(a[1])-miRank(b[1])||b[1]-a[1]||a[0]-b[0];});
+var out=cells.filter(function(c){return c[1]<100}),done=cells.filter(function(c){return c[1]>=100});
+var h="<tr class='mi-detail'><td colspan='6'>";
+if(out.length)h+="<div class='mi-gh'>⚑ Enrolled, not finished ("+out.length+")</div><div class='mi-mods'>"+out.map(function(c){
+return "<span class='mi-m "+(c[1]>0?'going':'todo')+"'>"+esc2(MI.modules[c[0]])+" <b>"+(c[1]>0?c[1]+'%':'Not started')+"</b></span>";}).join('')+"</div>";
+if(done.length)h+="<div class='mi-gh ok'>✓ Completed ("+done.length+")</div><div class='mi-mods'>"+done.map(function(c){
+return "<span class='mi-m done'>"+esc2(MI.modules[c[0]])+"</span>";}).join('')+"</div>";
+if(!cells.length)h+="<div class='dempty'>Not enrolled on any module yet - enrolments appear here after the next refresh.</div>";
+return h+"<button type='button' class='dlink' data-drill='"+esc2(l.email)+"'>Open full profile →</button></td></tr>";}
+function renderModuleInsights(){
+var learners=MI.learners;
+if(cohortFilter)learners=learners.filter(function(l){return l.tags.indexOf(cohortFilter)>-1});
+/* The picker lists only modules these learners are enrolled on. */
+var enr={},unf={};
+learners.forEach(function(l){l.m.forEach(function(c){enr[c[0]]=(enr[c[0]]||0)+1;if(c[1]<100)unf[c[0]]=(unf[c[0]]||0)+1;});});
+var modIdx=miModule?MI.modules.indexOf(miModule):-1;
+if(modIdx<0||!enr[modIdx]){miModule='';modIdx=-1;}
+$('mi-module').innerHTML="<option value=''>All modules</option>"+MI.modules.map(function(t,i){
+if(!enr[i])return '';
+return "<option value='"+esc2(t)+"'"+(i===modIdx?' selected':'')+">"+esc2(t)+" ("+(unf[i]||0)+" not finished)</option>";}).join('');
+var one=modIdx>=0;
+var rows=[];
+learners.forEach(function(l){
+if(one){var c=miCell(l,modIdx);if(c)rows.push({l:l,c:c,out:c[1]<100,fin:c[1]>=100});}
+else{var s=miStats(l);rows.push({l:l,s:s,out:s.out>0,fin:s.enrolled>0&&s.out===0});}});
+var nAll=rows.length,nOut=rows.filter(function(x){return x.out}).length,nFin=rows.filter(function(x){return x.fin}).length;
+var read;
+if(one){var g1=rows.filter(function(x){return x.out&&x.c[1]>0}).length;
+read='“'+miModule+'”: '+nAll+' enrolled - '+nFin+' finished ('+(nAll?Math.round(nFin*100/nAll):0)+'%), '+g1+' under way and '+(nOut-g1)+' not started.';}
+else if(!nAll){read='No learners in this cohort yet - they appear here once they are added and enrolled.';}
+else{var E=0,D=0,G=0;rows.forEach(function(x){E+=x.s.enrolled;D+=x.s.done;G+=x.s.going;});
+read=nOut+' of these '+nAll+' learners have at least one enrolled module still to finish. '+fmtN(D)+' of '+fmtN(E)+' enrolled modules are complete ('+(E?Math.round(D*100/E):0)+'%); '+fmtN(G)+' are under way and '+fmtN(E-D-G)+' have not been started. Press a learner to see which.';}
+$('mi-read').textContent=read;
+var counts={all:nAll,out:nOut,done:nFin};
+document.querySelectorAll('#mi-chips .chip').forEach(function(ch){var k=ch.dataset.mi;
+ch.classList.toggle('on',k===miFilter);ch.setAttribute('aria-pressed',k===miFilter?'true':'false');
+ch.innerHTML=esc2({all:'All learners',out:'Not finished',done:'Finished'}[k])+' <i>'+counts[k]+'</i>';});
+if(miFilter==='out')rows=rows.filter(function(x){return x.out});
+if(miFilter==='done')rows=rows.filter(function(x){return x.fin});
+rows.sort(function(a,b){
+if(one)return miRank(a.c[1])-miRank(b.c[1])||b.c[1]-a.c[1]||a.l.name.localeCompare(b.l.name);
+return b.s.out-a.s.out||b.s.going-a.s.going||a.l.name.localeCompare(b.l.name);});
+var sig=miFilter+'|'+miModule+'|'+(cohortFilter||'');
+if(sig!==miSig){miSig=sig;miShown=25;}
+var total=rows.length;var visible=rows.slice(0,miShown);
+renderMore('mi-more',total,visible.length,25,function(all){miShown=all?total:miShown+25;renderModuleInsights();});
+$('mi-empty').hidden=total>0;
+$('mi-head').parentElement.hidden=total===0;
+if(!total)$('mi-empty').textContent=!nAll?'No learners here yet - they appear once they are added and enrolled on a module.':
+miFilter==='out'?'Nobody in this filter has an unfinished module - every enrolled module is complete.':
+miFilter==='done'?'Nobody in this filter has finished everything yet - pick Not finished to see what is left.':
+'No learners match - pick a different filter.';
+$('mi-head').innerHTML=one?
+"<tr><th scope='col'>Learner</th><th scope='col'>Cohort</th><th scope='col'>Status</th><th scope='col'>Time on module</th><th scope='col'><span class='sr-only'>Open profile</span></th></tr>":
+"<tr><th scope='col'>Learner</th><th scope='col'>Cohort</th><th scope='col'>Completed</th><th scope='col'>In progress</th><th scope='col'>Not started</th><th scope='col'>Flag</th></tr>";
+$('mi-body').innerHTML=visible.map(function(x){var l=x.l;
+/* The scope's own tag is on every learner here, so it says nothing -
+ * leaving it out gives the two slots to their actual cohorts. */
+var tags=l.tags.filter(function(t){return t!==DATA.scopedTag}).slice(0,2).map(function(t){return "<span class='dtag'>"+esc2(t)+"</span>"}).join(' ');
+var who="<span><b>"+esc2(l.name)+"</b><br><span class='dmut'>"+esc2(l.email)+"</span></span>";
+if(one){var p=x.c[1];
+var st=p>=100?"<span class='dtag mi-done'>✓ Completed</span>":
+p>0?"<span class='dtag mi-going'>⚑ In progress · "+p+"%</span>":"<span class='dtag warn'>⚑ Not started</span>";
+return "<tr class='rowlink' data-drill='"+esc2(l.email)+"'><td data-k='Learner'>"+who+"</td><td data-k='Cohort'>"+tags+"</td>"+
+"<td data-k='Status'>"+st+"</td><td data-k='Time on module'>"+(x.c[2]?fmtMins(x.c[2]):' - ')+"</td>"+
+"<td class='mi-act'><button type='button' class='dlink'>View →</button></td></tr>";}
+var s=x.s,open=!!miOpen[l.email],pct=s.enrolled?Math.round(s.done*100/s.enrolled):0;
+var row="<tr class='rowlink mi-row"+(open?' open':'')+"' data-mi-row='"+esc2(l.email)+"'>"+
+"<td data-k='Learner'><button type='button' class='mi-tog' aria-expanded='"+(open?'true':'false')+"'>"+
+"<span class='mi-chev' aria-hidden='true'>"+(open?'▾':'▸')+"</span>"+who+"</button></td>"+
+"<td data-k='Cohort'>"+tags+"</td>"+
+"<td data-k='Completed'><span class='ms'>"+s.done+"/"+s.enrolled+"</span><i class='msb'><b style='width:"+pct+"%;background:#1A7649'></b></i></td>"+
+"<td data-k='In progress'>"+(s.going?"<span class='dtag mi-going'>"+s.going+"</span>":"<span class='dmut'>0</span>")+"</td>"+
+"<td data-k='Not started'>"+(s.todo?"<span class='dtag warn'>"+s.todo+"</span>":"<span class='dmut'>0</span>")+"</td>"+
+"<td data-k='Flag'>"+(s.out?"<span class='dtag warn'>⚑ "+s.out+" to finish</span>":
+s.enrolled?"<span class='dtag mi-done'>✓ All finished</span>":"<span class='dmut'>Not enrolled yet</span>")+"</td></tr>";
+return open?row+miDetail(l):row;}).join('');
+document.querySelectorAll('#mi-body [data-mi-row]').forEach(function(tr){
+tr.onclick=function(){var e=tr.dataset.miRow;miOpen[e]=!miOpen[e];miFocus=e;renderModuleInsights();};
+/* a re-render replaces the row: hand keyboard focus back to it */
+if(miFocus===tr.dataset.miRow){miFocus=null;var b=tr.querySelector('.mi-tog');if(b){try{b.focus()}catch(e){}}}});
+wireDrills();}
+document.querySelectorAll('#mi-chips .chip').forEach(function(ch){
+ch.addEventListener('click',function(){miFilter=ch.dataset.mi;if(MI)renderModuleInsights();});});
+$('mi-module').addEventListener('change',function(){miModule=this.value;miOpen={};if(MI)renderModuleInsights();});
 /* ---------- learner profile: central record + analysis ---------- */
-function showProfile(r){go('profile');
-document.querySelectorAll('.dn[data-view]').forEach(function(b){b.classList.toggle('on',b.dataset.view==='students')});
+function showProfile(r){
+/* Back returns to where the provider came from - a profile opened
+ * from Module insights must not drop them in the Students list. */
+if(view!=='profile')profFrom=view==='modules'?'modules':'students';
+$('prof-back').textContent=profFrom==='modules'?'← Back to module insights':'← Back to students';
+go('profile');
+document.querySelectorAll('.dn[data-view]').forEach(function(b){b.classList.toggle('on',b.dataset.view===profFrom)});
 $('dh-title').textContent=r.name;$('dh-sub').textContent=r.email;
 var lg=r.learning,en=r.engagement;
 var modPct=lg.enrolled?Math.round(lg.completed*100/lg.enrolled):0;
@@ -1227,6 +1382,8 @@ $('ev-link-copied').hidden=false;setTimeout(function(){$('ev-link-copied').hidde
 /* ---------- boot ---------- */
 function applyData(d){
 d.attention=d.attention||[];DATA=d;
+/* fresh numbers landed: the module records are re-read on next view */
+miStale=true;
 $('dscope').textContent=d.scopedTag?('Scope: '+d.scopedTag):'Whole school';
 $('dsample').textContent=(d.scopedTag?
 'your '+d.sampleSize+' learners covered':
@@ -1664,6 +1821,56 @@ body{display:block;}
 .dlink{display:inline-flex;align-items:center;padding:8px 4px;}
 #cmp-mods .hb,#cmp-time .hb,#cmp-active .hb{min-height:44px;}
 #ev-link-url{min-height:44px;}
+}
+/* The engagement key: each tier's rule beside the chart that counts
+ * it, in the chart's own colours. */
+.tierkey{margin-top:14px;padding-top:12px;border-top:1px solid var(--off);display:grid;gap:6px;}
+.tk-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin-bottom:2px;}
+.tk{display:grid;grid-template-columns:10px 104px 1fr;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink);}
+.tk i{width:10px;height:10px;border-radius:50%;align-self:center;}
+.tk b{font-weight:700;color:var(--navy);}
+.tk span{color:var(--mut);}
+.tk-n{font-size:11.5px;color:var(--mut);margin-top:4px;}
+/* Module insights. */
+.dselect{flex:1;min-width:200px;max-width:560px;min-height:44px;border:1.5px solid var(--line);border-radius:11px;
+  padding:10px 14px;font-family:inherit;font-size:13.5px;font-weight:600;background:#fff;color:var(--ink);}
+.dselect:focus{outline:none;border-color:var(--mango);}
+.dtag.mi-going{background:#FBF1E4;color:#7A4A10;white-space:nowrap;}
+.dtag.mi-done{background:#E6F2EB;color:#1A7649;white-space:nowrap;}
+.mi-tog{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;border:none;background:none;padding:0;
+  font-family:inherit;font-size:13px;color:var(--ink);text-align:left;cursor:pointer;}
+.mi-tog:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:8px;}
+.mi-chev{flex:none;width:18px;color:var(--blue);font-size:17px;line-height:1;text-align:center;}
+.mi-row.open td{background:#FBFAF9;border-bottom-color:transparent;}
+.mi-detail td{background:#FBFAF9;padding:4px 14px 16px 33px;}
+.mi-gh{font-size:11.5px;font-weight:800;color:var(--orange-deep);margin:10px 0 7px;}
+.mi-gh.ok{color:#1A7649;}
+.mi-mods{display:flex;flex-wrap:wrap;gap:6px;}
+.mi-m{display:inline-flex;align-items:baseline;gap:7px;border-radius:9px;padding:6px 10px;font-size:12.5px;font-weight:600;line-height:1.3;}
+.mi-m b{font-weight:800;font-size:11.5px;white-space:nowrap;}
+.mi-m.going{background:#FBF1E4;color:#7A4A10;}
+.mi-m.todo{background:#FBEAE6;color:var(--orange-deep);}
+.mi-m.done{background:#E6F2EB;color:#1A7649;}
+.mi-detail .dlink{margin-top:10px;}
+/* On a phone each learner reads as a card: the name leads, then each
+ * figure on its own labelled line - no sideways scrolling. */
+@media(max-width:560px){
+.mi-table thead{display:none;}
+.mi-table,.mi-table tbody{display:block;}
+.mi-table tr{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:12px 0;border-bottom:1px solid var(--off);}
+.mi-table td{border:none;padding:0;display:flex;align-items:center;gap:8px;font-size:12.5px;}
+.mi-table td[data-k]::before{content:attr(data-k);color:var(--mut);font-weight:600;flex:none;}
+.mi-table td[data-k='Learner'],.mi-table td[data-k='Cohort'],.mi-table td[data-k='Flag'],.mi-table td[data-k='Status']{grid-column:1/-1;}
+.mi-table td[data-k='Learner']::before,.mi-table td[data-k='Cohort']::before{content:none;}
+.mi-table td[data-k='Cohort']{flex-wrap:wrap;}
+.mi-table td[data-k='Cohort']:empty{display:none;}
+.mi-table td .msb{margin-top:0;}
+.mi-table tr.mi-detail{display:block;padding:0 0 12px;}
+.mi-table tr.mi-detail td{display:block;padding:2px 10px 12px 12px;border-radius:12px;}
+.mi-table .mi-act{grid-column:1/-1;}
+.mi-row.open{border-bottom-color:transparent;}
+.mi-row.open td{background:none;}
+.dselect{max-width:none;width:100%;}
 }
 /* Signed out: nothing but the way in. */
 body.signed-out .dn,body.signed-out .dsec,body.signed-out .dfoot,

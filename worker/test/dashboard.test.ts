@@ -1187,6 +1187,110 @@ describe("GET /portal/reflections — scoped confidence shifts", () => {
   });
 });
 
+describe("module insights — who has finished what, per provider", () => {
+  type TestEnv = ReturnType<typeof makeEnv>;
+
+  async function seedModuleRoster(env: TestEnv) {
+    const now = Date.now();
+    const entry = (
+      id: string,
+      email: string,
+      first: string,
+      last: string,
+      tags: string[],
+      courses: Array<{ title: string; progressRate: number; completed: boolean }>,
+    ) => ({
+      user: { id, email, first_name: first, last_name: last, tags },
+      courses,
+      fetchedAt: now,
+    });
+    await env.RATE_LIMITS.put(
+      "roster:v1",
+      JSON.stringify({
+        listSyncedAt: now,
+        entries: [
+          entry("m1", "amy@swift.test", "Amy", "Ash", ["Swift Learners"], [
+            { title: "Budgeting", progressRate: 100, completed: true },
+            { title: "Payslips", progressRate: 35, completed: false },
+          ]),
+          entry("m2", "eve@swift.test", "=Eve", "Formula", ["Swift Learners"], [
+            { title: "Budgeting", progressRate: 0, completed: false },
+          ]),
+          entry("m3", "zed@other.test", "Zed", "Zane", ["Other Provider"], [
+            { title: "Interviews", progressRate: 10, completed: false },
+          ]),
+        ],
+      }),
+    );
+  }
+
+  it("rejects both routes without a session", async () => {
+    for (const path of ["/dashboard/module-insights", "/dashboard/outstanding.csv"]) {
+      const res = await app.request(get(path), undefined, makeEnv());
+      expect(res.status).toBe(401);
+    }
+  });
+
+  it("shows a provider only their own learners and their modules", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedModuleRoster(env);
+    const res = await app.request(
+      get("/dashboard/module-insights", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      modules: string[];
+      learners: Array<{ email: string; m: number[][] }>;
+    };
+    expect(body.learners.map((l) => l.email).sort()).toEqual(["amy@swift.test", "eve@swift.test"]);
+    /* The other provider's module never appears, even as a title. */
+    expect(body.modules).toEqual(["Budgeting", "Payslips"]);
+    const amy = body.learners.find((l) => l.email === "amy@swift.test")!;
+    expect(amy.m).toEqual([
+      [0, 100, 0],
+      [1, 35, 0],
+    ]);
+  });
+
+  it("gives the whole-school code every learner", async () => {
+    const env = makeEnv();
+    await seedCode(env, "hq-code-1", "Fledglings HQ");
+    await seedModuleRoster(env);
+    const res = await app.request(
+      get("/dashboard/module-insights", await cookieFor("hq-code-1")),
+      undefined, env,
+    );
+    const body = (await res.json()) as { learners: unknown[]; modules: string[] };
+    expect(body.learners).toHaveLength(3);
+    expect(body.modules).toEqual(["Budgeting", "Interviews", "Payslips"]);
+  });
+
+  it("exports only unfinished modules, scoped, with spreadsheet formulas defused", async () => {
+    const env = makeEnv();
+    await seedCode(env, "swift-code-1", "Swift Training", "Swift Learners");
+    await seedModuleRoster(env);
+    const res = await app.request(
+      get("/dashboard/outstanding.csv", await cookieFor("swift-code-1")),
+      undefined, env,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/csv");
+    const lines = (await res.text()).split("\r\n");
+    expect(lines[0]).toBe("Name,Email,Cohort,Module,Status,Progress %,Minutes on module");
+    /* Amy's finished Budgeting is not a chase item; her Payslips is. */
+    expect(lines.filter((l) => l.includes("amy@swift.test"))).toEqual([
+      '"Amy Ash","amy@swift.test","Swift Learners","Payslips",In progress,35,0',
+    ]);
+    /* A name starting with "=" must never execute in a spreadsheet. */
+    const eve = lines.find((l) => l.includes("eve@swift.test"))!;
+    expect(eve.startsWith("\"'=")).toBe(true);
+    expect(eve).toContain("Not started");
+    expect(lines.join("\n")).not.toContain("zed@other.test");
+  });
+});
+
 describe("POST /dashboard/refresh — the provider's own refresh button", () => {
   it("rejects without a session", async () => {
     const res = await app.request(
